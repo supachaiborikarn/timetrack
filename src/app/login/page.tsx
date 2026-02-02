@@ -39,7 +39,7 @@ function LoginForm() {
             });
 
             if (result?.error) {
-                setError("เบอร์โทรหรือ PIN ไม่ถูกต้อง");
+                setError("ชื่อ, เบอร์โทร หรือ PIN ไม่ถูกต้อง");
             } else {
                 router.push(callbackUrl);
                 router.refresh();
@@ -101,11 +101,11 @@ function LoginForm() {
                     <TabsContent value="pin">
                         <form onSubmit={handlePinLogin} className="space-y-4 mt-4">
                             <div className="space-y-2">
-                                <Label htmlFor="phone" className="text-slate-300">เบอร์โทรศัพท์</Label>
+                                <Label htmlFor="phone" className="text-slate-300">เบอร์โทรศัพท์ หรือ ชื่อพนักงาน</Label>
                                 <Input
                                     id="phone"
-                                    type="tel"
-                                    placeholder="0812345678"
+                                    type="text"
+                                    placeholder="0812345678 หรือ สมชาย"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 text-lg"
