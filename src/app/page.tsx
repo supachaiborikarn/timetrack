@@ -1,62 +1,460 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect, useCallback } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { redirect } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Clock,
+  MapPin,
+  LogIn,
+  LogOut,
+  Calendar,
+  History,
+  QrCode,
+  FileEdit,
+  AlertCircle,
+  Loader2,
+  Building2,
+  Timer,
+  User,
+  ChevronRight,
+  Settings,
+} from "lucide-react";
+import { toast } from "sonner";
+import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
+import { formatThaiDate, formatTime, getBangkokNow } from "@/lib/date-utils";
+
+interface TodayData {
+  attendance: {
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    lateMinutes: number | null;
+    status: string;
+  } | null;
+  shift: {
+    name: string;
+    startTime: string;
+    endTime: string;
+    breakMinutes: number;
+  } | null;
+  user: {
+    name: string;
+    station: string;
+    department: string;
+    hourlyRate: number;
+  };
+}
+
+export default function EmployeeDashboard() {
+  const { data: session, status } = useSession();
+  const [currentTime, setCurrentTime] = useState(getBangkokNow());
+  const [todayData, setTodayData] = useState<TodayData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const fetchTodayData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/attendance/today");
+      if (res.ok) {
+        const data = await res.json();
+        setTodayData(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch today data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(getBangkokNow());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchTodayData();
+    }
+  }, [session?.user?.id, fetchTodayData]);
+
+  const handleCheckIn = async () => {
+    setIsChecking(true);
+    try {
+      const position = await getCurrentPosition();
+      const deviceId = getDeviceFingerprint();
+
+      const res = await fetch("/api/attendance/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          deviceId,
+          method: "GPS",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("เช็คอินสำเร็จ!", {
+          description: data.data?.lateMinutes > 0
+            ? `สาย ${data.data.lateMinutes} นาที`
+            : "ตรงเวลา",
+        });
+        fetchTodayData();
+      } else {
+        toast.error("เช็คอินไม่สำเร็จ", { description: data.error });
+      }
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาด", {
+        description: error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้",
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    setIsChecking(true);
+    try {
+      const position = await getCurrentPosition();
+      const deviceId = getDeviceFingerprint();
+
+      const res = await fetch("/api/attendance/check-out", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          deviceId,
+          method: "GPS",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("เช็คเอาต์สำเร็จ!", {
+          description: `ทำงาน ${data.data?.totalHours?.toFixed(1)} ชม.`,
+        });
+        fetchTodayData();
+      } else {
+        toast.error("เช็คเอาต์ไม่สำเร็จ", { description: data.error });
+      }
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาด", {
+        description: error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้",
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  if (status === "loading" || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const hasCheckedIn = !!todayData?.attendance?.checkInTime;
+  const hasCheckedOut = !!todayData?.attendance?.checkOutTime;
+
+  // Calculate expected work hours
+  const getExpectedHours = () => {
+    if (!todayData?.shift) return null;
+    const [startH, startM] = todayData.shift.startTime.split(":").map(Number);
+    const [endH, endM] = todayData.shift.endTime.split(":").map(Number);
+    let hours = endH - startH + (endM - startM) / 60;
+    if (hours < 0) hours += 24; // Night shift
+    return hours - (todayData.shift.breakMinutes / 60);
+  };
+
+  const expectedHours = getExpectedHours();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pb-24">
+      {/* Header */}
+      <header className="bg-slate-800/50 border-b border-slate-700 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-semibold text-white text-lg">
+                {todayData?.user?.name || session.user.name}
+              </h1>
+              <p className="text-xs text-slate-400">
+                {todayData?.user?.station || "ไม่ระบุสถานี"} • {todayData?.user?.department || "ไม่ระบุแผนก"}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-slate-400"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </header>
+
+      <main className="p-4 space-y-4">
+        {/* Real-time Clock */}
+        <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0">
+          <CardContent className="py-6 text-center">
+            <p className="text-blue-200 text-sm mb-1">
+              {formatThaiDate(currentTime, "EEEE d MMMM yyyy")}
+            </p>
+            <p className="text-5xl font-bold text-white tracking-wider font-mono">
+              {formatTime(currentTime)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Today's Shift Info */}
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-purple-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-400">กะวันนี้</p>
+                <p className="font-medium text-white">
+                  {todayData?.shift?.name || "ไม่มีกะ"}
+                </p>
+              </div>
+              {todayData?.shift && (
+                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                  {todayData.shift.startTime} - {todayData.shift.endTime}
+                </Badge>
+              )}
+            </div>
+
+            {todayData?.shift && (
+              <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-white">
+                    {expectedHours?.toFixed(1) || "-"}
+                  </p>
+                  <p className="text-xs text-slate-400">ชม.ที่ต้องทำ</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-white">
+                    {todayData.shift.breakMinutes}
+                  </p>
+                  <p className="text-xs text-slate-400">นาทีพัก</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-400">
+                    ฿{todayData?.user?.hourlyRate || 0}
+                  </p>
+                  <p className="text-xs text-slate-400">ต่อชม.</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Attendance Status */}
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-slate-400">สถานะการลงเวลา</span>
+              {todayData?.attendance?.lateMinutes ? (
+                <Badge variant="destructive" className="text-xs">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  สาย {todayData.attendance.lateMinutes} นาที
+                </Badge>
+              ) : hasCheckedIn ? (
+                <Badge className="bg-green-500/20 text-green-400 text-xs">
+                  ตรงเวลา
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${hasCheckedIn ? "bg-green-500" : "bg-slate-600"}`} />
+                <div>
+                  <p className="text-xs text-slate-400">เข้างาน</p>
+                  <p className="text-lg font-semibold text-white">
+                    {todayData?.attendance?.checkInTime
+                      ? formatTime(new Date(todayData.attendance.checkInTime))
+                      : "--:--"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${hasCheckedOut ? "bg-orange-500" : "bg-slate-600"}`} />
+                <div>
+                  <p className="text-xs text-slate-400">ออกงาน</p>
+                  <p className="text-lg font-semibold text-white">
+                    {todayData?.attendance?.checkOutTime
+                      ? formatTime(new Date(todayData.attendance.checkOutTime))
+                      : "--:--"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Check-in/out Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            className={`h-16 text-lg font-semibold ${hasCheckedIn
+              ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+              }`}
+            disabled={hasCheckedIn || isChecking || !todayData?.shift}
+            onClick={handleCheckIn}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
+            {isChecking ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <LogIn className="w-5 h-5 mr-2" />
+            )}
+            เข้าเวร
+          </Button>
+          <Button
+            className={`h-16 text-lg font-semibold ${!hasCheckedIn || hasCheckedOut
+              ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+              }`}
+            disabled={!hasCheckedIn || hasCheckedOut || isChecking}
+            onClick={handleCheckOut}
+          >
+            {isChecking ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <LogOut className="w-5 h-5 mr-2" />
+            )}
+            เลิกเวร
+          </Button>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <a href="/qr-scan">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                  <QrCode className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-white">สแกน QR</p>
+                  <p className="text-xs text-slate-400">เช็คอินด้วย QR</p>
+                </div>
+              </CardContent>
+            </Card>
           </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+          <a href="/requests/time-correction">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                  <FileEdit className="w-5 h-5 text-yellow-400" />
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-white">ขอแก้เวลา</p>
+                  <p className="text-xs text-slate-400">ลืมกดเข้า-ออก</p>
+                </div>
+              </CardContent>
+            </Card>
+          </a>
+        </div>
+
+        {/* Menu List */}
+        <div className="space-y-2">
+          {/* Admin Dashboard Link - Only for ADMIN/HR/MANAGER */}
+          {session?.user?.role && ["ADMIN", "HR", "MANAGER"].includes(session.user.role) && (
+            <a href="/admin">
+              <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 hover:from-blue-600/30 hover:to-purple-600/30 transition cursor-pointer">
+                <CardContent className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5 text-blue-400" />
+                    <span className="text-white font-medium">Admin Dashboard</span>
+                    <Badge className="bg-blue-500/20 text-blue-400 text-xs">{session.user.role}</Badge>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-blue-400" />
+                </CardContent>
+              </Card>
+            </a>
+          )}
+          <a href="/schedule">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-blue-400" />
+                  <span className="text-white">ตารางกะ</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </CardContent>
+            </Card>
+          </a>
+          <a href="/shift-pool">
+            <Card className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border-emerald-500/30 hover:from-emerald-900/40 hover:to-teal-900/40 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span className="text-white">กะว่าง / สลับกะ</span>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">NEW</Badge>
+                </div>
+                <ChevronRight className="w-5 h-5 text-emerald-400" />
+              </CardContent>
+            </Card>
+          </a>
+          <a href="/availability">
+            <Card className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-purple-500/30 hover:from-purple-900/40 hover:to-pink-900/40 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-white">แจ้งวันว่าง</span>
+                  <Badge className="bg-purple-500/20 text-purple-400 text-xs">NEW</Badge>
+                </div>
+                <ChevronRight className="w-5 h-5 text-purple-400" />
+              </CardContent>
+            </Card>
+          </a>
+          <a href="/history">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <History className="w-5 h-5 text-green-400" />
+                  <span className="text-white">ประวัติการลงเวลา</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </CardContent>
+            </Card>
+          </a>
+          <a href="/requests">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileEdit className="w-5 h-5 text-yellow-400" />
+                  <span className="text-white">คำขอทั้งหมด</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </CardContent>
+            </Card>
           </a>
         </div>
       </main>

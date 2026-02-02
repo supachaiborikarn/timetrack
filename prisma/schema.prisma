@@ -1,0 +1,534 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  HR
+  MANAGER
+  CASHIER   // แคชเชียร์ - อนุมัติกะ/ลงเวลาของสถานี
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE      // ทำงานอยู่
+  RESIGNED    // ลาออก
+  SUSPENDED   // พักงาน
+}
+
+enum StationType {
+  GAS_STATION
+  COFFEE_SHOP
+}
+
+enum AttendanceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ABSENT
+  LEAVE
+}
+
+enum LeaveType {
+  SICK
+  PERSONAL
+  VACATION
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSING
+  FINALIZED
+}
+
+enum AdvanceStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+// ==================== CORE MODELS ====================
+
+model User {
+  id           String   @id @default(cuid())
+  employeeId   String   @unique // รหัสพนักงาน
+  name         String
+  email        String?  @unique
+  phone        String   @unique
+  pin          String   // 6-digit PIN for check-in (hashed)
+  password     String?  // For admin/manager web login (hashed)
+  role         Role     @default(EMPLOYEE)
+  stationId    String?
+  departmentId String?
+  deviceId     String?  // Registered device fingerprint
+  photoUrl     String?  // รูปถ่ายพนักงาน
+  
+  // Wage configuration - custom per employee
+  hourlyRate      Decimal @default(0)
+  dailyRate       Decimal @default(0)
+  baseSalary      Decimal @default(0)
+  otRateMultiplier Decimal @default(1.5) // OT rate specific to employee
+  
+  isActive       Boolean        @default(true)
+  employeeStatus EmployeeStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  station         Station?          @relation(fields: [stationId], references: [id])
+  department      Department?       @relation(fields: [departmentId], references: [id])
+  attendances     Attendance[]
+  shiftAssignments ShiftAssignment[]
+  leaves          Leave[]
+  payrollRecords  PayrollRecord[]
+  advances        Advance[]
+  approvedLeaves  Leave[]           @relation("LeaveApprover")
+  approvedAttendances Attendance[]  @relation("AttendanceApprover")
+  timeCorrections TimeCorrection[]
+  swapRequestsSent ShiftSwap[]      @relation("SwapRequester")
+  swapRequestsReceived ShiftSwap[]  @relation("SwapTarget")
+
+  @@index([stationId])
+  @@index([departmentId])
+}
+
+model Station {
+  id        String      @id @default(cuid())
+  name      String
+  code      String      @unique // e.g., "GS01", "CF01"
+  type      StationType
+  address   String
+  latitude  Decimal
+  longitude Decimal
+  radius    Int         @default(100) // meters for GPS validation
+  wifiSSID  String?     // Optional Wi-Fi validation
+  qrCode    String?     // QR code string for check-in
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  employees   User[]
+  departments Department[]
+  shifts      Shift[]
+
+  @@index([code])
+}
+
+model Department {
+  id           String  @id @default(cuid())
+  name         String
+  code         String  // e.g., "FUEL", "CASHIER", "LUBE", "MAID", "BARISTA", "SECURITY", "OIL_PIT"
+  stationId    String
+  
+  // Payroll cycle: true = 26th prev to 25th current, false = 1st to end
+  isFrontYard  Boolean @default(false)
+  
+  // Day off rules
+  weeklyDayOff   Int?    // 0=Sun, 1=Mon... null = no fixed day
+  sundayEndTime  String? // Special Sunday end time e.g., "16:00" for บ่อถ่าย
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  station            Station              @relation(fields: [stationId], references: [id])
+  employees          User[]
+  allowedShifts      DepartmentShift[]
+
+  @@unique([stationId, code])
+  @@index([stationId])
+}
+
+model Shift {
+  id           String   @id @default(cuid())
+  code         String   @unique // "A", "B", "C", etc.
+  name         String   // "กะ A (05:30-17:00)"
+  startTime    String   // "05:30"
+  endTime      String   // "17:00"
+  stationId    String?  // null = ใช้ได้ทุกสถานี
+  breakMinutes Int      @default(60)
+  isNightShift Boolean  @default(false) // กะดึก (ข้ามวัน)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0) // For display ordering
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  station        Station?          @relation(fields: [stationId], references: [id])
+  assignments    ShiftAssignment[]
+  departments    DepartmentShift[]
+
+  @@index([stationId])
+  @@index([code])
+}
+
+// Department-Shift linking (which departments can use which shifts)
+model DepartmentShift {
+  id           String @id @default(cuid())
+  departmentId String
+  shiftId      String
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  shift      Shift      @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, shiftId])
+}
+
+// Shift pattern for auto-generation
+model ShiftPattern {
+  id           String   @id @default(cuid())
+  name         String   // "รอบ ม.ค. 2026"
+  departmentId String?  // null = ใช้ได้ทุกแผนก
+  month        Int      // 1-12
+  year         Int
+  isActive     Boolean  @default(true)
+
+  // Pattern rules stored as JSON
+  // e.g., { "rotation": "monthly", "shifts": ["A","B","C"], "dayOff": "rotating" }
+  patternData  String   @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([departmentId, month, year])
+}
+
+model ShiftAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  shiftId   String
+  date      DateTime 
+  isDayOff  Boolean  @default(false) // วันหยุด
+
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift Shift @relation(fields: [shiftId], references: [id])
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([shiftId])
+}
+
+// ==================== ATTENDANCE ====================
+
+
+model Attendance {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime 
+
+  // Check-in data
+  checkInTime     DateTime?
+  checkInLat      Decimal?
+  checkInLng      Decimal?
+  checkInDeviceId String?
+  checkInMethod   String?   // "GPS", "QR", "MANUAL"
+
+  // Check-out data
+  checkOutTime     DateTime?
+  checkOutLat      Decimal?
+  checkOutLng      Decimal?
+  checkOutDeviceId String?
+  checkOutMethod   String?
+
+  // Calculated fields
+  status            AttendanceStatus @default(PENDING)
+  actualHours       Decimal?
+  overtimeHours     Decimal?
+  lateMinutes       Int?
+  earlyLeaveMinutes Int?
+  
+  // Late penalty: 50 baht per hour after 5 min late
+  latePenaltyAmount Decimal @default(0)
+
+  note       String?
+  approvedBy String?
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver User? @relation("AttendanceApprover", fields: [approvedBy], references: [id])
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([status])
+}
+
+// ==================== LEAVE ====================
+
+model Leave {
+  id        String      @id @default(cuid())
+  userId    String
+  type      LeaveType
+  startDate DateTime    
+  endDate   DateTime    
+  reason    String?
+  status    LeaveStatus @default(PENDING)
+
+  approvedBy String?
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver User? @relation("LeaveApprover", fields: [approvedBy], references: [id])
+
+  @@index([userId, startDate])
+  @@index([status])
+}
+
+// ==================== PAYROLL ====================
+
+model PayrollPeriod {
+  id        String        @id @default(cuid())
+  name      String        // "ม.ค. 2026 (1-31)", "ม.ค. 2026 (26-25)"
+  startDate DateTime      
+  endDate   DateTime      
+  payDate   DateTime       // วันที่ 26
+  status    PayrollStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  records PayrollRecord[]
+
+  @@index([startDate, endDate])
+}
+
+model PayrollRecord {
+  id       String @id @default(cuid())
+  periodId String
+  userId   String
+
+  workDays      Int
+  totalHours    Decimal
+  overtimeHours Decimal
+
+  // Earnings
+  basePay     Decimal
+  overtimePay Decimal
+
+  // Deductions
+  latePenalty    Decimal @default(0) // 50 baht/hour after 5 min
+  advanceDeduct  Decimal @default(0) // เงินเบิก
+  otherDeduct    Decimal @default(0)
+
+  netPay Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  period PayrollPeriod @relation(fields: [periodId], references: [id])
+  user   User          @relation(fields: [userId], references: [id])
+
+  @@unique([periodId, userId])
+  @@index([userId])
+}
+
+// ==================== ADVANCES (เบิกเงิน) ====================
+
+model Advance {
+  id     String   @id @default(cuid())
+  userId String
+  amount Decimal
+  date   DateTime  // วันที่ 10 หรือ 20
+  reason String?
+  status AdvanceStatus @default(PENDING)
+
+  approvedBy String?
+  approvedAt DateTime?
+  paidAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([status])
+}
+
+// ==================== SYSTEM CONFIG ====================
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== EMPLOYEE REQUESTS ====================
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Time correction request (ขอแก้เวลาเข้า-ออก)
+model TimeCorrection {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime 
+  
+  // What they're requesting to correct
+  requestType   String   // "CHECK_IN", "CHECK_OUT", "BOTH"
+  requestedTime DateTime // เวลาที่ขอแก้
+  reason        String
+
+  // Original times (for reference)
+  originalCheckIn  DateTime?
+  originalCheckOut DateTime?
+
+  status     RequestStatus @default(PENDING)
+  approvedBy String?
+  approvedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([status])
+}
+
+// Shift swap request (ขอแลกกะ)
+model ShiftSwap {
+  id            String   @id @default(cuid())
+  requesterId   String   // คนขอ
+  targetId      String   // คนที่อยากแลกด้วย
+  
+  requesterDate DateTime  // วันที่ของคนขอ
+  targetDate    DateTime  // วันที่ของคนที่แลก
+  
+  reason        String?
+  
+  // Status flow: PENDING -> requester sent
+  //              APPROVED -> target accepted -> manager can approve
+  //              REJECTED -> either party rejected
+  status        RequestStatus @default(PENDING)
+  targetAccepted Boolean @default(false) // target ยอมรับหรือยัง
+  
+  approvedBy    String?
+  approvedAt    DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  requester User @relation("SwapRequester", fields: [requesterId], references: [id])
+  target    User @relation("SwapTarget", fields: [targetId], references: [id])
+
+  @@index([requesterId])
+  @@index([targetId])
+  @@index([status])
+}
+
+// ==================== SHIFT POOL (กะว่าง) ====================
+
+enum ShiftPoolStatus {
+  OPEN       // ยังไม่มีคนรับ
+  CLAIMED    // มีคนรับแล้ว
+  EXPIRED    // หมดอายุ
+  CANCELLED  // ยกเลิก
+}
+
+// Shift Pool - กะที่ปล่อยให้คนอื่นรับ
+model ShiftPool {
+  id          String          @id @default(cuid())
+  shiftId     String          // กะที่ปล่อย
+  date        DateTime        // วันที่ของกะ
+  releasedBy  String          // พนักงานที่ปล่อยกะ
+  claimedBy   String?         // พนักงานที่รับกะ
+  reason      String?         // เหตุผลที่ปล่อย
+  status      ShiftPoolStatus @default(OPEN)
+  
+  // Bonus incentive (optional)
+  bonusAmount Decimal?        // เบี้ยเลี้ยงพิเศษสำหรับกะนี้
+  
+  claimedAt   DateTime?
+  expiredAt   DateTime?       // เวลาหมดอายุ (ถ้าไม่มีคนรับ)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([date])
+  @@index([releasedBy])
+}
+
+// ==================== EMPLOYEE AVAILABILITY ====================
+
+enum AvailabilityStatus {
+  AVAILABLE       // ว่าง - พร้อมทำงาน
+  UNAVAILABLE     // ไม่ว่าง
+  PREFERRED_OFF   // อยากหยุด (แต่ทำได้ถ้าจำเป็น)
+}
+
+// Employee Availability - พนักงานแจ้งวันว่าง/ไม่ว่าง
+model EmployeeAvailability {
+  id        String             @id @default(cuid())
+  userId    String
+  date      DateTime
+  status    AvailabilityStatus @default(AVAILABLE)
+  note      String?            // หมายเหตุ
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+}
+
+// ==================== PERMISSIONS ====================
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique  // e.g., "shift.view", "shift.edit"
+  name        String             // e.g., "ดูตารางกะ"
+  group       String             // e.g., "ตารางกะ", "พนักงาน"
+  description String?
+  sortOrder   Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@index([group])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         Role
+  permissionId String
+  
+  createdAt DateTime @default(now())
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([role])
+}
