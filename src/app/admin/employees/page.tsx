@@ -209,6 +209,158 @@ const EmployeeForm = ({
     );
 };
 
+const AddEmployeeDialog = ({
+    open,
+    onOpenChange,
+    stations,
+    onSuccess
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    stations: Station[];
+    onSuccess: () => void;
+}) => {
+    const [formData, setFormData] = useState(initialFormData);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const res = await fetch("/api/admin/employees", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...formData,
+                    hourlyRate: parseFloat(formData.hourlyRate),
+                    dailyRate: formData.dailyRate ? parseFloat(formData.dailyRate) : null,
+                    otRateMultiplier: parseFloat(formData.otRateMultiplier),
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success("เพิ่มพนักงานสำเร็จ");
+                onOpenChange(false);
+                setFormData(initialFormData);
+                onSuccess();
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
+                    <DialogDescription>กรอกข้อมูลพนักงานด้านล่าง</DialogDescription>
+                </DialogHeader>
+                <EmployeeForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    stations={stations}
+                    onSubmit={handleSubmit}
+                    submitLabel="บันทึก"
+                    isSubmitting={isSubmitting}
+                    onCancel={() => { onOpenChange(false); setFormData(initialFormData); }}
+                />
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+const EditEmployeeDialog = ({
+    open,
+    onOpenChange,
+    employee,
+    stations,
+    onSuccess
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    employee: Employee | null;
+    stations: Station[];
+    onSuccess: () => void;
+}) => {
+    const [formData, setFormData] = useState(initialFormData);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (employee) {
+            setFormData({
+                employeeId: employee.employeeId,
+                name: employee.name,
+                phone: employee.phone,
+                email: employee.email || "",
+                pin: "",
+                role: employee.role,
+                stationId: employee.station?.id || "",
+                departmentId: employee.department?.id || "",
+                hourlyRate: employee.hourlyRate.toString(),
+                dailyRate: employee.dailyRate?.toString() || "400",
+                otRateMultiplier: employee.otRateMultiplier.toString(),
+                isActive: employee.isActive,
+            });
+        }
+    }, [employee]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!employee) return;
+        setIsSubmitting(true);
+        try {
+            const res = await fetch(`/api/admin/employees/${employee.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...formData,
+                    hourlyRate: parseFloat(formData.hourlyRate),
+                    dailyRate: formData.dailyRate ? parseFloat(formData.dailyRate) : null,
+                    otRateMultiplier: parseFloat(formData.otRateMultiplier),
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success("แก้ไขพนักงานสำเร็จ");
+                onOpenChange(false);
+                onSuccess();
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>แก้ไขพนักงาน</DialogTitle>
+                    <DialogDescription>แก้ไขข้อมูล {employee?.name}</DialogDescription>
+                </DialogHeader>
+                <EmployeeForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    stations={stations}
+                    onSubmit={handleSubmit}
+                    submitLabel="บันทึกการแก้ไข"
+                    isSubmitting={isSubmitting}
+                    onCancel={() => onOpenChange(false)}
+                    isEdit
+                />
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 export default function EmployeesPage() {
     const { data: session, status } = useSession();
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -220,9 +372,8 @@ export default function EmployeesPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-    const [formData, setFormData] = useState(initialFormData);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -258,75 +409,9 @@ export default function EmployeesPage() {
         }
     };
 
-    const resetForm = () => {
-        setFormData(initialFormData);
-    };
-
-    const handleAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            const res = await fetch("/api/admin/employees", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...formData,
-                    hourlyRate: parseFloat(formData.hourlyRate),
-                    dailyRate: formData.dailyRate ? parseFloat(formData.dailyRate) : null,
-                    otRateMultiplier: parseFloat(formData.otRateMultiplier),
-                }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                toast.success("เพิ่มพนักงานสำเร็จ");
-                setIsAddDialogOpen(false);
-                resetForm();
-                fetchEmployees();
-            } else {
-                toast.error(data.error || "เกิดข้อผิดพลาด");
-            }
-        } catch {
-            toast.error("เกิดข้อผิดพลาด");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleEdit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedEmployee) return;
-        setIsSubmitting(true);
-        try {
-            const res = await fetch(`/api/admin/employees/${selectedEmployee.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...formData,
-                    hourlyRate: parseFloat(formData.hourlyRate),
-                    dailyRate: formData.dailyRate ? parseFloat(formData.dailyRate) : null,
-                    otRateMultiplier: parseFloat(formData.otRateMultiplier),
-                }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                toast.success("แก้ไขพนักงานสำเร็จ");
-                setIsEditDialogOpen(false);
-                setSelectedEmployee(null);
-                resetForm();
-                fetchEmployees();
-            } else {
-                toast.error(data.error || "เกิดข้อผิดพลาด");
-            }
-        } catch {
-            toast.error("เกิดข้อผิดพลาด");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const handleDelete = async () => {
         if (!selectedEmployee) return;
-        setIsSubmitting(true);
+        setIsDeleting(true);
         try {
             const res = await fetch(`/api/admin/employees/${selectedEmployee.id}`, {
                 method: "DELETE",
@@ -343,26 +428,12 @@ export default function EmployeesPage() {
         } catch {
             toast.error("เกิดข้อผิดพลาด");
         } finally {
-            setIsSubmitting(false);
+            setIsDeleting(false);
         }
     };
 
     const openEditDialog = (emp: Employee) => {
         setSelectedEmployee(emp);
-        setFormData({
-            employeeId: emp.employeeId,
-            name: emp.name,
-            phone: emp.phone,
-            email: emp.email || "",
-            pin: "",
-            role: emp.role,
-            stationId: emp.station?.id || "",
-            departmentId: emp.department?.id || "",
-            hourlyRate: emp.hourlyRate.toString(),
-            dailyRate: emp.dailyRate?.toString() || "400",
-            otRateMultiplier: emp.otRateMultiplier.toString(),
-            isActive: emp.isActive,
-        });
         setIsEditDialogOpen(true);
     };
 
@@ -421,26 +492,13 @@ export default function EmployeesPage() {
                         <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน</h1>
                         <p className="text-muted-foreground">{employees.length} คน</p>
                     </div>
-                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button onClick={resetForm}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                                <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
-                                <DialogDescription>กรอกข้อมูลพนักงานด้านล่าง</DialogDescription>
-                            </DialogHeader>
-                            <EmployeeForm
-                                formData={formData}
-                                setFormData={setFormData}
-                                stations={stations}
-                                onSubmit={handleAdd}
-                                submitLabel="บันทึก"
-                                isSubmitting={isSubmitting}
-                                onCancel={() => { setIsAddDialogOpen(false); resetForm(); }}
-                            />
-                        </DialogContent>
-                    </Dialog>
+                    <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
+                    <AddEmployeeDialog
+                        open={isAddDialogOpen}
+                        onOpenChange={setIsAddDialogOpen}
+                        stations={stations}
+                        onSuccess={fetchEmployees}
+                    />
                 </div>
 
                 {/* Stats */}
@@ -583,24 +641,13 @@ export default function EmployeesPage() {
             </div>
 
             {/* Edit Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>แก้ไขพนักงาน</DialogTitle>
-                        <DialogDescription>แก้ไขข้อมูล {selectedEmployee?.name}</DialogDescription>
-                    </DialogHeader>
-                    <EmployeeForm
-                        formData={formData}
-                        setFormData={setFormData}
-                        stations={stations}
-                        onSubmit={handleEdit}
-                        submitLabel="บันทึกการแก้ไข"
-                        isSubmitting={isSubmitting}
-                        onCancel={() => { setIsEditDialogOpen(false); resetForm(); }}
-                        isEdit
-                    />
-                </DialogContent>
-            </Dialog>
+            <EditEmployeeDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                employee={selectedEmployee}
+                stations={stations}
+                onSuccess={fetchEmployees}
+            />
 
             {/* Delete Confirmation */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -613,8 +660,8 @@ export default function EmployeesPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบพนักงาน
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบพนักงาน
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
