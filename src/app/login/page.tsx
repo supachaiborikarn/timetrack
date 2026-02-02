@@ -64,7 +64,7 @@ function LoginForm() {
             });
 
             if (result?.error) {
-                setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+                setError("อีเมล, ชื่อผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง");
             } else {
                 router.push(callbackUrl);
                 router.refresh();
@@ -144,11 +144,11 @@ function LoginForm() {
                     <TabsContent value="email">
                         <form onSubmit={handleEmailLogin} className="space-y-4 mt-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-slate-300">อีเมล</Label>
+                                <Label htmlFor="email" className="text-slate-300">อีเมล หรือ ชื่อผู้ใช้</Label>
                                 <Input
                                     id="email"
-                                    type="email"
-                                    placeholder="admin@example.com"
+                                    type="text"
+                                    placeholder="admin@example.com หรือ สมชาย"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"

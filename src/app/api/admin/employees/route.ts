@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
                 OR: [
                     { employeeId },
                     { phone },
+                    { username: body.username || name }, // Check if username/name exists
                     ...(email ? [{ email }] : []),
                 ],
             },
@@ -94,14 +95,24 @@ export async function POST(request: NextRequest) {
 
         // Hash PIN
         const hashedPin = await bcrypt.hash(pin, 10);
+        // Default password "123456" for employees
+        const defaultPassword = await bcrypt.hash("123456", 10);
+
+        // Determine username (use provided username or fallback to name/employeeId)
+        // Sanitizing name to be username-friendly if needed, but for now use raw name or employeeId
+        // Ideally, we should ensure uniqueness.
+        // Let's use name as username default.
+        const username = body.username || name;
 
         const user = await prisma.user.create({
             data: {
                 employeeId,
                 name,
+                username: username, // Save username
                 phone,
                 email: email || null,
                 pin: hashedPin,
+                password: defaultPassword, // Set default password
                 role: role as Role,
                 stationId: stationId || null,
                 departmentId: departmentId || null,

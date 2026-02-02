@@ -70,6 +70,7 @@ enum AdvanceStatus {
 model User {
   id           String   @id @default(cuid())
   employeeId   String   @unique // รหัสพนักงาน
+  username     String?  @unique // ชื่อผู้ใช้สำหรับการล็อกอิน (ทางเลือก)
   name         String
   email        String?  @unique
   phone        String   @unique

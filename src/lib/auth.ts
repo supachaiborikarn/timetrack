@@ -85,16 +85,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) return null;
+                // Allow login with email OR username OR employeeId
+                const loginKey = (credentials?.email || credentials?.username) as string;
+                const password = credentials?.password as string;
 
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email as string, isActive: true },
+                if (!loginKey || !password) return null;
+
+                const user = await prisma.user.findFirst({
+                    where: {
+                        OR: [
+                            { email: loginKey },
+                            { username: loginKey }, // Check username
+                            { employeeId: loginKey }, // Check employeeId
+                            // Fallback to name if unique enough (careful with duplicates)
+                            { name: loginKey }
+                        ],
+                        isActive: true
+                    },
                 });
 
                 if (!user || !user.password) return null;
 
                 const isValidPassword = await bcrypt.compare(
-                    credentials.password as string,
+                    password,
                     user.password
                 );
 

@@ -319,8 +319,13 @@ export default function EmployeesPage() {
                 </div>
             </div>
             <div className="space-y-2">
-                <Label>อีเมล (ถ้ามี)</Label>
+                <Label>อีเมล (ไม่บังคับ - ใช้สำหรับการกู้คืนรหัสผ่าน)</Label>
                 <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+                <p className="text-xs text-muted-foreground bg-blue-50 text-blue-700 p-2 rounded">
+                    * พนักงานสามารถเข้าสู่ระบบด้วย <b>ชื่อ</b> และรหัสผ่าน <b>123456</b> ได้ทันทีโดยไม่ต้องใช้อีเมล
+                </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
