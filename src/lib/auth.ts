@@ -86,7 +86,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
             async authorize(credentials) {
                 // Allow login with email OR username OR employeeId
-                const loginKey = (credentials?.email || credentials?.username) as string;
+                // Note: The 'email' credential field carries the login key (username/email/id)
+                const loginKey = credentials?.email as string;
                 const password = credentials?.password as string;
 
                 if (!loginKey || !password) return null;
