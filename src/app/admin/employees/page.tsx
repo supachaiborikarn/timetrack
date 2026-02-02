@@ -91,6 +91,124 @@ const initialFormData = {
     isActive: true,
 };
 
+const EmployeeForm = ({
+    formData,
+    setFormData,
+    stations,
+    onSubmit,
+    submitLabel,
+    isSubmitting,
+    onCancel,
+    isEdit = false
+}: {
+    formData: typeof initialFormData;
+    setFormData: (data: typeof initialFormData) => void;
+    stations: Station[];
+    onSubmit: (e: React.FormEvent) => void;
+    submitLabel: string;
+    isSubmitting: boolean;
+    onCancel: () => void;
+    isEdit?: boolean;
+}) => {
+    const selectedStation = stations.find((s) => s.id === formData.stationId);
+
+    return (
+        <form onSubmit={onSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>รหัสพนักงาน</Label>
+                    <Input value={formData.employeeId} onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })} placeholder="EMP001" required disabled={isEdit} />
+                </div>
+                <div className="space-y-2">
+                    <Label>ชื่อ-นามสกุล</Label>
+                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="สมชาย ใจดี" required />
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>เบอร์โทร</Label>
+                    <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="0812345678" required />
+                </div>
+                <div className="space-y-2">
+                    <Label>PIN 6 หลัก {isEdit && "(เว้นว่างถ้าไม่เปลี่ยน)"}</Label>
+                    <Input value={formData.pin} onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, "") })} placeholder={isEdit ? "ไม่เปลี่ยน" : "123456"} maxLength={6} required={!isEdit} />
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label>อีเมล (ไม่บังคับ - ใช้สำหรับการกู้คืนรหัสผ่าน)</Label>
+                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+                <p className="text-xs text-muted-foreground bg-blue-50 text-blue-700 p-2 rounded">
+                    * พนักงานสามารถเข้าสู่ระบบด้วย <b>ชื่อ</b> และรหัสผ่าน <b>123456</b> ได้ทันทีโดยไม่ต้องใช้อีเมล
+                </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>สถานี</Label>
+                    <Select value={formData.stationId} onValueChange={(v) => setFormData({ ...formData, stationId: v, departmentId: "" })}>
+                        <SelectTrigger><SelectValue placeholder="เลือกสถานี" /></SelectTrigger>
+                        <SelectContent>
+                            {stations.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>แผนก</Label>
+                    <Select value={formData.departmentId} onValueChange={(v) => setFormData({ ...formData, departmentId: v })} disabled={!selectedStation}>
+                        <SelectTrigger><SelectValue placeholder="เลือกแผนก" /></SelectTrigger>
+                        <SelectContent>
+                            {selectedStation?.departments.map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>ตำแหน่ง</Label>
+                    <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="EMPLOYEE">พนักงาน</SelectItem>
+                            <SelectItem value="MANAGER">ผู้จัดการ</SelectItem>
+                            <SelectItem value="HR">HR</SelectItem>
+                            <SelectItem value="ADMIN">Admin</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>สถานะ</Label>
+                    <Select value={formData.isActive ? "active" : "inactive"} onValueChange={(v) => setFormData({ ...formData, isActive: v === "active" })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="active">ใช้งาน</SelectItem>
+                            <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label>ค่าแรง/วัน</Label>
+                    <Input type="number" value={formData.dailyRate} onChange={(e) => setFormData({ ...formData, dailyRate: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                    <Label>ค่าแรง/ชม.</Label>
+                    <Input type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                    <Label>OT Rate</Label>
+                    <Input type="number" step="0.1" value={formData.otRateMultiplier} onChange={(e) => setFormData({ ...formData, otRateMultiplier: e.target.value })} required />
+                </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="ghost" onClick={onCancel}>ยกเลิก</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{submitLabel}</Button>
+            </div>
+        </form>
+    );
+};
+
 export default function EmployeesPage() {
     const { data: session, status } = useSession();
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -281,8 +399,6 @@ export default function EmployeesPage() {
     const activeCount = employees.filter((e) => e.isActive).length;
     const inactiveCount = employees.filter((e) => !e.isActive).length;
 
-    const selectedStation = stations.find((s) => s.id === formData.stationId);
-
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
             case "ADMIN":
@@ -295,102 +411,6 @@ export default function EmployeesPage() {
                 return "bg-muted text-muted-foreground border-border";
         }
     };
-
-    const EmployeeForm = ({ onSubmit, submitLabel, isEdit = false }: { onSubmit: (e: React.FormEvent) => void; submitLabel: string; isEdit?: boolean }) => (
-        <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>รหัสพนักงาน</Label>
-                    <Input value={formData.employeeId} onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })} placeholder="EMP001" required disabled={isEdit} />
-                </div>
-                <div className="space-y-2">
-                    <Label>ชื่อ-นามสกุล</Label>
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="สมชาย ใจดี" required />
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>เบอร์โทร</Label>
-                    <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="0812345678" required />
-                </div>
-                <div className="space-y-2">
-                    <Label>PIN 6 หลัก {isEdit && "(เว้นว่างถ้าไม่เปลี่ยน)"}</Label>
-                    <Input value={formData.pin} onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, "") })} placeholder={isEdit ? "ไม่เปลี่ยน" : "123456"} maxLength={6} required={!isEdit} />
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Label>อีเมล (ไม่บังคับ - ใช้สำหรับการกู้คืนรหัสผ่าน)</Label>
-                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" />
-            </div>
-            <div className="space-y-2">
-                <p className="text-xs text-muted-foreground bg-blue-50 text-blue-700 p-2 rounded">
-                    * พนักงานสามารถเข้าสู่ระบบด้วย <b>ชื่อ</b> และรหัสผ่าน <b>123456</b> ได้ทันทีโดยไม่ต้องใช้อีเมล
-                </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>สถานี</Label>
-                    <Select value={formData.stationId} onValueChange={(v) => setFormData({ ...formData, stationId: v, departmentId: "" })}>
-                        <SelectTrigger><SelectValue placeholder="เลือกสถานี" /></SelectTrigger>
-                        <SelectContent>
-                            {stations.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label>แผนก</Label>
-                    <Select value={formData.departmentId} onValueChange={(v) => setFormData({ ...formData, departmentId: v })} disabled={!selectedStation}>
-                        <SelectTrigger><SelectValue placeholder="เลือกแผนก" /></SelectTrigger>
-                        <SelectContent>
-                            {selectedStation?.departments.map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>ตำแหน่ง</Label>
-                    <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="EMPLOYEE">พนักงาน</SelectItem>
-                            <SelectItem value="MANAGER">ผู้จัดการ</SelectItem>
-                            <SelectItem value="HR">HR</SelectItem>
-                            <SelectItem value="ADMIN">Admin</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label>สถานะ</Label>
-                    <Select value={formData.isActive ? "active" : "inactive"} onValueChange={(v) => setFormData({ ...formData, isActive: v === "active" })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="active">ใช้งาน</SelectItem>
-                            <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                    <Label>ค่าแรง/วัน</Label>
-                    <Input type="number" value={formData.dailyRate} onChange={(e) => setFormData({ ...formData, dailyRate: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                    <Label>ค่าแรง/ชม.</Label>
-                    <Input type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} required />
-                </div>
-                <div className="space-y-2">
-                    <Label>OT Rate</Label>
-                    <Input type="number" step="0.1" value={formData.otRateMultiplier} onChange={(e) => setFormData({ ...formData, otRateMultiplier: e.target.value })} required />
-                </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="ghost" onClick={() => { setIsAddDialogOpen(false); setIsEditDialogOpen(false); resetForm(); }}>ยกเลิก</Button>
-                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{submitLabel}</Button>
-            </div>
-        </form>
-    );
 
     return (
         <>
@@ -410,7 +430,15 @@ export default function EmployeesPage() {
                                 <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
                                 <DialogDescription>กรอกข้อมูลพนักงานด้านล่าง</DialogDescription>
                             </DialogHeader>
-                            <EmployeeForm onSubmit={handleAdd} submitLabel="บันทึก" />
+                            <EmployeeForm
+                                formData={formData}
+                                setFormData={setFormData}
+                                stations={stations}
+                                onSubmit={handleAdd}
+                                submitLabel="บันทึก"
+                                isSubmitting={isSubmitting}
+                                onCancel={() => { setIsAddDialogOpen(false); resetForm(); }}
+                            />
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -561,7 +589,16 @@ export default function EmployeesPage() {
                         <DialogTitle>แก้ไขพนักงาน</DialogTitle>
                         <DialogDescription>แก้ไขข้อมูล {selectedEmployee?.name}</DialogDescription>
                     </DialogHeader>
-                    <EmployeeForm onSubmit={handleEdit} submitLabel="บันทึกการแก้ไข" isEdit />
+                    <EmployeeForm
+                        formData={formData}
+                        setFormData={setFormData}
+                        stations={stations}
+                        onSubmit={handleEdit}
+                        submitLabel="บันทึกการแก้ไข"
+                        isSubmitting={isSubmitting}
+                        onCancel={() => { setIsEditDialogOpen(false); resetForm(); }}
+                        isEdit
+                    />
                 </DialogContent>
             </Dialog>
 
