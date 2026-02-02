@@ -207,7 +207,7 @@ export default function EmployeesPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน</h1>
+                        <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน <span className="text-xs text-muted-foreground ml-2 font-normal">v1.2-fix</span></h1>
                         <p className="text-muted-foreground">{employees.length} คน</p>
                     </div>
                     <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
