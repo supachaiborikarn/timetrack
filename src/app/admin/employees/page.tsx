@@ -62,15 +62,32 @@ interface Employee {
     id: string;
     employeeId: string;
     name: string;
+    nickname: string | null;
+    realName: string | null;
     phone: string;
     email: string | null;
     role: string;
     hourlyRate: number;
     dailyRate: number | null;
+    baseSalary: number | null;
     otRateMultiplier: number;
     isActive: boolean;
     station: { id: string; name: string } | null;
     department: { id: string; name: string } | null;
+    // Bank info
+    bankAccountNumber: string | null;
+    bankName: string | null;
+    // Social security
+    socialSecurityStation: string | null;
+    // Emergency contact
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
+    emergencyContactRelation: string | null;
+    // New fields
+    position: string | null;
+    housingCost: number | null;
+    specialPay: number | null;
+    workHours: number | null;
 }
 
 interface Station {
@@ -207,7 +224,7 @@ export default function EmployeesPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน <span className="text-xs text-muted-foreground ml-2 font-normal">v1.2-fix</span></h1>
+                        <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน</h1>
                         <p className="text-muted-foreground">{employees.length} คน</p>
                     </div>
                     <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
@@ -335,11 +352,18 @@ export default function EmployeesPage() {
                                             {emp.department && <span className="text-xs block">{emp.department.name}</span>}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className={getRoleBadgeColor(emp.role)}>{emp.role}</Badge>
+                                            <div className="flex flex-col">
+                                                <Badge variant="outline" className={getRoleBadgeColor(emp.role)}>{emp.role}</Badge>
+                                                {emp.position && <span className="text-xs text-muted-foreground mt-1">{emp.position}</span>}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell text-muted-foreground">
-                                            {emp.dailyRate ? `฿${emp.dailyRate}/วัน` : `฿${emp.hourlyRate}/ชม.`}
-                                            <span className="text-xs block">OT x{emp.otRateMultiplier}</span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{emp.dailyRate ? `฿${emp.dailyRate}/วัน` : (emp.baseSalary ? `฿${emp.baseSalary.toLocaleString()}/ด.` : `฿${emp.hourlyRate}/ชม.`)}</span>
+                                                <span className="text-xs">OT x{emp.otRateMultiplier}</span>
+                                                {Number(emp.specialPay) > 0 && <span className="text-xs text-green-600">+฿{Number(emp.specialPay).toLocaleString()} พิเศษ</span>}
+                                                {Number(emp.housingCost) > 0 && <span className="text-xs text-red-400">-฿{Number(emp.housingCost).toLocaleString()} ที่พัก</span>}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={emp.isActive ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"}>

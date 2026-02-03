@@ -78,8 +78,11 @@ export async function POST(request: NextRequest) {
         //   );
         // }
 
-        const now = getBangkokNow();
-        const today = startOfDay(now);
+        const localNow = getBangkokNow();
+
+        // Use true UTC for database storage to prevent double-shifting on display
+        const utcNow = new Date();
+        const today = startOfDay(localNow);
 
         // Check if already checked in today
         const existingAttendance = await prisma.attendance.findFirst({
@@ -109,7 +112,8 @@ export async function POST(request: NextRequest) {
         let latePenaltyAmount = 0;
 
         if (shiftAssignment) {
-            lateMinutes = calculateLateMinutes(now, shiftAssignment.shift.startTime);
+            // Use local time for shift comparison
+            lateMinutes = calculateLateMinutes(localNow, shiftAssignment.shift.startTime);
             latePenaltyAmount = calculateLatePenalty(lateMinutes);
         }
 
@@ -124,7 +128,7 @@ export async function POST(request: NextRequest) {
             create: {
                 userId: session.user.id,
                 date: today,
-                checkInTime: now,
+                checkInTime: utcNow, // Save UTC
                 checkInLat: latitude,
                 checkInLng: longitude,
                 checkInDeviceId: deviceId,
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
                 status: "PENDING",
             },
             update: {
-                checkInTime: now,
+                checkInTime: utcNow, // Save UTC
                 checkInLat: latitude,
                 checkInLng: longitude,
                 checkInDeviceId: deviceId,

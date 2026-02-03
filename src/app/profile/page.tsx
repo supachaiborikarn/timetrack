@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+import {
     Loader2,
     User,
     Phone,
@@ -20,6 +26,10 @@ import {
     Save,
     Eye,
     EyeOff,
+    Wallet,
+    Shield,
+    DollarSign,
+    AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,12 +37,27 @@ interface Profile {
     id: string;
     employeeId: string;
     name: string;
+    nickname: string | null;
+    realName: string | null;
     email: string | null;
     phone: string | null;
     role: string;
     station: { id: string; name: string; code: string } | null;
     department: { id: string; name: string; code: string } | null;
-    avatar: string | null;
+    // Wage info
+    hourlyRate: number;
+    dailyRate: number | null;
+    baseSalary: number | null;
+    specialPay: number | null;
+    housingCost: number | null;
+    workHours: number | null;
+    // Bank info
+    bankAccountNumber: string | null;
+    bankName: string | null;
+    // Social security
+    socialSecurityStation: string | null;
+    // Additional
+    position: string | null;
     createdAt: string;
 }
 
@@ -40,7 +65,7 @@ const roleLabels: Record<string, string> = {
     ADMIN: "ผู้ดูแลระบบ",
     HR: "ฝ่ายบุคคล",
     MANAGER: "ผู้จัดการ",
-    CASHIER: "แคชเชียร์",
+    CASHIER: "เสมียน",
     EMPLOYEE: "พนักงาน",
 };
 
@@ -99,11 +124,11 @@ export default function ProfilePage() {
                 body: JSON.stringify({ phone, email }),
             });
 
-            const data = await res.json();
-
             if (res.ok) {
-                toast.success(data.message || "บันทึกสำเร็จ");
+                toast.success("บันทึกข้อมูลเรียบร้อย");
+                fetchProfile();
             } else {
+                const data = await res.json();
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
@@ -115,7 +140,7 @@ export default function ProfilePage() {
 
     const handleChangePassword = async () => {
         if (newPassword !== confirmPassword) {
-            toast.error("รหัสผ่านใหม่ไม่ตรงกัน");
+            toast.error("รหัสผ่านไม่ตรงกัน");
             return;
         }
 
@@ -132,15 +157,14 @@ export default function ProfilePage() {
                 body: JSON.stringify({ currentPassword, newPassword }),
             });
 
-            const data = await res.json();
-
             if (res.ok) {
-                toast.success("เปลี่ยนรหัสผ่านสำเร็จ");
+                toast.success("เปลี่ยนรหัสผ่านเรียบร้อย");
+                setShowPasswordSection(false);
                 setCurrentPassword("");
                 setNewPassword("");
                 setConfirmPassword("");
-                setShowPasswordSection(false);
             } else {
+                const data = await res.json();
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
@@ -152,7 +176,7 @@ export default function ProfilePage() {
 
     const handleChangePin = async () => {
         if (newPin !== confirmPin) {
-            toast.error("PIN ใหม่ไม่ตรงกัน");
+            toast.error("PIN ไม่ตรงกัน");
             return;
         }
 
@@ -169,14 +193,13 @@ export default function ProfilePage() {
                 body: JSON.stringify({ newPin }),
             });
 
-            const data = await res.json();
-
             if (res.ok) {
-                toast.success("เปลี่ยน PIN สำเร็จ");
+                toast.success("เปลี่ยน PIN เรียบร้อย");
+                setShowPinSection(false);
                 setNewPin("");
                 setConfirmPin("");
-                setShowPinSection(false);
             } else {
+                const data = await res.json();
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
@@ -198,268 +221,433 @@ export default function ProfilePage() {
         redirect("/login");
     }
 
+    // Format currency
+    const formatMoney = (amount: number | null | undefined) => {
+        if (!amount) return "-";
+        return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2 }).format(amount);
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 p-4 pb-24">
             <div className="max-w-lg mx-auto space-y-6">
                 {/* Header */}
                 <div className="text-center pt-4">
                     <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
-                        {profile?.name?.charAt(0) || "?"}
+                        {profile?.nickname?.charAt(0) || profile?.name?.charAt(0) || "?"}
                     </div>
-                    <h1 className="text-xl font-bold text-foreground mt-4">{profile?.name}</h1>
+                    <h1 className="text-xl font-bold text-foreground mt-4">
+                        {profile?.nickname ? `${profile.nickname}` : profile?.name}
+                        {profile?.realName && <span className="text-muted-foreground text-sm block mt-1">{profile.realName}</span>}
+                    </h1>
                     <p className="text-muted-foreground text-sm">{profile?.employeeId}</p>
-                    <Badge className="mt-2">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
+                    <Badge className="mt-2 text-xs">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
+                    {profile?.position && <div className="text-sm text-foreground/80 mt-1 font-medium">{profile.position}</div>}
                 </div>
 
-                {/* Basic Info */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-5 h-5" />
-                            ข้อมูลส่วนตัว
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {profile?.station && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Building2 className="w-5 h-5 text-muted-foreground" />
-                                <div>
-                                    <p className="text-xs text-muted-foreground">สถานี</p>
-                                    <p className="font-medium">{profile.station.name}</p>
-                                </div>
-                            </div>
-                        )}
+                {/* Tabs */}
+                <Tabs defaultValue="personal" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="personal" className="text-xs px-2">
+                            <User className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">ส่วนตัว</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="financial" className="text-xs px-2">
+                            <Wallet className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">การเงิน</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="social" className="text-xs px-2">
+                            <Shield className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">ประกัน</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="text-xs px-2">
+                            <Lock className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">รหัส</span>
+                        </TabsTrigger>
+                    </TabsList>
 
-                        {profile?.department && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Briefcase className="w-5 h-5 text-muted-foreground" />
-                                <div>
-                                    <p className="text-xs text-muted-foreground">แผนก</p>
-                                    <p className="font-medium">{profile.department.name}</p>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Contact Info - Editable */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Phone className="w-5 h-5" />
-                            ข้อมูลติดต่อ
-                        </CardTitle>
-                        <CardDescription>แก้ไขได้</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                                <Phone className="w-4 h-4" />
-                                เบอร์โทร
-                            </Label>
-                            <Input
-                                type="tel"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                placeholder="08X-XXX-XXXX"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                                <Mail className="w-4 h-4" />
-                                Email
-                            </Label>
-                            <Input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="example@email.com"
-                            />
-                        </div>
-
-                        <Button
-                            onClick={handleSaveBasicInfo}
-                            disabled={isSaving}
-                            className="w-full"
-                        >
-                            {isSaving ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <Save className="w-4 h-4 mr-2" />
-                            )}
-                            บันทึกข้อมูลติดต่อ
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* Change Password */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Lock className="w-5 h-5" />
-                            เปลี่ยนรหัสผ่าน
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {!showPasswordSection ? (
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowPasswordSection(true)}
-                                className="w-full"
-                            >
-                                <Key className="w-4 h-4 mr-2" />
-                                เปลี่ยนรหัสผ่าน
-                            </Button>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>รหัสผ่านปัจจุบัน</Label>
-                                    <div className="relative">
-                                        <Input
-                                            type={showCurrentPassword ? "text" : "password"}
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2"
-                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                        >
-                                            {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </Button>
+                    {/* Tab 1: Personal Info */}
+                    <TabsContent value="personal" className="space-y-4 mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <User className="w-5 h-5" />
+                                    ข้อมูลส่วนตัว
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {profile?.station && (
+                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                        <Building2 className="w-5 h-5 text-muted-foreground" />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">สถานี</p>
+                                            <p className="font-medium">{profile.station.name}</p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
-                                <div className="space-y-2">
-                                    <Label>รหัสผ่านใหม่</Label>
-                                    <div className="relative">
-                                        <Input
-                                            type={showNewPassword ? "text" : "password"}
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2"
-                                            onClick={() => setShowNewPassword(!showNewPassword)}
-                                        >
-                                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </Button>
+                                {profile?.department && (
+                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                        <Briefcase className="w-5 h-5 text-muted-foreground" />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">แผนก</p>
+                                            <p className="font-medium">{profile.department.name}</p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
+                        {/* Contact Info - Editable */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Phone className="w-5 h-5" />
+                                    ข้อมูลติดต่อ
+                                </CardTitle>
+                                <CardDescription>แก้ไขได้</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>ยืนยันรหัสผ่านใหม่</Label>
+                                    <Label className="flex items-center gap-2">
+                                        <Phone className="w-4 h-4" />
+                                        เบอร์โทร
+                                    </Label>
                                     <Input
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        type="tel"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        placeholder="08X-XXX-XXXX"
                                     />
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <Mail className="w-4 h-4" />
+                                        Email
+                                    </Label>
+                                    <Input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="example@email.com"
+                                    />
+                                </div>
+
+                                <Button
+                                    onClick={handleSaveBasicInfo}
+                                    disabled={isSaving}
+                                    className="w-full"
+                                >
+                                    {isSaving ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Save className="w-4 h-4 mr-2" />
+                                    )}
+                                    บันทึกข้อมูลติดต่อ
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Tab 2: Financial Info */}
+                    <TabsContent value="financial" className="space-y-4 mt-4">
+                        {/* Wage Info */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <DollarSign className="w-5 h-5" />
+                                    ข้อมูลค่าแรง
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {profile?.dailyRate && Number(profile.dailyRate) > 0 ? (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10">
+                                        <span className="text-muted-foreground">ค่าแรงรายวัน</span>
+                                        <span className="font-bold text-green-600">฿{formatMoney(Number(profile.dailyRate))}</span>
+                                    </div>
+                                ) : profile?.baseSalary && Number(profile.baseSalary) > 0 ? (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10">
+                                        <span className="text-muted-foreground">เงินเดือน</span>
+                                        <span className="font-bold text-blue-600">฿{formatMoney(Number(profile.baseSalary))}</span>
+                                    </div>
+                                ) : null}
+
+
+                                {profile?.specialPay && Number(profile.specialPay) > 0 && (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-500/10">
+                                        <span className="text-muted-foreground">เงินพิเศษ</span>
+                                        <span className="font-bold text-yellow-600">฿{formatMoney(Number(profile.specialPay))}</span>
+                                    </div>
+                                )}
+
+                                {profile?.housingCost && Number(profile.housingCost) > 0 && (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-red-500/10">
+                                        <span className="text-muted-foreground">หักค่าที่พัก</span>
+                                        <span className="font-medium text-red-600">-฿{formatMoney(Number(profile.housingCost))}</span>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Bank Account */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Wallet className="w-5 h-5" />
+                                    บัญชีธนาคาร
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {profile?.bankAccountNumber ? (
+                                    <>
+                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                            <span className="text-muted-foreground">ธนาคาร</span>
+                                            <span className="font-medium">{profile.bankName || "-"}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                            <span className="text-muted-foreground">เลขบัญชี</span>
+                                            <span className="font-medium font-mono">{profile.bankAccountNumber}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center py-4 text-muted-foreground">
+                                        <Wallet className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p>ยังไม่มีข้อมูลบัญชีธนาคาร</p>
+                                        <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Tab 3: Social Security */}
+                    <TabsContent value="social" className="space-y-4 mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Shield className="w-5 h-5" />
+                                    ประกันสังคม
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {profile?.socialSecurityStation ? (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10">
+                                        <span className="text-muted-foreground">สถานีที่ส่งประกันสังคม</span>
+                                        <span className="font-medium text-blue-600">{profile.socialSecurityStation}</span>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-4 text-muted-foreground">
+                                        <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p>ยังไม่มีข้อมูลประกันสังคม</p>
+                                        <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
+                                    </div>
+                                )}
+
+                                {profile?.socialSecurityStation && profile.station &&
+                                    profile.socialSecurityStation !== profile.station.name && (
+                                        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-medium text-amber-600">สถานีไม่ตรงกัน</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    ทำงานที่: {profile.station.name}<br />
+                                                    ส่งประกันที่: {profile.socialSecurityStation}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Emergency Contact - Placeholder */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Phone className="w-5 h-5" />
+                                    ผู้ติดต่อฉุกเฉิน
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-center py-4 text-muted-foreground">
+                                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p>ยังไม่มีข้อมูลผู้ติดต่อฉุกเฉิน</p>
+                                    <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Tab 4: Security (Password & PIN) */}
+                    <TabsContent value="security" className="space-y-4 mt-4">
+                        {/* Change Password */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Lock className="w-5 h-5" />
+                                    เปลี่ยนรหัสผ่าน
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {!showPasswordSection ? (
                                     <Button
                                         variant="outline"
-                                        onClick={() => {
-                                            setShowPasswordSection(false);
-                                            setCurrentPassword("");
-                                            setNewPassword("");
-                                            setConfirmPassword("");
-                                        }}
-                                        className="flex-1"
+                                        onClick={() => setShowPasswordSection(true)}
+                                        className="w-full"
                                     >
-                                        ยกเลิก
+                                        <Key className="w-4 h-4 mr-2" />
+                                        เปลี่ยนรหัสผ่าน
                                     </Button>
-                                    <Button
-                                        onClick={handleChangePassword}
-                                        disabled={isSaving || !currentPassword || !newPassword}
-                                        className="flex-1"
-                                    >
-                                        {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                        บันทึก
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>รหัสผ่านปัจจุบัน</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type={showCurrentPassword ? "text" : "password"}
+                                                    value={currentPassword}
+                                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                >
+                                                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </Button>
+                                            </div>
+                                        </div>
 
-                {/* Change PIN */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Key className="w-5 h-5" />
-                            เปลี่ยน PIN
-                        </CardTitle>
-                        <CardDescription>PIN สำหรับลงเวลาผ่าน QR</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {!showPinSection ? (
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowPinSection(true)}
-                                className="w-full"
-                            >
-                                <Key className="w-4 h-4 mr-2" />
-                                เปลี่ยน PIN
-                            </Button>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>PIN ใหม่ (4-6 หลัก)</Label>
-                                    <Input
-                                        type="password"
-                                        inputMode="numeric"
-                                        maxLength={6}
-                                        value={newPin}
-                                        onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                                        placeholder="••••"
-                                    />
-                                </div>
+                                        <div className="space-y-2">
+                                            <Label>รหัสผ่านใหม่</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type={showNewPassword ? "text" : "password"}
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                                >
+                                                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </Button>
+                                            </div>
+                                        </div>
 
-                                <div className="space-y-2">
-                                    <Label>ยืนยัน PIN ใหม่</Label>
-                                    <Input
-                                        type="password"
-                                        inputMode="numeric"
-                                        maxLength={6}
-                                        value={confirmPin}
-                                        onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                                        placeholder="••••"
-                                    />
-                                </div>
+                                        <div className="space-y-2">
+                                            <Label>ยืนยันรหัสผ่านใหม่</Label>
+                                            <Input
+                                                type="password"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                            />
+                                        </div>
 
-                                <div className="flex gap-2">
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setShowPasswordSection(false);
+                                                    setCurrentPassword("");
+                                                    setNewPassword("");
+                                                    setConfirmPassword("");
+                                                }}
+                                                className="flex-1"
+                                            >
+                                                ยกเลิก
+                                            </Button>
+                                            <Button
+                                                onClick={handleChangePassword}
+                                                disabled={isSaving || !currentPassword || !newPassword}
+                                                className="flex-1"
+                                            >
+                                                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                                บันทึก
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Change PIN */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Key className="w-5 h-5" />
+                                    เปลี่ยน PIN
+                                </CardTitle>
+                                <CardDescription>PIN สำหรับลงเวลาผ่าน QR</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {!showPinSection ? (
                                     <Button
                                         variant="outline"
-                                        onClick={() => {
-                                            setShowPinSection(false);
-                                            setNewPin("");
-                                            setConfirmPin("");
-                                        }}
-                                        className="flex-1"
+                                        onClick={() => setShowPinSection(true)}
+                                        className="w-full"
                                     >
-                                        ยกเลิก
+                                        <Key className="w-4 h-4 mr-2" />
+                                        เปลี่ยน PIN
                                     </Button>
-                                    <Button
-                                        onClick={handleChangePin}
-                                        disabled={isSaving || !newPin}
-                                        className="flex-1"
-                                    >
-                                        {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                        บันทึก
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>PIN ใหม่ (4-6 หลัก)</Label>
+                                            <Input
+                                                type="password"
+                                                inputMode="numeric"
+                                                maxLength={6}
+                                                value={newPin}
+                                                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                                                placeholder="••••"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>ยืนยัน PIN ใหม่</Label>
+                                            <Input
+                                                type="password"
+                                                inputMode="numeric"
+                                                maxLength={6}
+                                                value={confirmPin}
+                                                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                                                placeholder="••••"
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setShowPinSection(false);
+                                                    setNewPin("");
+                                                    setConfirmPin("");
+                                                }}
+                                                className="flex-1"
+                                            >
+                                                ยกเลิก
+                                            </Button>
+                                            <Button
+                                                onClick={handleChangePin}
+                                                disabled={isSaving || !newPin}
+                                                className="flex-1"
+                                            >
+                                                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                                บันทึก
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
-        </div>
+        </div >
     );
 }

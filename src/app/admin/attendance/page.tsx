@@ -23,6 +23,16 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
     Search,
     Loader2,
     Clock,
@@ -32,9 +42,16 @@ import {
     Users,
     AlertTriangle,
     Timer,
+    Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format, getBangkokNow, subDays } from "@/lib/date-utils";
+
+interface User {
+    id: string;
+    name: string;
+    employeeId: string;
+}
 
 interface Station {
     id: string;
@@ -72,6 +89,15 @@ export default function AttendanceReviewPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
 
+    // Manual Check-in State
+    const [isManualOpen, setIsManualOpen] = useState(false);
+    const [users, setUsers] = useState<User[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState("");
+    const [manualType, setManualType] = useState("CHECK_IN");
+    const [manualDate, setManualDate] = useState(format(getBangkokNow(), "yyyy-MM-dd"));
+    const [manualTime, setManualTime] = useState(format(getBangkokNow(), "HH:mm"));
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     useEffect(() => {
         fetchStations();
     }, []);
@@ -91,6 +117,53 @@ export default function AttendanceReviewPage() {
             }
         } catch (error) {
             console.error("Failed to fetch stations:", error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch("/api/admin/employees");
+            if (res.ok) {
+                const data = await res.json();
+                setUsers(data.employees || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch users:", error);
+        }
+    };
+
+    const handleManualSubmit = async () => {
+        if (!selectedUserId) {
+            toast.error("กรุณาเลือกพนักงาน");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const res = await fetch("/api/admin/attendance/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: selectedUserId,
+                    type: manualType,
+                    date: manualDate,
+                    time: manualTime,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(manualType === "CHECK_IN" ? "เช็คอินสำเร็จ" : "เช็คเอาต์สำเร็จ");
+                setIsManualOpen(false);
+                fetchRecords();
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch (error) {
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -153,7 +226,7 @@ export default function AttendanceReviewPage() {
         );
     }
 
-    if (!session || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+    if (!session || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
         redirect("/");
     }
 
@@ -192,6 +265,79 @@ export default function AttendanceReviewPage() {
                     <Download className="w-4 h-4 mr-2" />
                     Export Excel
                 </Button>
+                <Dialog open={isManualOpen} onOpenChange={(open) => {
+                    setIsManualOpen(open);
+                    if (open && users.length === 0) fetchUsers();
+                }}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            เช็คอินแทน (Admin/Clerk)
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>ลงเวลาแทนพนักงาน</DialogTitle>
+                            <DialogDescription>
+                                บันทึกเวลาเข้า-ออกงานสำหรับพนักงานที่ไม่มีอุปกรณ์
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label>พนักงาน</Label>
+                                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="เลือกพนักงาน" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {users.map((u) => (
+                                            <SelectItem key={u.id} value={u.id}>
+                                                {u.employeeId} - {u.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>ประเภท</Label>
+                                <Select value={manualType} onValueChange={setManualType}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CHECK_IN">เข้างาน (Check In)</SelectItem>
+                                        <SelectItem value="CHECK_OUT">ออกงาน (Check Out)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label>วันที่</Label>
+                                    <Input
+                                        type="date"
+                                        value={manualDate}
+                                        onChange={(e) => setManualDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>เวลา</Label>
+                                    <Input
+                                        type="time"
+                                        value={manualTime}
+                                        onChange={(e) => setManualTime(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsManualOpen(false)}>ยกเลิก</Button>
+                            <Button onClick={handleManualSubmit} disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                บันทึก
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             {/* Filters */}

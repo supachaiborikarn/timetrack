@@ -22,6 +22,7 @@ import {
   User,
   ChevronRight,
   Settings,
+  UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
@@ -189,17 +190,19 @@ export default function EmployeeDashboard() {
       <header className="bg-slate-800/50 border-b border-slate-700 px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-white text-lg">
-                {todayData?.user?.name || session.user.name}
-              </h1>
-              <p className="text-xs text-slate-400">
-                {todayData?.user?.station || "ไม่ระบุสถานี"} • {todayData?.user?.department || "ไม่ระบุแผนก"}
-              </p>
-            </div>
+            <a href="/profile" className="flex items-center gap-3 hover:opacity-80 transition">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-white text-lg">
+                  {todayData?.user?.name || session.user.name}
+                </h1>
+                <p className="text-xs text-slate-400">
+                  {todayData?.user?.station || "ไม่ระบุสถานี"} • {todayData?.user?.department || "ไม่ระบุแผนก"}
+                </p>
+              </div>
+            </a>
           </div>
           <Button
             variant="ghost"
@@ -306,7 +309,11 @@ export default function EmployeeDashboard() {
                   <p className="text-lg font-semibold text-white">
                     {todayData?.attendance?.checkOutTime
                       ? formatTime(new Date(todayData.attendance.checkOutTime))
-                      : "--:--"}
+                      : todayData?.attendance?.checkInTime
+                        ? <span className="text-yellow-400 text-base">
+                          {formatTime(new Date(new Date(todayData.attendance.checkInTime).getTime() + 12 * 60 * 60 * 1000))} (ครบ 12 ชม.)
+                        </span>
+                        : "--:--"}
                   </p>
                 </div>
               </div>
@@ -456,8 +463,19 @@ export default function EmployeeDashboard() {
               </CardContent>
             </Card>
           </a>
+          <a href="/profile">
+            <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <UserCog className="w-5 h-5 text-pink-400" />
+                  <span className="text-white">ข้อมูลส่วนตัว / เปลี่ยนรหัส</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </CardContent>
+            </Card>
+          </a>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }

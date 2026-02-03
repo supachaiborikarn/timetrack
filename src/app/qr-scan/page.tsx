@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, QrCode, Camera, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
@@ -15,54 +15,85 @@ export default function QRScanPage() {
     const [isScanning, setIsScanning] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanResult, setScanResult] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    // Store stream in state to trigger re-renders if needed, checking against ref for cleanup
     const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    useEffect(() => {
-        return () => {
-            // Cleanup camera on unmount
-            if (videoRef.current?.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, []);
-
-    const startScanning = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" }
-            });
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play();
-                setIsScanning(true);
-            }
-        } catch (error) {
-            toast.error("ไม่สามารถเปิดกล้องได้", {
-                description: "กรุณาอนุญาตการเข้าถึงกล้อง"
-            });
+    const stopScanning = useCallback(() => {
+        if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
         }
-    };
-
-    const stopScanning = () => {
-        if (videoRef.current?.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => {
+                track.stop();
+            });
+            streamRef.current = null;
         }
         setIsScanning(false);
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            stopScanning();
+        };
+    }, [stopScanning]);
+
+    // Effect to attach stream to video when isScanning becomes true
+    useEffect(() => {
+        if (isScanning && streamRef.current && videoRef.current) {
+            const video = videoRef.current;
+            video.srcObject = streamRef.current;
+            video.setAttribute("playsinline", "true"); // iOS support
+
+            video.play().then(() => {
+                startQRDetection(video);
+            }).catch(e => {
+                console.error("Play error:", e);
+                setError(`Camera play error: ${e.message}`);
+            });
+        }
+    }, [isScanning]);
+
+    const startQRDetection = async (video: HTMLVideoElement) => {
+        try {
+            const jsQR = (await import("jsqr")).default;
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            scanIntervalRef.current = setInterval(() => {
+                if (!video || !ctx) return;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code && code.data) {
+                        handleQRCode(code.data);
+                    }
+                }
+            }, 200);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const handleManualQRInput = async (qrCode: string) => {
+    const handleQRCode = async (qrCode: string) => {
         if (!qrCode || isProcessing) return;
 
         setIsProcessing(true);
         stopScanning();
 
         try {
-            // Get GPS location
             const position = await getCurrentPosition();
             const deviceId = getDeviceFingerprint();
 
@@ -91,11 +122,43 @@ export default function QRScanPage() {
                 });
             }
         } catch (error) {
+            const errMsg = error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้";
             toast.error("เกิดข้อผิดพลาด", {
-                description: error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้",
+                description: errMsg,
             });
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const startScanning = async () => {
+        try {
+            setError(null);
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error("Browser does not support camera access");
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: "environment"
+                }
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            streamRef.current = stream;
+
+            // Trigger UI update to show video element
+            setIsScanning(true);
+
+        } catch (err) {
+            console.error("Camera error:", err);
+            const errorMsg = err instanceof Error ? err.message : "ไม่สามารถเปิดกล้องได้";
+            setError(errorMsg);
+
+            toast.error("ไม่สามารถเปิดกล้องได้", {
+                description: "กรุณาอนุญาตการเข้าถึงกล้อง"
+            });
         }
     };
 
@@ -150,29 +213,43 @@ export default function QRScanPage() {
                 <>
                     {/* Camera View */}
                     <Card className="bg-slate-800/50 border-slate-700 mb-6 overflow-hidden">
-                        <CardContent className="p-0 aspect-square relative">
+                        <CardContent className="p-0 relative" style={{ aspectRatio: "1/1" }}>
                             {isScanning ? (
                                 <>
                                     <video
                                         ref={videoRef}
-                                        className="w-full h-full object-cover"
+                                        className="absolute inset-0 w-full h-full object-cover"
                                         playsInline
                                         muted
+                                        // On some browsers autoplay works better than manual play
+                                        autoPlay
                                     />
-                                    <canvas ref={canvasRef} className="hidden" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-56 h-56 border-2 border-green-400 rounded-xl">
-                                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl" />
-                                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl" />
-                                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl" />
-                                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl" />
+                                    {/* Scan overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-56 h-56 border-2 border-green-400 rounded-xl relative">
+                                            <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl" />
+                                            <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl" />
+                                            <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl" />
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl" />
                                         </div>
+                                    </div>
+                                    {/* Scanning indicator */}
+                                    <div className="absolute bottom-4 left-0 right-0 text-center">
+                                        <span className="bg-black/50 text-white px-4 py-2 rounded-full text-sm">
+                                            กำลังสแกน...
+                                        </span>
                                     </div>
                                 </>
                             ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800">
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 min-h-[300px]">
                                     <QrCode className="w-16 h-16 text-slate-600 mb-4" />
-                                    <p className="text-slate-400">กดปุ่มด้านล่างเพื่อเริ่มสแกน</p>
+                                    <p className="text-slate-400 text-center px-4">
+                                        {error ? (
+                                            <span className="text-red-400">{error}</span>
+                                        ) : (
+                                            "กดปุ่มด้านล่างเพื่อเริ่มสแกน"
+                                        )}
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
@@ -197,36 +274,6 @@ export default function QRScanPage() {
                             </Button>
                         )}
                     </div>
-
-                    {/* Demo QR codes for testing */}
-                    <Card className="bg-slate-800/50 border-slate-700 mt-6">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm text-slate-400">ทดสอบ (Demo QR Codes)</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Button
-                                variant="outline"
-                                className="w-full border-slate-600 text-slate-300"
-                                onClick={() => handleManualQRInput("SUPACHAI-GS01-2026")}
-                            >
-                                ปั๊ม สุภชัย 1
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="w-full border-slate-600 text-slate-300"
-                                onClick={() => handleManualQRInput("SUPACHAI-GS02-2026")}
-                            >
-                                ปั๊ม สุภชัย 2
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="w-full border-slate-600 text-slate-300"
-                                onClick={() => handleManualQRInput("SUPACHAI-CF01-2026")}
-                            >
-                                ร้านกาแฟ สุภชัย 1
-                            </Button>
-                        </CardContent>
-                    </Card>
                 </>
             )}
         </div>

@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const now = getBangkokNow();
-        const today = startOfDay(now);
+        const localNow = getBangkokNow();
+        const fullUtcNow = new Date(); // True UTC
+        const today = startOfDay(localNow);
 
         // Get today's attendance
         const attendance = await prisma.attendance.findFirst({
@@ -91,10 +92,19 @@ export async function POST(request: NextRequest) {
 
         const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
 
+        // Handle legacy time format check (transition period)
+        // If checkInTime is seemingly in the future relative to UTC (e.g., stored as BKK time),
+        // we use localNow (BKK time) for calculation to match the legacy format.
+        // Otherwise, we use true UTC.
+        let calculationEndTime = fullUtcNow;
+        if (attendance.checkInTime > fullUtcNow) {
+            calculationEndTime = localNow;
+        }
+
         // Calculate work hours
         const { totalHours, overtimeHours } = calculateWorkHours(
             attendance.checkInTime,
-            now,
+            calculationEndTime,
             breakMinutes
         );
 
@@ -102,7 +112,7 @@ export async function POST(request: NextRequest) {
         const updatedAttendance = await prisma.attendance.update({
             where: { id: attendance.id },
             data: {
-                checkOutTime: now,
+                checkOutTime: fullUtcNow, // Always save true UTC from now on
                 checkOutLat: latitude,
                 checkOutLng: longitude,
                 checkOutDeviceId: deviceId,

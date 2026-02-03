@@ -9,7 +9,7 @@ async function main() {
 
     // Hash password 123456
     const newPassword = await bcrypt.hash('123456', 10);
-    const newPin = await bcrypt.hash('1234', 10);
+    const newPin = await bcrypt.hash('123456', 10);
 
     // Get all users
     const users = await prisma.user.findMany({
@@ -31,7 +31,7 @@ async function main() {
 
     console.log('\n=== เสร็จสิ้น! ===');
     console.log('Password ใหม่: 123456');
-    console.log('PIN ใหม่: 1234');
+    console.log('PIN ใหม่: 123456');
     console.log('\nวิธี Login:');
     console.log('1. ใส่ ชื่อ, รหัสพนักงาน, หรือ phone ในช่อง Username');
     console.log('2. ใส่ 123456 ในช่อง Password');

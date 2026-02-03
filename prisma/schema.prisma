@@ -72,6 +72,8 @@ model User {
   employeeId   String   @unique // รหัสพนักงาน
   username     String?  @unique // ชื่อผู้ใช้สำหรับการล็อกอิน (ทางเลือก)
   name         String
+  nickname     String?  // ชื่อเล่น
+  realName     String?  // ชื่อจริง (ชื่อ-นามสกุล)
   email        String?  @unique
   phone        String   @unique
   pin          String   // 6-digit PIN for check-in (hashed)
@@ -87,6 +89,22 @@ model User {
   dailyRate       Decimal @default(0)
   baseSalary      Decimal @default(0)
   otRateMultiplier Decimal @default(1.5) // OT rate specific to employee
+  
+  // Bank account info for payroll
+  bankAccountNumber String?  // เลขที่บัญชี
+  bankName          String?  // ชื่อธนาคาร
+  socialSecurityStation String? // สถานีที่ส่งประกันสังคม
+  
+  // Additional CSV data
+  position      String?   // ตำแหน่ง (Job Title from CSV)
+  housingCost   Decimal   @default(0) // คชจ ที่พัก
+  specialPay    Decimal   @default(0) // เงินพิเศษ
+  workHours     Decimal   @default(12) // ชม. ทำงาน (usually 12 or 10)
+  
+  // Emergency contact
+  emergencyContactName     String? // ชื่อผู้ติดต่อฉุกเฉิน
+  emergencyContactPhone    String? // เบอร์โทรฉุกเฉิน
+  emergencyContactRelation String? // ความสัมพันธ์
   
   isActive       Boolean        @default(true)
   employeeStatus EmployeeStatus @default(ACTIVE)

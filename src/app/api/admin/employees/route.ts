@@ -7,13 +7,12 @@ import type { Role } from "@prisma/client";
 export async function GET() {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const whereClause = session.user.role === "MANAGER"
-            ? { stationId: session.user.stationId }
-            : {};
+        // Allow seeing all employees to support cross-station check-in (e.g. temporary transfer)
+        const whereClause = {};
 
         const employees = await prisma.user.findMany({
             where: whereClause,
@@ -64,6 +63,21 @@ export async function POST(request: NextRequest) {
             departmentId,
             hourlyRate,
             otRateMultiplier,
+            // New fields
+            nickname,
+            realName,
+            dailyRate,
+            baseSalary,
+            specialPay,
+            housingCost,
+            workHours,
+            position,
+            bankName,
+            bankAccountNumber,
+            socialSecurityStation,
+            emergencyContactName,
+            emergencyContactPhone,
+            emergencyContactRelation,
         } = body;
 
         // Validate required fields
@@ -118,6 +132,21 @@ export async function POST(request: NextRequest) {
                 departmentId: departmentId || null,
                 hourlyRate: hourlyRate || 0,
                 otRateMultiplier: otRateMultiplier || 1.5,
+                // New Fields
+                nickname: nickname || null,
+                realName: realName || null,
+                dailyRate: dailyRate || null,
+                baseSalary: baseSalary || null,
+                specialPay: specialPay || 0,
+                housingCost: housingCost || 0,
+                workHours: workHours || 12,
+                position: position || null,
+                bankName: bankName || null,
+                bankAccountNumber: bankAccountNumber || null,
+                socialSecurityStation: socialSecurityStation || null,
+                emergencyContactName: emergencyContactName || null,
+                emergencyContactPhone: emergencyContactPhone || null,
+                emergencyContactRelation: emergencyContactRelation || null,
             },
         });
 

@@ -59,6 +59,8 @@ export async function PUT(
 
         const {
             name,
+            nickname,
+            realName,
             phone,
             email,
             pin,
@@ -67,8 +69,21 @@ export async function PUT(
             departmentId,
             hourlyRate,
             dailyRate,
+            baseSalary,
             otRateMultiplier,
             isActive,
+            // New fields
+            bankAccountNumber,
+            bankName,
+            socialSecurityStation,
+            emergencyContactName,
+            emergencyContactPhone,
+            emergencyContactRelation,
+            // Additional CSV data
+            position,
+            workHours,
+            specialPay,
+            housingCost,
         } = body;
 
         // Check if employee exists
@@ -80,6 +95,8 @@ export async function PUT(
         // Build update data
         const updateData: Record<string, unknown> = {
             name,
+            nickname: nickname || null,
+            realName: realName || null,
             phone,
             email: email || null,
             role,
@@ -87,8 +104,21 @@ export async function PUT(
             departmentId: departmentId || null,
             hourlyRate,
             dailyRate: dailyRate || null,
+            baseSalary: baseSalary || null,
             otRateMultiplier,
             isActive,
+            // New fields
+            bankAccountNumber: bankAccountNumber || null,
+            bankName: bankName || null,
+            socialSecurityStation: socialSecurityStation || null,
+            emergencyContactName: emergencyContactName || null,
+            emergencyContactPhone: emergencyContactPhone || null,
+            emergencyContactRelation: emergencyContactRelation || null,
+            // Additional CSV data
+            position: position || null,
+            workHours: workHours || 12,
+            specialPay: specialPay || 0,
+            housingCost: housingCost || 0,
         };
 
         // Only update PIN if provided
