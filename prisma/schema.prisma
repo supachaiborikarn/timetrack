@@ -75,7 +75,7 @@ model User {
   nickname     String?  // ชื่อเล่น
   realName     String?  // ชื่อจริง (ชื่อ-นามสกุล)
   email        String?  @unique
-  phone        String   @unique
+  phone        String?   @unique
   pin          String   // 6-digit PIN for check-in (hashed)
   password     String?  // For admin/manager web login (hashed)
   role         Role     @default(EMPLOYEE)
@@ -83,6 +83,17 @@ model User {
   departmentId String?
   deviceId     String?  // Registered device fingerprint
   photoUrl     String?  // รูปถ่ายพนักงาน
+
+  // Personal Info
+  gender       String?  // "Male", "Female", "Other"
+  birthDate    DateTime?
+  address      String?
+  citizenId    String?  // เลขบัตรประชาชน
+
+
+  // Employment Info
+  startDate        DateTime? @default(now())
+  probationEndDate DateTime?
   
   // Wage configuration - custom per employee
   hourlyRate      Decimal @default(0)
@@ -111,7 +122,13 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  station         Station?          @relation(fields: [stationId], references: [id])
+  // Social Security & Legal Station
+  isSocialSecurityRegistered Boolean @default(false)
+  socialSecurityNumber       String?
+  registeredStationId        String? // สถานีที่ชื่อขึ้นทะเบียน
+
+  station           Station?          @relation("WorkStation", fields: [stationId], references: [id])
+  registeredStation Station?          @relation("RegisteredStation", fields: [registeredStationId], references: [id])
   department      Department?       @relation(fields: [departmentId], references: [id])
   attendances     Attendance[]
   shiftAssignments ShiftAssignment[]
@@ -143,7 +160,8 @@ model Station {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  employees   User[]
+  employees           User[]           @relation("WorkStation")
+  registeredEmployees User[]           @relation("RegisteredStation")
   departments Department[]
   shifts      Shift[]
 
@@ -274,7 +292,14 @@ model Attendance {
   earlyLeaveMinutes Int?
   
   // Late penalty: 50 baht per hour after 5 min late
+  // Late penalty: 50 baht per hour after 5 min late
   latePenaltyAmount Decimal @default(0)
+
+  // Break System
+  breakStartTime   DateTime?
+  breakEndTime     DateTime?
+  breakDurationMin Int?      // Actual duration in minutes
+  breakPenaltyAmount Decimal @default(0) // Penalty for late return (1hr wage if > 5min late)
 
   note       String?
   approvedBy String?

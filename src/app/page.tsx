@@ -34,6 +34,11 @@ interface TodayData {
     checkOutTime: string | null;
     lateMinutes: number | null;
     status: string;
+    // Break Info
+    breakStartTime: string | null;
+    breakEndTime: string | null;
+    breakDurationMin: number | null;
+    breakPenaltyAmount: number | null;
   } | null;
   shift: {
     name: string;
@@ -157,6 +162,46 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleStartBreak = async () => {
+    setIsChecking(true);
+    try {
+      const res = await fetch("/api/attendance/break-start", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("เริ่มพักเบรก", { description: "พักได้ 1 ชม. 30 นาที" });
+        fetchTodayData();
+      } else {
+        toast.error("ไม่สามารถเริ่มพักได้", { description: data.error });
+      }
+    } catch {
+      toast.error("เกิดข้อผิดพลาด");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleEndBreak = async () => {
+    setIsChecking(true);
+    try {
+      const res = await fetch("/api/attendance/break-end", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.penaltyAmount > 0) {
+          toast.warning("กลับมาสายเกินกำหนด!", { description: `โดนหักเงิน ฿${data.penaltyAmount}` });
+        } else {
+          toast.success("จบการพักเบรก");
+        }
+        fetchTodayData();
+      } else {
+        toast.error("ไม่สามารถจบการพักได้", { description: data.error });
+      }
+    } catch {
+      toast.error("เกิดข้อผิดพลาด");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
@@ -171,6 +216,8 @@ export default function EmployeeDashboard() {
 
   const hasCheckedIn = !!todayData?.attendance?.checkInTime;
   const hasCheckedOut = !!todayData?.attendance?.checkOutTime;
+  const isOnBreak = !!todayData?.attendance?.breakStartTime && !todayData?.attendance?.breakEndTime;
+  const hasTakenBreak = !!todayData?.attendance?.breakEndTime;
 
   // Calculate expected work hours
   const getExpectedHours = () => {
@@ -290,6 +337,30 @@ export default function EmployeeDashboard() {
               ) : null}
             </div>
 
+            {/* Break Status */}
+            {isOnBreak && (
+              <div className="mb-4 p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Timer className="w-5 h-5 text-orange-400" />
+                  <span className="text-orange-200">คุณกำลังพักเบรก</span>
+                </div>
+                <span className="text-orange-400 font-mono">
+                  {todayData?.attendance?.breakStartTime ? formatTime(new Date(todayData.attendance.breakStartTime)) : ""}
+                </span>
+              </div>
+            )}
+
+            {hasTakenBreak && (
+              <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg flex items-center justify-between">
+                <span className="text-green-200 text-sm">พักแล้ว {todayData?.attendance?.breakDurationMin} นาที</span>
+                {todayData?.attendance?.breakPenaltyAmount && todayData.attendance.breakPenaltyAmount > 0 ? (
+                  <Badge variant="destructive">โดนหัก -฿{todayData.attendance.breakPenaltyAmount}</Badge>
+                ) : (
+                  <Badge className="bg-green-500/20 text-green-400">ปกติ</Badge>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${hasCheckedIn ? "bg-green-500" : "bg-slate-600"}`} />
@@ -352,6 +423,30 @@ export default function EmployeeDashboard() {
               <LogOut className="w-5 h-5 mr-2" />
             )}
             เลิกเวร
+          </Button>
+        </div>
+
+        {/* Break Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            className={`h-12 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white ${!hasCheckedIn || hasCheckedOut || isOnBreak || hasTakenBreak ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            disabled={!hasCheckedIn || hasCheckedOut || isOnBreak || hasTakenBreak || isChecking}
+            onClick={handleStartBreak}
+          >
+            <Timer className="w-4 h-4 mr-2" />
+            เริ่มพัก (1.5 ชม.)
+          </Button>
+          <Button
+            variant="outline"
+            className={`h-12 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white ${!isOnBreak ? "opacity-50 cursor-not-allowed" : "bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/30"
+              }`}
+            disabled={!isOnBreak || isChecking}
+            onClick={handleEndBreak}
+          >
+            <Timer className="w-4 h-4 mr-2" />
+            จบพักเบรก
           </Button>
         </div>
 

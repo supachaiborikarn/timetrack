@@ -73,6 +73,7 @@ export async function PUT(
             otRateMultiplier,
             isActive,
             // New fields
+            // New fields
             bankAccountNumber,
             bankName,
             socialSecurityStation,
@@ -84,6 +85,18 @@ export async function PUT(
             workHours,
             specialPay,
             housingCost,
+            // Remote fields
+            nickName,
+            gender,
+            birthDate,
+            address,
+            citizenId,
+            startDate,
+            probationEndDate,
+            // Social Security
+            isSocialSecurityRegistered,
+            socialSecurityNumber,
+            registeredStationId,
         } = body;
 
         // Check if employee exists
@@ -95,9 +108,9 @@ export async function PUT(
         // Build update data
         const updateData: Record<string, unknown> = {
             name,
-            nickname: nickname || null,
+            nickname: nickname || nickName || null,
             realName: realName || null,
-            phone,
+            phone: phone || null,
             email: email || null,
             role,
             stationId: stationId || null,
@@ -108,6 +121,7 @@ export async function PUT(
             otRateMultiplier,
             isActive,
             // New fields
+            // New fields merged
             bankAccountNumber: bankAccountNumber || null,
             bankName: bankName || null,
             socialSecurityStation: socialSecurityStation || null,
@@ -119,6 +133,18 @@ export async function PUT(
             workHours: workHours || 12,
             specialPay: specialPay || 0,
             housingCost: housingCost || 0,
+
+            // Remote fields
+            gender: gender || null,
+            birthDate: birthDate ? new Date(birthDate) : null,
+            address: address || null,
+            citizenId: citizenId || null,
+            startDate: startDate ? new Date(startDate) : null,
+            probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+
+            isSocialSecurityRegistered: isSocialSecurityRegistered || false,
+            socialSecurityNumber: socialSecurityNumber || null,
+            registeredStationId: registeredStationId || null,
         };
 
         // Only update PIN if provided

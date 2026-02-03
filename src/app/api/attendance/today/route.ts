@@ -46,6 +46,11 @@ export async function GET() {
                     checkOutTime: attendance.checkOutTime?.toISOString() || null,
                     lateMinutes: attendance.lateMinutes,
                     status: attendance.status,
+                    // Break info
+                    breakStartTime: attendance.breakStartTime?.toISOString() || null,
+                    breakEndTime: attendance.breakEndTime?.toISOString() || null,
+                    breakDurationMin: attendance.breakDurationMin,
+                    breakPenaltyAmount: Number(attendance.breakPenaltyAmount),
                 }
                 : null,
             shift: shiftAssignment?.shift

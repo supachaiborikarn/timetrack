@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -25,8 +24,10 @@ import {
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
-import { Loader2, User, Wallet, Shield, Phone } from "lucide-react";
+import { Loader2, User, Wallet, Shield, Phone, UserCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 // Interfaces
 interface Station {
@@ -41,7 +42,7 @@ interface Employee {
     name: string;
     nickname: string | null;
     realName: string | null;
-    phone: string;
+    phone: string | null;
     email: string | null;
     role: string;
     hourlyRate: number;
@@ -51,17 +52,27 @@ interface Employee {
     isActive: boolean;
     station: { id: string; name: string } | null;
     department: { id: string; name: string } | null;
+
     // New fields
     bankAccountNumber: string | null;
     bankName: string | null;
     socialSecurityStation: string | null;
-    // Additional CSV data
     position?: string | null;
     housingCost?: number | null;
     specialPay?: number | null;
     workHours?: number | null;
 
-    // Emergency Contact
+    isSocialSecurityRegistered?: boolean;
+    socialSecurityNumber?: string | null;
+    registeredStationId?: string | null;
+
+    gender?: string | null;
+    birthDate?: string | null;
+    address?: string | null;
+    citizenId?: string | null;
+    startDate?: string | null;
+    probationEndDate?: string | null;
+
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     emergencyContactRelation?: string | null;
@@ -84,20 +95,35 @@ const initialFormData = {
     baseSalary: 0,
     otRateMultiplier: 1.5,
     isActive: true,
+
     // Bank info
     bankAccountNumber: "",
-    bankName: "TTB",
+    bankName: "",
+
     // Social security
     socialSecurityStation: "",
-    // Emergency contact
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    emergencyContactRelation: "",
+    isSocialSecurityRegistered: false,
+    socialSecurityNumber: "",
+    registeredStationId: "",
+
     // Additional CSV data
     position: "",
     housingCost: 0,
     specialPay: 0,
     workHours: 12,
+
+    // Personal info
+    gender: "",
+    birthDate: "",
+    address: "",
+    citizenId: "",
+    startDate: new Date().toISOString().split('T')[0],
+    probationEndDate: "",
+
+    // Emergency contact
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelation: "",
 };
 
 // Station options for social security
@@ -108,23 +134,24 @@ const socialSecurityStations = [
 ];
 
 const bankOptions = [
+    "KASIKORN",
+    "SCB",
+    "BANGKOK",
+    "KRUNGTHAI",
+    "KRUNGSRI",
     "TTB",
-    "กสิกร",
-    "กรุงไทย",
-    "ไทยพาณิชย์",
-    "กรุงเทพ",
-    "ออมสิน",
-    "ธ.ก.ส."
+    "GSB",
+    "BAAC"
 ];
 
 const relationOptions = [
-    "บิดา",
-    "มารดา",
-    "สามี",
-    "ภรรยา",
-    "บุตร",
-    "พี่/น้อง",
-    "อื่นๆ"
+    "Parent",
+    "Spouse",
+    "Sibling",
+    "Child",
+    "Relative",
+    "Friend",
+    "Other"
 ];
 
 const EmployeeFormWithTabs = ({
@@ -151,12 +178,15 @@ const EmployeeFormWithTabs = ({
     return (
         <form onSubmit={onSubmit}>
             <Tabs defaultValue="basic" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsList className="grid w-full grid-cols-5 mb-4">
                     <TabsTrigger value="basic" className="text-xs">
-                        <User className="w-4 h-4 mr-1" />ข้อมูลหลัก
+                        <User className="w-4 h-4 mr-1" />ทั่วไป
+                    </TabsTrigger>
+                    <TabsTrigger value="personal" className="text-xs">
+                        <UserCircle className="w-4 h-4 mr-1" />ส่วนตัว
                     </TabsTrigger>
                     <TabsTrigger value="wage" className="text-xs">
-                        <Wallet className="w-4 h-4 mr-1" />ค่าแรง
+                        <Wallet className="w-4 h-4 mr-1" />จ้างงาน
                     </TabsTrigger>
                     <TabsTrigger value="social" className="text-xs">
                         <Shield className="w-4 h-4 mr-1" />ประกัน
@@ -170,7 +200,7 @@ const EmployeeFormWithTabs = ({
                 <TabsContent value="basic" className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>รหัสพนักงาน</Label>
+                            <Label>รหัสพนักงาน <span className="text-red-500">*</span></Label>
                             <Input
                                 value={formData.employeeId}
                                 onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
@@ -180,23 +210,35 @@ const EmployeeFormWithTabs = ({
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>ชื่อเล่น (สำหรับเรียก)</Label>
+                            <Label>ชื่อ-นามสกุล <span className="text-red-500">*</span></Label>
                             <Input
-                                value={formData.nickname}
-                                onChange={(e) => setFormData({ ...formData, nickname: e.target.value, name: e.target.value })}
-                                placeholder="ชื่อเล่น"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="สมชาย ใจดี"
                                 required
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label>ชื่อจริง-นามสกุล</Label>
-                        <Input
-                            value={formData.realName}
-                            onChange={(e) => setFormData({ ...formData, realName: e.target.value })}
-                            placeholder="ชื่อจริง นามสกุล"
-                        />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>ชื่อเล่น</Label>
+                            <Input
+                                value={formData.nickname}
+                                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                                placeholder="ชื่อเล่น"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>ชื่อจริง (ภาษาไทย)</Label>
+                            <Input
+                                value={formData.realName || ""}
+                                onChange={(e) => setFormData({ ...formData, realName: e.target.value })}
+                                placeholder="ชื่อจริง นามสกุล"
+                            />
+                        </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>เบอร์โทร</Label>
@@ -204,7 +246,6 @@ const EmployeeFormWithTabs = ({
                                 value={formData.phone}
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                 placeholder="0812345678"
-                                required
                             />
                         </div>
                         <div className="space-y-2">
@@ -214,10 +255,10 @@ const EmployeeFormWithTabs = ({
                                 onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, "") })}
                                 placeholder={isEdit ? "ไม่เปลี่ยน" : "1234"}
                                 maxLength={6}
-                                required={!isEdit}
                             />
                         </div>
                     </div>
+
                     <div className="space-y-2">
                         <Label>อีเมล (ไม่บังคับ)</Label>
                         <Input
@@ -227,9 +268,10 @@ const EmployeeFormWithTabs = ({
                             placeholder="email@example.com"
                         />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>สถานี</Label>
+                            <Label>สถานี (ที่ทำงานจริง)</Label>
                             <Select value={formData.stationId} onValueChange={(v) => setFormData({ ...formData, stationId: v, departmentId: "" })}>
                                 <SelectTrigger><SelectValue placeholder="เลือกสถานี" /></SelectTrigger>
                                 <SelectContent>
@@ -247,9 +289,10 @@ const EmployeeFormWithTabs = ({
                             </Select>
                         </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>ตำแหน่ง</Label>
+                            <Label>ตำแหน่งระดับ (Role)</Label>
                             <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -262,18 +305,19 @@ const EmployeeFormWithTabs = ({
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>สถานะ</Label>
+                            <Label>สถานะการใช้งาน</Label>
                             <Select value={formData.isActive ? "active" : "inactive"} onValueChange={(v) => setFormData({ ...formData, isActive: v === "active" })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="active">ใช้งาน</SelectItem>
-                                    <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
+                                    <SelectItem value="active">ใช้งานปกติ</SelectItem>
+                                    <SelectItem value="inactive">ปิดใช้งาน/ลาออก</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
+
                     <div className="space-y-2">
-                        <Label>ตำแหน่ง (Job Title)</Label>
+                        <Label>ตำแหน่งงาน (Job Title)</Label>
                         <Input
                             value={formData.position || ""}
                             onChange={(e) => setFormData({ ...formData, position: e.target.value })}
@@ -282,8 +326,69 @@ const EmployeeFormWithTabs = ({
                     </div>
                 </TabsContent>
 
-                {/* Tab 2: Wage & Bank */}
+                {/* Tab 2: Personal Info */}
+                <TabsContent value="personal" className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>เลขบัตรประชาชน</Label>
+                        <Input
+                            value={formData.citizenId || ""}
+                            onChange={(e) => setFormData({ ...formData, citizenId: e.target.value })}
+                            placeholder="1-2345-67890-12-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>วันเกิด</Label>
+                            <Input
+                                type="date"
+                                value={formData.birthDate || ""}
+                                onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>เพศ</Label>
+                            <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+                                <SelectTrigger><SelectValue placeholder="ระบุเพศ" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Male">ชาย</SelectItem>
+                                    <SelectItem value="Female">หญิง</SelectItem>
+                                    <SelectItem value="Other">อื่นๆ</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>ที่อยู่ปัจจุบัน</Label>
+                        <Textarea
+                            value={formData.address || ""}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            placeholder="บ้านเลขที่ หมู่ ซอย ถนน..."
+                            rows={3}
+                        />
+                    </div>
+                </TabsContent>
+
+                {/* Tab 3: Wage & Employment */}
                 <TabsContent value="wage" className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>วันที่เริ่มงาน</Label>
+                            <Input
+                                type="date"
+                                value={formData.startDate || ""}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>วันผ่านโปร</Label>
+                            <Input
+                                type="date"
+                                value={formData.probationEndDate || ""}
+                                onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label>ค่าแรง/วัน</Label>
@@ -341,8 +446,28 @@ const EmployeeFormWithTabs = ({
                     </div>
                 </TabsContent>
 
-                {/* Tab 3: Social Security */}
+                {/* Tab 4: Social Security */}
                 <TabsContent value="social" className="space-y-4">
+                    <div className="flex items-center space-x-2 pt-2 pb-2">
+                        <Switch
+                            id="sso"
+                            checked={formData.isSocialSecurityRegistered}
+                            onCheckedChange={(c) => setFormData({ ...formData, isSocialSecurityRegistered: c })}
+                        />
+                        <Label htmlFor="sso">ขึ้นทะเบียนประกันสังคม</Label>
+                    </div>
+
+                    {formData.isSocialSecurityRegistered && (
+                        <div className="space-y-2">
+                            <Label>เลขบัตรประกันสังคม</Label>
+                            <Input
+                                value={formData.socialSecurityNumber || ""}
+                                onChange={(e) => setFormData({ ...formData, socialSecurityNumber: e.target.value })}
+                                placeholder="เลขบัตร 13 หลัก"
+                            />
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <Label>สถานีที่ส่งประกันสังคม</Label>
                         <Select value={formData.socialSecurityStation || ""} onValueChange={(v) => setFormData({ ...formData, socialSecurityStation: v })}>
@@ -352,12 +477,19 @@ const EmployeeFormWithTabs = ({
                             </SelectContent>
                         </Select>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        สถานีที่ส่งประกันสังคมอาจแตกต่างจากสถานีที่ทำงานจริง
-                    </p>
+                    <div className="space-y-2">
+                        <Label>สถานี (ที่ขึ้นทะเบียน)</Label>
+                        <Select value={formData.registeredStationId || ""} onValueChange={(v) => setFormData({ ...formData, registeredStationId: v })}>
+                            <SelectTrigger><SelectValue placeholder="เลือกสถานี (ถ้ามี)" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">-- ไม่ระบุ --</SelectItem>
+                                {stations.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </TabsContent>
 
-                {/* Tab 4: Emergency Contact */}
+                {/* Tab 5: Emergency Contact */}
                 <TabsContent value="emergency" className="space-y-4">
                     <div className="space-y-2">
                         <Label>ชื่อผู้ติดต่อฉุกเฉิน</Label>
@@ -373,13 +505,13 @@ const EmployeeFormWithTabs = ({
                             <Input
                                 value={formData.emergencyContactPhone || ""}
                                 onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
-                                placeholder="0812345678"
+                                placeholder="08xxxxxxxx"
                             />
                         </div>
                         <div className="space-y-2">
                             <Label>ความสัมพันธ์</Label>
                             <Select value={formData.emergencyContactRelation || ""} onValueChange={(v) => setFormData({ ...formData, emergencyContactRelation: v })}>
-                                <SelectTrigger><SelectValue placeholder="เลือก" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="เลือกความสัมพันธ์" /></SelectTrigger>
                                 <SelectContent>
                                     {relationOptions.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
                                 </SelectContent>
@@ -391,7 +523,10 @@ const EmployeeFormWithTabs = ({
 
             <div className="flex justify-end gap-3 pt-4 border-t mt-4">
                 <Button type="button" variant="ghost" onClick={onCancel}>ยกเลิก</Button>
-                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}{submitLabel}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {submitLabel}
+                </Button>
             </div>
         </form>
     );
@@ -427,6 +562,7 @@ export const AddEmployeeDialog = ({
                     specialPay: formData.specialPay || 0,
                     housingCost: formData.housingCost || 0,
                     workHours: formData.workHours || 12,
+                    registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
                 }),
             });
             const data = await res.json();
@@ -447,10 +583,10 @@ export const AddEmployeeDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
-                    <DialogDescription>กรอกข้อมูลพนักงานด้านล่าง</DialogDescription>
+                    <DialogDescription>กรอกข้อมูลพนักงานให้ครบถ้วน</DialogDescription>
                 </DialogHeader>
                 <EmployeeFormWithTabs
                     formData={formData}
@@ -485,33 +621,50 @@ export const EditEmployeeDialog = ({
     useEffect(() => {
         if (employee) {
             setFormData({
+                ...initialFormData,
                 employeeId: employee.employeeId,
                 name: employee.name,
                 nickname: employee.nickname || "",
                 realName: employee.realName || "",
-                phone: employee.phone,
+                phone: employee.phone || "",
                 email: employee.email || "",
-                pin: "",
                 role: employee.role,
                 stationId: employee.station?.id || "",
                 departmentId: employee.department?.id || "",
-                hourlyRate: Number(employee.hourlyRate) || 0,
-                dailyRate: Number(employee.dailyRate) || 0,
-                baseSalary: Number(employee.baseSalary) || 0,
-                otRateMultiplier: Number(employee.otRateMultiplier) || 1.5,
+                hourlyRate: employee.hourlyRate,
+                dailyRate: employee.dailyRate || 0,
+                baseSalary: employee.baseSalary || 0,
+                otRateMultiplier: employee.otRateMultiplier,
                 isActive: employee.isActive,
-                // New fields
+
+                // Bank
                 bankAccountNumber: employee.bankAccountNumber || "",
-                bankName: employee.bankName || "TTB",
+                bankName: employee.bankName || "",
+
+                // Social Security
                 socialSecurityStation: employee.socialSecurityStation || "",
+                isSocialSecurityRegistered: employee.isSocialSecurityRegistered || false,
+                socialSecurityNumber: employee.socialSecurityNumber || "",
+                registeredStationId: employee.registeredStationId || "",
+
+                // New Fields
+                position: employee.position || "",
+                housingCost: employee.housingCost || 0,
+                specialPay: employee.specialPay || 0,
+                workHours: employee.workHours || 12,
+
+                // Personal
+                gender: employee.gender || "",
+                birthDate: employee.birthDate ? new Date(employee.birthDate).toISOString().split('T')[0] : "",
+                address: employee.address || "",
+                citizenId: employee.citizenId || "",
+                startDate: employee.startDate ? new Date(employee.startDate).toISOString().split('T')[0] : "",
+                probationEndDate: employee.probationEndDate ? new Date(employee.probationEndDate).toISOString().split('T')[0] : "",
+
+                // Emergency
                 emergencyContactName: employee.emergencyContactName || "",
                 emergencyContactPhone: employee.emergencyContactPhone || "",
                 emergencyContactRelation: employee.emergencyContactRelation || "",
-                position: employee.position || "",
-                housingCost: Number(employee.housingCost) || 0,
-                specialPay: Number(employee.specialPay) || 0,
-                workHours: Number(employee.workHours) || 12,
-                password: "",
             });
         }
     }, [employee]);
@@ -533,11 +686,12 @@ export const EditEmployeeDialog = ({
                     specialPay: formData.specialPay || 0,
                     housingCost: formData.housingCost || 0,
                     workHours: formData.workHours || 12,
+                    registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
                 }),
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success("แก้ไขพนักงานสำเร็จ");
+                toast.success("อัปเดตข้อมูลพนักงานสำเร็จ");
                 onOpenChange(false);
                 onSuccess();
             } else {
@@ -552,10 +706,10 @@ export const EditEmployeeDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>แก้ไขพนักงาน</DialogTitle>
-                    <DialogDescription>แก้ไขข้อมูล {employee?.name}</DialogDescription>
+                    <DialogTitle>แก้ไขข้อมูลพนักงาน</DialogTitle>
+                    <DialogDescription>แก้ไขข้อมูลพนักงานในระบบ</DialogDescription>
                 </DialogHeader>
                 <EmployeeFormWithTabs
                     formData={formData}
@@ -565,7 +719,7 @@ export const EditEmployeeDialog = ({
                     submitLabel="บันทึกการแก้ไข"
                     isSubmitting={isSubmitting}
                     onCancel={() => onOpenChange(false)}
-                    isEdit
+                    isEdit={true}
                 />
             </DialogContent>
         </Dialog>

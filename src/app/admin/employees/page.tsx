@@ -88,6 +88,10 @@ interface Employee {
     housingCost: number | null;
     specialPay: number | null;
     workHours: number | null;
+    // Remote fields (merged)
+    registeredStation: { id: string; name: string } | null;
+    isSocialSecurityRegistered: boolean;
+    socialSecurityNumber: string | null;
 }
 
 interface Station {
@@ -337,6 +341,7 @@ export default function EmployeesPage() {
                                     <TableHead className="hidden md:table-cell">สถานี/แผนก</TableHead>
                                     <TableHead>ตำแหน่ง</TableHead>
                                     <TableHead className="hidden lg:table-cell">ค่าแรง</TableHead>
+                                    <TableHead>ประกันสังคม</TableHead>
                                     <TableHead>สถานะ</TableHead>
                                     <TableHead className="text-right">จัดการ</TableHead>
                                 </TableRow>
@@ -348,8 +353,15 @@ export default function EmployeesPage() {
                                         <TableCell>{emp.name}</TableCell>
                                         <TableCell className="hidden sm:table-cell text-muted-foreground">{emp.phone}</TableCell>
                                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                                            {emp.station?.name || "-"}
-                                            {emp.department && <span className="text-xs block">{emp.department.name}</span>}
+                                            <div>
+                                                {emp.station?.name || "-"}
+                                                {emp.department && <span className="text-xs block">{emp.department.name}</span>}
+                                            </div>
+                                            {emp.registeredStation && emp.registeredStation.id !== emp.station?.id && (
+                                                <div className="text-xs text-orange-500/80 mt-1" title="สถานีที่ขึ้นทะเบียน">
+                                                    ® {emp.registeredStation.name}
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
@@ -364,6 +376,15 @@ export default function EmployeesPage() {
                                                 {Number(emp.specialPay) > 0 && <span className="text-xs text-green-600">+฿{Number(emp.specialPay).toLocaleString()} พิเศษ</span>}
                                                 {Number(emp.housingCost) > 0 && <span className="text-xs text-red-400">-฿{Number(emp.housingCost).toLocaleString()} ที่พัก</span>}
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {emp.isSocialSecurityRegistered ? (
+                                                <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                                    มี ({emp.socialSecurityNumber})
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">-</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={emp.isActive ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"}>
