@@ -19,6 +19,7 @@ export async function GET() {
             where: whereClause,
             include: {
                 station: { select: { id: true, name: true } },
+                registeredStation: { select: { id: true, name: true } },
                 department: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -37,6 +38,24 @@ export async function GET() {
                 isActive: e.isActive,
                 station: e.station,
                 department: e.department,
+                // New Fields
+                nickName: e.nickName,
+                gender: e.gender,
+                birthDate: e.birthDate,
+                address: e.address,
+                citizenId: e.citizenId,
+                startDate: e.startDate,
+                probationEndDate: e.probationEndDate,
+                bankName: e.bankName,
+                bankAccountNumber: e.bankAccountNumber,
+                // Social Security & Legal
+                isSocialSecurityRegistered: e.isSocialSecurityRegistered,
+                socialSecurityNumber: e.socialSecurityNumber,
+                registeredStation: e.registeredStation,
+
+                emergencyContactName: e.emergencyContactName,
+                emergencyContactPhone: e.emergencyContactPhone,
+                emergencyContactRelation: e.emergencyContactRelation,
             })),
         });
     } catch (error) {
@@ -64,12 +83,30 @@ export async function POST(request: NextRequest) {
             departmentId,
             hourlyRate,
             otRateMultiplier,
+            // New fields
+            nickName,
+            gender,
+            birthDate,
+            address,
+            citizenId,
+            startDate,
+            probationEndDate,
+            bankName,
+            bankAccountNumber,
+            // Social Security
+            isSocialSecurityRegistered,
+            socialSecurityNumber,
+            registeredStationId,
+
+            emergencyContactName,
+            emergencyContactPhone,
+            emergencyContactRelation
         } = body;
 
-        // Validate required fields
-        if (!employeeId || !name || !phone || !pin) {
+        // Validate required fields (Phone is no longer required)
+        if (!employeeId || !name || !pin) {
             return NextResponse.json(
-                { error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
+                { error: "กรุณากรอกข้อมูลให้ครบถ้วน (รหัสพนักงาน, ชื่อ, PIN)" },
                 { status: 400 }
             );
         }
@@ -79,8 +116,10 @@ export async function POST(request: NextRequest) {
             where: {
                 OR: [
                     { employeeId },
-                    { phone },
-                    { username: body.username || name }, // Check if username/name exists
+                    // Check phone only if provided
+                    ...(phone ? [{ phone }] : []),
+                    // Check username/name
+                    { username: body.username || name },
                     ...(email ? [{ email }] : []),
                 ],
             },
@@ -98,26 +137,41 @@ export async function POST(request: NextRequest) {
         // Default password "123456" for employees
         const defaultPassword = await bcrypt.hash("123456", 10);
 
-        // Determine username (use provided username or fallback to name/employeeId)
-        // Sanitizing name to be username-friendly if needed, but for now use raw name or employeeId
-        // Ideally, we should ensure uniqueness.
-        // Let's use name as username default.
         const username = body.username || name;
 
         const user = await prisma.user.create({
             data: {
                 employeeId,
                 name,
-                username: username, // Save username
-                phone,
+                username,
+                phone: phone || null,  // Allow null
                 email: email || null,
                 pin: hashedPin,
-                password: defaultPassword, // Set default password
+                password: defaultPassword,
                 role: role as Role,
                 stationId: stationId || null,
                 departmentId: departmentId || null,
                 hourlyRate: hourlyRate || 0,
                 otRateMultiplier: otRateMultiplier || 1.5,
+
+                // New fields
+                nickName: nickName || null,
+                gender: gender || null,
+                birthDate: birthDate ? new Date(birthDate) : null,
+                address: address || null,
+                citizenId: citizenId || null,
+                startDate: startDate ? new Date(startDate) : new Date(),
+                probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+                bankName: bankName || null,
+                bankAccountNumber: bankAccountNumber || null,
+                // Social Security
+                isSocialSecurityRegistered: isSocialSecurityRegistered || false,
+                socialSecurityNumber: socialSecurityNumber || null,
+                registeredStationId: registeredStationId || null,
+
+                emergencyContactName: emergencyContactName || null,
+                emergencyContactPhone: emergencyContactPhone || null,
+                emergencyContactRelation: emergencyContactRelation || null,
             },
         });
 

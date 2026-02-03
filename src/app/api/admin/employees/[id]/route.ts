@@ -69,6 +69,24 @@ export async function PUT(
             dailyRate,
             otRateMultiplier,
             isActive,
+            // New fields
+            nickName,
+            gender,
+            birthDate,
+            address,
+            citizenId,
+            startDate,
+            probationEndDate,
+            bankName,
+            bankAccountNumber,
+            // Social Security
+            isSocialSecurityRegistered,
+            socialSecurityNumber,
+            registeredStationId,
+
+            emergencyContactName,
+            emergencyContactPhone,
+            emergencyContactRelation
         } = body;
 
         // Check if employee exists
@@ -80,7 +98,7 @@ export async function PUT(
         // Build update data
         const updateData: Record<string, unknown> = {
             name,
-            phone,
+            phone: phone || null, // Allow clearing phone
             email: email || null,
             role,
             stationId: stationId || null,
@@ -89,6 +107,25 @@ export async function PUT(
             dailyRate: dailyRate || null,
             otRateMultiplier,
             isActive,
+            // New fields
+            nickName: nickName || null,
+            gender: gender || null,
+            birthDate: birthDate ? new Date(birthDate) : null,
+            address: address || null,
+            citizenId: citizenId || null,
+            startDate: startDate ? new Date(startDate) : null,
+            probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+
+            bankName: bankName || null,
+            bankAccountNumber: bankAccountNumber || null,
+            // Social Security
+            isSocialSecurityRegistered: isSocialSecurityRegistered || false,
+            socialSecurityNumber: socialSecurityNumber || null,
+            registeredStationId: registeredStationId || null,
+
+            emergencyContactName: emergencyContactName || null,
+            emergencyContactPhone: emergencyContactPhone || null,
+            emergencyContactRelation: emergencyContactRelation || null,
         };
 
         // Only update PIN if provided
