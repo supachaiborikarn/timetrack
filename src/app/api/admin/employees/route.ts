@@ -85,16 +85,9 @@ export async function POST(request: NextRequest) {
             // New fields
             // New fields
             nickname,
-            realName,
             dailyRate,
             baseSalary,
-            specialPay,
-            housingCost,
-            workHours,
-            position,
-            bankName,
             bankAccountNumber,
-            socialSecurityStation,
             emergencyContactName,
             emergencyContactPhone,
             emergencyContactRelation,
@@ -164,16 +157,10 @@ export async function POST(request: NextRequest) {
                 otRateMultiplier: otRateMultiplier || 1.5,
                 // New Fields Merged
                 nickName: nickname || nickName || null,
-                realName: realName || null,
                 dailyRate: dailyRate || null,
                 baseSalary: baseSalary || null,
-                specialPay: specialPay || 0,
-                housingCost: housingCost || 0,
-                workHours: workHours || 12,
-                position: position || null,
                 bankName: bankName || null,
                 bankAccountNumber: bankAccountNumber || null,
-                socialSecurityStation: socialSecurityStation || null,
 
                 gender: gender || null,
                 birthDate: birthDate ? new Date(birthDate) : null,
