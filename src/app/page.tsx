@@ -523,8 +523,8 @@ export default function EmployeeDashboard() {
 
         {/* Menu List */}
         <div className="space-y-2">
-          {/* Admin Dashboard Link - Only for ADMIN/HR/MANAGER */}
-          {session?.user?.role && ["ADMIN", "HR", "MANAGER"].includes(session.user.role) && (
+          {/* Admin Dashboard Link - Only for ADMIN/HR/MANAGER/CASHIER */}
+          {session?.user?.role && ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role) && (
             <a href="/admin">
               <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 hover:from-blue-600/30 hover:to-purple-600/30 transition cursor-pointer">
                 <CardContent className="py-3 flex items-center justify-between">
