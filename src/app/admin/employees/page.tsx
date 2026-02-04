@@ -212,6 +212,17 @@ export default function EmployeesPage() {
         }
     };
 
+    const getRoleNameTh = (role: string) => {
+        switch (role) {
+            case "ADMIN": return "ผู้ดูแลระบบ";
+            case "HR": return "ฝ่ายบุคคล (HR)";
+            case "MANAGER": return "ผู้จัดการ";
+            case "CASHIER": return "เสมียน";
+            case "EMPLOYEE": return "พนักงาน";
+            default: return role;
+        }
+    };
+
     return (
         <>
             <div className="space-y-6">
@@ -299,9 +310,10 @@ export default function EmployeesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">ทุกตำแหน่ง</SelectItem>
-                                        <SelectItem value="ADMIN">Admin</SelectItem>
-                                        <SelectItem value="HR">HR</SelectItem>
+                                        <SelectItem value="ADMIN">ผู้ดูแลระบบ</SelectItem>
+                                        <SelectItem value="HR">ฝ่ายบุคคล (HR)</SelectItem>
                                         <SelectItem value="MANAGER">ผู้จัดการ</SelectItem>
+                                        <SelectItem value="CASHIER">เสมียน</SelectItem>
                                         <SelectItem value="EMPLOYEE">พนักงาน</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -326,7 +338,7 @@ export default function EmployeesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>รหัส</TableHead>
-                                    <TableHead>ชื่อ-นามสกุล</TableHead>
+                                    <TableHead>ชื่อ-นามสกุล / ชื่อเล่น</TableHead>
                                     <TableHead className="hidden sm:table-cell">เบอร์โทร</TableHead>
                                     <TableHead className="hidden md:table-cell">สถานี/แผนก</TableHead>
                                     <TableHead>ตำแหน่ง</TableHead>
@@ -340,7 +352,12 @@ export default function EmployeesPage() {
                                 {filteredEmployees.map((emp) => (
                                     <TableRow key={emp.id}>
                                         <TableCell className="font-medium">{emp.employeeId}</TableCell>
-                                        <TableCell>{emp.name}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span>{emp.name}</span>
+                                                {emp.nickName && <span className="text-sm text-muted-foreground">({emp.nickName})</span>}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="hidden sm:table-cell text-muted-foreground">{emp.phone}</TableCell>
                                         <TableCell className="hidden md:table-cell text-muted-foreground">
                                             <div>
@@ -355,7 +372,7 @@ export default function EmployeesPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <Badge variant="outline" className={getRoleBadgeColor(emp.role)}>{emp.role}</Badge>
+                                                <Badge variant="outline" className={getRoleBadgeColor(emp.role)}>{getRoleNameTh(emp.role)}</Badge>
 
                                             </div>
                                         </TableCell>
