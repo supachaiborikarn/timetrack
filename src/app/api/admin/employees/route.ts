@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
             nickname,
             dailyRate,
             baseSalary,
+            bankName,
             bankAccountNumber,
             emergencyContactName,
             emergencyContactPhone,
