@@ -43,7 +43,7 @@ export async function GET() {
                 bankName: user.bankName,
                 // Additional
                 createdAt: user.createdAt,
-                createdAt: user.createdAt,
+
             },
         });
     } catch (error) {

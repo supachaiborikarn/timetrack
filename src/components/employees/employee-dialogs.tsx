@@ -40,8 +40,7 @@ interface Employee {
     id: string;
     employeeId: string;
     name: string;
-    nickname: string | null;
-    realName: string | null;
+    nickName: string | null;
     phone: string | null;
     email: string | null;
     role: string;
@@ -56,15 +55,13 @@ interface Employee {
     // New fields
     bankAccountNumber: string | null;
     bankName: string | null;
-    socialSecurityStation: string | null;
-    position?: string | null;
-    housingCost?: number | null;
-    specialPay?: number | null;
-    workHours?: number | null;
 
     isSocialSecurityRegistered?: boolean;
     socialSecurityNumber?: string | null;
     registeredStationId?: string | null;
+
+
+
 
     gender?: string | null;
     birthDate?: string | null;
@@ -81,8 +78,12 @@ interface Employee {
 const initialFormData = {
     employeeId: "",
     name: "",
-    nickname: "",
-    realName: "",
+    nickName: "",
+
+    // Social Security
+    isSocialSecurityRegistered: false,
+    socialSecurityNumber: "",
+    registeredStationId: "",
     phone: "",
     email: "",
     password: "",
@@ -101,16 +102,7 @@ const initialFormData = {
     bankName: "",
 
     // Social security
-    socialSecurityStation: "",
-    isSocialSecurityRegistered: false,
-    socialSecurityNumber: "",
-    registeredStationId: "",
 
-    // Additional CSV data
-    position: "",
-    housingCost: 0,
-    specialPay: 0,
-    workHours: 12,
 
     // Personal info
     gender: "",
@@ -224,17 +216,9 @@ const EmployeeFormWithTabs = ({
                         <div className="space-y-2">
                             <Label>ชื่อเล่น</Label>
                             <Input
-                                value={formData.nickname}
-                                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                                value={formData.nickName}
+                                onChange={(e) => setFormData({ ...formData, nickName: e.target.value })}
                                 placeholder="ชื่อเล่น"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>ชื่อจริง (ภาษาไทย)</Label>
-                            <Input
-                                value={formData.realName || ""}
-                                onChange={(e) => setFormData({ ...formData, realName: e.target.value })}
-                                placeholder="ชื่อจริง นามสกุล"
                             />
                         </div>
                     </div>
@@ -316,14 +300,7 @@ const EmployeeFormWithTabs = ({
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>ตำแหน่งงาน (Job Title)</Label>
-                        <Input
-                            value={formData.position || ""}
-                            onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                            placeholder="เช่น พนักงานเติมน้ำมัน, แม่บ้าน"
-                        />
-                    </div>
+
                 </TabsContent>
 
                 {/* Tab 2: Personal Info */}
@@ -407,20 +384,6 @@ const EmployeeFormWithTabs = ({
                         <Label>OT Rate (x เท่า)</Label>
                         <Input type="number" step="0.1" value={formData.otRateMultiplier} onChange={(e) => setFormData({ ...formData, otRateMultiplier: parseFloat(e.target.value) || 0 })} required />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <Label>ชม.งาน/วัน</Label>
-                            <Input type="number" step="0.5" value={formData.workHours || 12} onChange={(e) => setFormData({ ...formData, workHours: parseFloat(e.target.value) })} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>เงินพิเศษ</Label>
-                            <Input type="number" value={formData.specialPay || 0} onChange={(e) => setFormData({ ...formData, specialPay: parseFloat(e.target.value) })} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>หักค่าที่พัก</Label>
-                            <Input type="number" value={formData.housingCost || 0} onChange={(e) => setFormData({ ...formData, housingCost: parseFloat(e.target.value) })} />
-                        </div>
-                    </div>
 
                     <hr className="my-4" />
                     <h4 className="text-sm font-semibold flex items-center gap-2"><Wallet className="w-4 h-4" /> บัญชีธนาคาร</h4>
@@ -468,15 +431,7 @@ const EmployeeFormWithTabs = ({
                         </div>
                     )}
 
-                    <div className="space-y-2">
-                        <Label>สถานีที่ส่งประกันสังคม</Label>
-                        <Select value={formData.socialSecurityStation || ""} onValueChange={(v) => setFormData({ ...formData, socialSecurityStation: v })}>
-                            <SelectTrigger><SelectValue placeholder="เลือกสถานี" /></SelectTrigger>
-                            <SelectContent>
-                                {socialSecurityStations.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+
                     <div className="space-y-2">
                         <Label>สถานี (ที่ขึ้นทะเบียน)</Label>
                         <Select value={formData.registeredStationId || ""} onValueChange={(v) => setFormData({ ...formData, registeredStationId: v })}>
@@ -528,7 +483,7 @@ const EmployeeFormWithTabs = ({
                     {submitLabel}
                 </Button>
             </div>
-        </form>
+        </form >
     );
 };
 
@@ -559,9 +514,7 @@ export const AddEmployeeDialog = ({
                     dailyRate: formData.dailyRate || null,
                     baseSalary: formData.baseSalary || null,
                     otRateMultiplier: formData.otRateMultiplier,
-                    specialPay: formData.specialPay || 0,
-                    housingCost: formData.housingCost || 0,
-                    workHours: formData.workHours || 12,
+
                     registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
                 }),
             });
@@ -624,8 +577,7 @@ export const EditEmployeeDialog = ({
                 ...initialFormData,
                 employeeId: employee.employeeId,
                 name: employee.name,
-                nickname: employee.nickname || "",
-                realName: employee.realName || "",
+                nickName: employee.nickName || "",
                 phone: employee.phone || "",
                 email: employee.email || "",
                 role: employee.role,
@@ -641,17 +593,12 @@ export const EditEmployeeDialog = ({
                 bankAccountNumber: employee.bankAccountNumber || "",
                 bankName: employee.bankName || "",
 
-                // Social Security
-                socialSecurityStation: employee.socialSecurityStation || "",
                 isSocialSecurityRegistered: employee.isSocialSecurityRegistered || false,
                 socialSecurityNumber: employee.socialSecurityNumber || "",
                 registeredStationId: employee.registeredStationId || "",
 
-                // New Fields
-                position: employee.position || "",
-                housingCost: employee.housingCost || 0,
-                specialPay: employee.specialPay || 0,
-                workHours: employee.workHours || 12,
+                // Social Security
+
 
                 // Personal
                 gender: employee.gender || "",
@@ -683,9 +630,7 @@ export const EditEmployeeDialog = ({
                     dailyRate: formData.dailyRate || null,
                     baseSalary: formData.baseSalary || null,
                     otRateMultiplier: formData.otRateMultiplier,
-                    specialPay: formData.specialPay || 0,
-                    housingCost: formData.housingCost || 0,
-                    workHours: formData.workHours || 12,
+
                     registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
                 }),
             });

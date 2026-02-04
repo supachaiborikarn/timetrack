@@ -59,8 +59,7 @@ export async function PUT(
 
         const {
             name,
-            nickname,
-            realName,
+            nickName,
             phone,
             email,
             pin,
@@ -76,17 +75,9 @@ export async function PUT(
             // New fields
             bankAccountNumber,
             bankName,
-            socialSecurityStation,
-            emergencyContactName,
-            emergencyContactPhone,
-            emergencyContactRelation,
-            // Additional CSV data
-            position,
-            workHours,
-            specialPay,
             housingCost,
             // Remote fields
-            nickName,
+
             gender,
             birthDate,
             address,
@@ -108,8 +99,7 @@ export async function PUT(
         // Build update data
         const updateData: Record<string, unknown> = {
             name,
-            nickname: nickname || nickName || null,
-            realName: realName || null,
+            nickName: nickName || null,
             phone: phone || null,
             email: email || null,
             role,
@@ -124,15 +114,8 @@ export async function PUT(
             // New fields merged
             bankAccountNumber: bankAccountNumber || null,
             bankName: bankName || null,
-            socialSecurityStation: socialSecurityStation || null,
-            emergencyContactName: emergencyContactName || null,
-            emergencyContactPhone: emergencyContactPhone || null,
-            emergencyContactRelation: emergencyContactRelation || null,
             // Additional CSV data
-            position: position || null,
-            workHours: workHours || 12,
-            specialPay: specialPay || 0,
-            housingCost: housingCost || 0,
+            // Removed invalid fields: position, workHours, specialPay, housingCost
 
             // Remote fields
             gender: gender || null,

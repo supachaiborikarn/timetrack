@@ -62,8 +62,7 @@ interface Employee {
     id: string;
     employeeId: string;
     name: string;
-    nickname: string | null;
-    realName: string | null;
+    nickName: string | null;
     phone: string;
     email: string | null;
     role: string;
@@ -78,16 +77,7 @@ interface Employee {
     bankAccountNumber: string | null;
     bankName: string | null;
     // Social security
-    socialSecurityStation: string | null;
-    // Emergency contact
-    emergencyContactName: string | null;
-    emergencyContactPhone: string | null;
-    emergencyContactRelation: string | null;
-    // New fields
-    position: string | null;
-    housingCost: number | null;
-    specialPay: number | null;
-    workHours: number | null;
+
     // Remote fields (merged)
     registeredStation: { id: string; name: string } | null;
     isSocialSecurityRegistered: boolean;
@@ -366,15 +356,13 @@ export default function EmployeesPage() {
                                         <TableCell>
                                             <div className="flex flex-col">
                                                 <Badge variant="outline" className={getRoleBadgeColor(emp.role)}>{emp.role}</Badge>
-                                                {emp.position && <span className="text-xs text-muted-foreground mt-1">{emp.position}</span>}
+
                                             </div>
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell text-muted-foreground">
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{emp.dailyRate ? `฿${emp.dailyRate}/วัน` : (emp.baseSalary ? `฿${emp.baseSalary.toLocaleString()}/ด.` : `฿${emp.hourlyRate}/ชม.`)}</span>
                                                 <span className="text-xs">OT x{emp.otRateMultiplier}</span>
-                                                {Number(emp.specialPay) > 0 && <span className="text-xs text-green-600">+฿{Number(emp.specialPay).toLocaleString()} พิเศษ</span>}
-                                                {Number(emp.housingCost) > 0 && <span className="text-xs text-red-400">-฿{Number(emp.housingCost).toLocaleString()} ที่พัก</span>}
                                             </div>
                                         </TableCell>
                                         <TableCell>

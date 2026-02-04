@@ -37,8 +37,8 @@ interface Profile {
     id: string;
     employeeId: string;
     name: string;
-    nickname: string | null;
-    realName: string | null;
+    nickName: string | null;
+
     email: string | null;
     phone: string | null;
     role: string;
@@ -48,16 +48,12 @@ interface Profile {
     hourlyRate: number;
     dailyRate: number | null;
     baseSalary: number | null;
-    specialPay: number | null;
-    housingCost: number | null;
-    workHours: number | null;
+    workHours: null;
     // Bank info
     bankAccountNumber: string | null;
     bankName: string | null;
     // Social security
-    socialSecurityStation: string | null;
-    // Additional
-    position: string | null;
+
     createdAt: string;
 }
 
@@ -233,15 +229,14 @@ export default function ProfilePage() {
                 {/* Header */}
                 <div className="text-center pt-4">
                     <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
-                        {profile?.nickname?.charAt(0) || profile?.name?.charAt(0) || "?"}
+                        {profile?.nickName?.charAt(0) || profile?.name?.charAt(0) || "?"}
                     </div>
                     <h1 className="text-xl font-bold text-foreground mt-4">
-                        {profile?.nickname ? `${profile.nickname}` : profile?.name}
-                        {profile?.realName && <span className="text-muted-foreground text-sm block mt-1">{profile.realName}</span>}
+                        {profile?.nickName ? `${profile.nickName}` : profile?.name}
                     </h1>
                     <p className="text-muted-foreground text-sm">{profile?.employeeId}</p>
                     <Badge className="mt-2 text-xs">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
-                    {profile?.position && <div className="text-sm text-foreground/80 mt-1 font-medium">{profile.position}</div>}
+
                 </div>
 
                 {/* Tabs */}
@@ -373,19 +368,7 @@ export default function ProfilePage() {
                                 ) : null}
 
 
-                                {profile?.specialPay && Number(profile.specialPay) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-500/10">
-                                        <span className="text-muted-foreground">เงินพิเศษ</span>
-                                        <span className="font-bold text-yellow-600">฿{formatMoney(Number(profile.specialPay))}</span>
-                                    </div>
-                                )}
 
-                                {profile?.housingCost && Number(profile.housingCost) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-red-500/10">
-                                        <span className="text-muted-foreground">หักค่าที่พัก</span>
-                                        <span className="font-medium text-red-600">-฿{formatMoney(Number(profile.housingCost))}</span>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
 
@@ -430,32 +413,13 @@ export default function ProfilePage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {profile?.socialSecurityStation ? (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10">
-                                        <span className="text-muted-foreground">สถานีที่ส่งประกันสังคม</span>
-                                        <span className="font-medium text-blue-600">{profile.socialSecurityStation}</span>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-4 text-muted-foreground">
-                                        <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p>ยังไม่มีข้อมูลประกันสังคม</p>
-                                        <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
-                                    </div>
-                                )}
+                                <div className="text-center py-4 text-muted-foreground">
+                                    <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p>ยังไม่มีข้อมูลประกันสังคม</p>
+                                    <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
+                                </div>
 
-                                {profile?.socialSecurityStation && profile.station &&
-                                    profile.socialSecurityStation !== profile.station.name && (
-                                        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
-                                            <div>
-                                                <p className="text-sm font-medium text-amber-600">สถานีไม่ตรงกัน</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    ทำงานที่: {profile.station.name}<br />
-                                                    ส่งประกันที่: {profile.socialSecurityStation}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
+
                             </CardContent>
                         </Card>
 
