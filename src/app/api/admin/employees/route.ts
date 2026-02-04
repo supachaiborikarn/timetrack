@@ -38,7 +38,7 @@ export async function GET() {
                 station: e.station,
                 department: e.department,
                 // New Fields
-                nickname: e.nickname,
+                nickname: e.nickName,
                 gender: e.gender,
                 birthDate: e.birthDate,
                 address: e.address,
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
                 hourlyRate: hourlyRate || 0,
                 otRateMultiplier: otRateMultiplier || 1.5,
                 // New Fields Merged
-                nickname: nickname || nickName || null,
+                nickName: nickname || nickName || null,
                 realName: realName || null,
                 dailyRate: dailyRate || null,
                 baseSalary: baseSalary || null,

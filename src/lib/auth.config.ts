@@ -7,7 +7,6 @@ export const authConfig = {
     // Using JWT strategy for session
     session: { strategy: "jwt" },
     trustHost: true,
-    secret: process.env.AUTH_SECRET,
     callbacks: {
         async jwt({ token, user }: { token: any, user: any }) {
             if (user) {
@@ -30,6 +29,7 @@ export const authConfig = {
             return session;
         },
         authorized({ auth, request: { nextUrl } }: { auth: any, request: { nextUrl: any } }) {
+            const isLoggedIn = !!auth?.user;
             const isOnLogin = nextUrl.pathname.startsWith('/login');
 
             // Allow access to login page
@@ -37,8 +37,11 @@ export const authConfig = {
                 return true;
             }
 
-            // By default, let middleware handle specific route protection
-            return true;
+            // Allow debugging
+            if (nextUrl.pathname.startsWith('/auth-debug')) return true;
+
+            // Simple check: strict login for everything else
+            return isLoggedIn;
         },
     },
     providers: [], // Providers configured in auth.ts

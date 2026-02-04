@@ -1,8 +1,48 @@
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-    // EMERGENCY ROLLBACK: Bypass all checks
+// Initialize NextAuth with Edge-safe config
+const { auth } = NextAuth(authConfig);
+
+export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
+
+    // Skip auth check for public routes
+    if (
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/api/auth") ||
+        pathname.startsWith("/auth-debug") || // Keep for debugging
+        pathname.startsWith("/_next") ||
+        pathname.startsWith("/icons") ||
+        pathname === "/manifest.json" ||
+        pathname === "/favicon.ico"
+    ) {
+        return NextResponse.next();
+    }
+
+    const session = await auth();
+
+    // Redirect to login if not authenticated
+    if (!session) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("callbackUrl", pathname);
+        return NextResponse.redirect(loginUrl);
+    }
+
+    // Role-based access control (RBAC)
+
+    // Admin routes protection
+    if (pathname.startsWith("/admin") && !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
+        return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // Manager routes protection
+    if (pathname.startsWith("/manager") && !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        return NextResponse.redirect(new URL("/", request.url));
+    }
+
     return NextResponse.next();
 }
 
