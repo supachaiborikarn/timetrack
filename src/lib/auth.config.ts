@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig = {
     pages: {
         signIn: "/login",
+        error: "/auth/error", // Custom error page
     },
     // Using JWT strategy for session
     session: { strategy: "jwt" },
