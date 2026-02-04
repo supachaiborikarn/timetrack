@@ -275,6 +275,38 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
 
+        {/* Break Status Alert */}
+        {isOnBreak && (
+          <Card className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 animate-pulse">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                    <Timer className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">กำลังพักเบรก</h3>
+                    <p className="text-orange-100 text-sm">
+                      เริ่มพัก: {todayData?.attendance?.breakStartTime
+                        ? formatTime(new Date(todayData.attendance.breakStartTime))
+                        : "-"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  asChild
+                  className="bg-white text-orange-600 hover:bg-orange-50 font-semibold shadow-lg"
+                >
+                  <a href="/qr-scan">
+                    <QrCode className="w-4 h-4 mr-2" />
+                    สแกนจบพัก
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Today's Shift Info */}
         <Card className="bg-slate-800/50 border-slate-700">
           <CardContent className="py-4">
