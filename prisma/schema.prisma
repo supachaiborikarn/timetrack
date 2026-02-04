@@ -63,6 +63,7 @@ model User {
   announcements              Announcement[]
   comments                   Comment[]
   reviewSubmissions          ReviewSubmission[]
+  auditLogs                  AuditLog[]
 
   @@index([stationId])
   @@index([departmentId])
@@ -139,6 +140,23 @@ model ReviewSubmission {
   period        ReviewPeriod @relation(fields: [periodId], references: [id])
 
   @@unique([employeeId, periodId])
+}
+
+// Security & Audit
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
+  entity    String   // User, Shift, Announcement, etc.
+  entityId  String?
+  details   String?  // JSON or text description
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
 }
 
 // Push Notification Subscription

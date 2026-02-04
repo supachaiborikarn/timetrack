@@ -10,7 +10,8 @@ import {
     Settings,
     ChevronRight,
     MessageCircle,
-    ClipboardCheck
+    ClipboardCheck,
+    ShieldCheck
 } from "lucide-react";
 
 interface MenuListProps {
@@ -113,6 +114,18 @@ export function MenuList({ userRole }: MenuListProps) {
                             <Badge className="bg-indigo-500/20 text-indigo-400 text-xs">NEW</Badge>
                         </div>
                         <ChevronRight className="w-5 h-5 text-indigo-400" />
+                    </CardContent>
+                </Card>
+            </a>
+
+            <a href="/admin/security">
+                <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+                    <CardContent className="py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                            <span className="text-white">Security & Audit</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-500" />
                     </CardContent>
                 </Card>
             </a>
