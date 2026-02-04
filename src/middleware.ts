@@ -1,6 +1,10 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
+// Initialize NextAuth with Edge-safe config
+const { auth } = NextAuth(authConfig);
 
 // Routes that require authentication
 const protectedRoutes = ["/", "/schedule", "/history", "/leave", "/qr-scan", "/profile"];

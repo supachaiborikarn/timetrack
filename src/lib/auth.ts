@@ -1,49 +1,12 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
-
-declare module "next-auth" {
-    interface Session {
-        user: {
-            id: string;
-            name: string;
-            email?: string | null;
-            role: Role;
-            stationId?: string | null;
-            employeeId: string;
-        };
-    }
-
-    interface User {
-        id: string;
-        name: string;
-        email?: string | null;
-        role: Role;
-        stationId?: string | null;
-        employeeId: string;
-    }
-}
-
-declare module "@auth/core/jwt" {
-    interface JWT {
-        id: string;
-        role: Role;
-        stationId?: string | null;
-        employeeId: string;
-    }
-}
+import { authConfig } from "./auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-    // Note: Adapter removed - not needed for credentials-only providers with JWT strategy
-    // The PrismaAdapter was causing Configuration errors with NextAuth v5 beta
-    session: { strategy: "jwt" },
-    secret: process.env.AUTH_SECRET,
-    pages: {
-        signIn: "/login",
-    },
+    ...authConfig,
     providers: [
         CredentialsProvider({
             id: "pin",
@@ -95,8 +58,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                // Allow login with email OR username OR employeeId
-                // Note: The 'email' credential field carries the login key (username/email/id)
                 const loginKey = credentials?.email as string;
                 const password = credentials?.password as string;
 
@@ -106,9 +67,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     where: {
                         OR: [
                             { email: loginKey },
-                            { username: loginKey }, // Check username
-                            { employeeId: loginKey }, // Check employeeId
-                            // Fallback to name if unique enough (careful with duplicates)
+                            { username: loginKey },
+                            { employeeId: loginKey },
                             { name: loginKey }
                         ],
                         isActive: true
@@ -135,24 +95,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
         }),
     ],
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-                token.role = user.role;
-                token.stationId = user.stationId;
-                token.employeeId = user.employeeId;
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            if (token && session.user) {
-                session.user.id = token.id as string;
-                session.user.role = token.role as Role;
-                session.user.stationId = token.stationId as string | null | undefined;
-                session.user.employeeId = token.employeeId as string;
-            }
-            return session;
-        },
-    },
 });
