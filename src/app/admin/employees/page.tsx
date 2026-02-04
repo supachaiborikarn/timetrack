@@ -106,6 +106,7 @@ export default function EmployeesPage() {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -171,6 +172,7 @@ export default function EmployeesPage() {
 
     const openDeleteDialog = (emp: Employee) => {
         setSelectedEmployee(emp);
+        setDeleteConfirmation("");
         setIsDeleteDialogOpen(true);
     };
 
@@ -490,15 +492,36 @@ export default function EmployeesPage() {
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>ยืนยันการลบพนักงาน</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            คุณต้องการลบ <span className="font-medium text-foreground">{selectedEmployee?.name}</span> ({selectedEmployee?.employeeId}) ใช่หรือไม่?<br />การดำเนินการนี้ไม่สามารถยกเลิกได้
+                        <AlertDialogTitle className="text-destructive">⚠️ ยืนยันการลบพนักงานถาวร</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-4">
+                                <p>
+                                    คุณกำลังจะลบ <span className="font-bold text-foreground">{selectedEmployee?.name}</span> ({selectedEmployee?.employeeId}) ออกจากระบบ
+                                </p>
+                                <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-lg p-3 text-sm">
+                                    <strong>⚠️ คำเตือน:</strong> การลบนี้เป็นการลบถาวร ข้อมูลจะถูกลบออกจากฐานข้อมูลทันทีและไม่สามารถกู้คืนได้
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="delete-confirm">พิมพ์ <span className="font-bold text-destructive">ลบ</span> เพื่อยืนยัน:</Label>
+                                    <Input
+                                        id="delete-confirm"
+                                        value={deleteConfirmation}
+                                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                        placeholder="พิมพ์ 'ลบ' เพื่อยืนยัน"
+                                        className="border-destructive/50 focus:border-destructive"
+                                    />
+                                </div>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting}>
-                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบพนักงาน
+                        <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>ยกเลิก</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting || deleteConfirmation !== "ลบ"}
+                        >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบพนักงานถาวร
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
