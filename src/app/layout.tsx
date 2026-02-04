@@ -29,16 +29,17 @@ export const viewport: Viewport = {
   themeColor: "#3b82f6",
 };
 
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+// import { NextIntlClientProvider } from "next-intl";
+// import { getLocale, getMessages } from "next-intl/server";
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
+  // const locale = await getLocale();
+  // const messages = await getMessages();
+  const locale = "th";
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -47,19 +48,17 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <NextIntlClientProvider messages={messages}>
-          <SessionProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="dark"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster position="top-center" richColors />
-            </ThemeProvider>
-          </SessionProvider>
-        </NextIntlClientProvider>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster position="top-center" richColors />
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );
