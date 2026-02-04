@@ -52,11 +52,12 @@ model User {
   payrollRecords             PayrollRecord[]
   shiftAssignments           ShiftAssignment[]
   swapRequestsSent           ShiftSwap[]       @relation("SwapRequester")
-  swapRequestsReceived       ShiftSwap[]       @relation("SwapTarget")
+  swapRequestsReceived       ShiftSwap[]            @relation("SwapTarget")
   timeCorrections            TimeCorrection[]
-  department                 Department?       @relation(fields: [departmentId], references: [id])
-  registeredStation          Station?          @relation("RegisteredStation", fields: [registeredStationId], references: [id])
-  station                    Station?          @relation("WorkStation", fields: [stationId], references: [id])
+  department                 Department?            @relation(fields: [departmentId], references: [id])
+  registeredStation          Station?               @relation("RegisteredStation", fields: [registeredStationId], references: [id])
+  station                    Station?               @relation("WorkStation", fields: [stationId], references: [id])
+  profileEditRequests        ProfileEditRequest[]
 
   @@index([stationId])
   @@index([departmentId])
@@ -449,4 +450,23 @@ enum AvailabilityStatus {
   AVAILABLE
   UNAVAILABLE
   PREFERRED_OFF
+}
+
+// Profile Edit Request for approval workflow
+model ProfileEditRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  fieldName    String    // e.g., "phone", "bankAccountNumber", "address"
+  fieldLabel   String    // Thai label for display e.g., "เบอร์โทร"
+  oldValue     String?
+  newValue     String
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedBy   String?
+  rejectReason String?
+
+  @@index([userId])
+  @@index([status])
 }
