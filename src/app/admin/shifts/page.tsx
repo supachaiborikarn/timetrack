@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import {
     ChevronLeft,
+    ChevronRight,
     Download,
     RefreshCw,
     Loader2,
@@ -50,8 +51,13 @@ import {
     MoreHorizontal,
     Edit,
     Plus,
+    Zap,
+    FileText,
 } from "lucide-react";
 import { toast } from "sonner";
+import { QuickAssignPanel } from "@/components/shifts/quick-assign-panel";
+import { RowQuickFill } from "@/components/shifts/row-quick-fill";
+import { ShiftTemplateManager } from "@/components/shifts/shift-template-manager";
 
 interface Station {
     id: string;
@@ -127,6 +133,12 @@ export default function ShiftManagementPage() {
     // Bulk assign dialog
     const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
     const [bulkShiftId, setBulkShiftId] = useState<string>("");
+
+    // Quick Assign Panel
+    const [quickAssignOpen, setQuickAssignOpen] = useState(false);
+
+    // Template Manager
+    const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
 
     const months = [
         { value: 1, label: "มกราคม" },
@@ -451,6 +463,22 @@ export default function ShiftManagementPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
+                        onClick={() => setQuickAssignOpen(true)}
+                        disabled={!scheduleData}
+                        className="bg-yellow-600 hover:bg-yellow-700"
+                    >
+                        <Zap className="w-4 h-4 mr-2" />
+                        จัดกะเร็ว
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setTemplateManagerOpen(true)}
+                        disabled={!scheduleData}
+                    >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Templates
+                    </Button>
+                    <Button
                         variant="outline"
                         onClick={handleExport}
                         disabled={!scheduleData}
@@ -651,10 +679,29 @@ export default function ShiftManagementPage() {
                                 {scheduleData.scheduleData.map((row) => (
                                     <TableRow key={row.employee.id} className="border-border">
                                         <TableCell className="sticky left-0 bg-card z-10 font-medium text-foreground">
-                                            <div>
-                                                <p className="text-sm">{row.employee.name}</p>
-                                                <p className="text-xs text-slate-500">{row.employee.employeeId}</p>
-                                            </div>
+                                            <RowQuickFill
+                                                employee={{
+                                                    id: row.employee.id,
+                                                    name: row.employee.name,
+                                                    nickName: row.employee.nickName,
+                                                    employeeId: row.employee.employeeId,
+                                                    department: row.employee.department,
+                                                    schedule: row.schedule,
+                                                }}
+                                                allEmployees={scheduleData.scheduleData.map((r) => ({
+                                                    id: r.employee.id,
+                                                    name: r.employee.name,
+                                                    nickName: r.employee.nickName,
+                                                    employeeId: r.employee.employeeId,
+                                                    department: r.employee.department,
+                                                    schedule: r.schedule,
+                                                }))}
+                                                shifts={scheduleData.shifts}
+                                                selectedMonth={selectedMonth}
+                                                selectedYear={selectedYear}
+                                                daysInMonth={scheduleData.daysInMonth}
+                                                onSuccess={fetchSchedule}
+                                            />
                                         </TableCell>
                                         <TableCell className="text-muted-foreground text-sm">
                                             {row.employee.department}
@@ -837,6 +884,35 @@ export default function ShiftManagementPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Quick Assign Panel */}
+            {scheduleData && (
+                <QuickAssignPanel
+                    open={quickAssignOpen}
+                    onOpenChange={setQuickAssignOpen}
+                    employees={scheduleData.scheduleData.map((row) => ({
+                        id: row.employee.id,
+                        name: row.employee.name,
+                        nickName: row.employee.nickName,
+                        employeeId: row.employee.employeeId,
+                        department: row.employee.department,
+                    }))}
+                    shifts={scheduleData.shifts}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onSuccess={fetchSchedule}
+                    preSelectedEmployees={selectedCells.map((c) => c.userId)}
+                />
+            )}
+
+            {/* Template Manager */}
+            {scheduleData && (
+                <ShiftTemplateManager
+                    open={templateManagerOpen}
+                    onOpenChange={setTemplateManagerOpen}
+                    shifts={scheduleData.shifts}
+                />
+            )}
         </div >
     );
 }
