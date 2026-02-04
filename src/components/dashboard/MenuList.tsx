@@ -9,6 +9,8 @@ import {
     UserCog,
     Settings,
     ChevronRight,
+    MessageCircle,
+    ClipboardCheck
 } from "lucide-react";
 
 interface MenuListProps {
@@ -98,6 +100,19 @@ export function MenuList({ userRole }: MenuListProps) {
                             <span className="text-white">คำขอทั้งหมด</span>
                         </div>
                         <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </CardContent>
+                </Card>
+            </a>
+
+            <a href="/announcements">
+                <Card className="bg-gradient-to-r from-indigo-900/30 to-blue-900/30 border-indigo-500/30 hover:from-indigo-900/40 hover:to-blue-900/40 transition cursor-pointer">
+                    <CardContent className="py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <MessageCircle className="w-5 h-5 text-indigo-400" />
+                            <span className="text-white">Team Chat & ประกาศ</span>
+                            <Badge className="bg-indigo-500/20 text-indigo-400 text-xs">NEW</Badge>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-indigo-400" />
                     </CardContent>
                 </Card>
             </a>

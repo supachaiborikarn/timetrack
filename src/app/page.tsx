@@ -16,6 +16,7 @@ import {
   MenuList,
   OfflineIndicator,
 } from "@/components/dashboard";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function EmployeeDashboard() {
   const { data: session, status } = useSession();
@@ -66,14 +67,17 @@ export default function EmployeeDashboard() {
               </div>
             </a>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-slate-400"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex gap-2 items-center">
+            <LanguageSwitcher />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-400"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 

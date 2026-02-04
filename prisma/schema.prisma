@@ -59,9 +59,86 @@ model User {
   station                    Station?               @relation("WorkStation", fields: [stationId], references: [id])
   profileEditRequests        ProfileEditRequest[]
   pushSubscriptions          PushSubscription[]
+  authenticators             Authenticator[]
+  announcements              Announcement[]
+  comments                   Comment[]
+  reviewSubmissions          ReviewSubmission[]
 
   @@index([stationId])
   @@index([departmentId])
+}
+
+// WebAuthn Authenticator
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+// Announcements / Team Chat
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  authorId  String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  postId    String
+  authorId  String
+  createdAt DateTime @default(now())
+  post      Announcement @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([postId])
+}
+
+// Performance Reviews
+model ReviewPeriod {
+  id          String   @id @default(cuid())
+  title       String // e.g., "H1 2025"
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  submissions ReviewSubmission[]
+}
+
+model ReviewSubmission {
+  id            String       @id @default(cuid())
+  employeeId    String
+  periodId      String
+  selfReview    String       @db.Text
+  managerReview String?      @db.Text
+  rating        Int? // 1-5
+  status        String       @default("DRAFT") // DRAFT, SUBMITTED, COMPLETED
+  submittedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  employee      User         @relation(fields: [employeeId], references: [id])
+  period        ReviewPeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([employeeId, periodId])
 }
 
 // Push Notification Subscription

@@ -38,10 +38,12 @@ import {
     Edit2,
     Clock,
     FileText,
-    CreditCard
+    CreditCard,
+    Fingerprint
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
+import { PasskeyButton } from "@/components/auth/PasskeyButton";
 
 interface Profile {
     id: string;
@@ -717,6 +719,20 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Biometric Auth */}
+                        <Card className="border-none shadow-md">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Fingerprint className="w-5 h-5 text-indigo-600" />
+                                    Biometric Authentication
+                                </CardTitle>
+                                <CardDescription>เข้าสู่ระบบด้วย Face ID / Touch ID</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <PasskeyButton />
                             </CardContent>
                         </Card>
 

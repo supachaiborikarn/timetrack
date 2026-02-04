@@ -1,0 +1,30 @@
+{
+    "Common": {
+        "dashboard": "แดชบอร์ด",
+        "employees": "พนักงาน",
+        "profile": "โปรไฟล์",
+        "logout": "ออกจากระบบ",
+        "save": "บันทึก",
+        "cancel": "ยกเลิก",
+        "actions": "จัดการ",
+        "status": "สถานะ",
+        "search": "ค้นหา..."
+    },
+    "Dashboard": {
+        "hello": "สวัสดี",
+        "checkIn": "ลงเวลาเข้างาน",
+        "checkOut": "ลงเวลาออกงาน",
+        "onBreak": "พักเบรก",
+        "startBreak": "เริ่มพัก",
+        "endBreak": "จบพัก",
+        "attendanceHistory": "ประวัติการลงเวลา",
+        "shiftDetails": "รายละเอียดกะ"
+    },
+    "Auth": {
+        "loginTitle": "เข้าสู่ระบบ TimeTrack",
+        "employeeId": "รหัสพนักงาน",
+        "password": "รหัสผ่าน",
+        "signIn": "เข้าสู่ระบบ",
+        "error": "การยืนยันตัวตนล้มเหลว"
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "Common": {
+        "dashboard": "Dashboard",
+        "employees": "Employees",
+        "profile": "Profile",
+        "logout": "Logout",
+        "save": "Save",
+        "cancel": "Cancel",
+        "actions": "Actions",
+        "status": "Status",
+        "search": "Search..."
+    },
+    "Dashboard": {
+        "hello": "Hello",
+        "checkIn": "Check In",
+        "checkOut": "Check Out",
+        "onBreak": "On Break",
+        "startBreak": "Start Break",
+        "endBreak": "End Break",
+        "attendanceHistory": "Attendance History",
+        "shiftDetails": "Shift Details"
+    },
+    "Auth": {
+        "loginTitle": "TimeTrack Login",
+        "employeeId": "Employee ID",
+        "password": "Password",
+        "signIn": "Sign In",
+        "error": "Authentication Failed"
+    }
+}
