@@ -13,6 +13,7 @@ import {
     SheetTitle,
     SheetDescription,
     SheetFooter,
+    SheetClose,
 } from "@/components/ui/sheet";
 import {
     Select,
@@ -34,8 +35,12 @@ import {
     Zap,
     Check,
     X,
+    Search,
+    Clock,
+    CalendarDays
 } from "lucide-react";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 interface Employee {
     id: string;
@@ -64,7 +69,7 @@ interface QuickAssignPanelProps {
     preSelectedEmployees?: string[];
 }
 
-type PatternType = "same_all" | "weekday_weekend" | "custom";
+type PatternType = "weekday_weekend" | "same_all" | "custom";
 
 interface WeekPattern {
     mon: string;
@@ -122,7 +127,10 @@ export function QuickAssignPanel({
             const lastDay = new Date(selectedYear, selectedMonth, 0);
             setStartDate(formatDateInput(firstDay));
             setEndDate(formatDateInput(lastDay));
-            setSelectedEmployeeIds(preSelectedEmployees);
+            // Only overwrite if we have pre-selections passed in, otherwise keep current selection if user re-opens
+            if (preSelectedEmployees.length > 0) {
+                setSelectedEmployeeIds(preSelectedEmployees);
+            }
         }
     }, [open, selectedMonth, selectedYear, preSelectedEmployees]);
 
@@ -188,8 +196,8 @@ export function QuickAssignPanel({
             if (patternType === "same_all") {
                 if (sameShiftId === "DAYOFF") {
                     isDayOff = true;
-                    shiftId = shifts[0]?.id || "";
-                } else {
+                    shiftId = shifts[0]?.id || ""; // Assign a dummy ID for DB constraints if needed, or handle in API
+                } else if (sameShiftId) {
                     shiftId = sameShiftId;
                 }
             } else if (patternType === "weekday_weekend") {
@@ -200,7 +208,7 @@ export function QuickAssignPanel({
                         shiftId = shifts[0]?.id || "";
                     } else if (weekendAction === "SKIP") {
                         continue; // Skip this day
-                    } else {
+                    } else if (weekendAction) {
                         shiftId = weekendAction;
                     }
                 } else {
@@ -208,7 +216,7 @@ export function QuickAssignPanel({
                     if (weekdayShiftId === "DAYOFF") {
                         isDayOff = true;
                         shiftId = shifts[0]?.id || "";
-                    } else {
+                    } else if (weekdayShiftId) {
                         shiftId = weekdayShiftId;
                     }
                 }
@@ -216,7 +224,7 @@ export function QuickAssignPanel({
                 const dayKeys: (keyof WeekPattern)[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
                 const patternValue = customPattern[dayKeys[dayOfWeek]];
 
-                if (!patternValue || patternValue === "SKIP") {
+                if (patternValue === "SKIP" || !patternValue) {
                     continue;
                 } else if (patternValue === "DAYOFF") {
                     isDayOff = true;
@@ -226,9 +234,15 @@ export function QuickAssignPanel({
                 }
             }
 
-            if (shiftId) {
+            // Only push if we determined a valid action (shift or dayoff)
+            if (shiftId || isDayOff) {
+                // Determine a fallback shiftId if isDayOff is true but we have no shiftId selected. 
+                // Usually for dayoff we might need a valid shiftId relation or it can be null depending on schema. 
+                // Based on previous code: shiftId = shifts[0]?.id || "" for dayoff.
+                const finalShiftId = shiftId || (shifts[0]?.id || "");
+
                 selectedEmployeeIds.forEach((userId) => {
-                    assignments.push({ userId, date: dateStr, shiftId, isDayOff });
+                    assignments.push({ userId, date: dateStr, shiftId: finalShiftId, isDayOff });
                 });
             }
         }
@@ -240,7 +254,7 @@ export function QuickAssignPanel({
         const assignments = generateAssignments();
 
         if (assignments.length === 0) {
-            toast.error("ไม่มีข้อมูลที่จะบันทึก กรุณาตรวจสอบการตั้งค่า");
+            toast.error("กรุณาเลือกพนักงาน ช่วงวันที่ และรูปแบบกะให้ครบถ้วน");
             return;
         }
 
@@ -257,12 +271,16 @@ export function QuickAssignPanel({
 
             if (res.ok) {
                 const data = await res.json();
-                toast.success(data.message || `บันทึก ${assignments.length} รายการสำเร็จ`);
+                toast.success(`บันทึกสำเร็จ`, {
+                    description: `สร้างรายการกะทั้งหมด ${assignments.length} รายการ`
+                });
                 onOpenChange(false);
                 onSuccess();
             } else {
                 const data = await res.json();
-                toast.error(data.error || "เกิดข้อผิดพลาด");
+                toast.error("เกิดข้อผิดพลาด", {
+                    description: data.error
+                });
             }
         } catch {
             toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
@@ -275,251 +293,291 @@ export function QuickAssignPanel({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-xl overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-yellow-500" />
-                        จัดกะเร็ว
-                    </SheetTitle>
-                    <SheetDescription>
-                        กำหนดกะให้พนักงานหลายคนพร้อมกัน
-                    </SheetDescription>
+            <SheetContent className="sm:max-w-xl p-0 gap-0 bg-slate-950 border-slate-800 text-slate-100 shadow-2xl overflow-hidden flex flex-col">
+                <SheetHeader className="px-6 py-5 border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-yellow-500/10 rounded-lg">
+                                <Zap className="w-5 h-5 text-yellow-400" />
+                            </div>
+                            <div>
+                                <SheetTitle className="text-lg font-bold text-white">จัดกะเร็ว</SheetTitle>
+                                <SheetDescription className="text-slate-400 text-xs">
+                                    กำหนดกะให้พนักงานหลายคนพร้อมกันในครั้งเดียว
+                                </SheetDescription>
+                            </div>
+                        </div>
+                        <SheetClose className="text-slate-400 hover:text-white transition-colors">
+                            <X className="w-5 h-5" />
+                        </SheetClose>
+                    </div>
                 </SheetHeader>
 
-                <div className="py-6 space-y-6">
-                    {/* Step 1: Select Employees */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-base font-semibold flex items-center gap-2">
-                                <Users className="w-4 h-4" />
-                                1. เลือกพนักงาน
-                            </Label>
-                            <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={selectAllEmployees}>
-                                    เลือกทั้งหมด
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={clearEmployees}>
-                                    ล้าง
-                                </Button>
+                <div className="flex-1 px-6 py-6 overflow-y-auto">
+                    <div className="space-y-8 max-w-lg mx-auto">
+
+                        {/* Step 1: Employee Selection */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-slate-200">
+                                    <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold border border-indigo-500/30">1</div>
+                                    <h3 className="font-semibold text-sm">เลือกพนักงาน</h3>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button variant="ghost" size="sm" onClick={selectAllEmployees} className="text-xs h-7 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/50">
+                                        เลือกทั้งหมด
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={clearEmployees} className="text-xs h-7 text-slate-400 hover:text-slate-300 hover:bg-slate-800/50">
+                                        ล้าง
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
 
-                        <Input
-                            placeholder="ค้นหาชื่อหรือรหัส..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-
-                        <div className="border rounded-lg max-h-40 overflow-y-auto">
-                            {filteredEmployees.map((emp) => (
-                                <div
-                                    key={emp.id}
-                                    className={`flex items-center gap-3 p-2 hover:bg-muted/50 cursor-pointer ${selectedEmployeeIds.includes(emp.id) ? "bg-blue-500/10" : ""
-                                        }`}
-                                    onClick={() => toggleEmployee(emp.id)}
-                                >
-                                    <Checkbox
-                                        checked={selectedEmployeeIds.includes(emp.id)}
-                                        onCheckedChange={() => toggleEmployee(emp.id)}
+                            <div className="space-y-3">
+                                <div className="relative">
+                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <Input
+                                        placeholder="ค้นหาชื่อหรือรหัส..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-9 bg-slate-900/50 border-slate-800 text-slate-200 placeholder:text-slate-600 focus-visible:ring-indigo-500/50"
                                     />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium">
-                                            {emp.name}
-                                            {emp.nickName && (
-                                                <span className="text-muted-foreground ml-1">({emp.nickName})</span>
+                                </div>
+
+                                <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/30 h-[200px]">
+                                    <div className="h-full overflow-y-auto">
+                                        <div className="p-1 space-y-1">
+                                            {filteredEmployees.map((emp) => {
+                                                const isSelected = selectedEmployeeIds.includes(emp.id);
+                                                return (
+                                                    <div
+                                                        key={emp.id}
+                                                        onClick={() => toggleEmployee(emp.id)}
+                                                        className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all border border-transparent
+                                                            ${isSelected
+                                                                ? "bg-indigo-500/10 border-indigo-500/20"
+                                                                : "hover:bg-slate-800/50 hover:border-slate-800"
+                                                            }`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors
+                                                            ${isSelected
+                                                                ? "bg-indigo-500 border-indigo-500 text-white"
+                                                                : "border-slate-600 bg-transparent"
+                                                            }`}>
+                                                            {isSelected && <Check className="w-3 h-3" />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className={`text-sm font-medium truncate ${isSelected ? "text-indigo-200" : "text-slate-300"}`}>
+                                                                {emp.name} {emp.nickName && <span className="text-slate-500">({emp.nickName})</span>}
+                                                            </div>
+                                                            <div className="text-xs text-slate-600 truncate">{emp.employeeId} · {emp.department}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {filteredEmployees.length === 0 && (
+                                                <div className="text-center py-8 text-slate-600 text-sm">ไม่พบพนักงาน</div>
                                             )}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">{emp.employeeId}</p>
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {selectedEmployeeIds.length > 0 && (
-                            <p className="text-sm text-blue-500">
-                                เลือกแล้ว {selectedEmployeeIds.length} คน
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Step 2: Select Date Range */}
-                    <div className="space-y-3">
-                        <Label className="text-base font-semibold flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            2. เลือกช่วงวันที่
-                        </Label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <Label className="text-xs text-muted-foreground">จากวันที่</Label>
-                                <Input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <Label className="text-xs text-muted-foreground">ถึงวันที่</Label>
-                                <Input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                />
+                                <div className="text-xs text-slate-500 text-right">
+                                    เลือกแล้ว <span className="text-indigo-400 font-medium">{selectedEmployeeIds.length}</span> คน
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Step 3: Select Pattern */}
-                    <div className="space-y-3">
-                        <Label className="text-base font-semibold">3. รูปแบบการจัดกะ</Label>
+                        <Separator className="bg-slate-800/50" />
 
-                        <Tabs value={patternType} onValueChange={(v) => setPatternType(v as PatternType)}>
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="weekday_weekend">วันธรรมดา/วันหยุด</TabsTrigger>
-                                <TabsTrigger value="same_all">ทุกวันเหมือนกัน</TabsTrigger>
-                                <TabsTrigger value="custom">กำหนดเอง</TabsTrigger>
-                            </TabsList>
+                        {/* Step 2: Date Range */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-slate-200">
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold border border-indigo-500/30">2</div>
+                                <h3 className="font-semibold text-sm">เลือกช่วงวันที่</h3>
+                            </div>
 
-                            <TabsContent value="weekday_weekend" className="space-y-3 mt-3">
-                                <div>
-                                    <Label className="text-xs">จันทร์ - ศุกร์</Label>
-                                    <Select value={weekdayShiftId} onValueChange={setWeekdayShiftId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="เลือกกะ" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {shifts.map((shift) => (
-                                                <SelectItem key={shift.id} value={shift.id}>
-                                                    <span className="flex items-center gap-2">
-                                                        <span className={`w-3 h-3 rounded ${getShiftColor(shift.code)}`} />
-                                                        {shift.code}: {shift.startTime}-{shift.endTime}
-                                                    </span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-slate-500">จากวันที่</Label>
+                                    <div className="relative">
+                                        <CalendarDays className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                        <Input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="pl-9 bg-slate-900/50 border-slate-800 text-slate-200 focus-visible:ring-indigo-500/50"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <Label className="text-xs">เสาร์ - อาทิตย์</Label>
-                                    <Select value={weekendAction} onValueChange={setWeekendAction}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="เลือก" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="DAYOFF">
-                                                <span className="flex items-center gap-2">
-                                                    <span className="w-3 h-3 rounded bg-red-900" />
-                                                    วันหยุด (X)
-                                                </span>
-                                            </SelectItem>
-                                            <SelectItem value="SKIP">ข้าม (ไม่กำหนด)</SelectItem>
-                                            {shifts.map((shift) => (
-                                                <SelectItem key={shift.id} value={shift.id}>
-                                                    <span className="flex items-center gap-2">
-                                                        <span className={`w-3 h-3 rounded ${getShiftColor(shift.code)}`} />
-                                                        {shift.code}: {shift.startTime}-{shift.endTime}
-                                                    </span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-slate-500">ถึงวันที่</Label>
+                                    <div className="relative">
+                                        <CalendarDays className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                        <Input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="pl-9 bg-slate-900/50 border-slate-800 text-slate-200 focus-visible:ring-indigo-500/50"
+                                        />
+                                    </div>
                                 </div>
-                            </TabsContent>
+                            </div>
+                        </div>
 
-                            <TabsContent value="same_all" className="mt-3">
-                                <div>
-                                    <Label className="text-xs">ทุกวันใช้กะ</Label>
-                                    <Select value={sameShiftId} onValueChange={setSameShiftId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="เลือกกะ" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="DAYOFF">
-                                                <span className="flex items-center gap-2">
-                                                    <span className="w-3 h-3 rounded bg-red-900" />
-                                                    วันหยุด (X)
-                                                </span>
-                                            </SelectItem>
-                                            {shifts.map((shift) => (
-                                                <SelectItem key={shift.id} value={shift.id}>
-                                                    <span className="flex items-center gap-2">
-                                                        <span className={`w-3 h-3 rounded ${getShiftColor(shift.code)}`} />
-                                                        {shift.code}: {shift.startTime}-{shift.endTime}
-                                                    </span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </TabsContent>
+                        <Separator className="bg-slate-800/50" />
 
-                            <TabsContent value="custom" className="mt-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(Object.keys(dayLabels) as (keyof WeekPattern)[]).map((day) => (
-                                        <div key={day} className="flex items-center gap-2">
-                                            <span className="w-12 text-xs">{dayLabels[day]}</span>
-                                            <Select
-                                                value={customPattern[day]}
-                                                onValueChange={(v) =>
-                                                    setCustomPattern((prev) => ({ ...prev, [day]: v }))
-                                                }
-                                            >
-                                                <SelectTrigger className="flex-1 h-8">
-                                                    <SelectValue placeholder="-" />
+                        {/* Step 3: Pattern */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-slate-200">
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold border border-indigo-500/30">3</div>
+                                <h3 className="font-semibold text-sm">รูปแบบการจัดกะ</h3>
+                            </div>
+
+                            <Tabs value={patternType} onValueChange={(v) => setPatternType(v as PatternType)} className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 bg-slate-900 border border-slate-800 p-1 rounded-lg h-auto">
+                                    <TabsTrigger value="weekday_weekend" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 py-2 text-xs">วันธรรมดา/วันหยุด</TabsTrigger>
+                                    <TabsTrigger value="same_all" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 py-2 text-xs">เหมือนกันทุกวัน</TabsTrigger>
+                                    <TabsTrigger value="custom" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 py-2 text-xs">กำหนดเอง</TabsTrigger>
+                                </TabsList>
+
+                                <div className="mt-4 bg-slate-900/30 border border-slate-800 rounded-lg p-4">
+                                    <TabsContent value="weekday_weekend" className="mt-0 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-slate-400">จันทร์ - ศุกร์</Label>
+                                            <Select value={weekdayShiftId} onValueChange={setWeekdayShiftId}>
+                                                <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                                                    <SelectValue placeholder="เลือกกะ" />
                                                 </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="SKIP">ข้าม</SelectItem>
-                                                    <SelectItem value="DAYOFF">หยุด (X)</SelectItem>
+                                                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
                                                     {shifts.map((shift) => (
                                                         <SelectItem key={shift.id} value={shift.id}>
-                                                            {shift.code}
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-2 h-2 rounded-full ${getShiftColor(shift.code)}`} />
+                                                                <span>{shift.code}: {shift.startTime} - {shift.endTime}</span>
+                                                            </div>
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                    ))}
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-slate-400">เสาร์ - อาทิตย์</Label>
+                                            <Select value={weekendAction} onValueChange={setWeekendAction}>
+                                                <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                                                    <SelectValue placeholder="เลือก" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                                                    <SelectItem value="DAYOFF">
+                                                        <div className="flex items-center gap-2 text-red-300">
+                                                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                                                            <span>วันหยุด (X)</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    <SelectItem value="SKIP">
+                                                        <span className="text-slate-400">เว้นว่าง (ไม่กำหนด)</span>
+                                                    </SelectItem>
+                                                    {shifts.map((shift) => (
+                                                        <SelectItem key={shift.id} value={shift.id}>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-2 h-2 rounded-full ${getShiftColor(shift.code)}`} />
+                                                                <span>{shift.code}: {shift.startTime} - {shift.endTime}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </TabsContent>
 
-                    {/* Preview */}
-                    {previewCount > 0 && (
-                        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                            <p className="text-green-600 text-sm">
-                                <Check className="w-4 h-4 inline mr-1" />
-                                จะสร้าง {previewCount} รายการ
-                            </p>
+                                    <TabsContent value="same_all" className="mt-0">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-slate-400">ทุกวันใช้กะ</Label>
+                                            <Select value={sameShiftId} onValueChange={setSameShiftId}>
+                                                <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                                                    <SelectValue placeholder="เลือกกะ" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                                                    <SelectItem value="DAYOFF">
+                                                        <div className="flex items-center gap-2 text-red-300">
+                                                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                                                            <span>วันหยุด (X)</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    {shifts.map((shift) => (
+                                                        <SelectItem key={shift.id} value={shift.id}>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-2 h-2 rounded-full ${getShiftColor(shift.code)}`} />
+                                                                <span>{shift.code}: {shift.startTime} - {shift.endTime}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="custom" className="mt-0">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {(Object.keys(dayLabels) as (keyof WeekPattern)[]).map((day) => (
+                                                <div key={day} className="space-y-1">
+                                                    <Label className="text-[10px] uppercase text-slate-500 font-semibold">{dayLabels[day]}</Label>
+                                                    <Select
+                                                        value={customPattern[day]}
+                                                        onValueChange={(v) =>
+                                                            setCustomPattern((prev) => ({ ...prev, [day]: v }))
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200 h-8 text-xs">
+                                                            <SelectValue placeholder="-" />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                                                            <SelectItem value="SKIP">เว้นว่าง</SelectItem>
+                                                            <SelectItem value="DAYOFF">วันหยุด (X)</SelectItem>
+                                                            {shifts.map((shift) => (
+                                                                <SelectItem key={shift.id} value={shift.id}>
+                                                                    {shift.code}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+                                </div>
+                            </Tabs>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                <SheetFooter className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                        className="flex-1"
-                    >
-                        ยกเลิก
-                    </Button>
-                    <Button
-                        onClick={handleApply}
-                        disabled={isApplying || previewCount === 0}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    >
-                        {isApplying ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                กำลังบันทึก...
-                            </>
-                        ) : (
-                            <>
-                                <Zap className="w-4 h-4 mr-2" />
-                                จัดกะ {previewCount} รายการ
-                            </>
-                        )}
-                    </Button>
-                </SheetFooter>
+                <div className="p-4 bg-slate-900 border-t border-slate-800 sticky bottom-0 z-10 w-full">
+                    <div className="flex items-center gap-3 w-full">
+                        <Button
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            className="flex-1 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+                        >
+                            ยกเลิก
+                        </Button>
+                        <Button
+                            onClick={handleApply}
+                            disabled={isApplying || previewCount === 0}
+                            className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white border-none shadow-lg shadow-blue-900/20"
+                        >
+                            {isApplying ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    กำลังบันทึก...
+                                </>
+                            ) : (
+                                <>
+                                    <Zap className="w-4 h-4 mr-2 text-yellow-300" />
+                                    จัดกะ {previewCount} รายการ
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
             </SheetContent>
         </Sheet>
     );
