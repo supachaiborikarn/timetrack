@@ -189,7 +189,7 @@ export default function EmployeesPage() {
         );
     }
 
-    if (!session || !["ADMIN", "HR"].includes(session.user.role)) {
+    if (!session || !session.user || !["ADMIN", "HR"].includes(session.user.role)) {
         redirect("/");
     }
 

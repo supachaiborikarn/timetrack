@@ -45,7 +45,7 @@ export default function AdminLayoutWrapper({
         );
     }
 
-    if (!session || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
+    if (!session || !session.user || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
         redirect("/");
     }
 
