@@ -9,6 +9,7 @@ async function main() {
             select: {
                 id: true,
                 employeeId: true,
+                username: true,
                 name: true,
                 password: true,
                 pin: true,
@@ -24,7 +25,7 @@ async function main() {
         const pins = ['123456', '000000', '111111'];
 
         for (const user of users) {
-            console.log(`\nUser: ${user.name} (${user.role})`);
+            console.log(`\nUser: ${user.name} (ID: ${user.employeeId}) (Email: ${user.email}) (Phone: ${user.phone})`);
 
             // Check Password
             if (user.password) {

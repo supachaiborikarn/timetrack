@@ -31,6 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         OR: [
                             { phone: loginKey },
                             { username: loginKey },
+                            { employeeId: loginKey },
                             { name: loginKey }
                         ],
                         isActive: true
