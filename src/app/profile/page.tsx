@@ -37,7 +37,8 @@ import {
     X,
     Edit2,
     Clock,
-    FileText
+    FileText,
+    CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
@@ -95,7 +96,7 @@ const roleLabels: Record<string, string> = {
 // Reusable Editable Field Component
 interface EditableFieldProps {
     label: string;
-    value: string | null;
+    value: string | null | undefined;
     fieldName: string;
     icon: any;
     isEditable?: boolean;
