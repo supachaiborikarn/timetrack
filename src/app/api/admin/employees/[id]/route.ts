@@ -151,7 +151,7 @@ export async function PUT(
     }
 }
 
-// DELETE: Delete employee (soft delete by setting isActive to false)
+// DELETE: Hard delete employee (permanently remove from database)
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -174,13 +174,9 @@ export async function DELETE(
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
         }
 
-        // Soft delete - set isActive to false and employeeStatus to RESIGNED
-        await prisma.user.update({
+        // Hard delete - permanently remove from database
+        await prisma.user.delete({
             where: { id },
-            data: {
-                isActive: false,
-                employeeStatus: "RESIGNED",
-            },
         });
 
         return NextResponse.json({ success: true });
