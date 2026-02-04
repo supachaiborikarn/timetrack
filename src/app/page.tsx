@@ -48,7 +48,7 @@ export default function EmployeeDashboard() {
   }
 
   return (
-  return (
+
     <div className="min-h-screen bg-[#1a1412] pb-24">
       {/* Header */}
       <header className="bg-gradient-to-r from-[#241705] to-[#3a2510] border-b border-orange-900/20 px-4 py-4 shadow-lg shadow-black/20">
