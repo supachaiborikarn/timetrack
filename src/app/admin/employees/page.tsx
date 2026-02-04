@@ -56,6 +56,7 @@ import {
 import { toast } from "sonner";
 
 import { AddEmployeeDialog, EditEmployeeDialog } from "@/components/employees/employee-dialogs";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 
 // Interfaces
 interface Employee {
@@ -280,6 +281,14 @@ export default function EmployeesPage() {
                         <p className="text-muted-foreground">{employees.length} คน</p>
                     </div>
                     <div className="flex gap-2">
+                        {selectedIds.length > 0 && (
+                            <BulkActionBar
+                                selectedIds={selectedIds}
+                                stations={stations}
+                                onSuccess={fetchEmployees}
+                                onClearSelection={() => setSelectedIds([])}
+                            />
+                        )}
                         {selectedIds.length > 0 && (
                             <Button variant="destructive" onClick={() => setIsBulkDeleteDialogOpen(true)}>
                                 <Trash2 className="w-4 h-4 mr-2" />

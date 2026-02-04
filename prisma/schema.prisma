@@ -78,6 +78,56 @@ model PushSubscription {
   @@index([userId])
 }
 
+// Shift Template for reusable shift patterns
+model ShiftTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  shifts      Json     // Array of { dayOfWeek, shiftTypeId }
+  stationId   String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([stationId])
+}
+
+// Leave Balance Tracking
+model LeaveBalance {
+  id           String @id @default(cuid())
+  userId       String
+  year         Int
+  sickLeave    Int    @default(30)
+  annualLeave  Int    @default(6)
+  personalLeave Int   @default(3)  
+  usedSick     Int    @default(0)
+  usedAnnual   Int    @default(0)
+  usedPersonal Int    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, year])
+  @@index([userId])
+}
+
+// Overtime Request
+model OvertimeRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  date        DateTime
+  hours       Decimal
+  reason      String
+  status      String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedById String?
+  approvedAt  DateTime?
+  rejectReason String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
 model Station {
   id                  String       @id @default(cuid())
   name                String
