@@ -186,3 +186,34 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id || !["ADMIN"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { ids } = body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+        }
+
+        await prisma.user.updateMany({
+            where: {
+                id: { in: ids },
+            },
+            data: {
+                isActive: false,
+                employeeStatus: "RESIGNED",
+            },
+        });
+
+        return NextResponse.json({ success: true, count: ids.length });
+    } catch (error) {
+        console.error("Error bulk deleting employees:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}

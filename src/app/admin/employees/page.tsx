@@ -103,6 +103,9 @@ export default function EmployeesPage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -171,6 +174,48 @@ export default function EmployeesPage() {
         setIsDeleteDialogOpen(true);
     };
 
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(filteredEmployees.map((e) => e.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds([...selectedIds, id]);
+        } else {
+            setSelectedIds(selectedIds.filter((sid) => sid !== id));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            const res = await fetch("/api/admin/employees", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: selectedIds }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                toast.success(`ลบพนักงานสำเร็จ ${data.count} คน`);
+                setIsBulkDeleteDialogOpen(false);
+                setSelectedIds([]);
+                fetchEmployees();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
     if (status === "loading") {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -232,7 +277,15 @@ export default function EmployeesPage() {
                         <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน</h1>
                         <p className="text-muted-foreground">{employees.length} คน</p>
                     </div>
-                    <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
+                    <div className="flex gap-2">
+                        {selectedIds.length > 0 && (
+                            <Button variant="destructive" onClick={() => setIsBulkDeleteDialogOpen(true)}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                ลบ {selectedIds.length} รายการ
+                            </Button>
+                        )}
+                        <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
+                    </div>
                     <AddEmployeeDialog
                         open={isAddDialogOpen}
                         onOpenChange={setIsAddDialogOpen}
@@ -337,6 +390,14 @@ export default function EmployeesPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-[40px]">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            checked={filteredEmployees.length > 0 && selectedIds.length === filteredEmployees.length}
+                                            onChange={(e) => handleSelectAll(e.target.checked)}
+                                        />
+                                    </TableHead>
                                     <TableHead>รหัส</TableHead>
                                     <TableHead>ชื่อ-นามสกุล / ชื่อเล่น</TableHead>
                                     <TableHead className="hidden sm:table-cell">เบอร์โทร</TableHead>
@@ -350,7 +411,15 @@ export default function EmployeesPage() {
                             </TableHeader>
                             <TableBody>
                                 {filteredEmployees.map((emp) => (
-                                    <TableRow key={emp.id}>
+                                    <TableRow key={emp.id} className={selectedIds.includes(emp.id) ? "bg-muted/50" : ""}>
+                                        <TableCell>
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                checked={selectedIds.includes(emp.id)}
+                                                onChange={(e) => handleSelectOne(emp.id, e.target.checked)}
+                                            />
+                                        </TableCell>
                                         <TableCell className="font-medium">{emp.employeeId}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
@@ -430,6 +499,24 @@ export default function EmployeesPage() {
                         <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting}>
                             {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบพนักงาน
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Bulk Delete Confirmation */}
+            <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>ยืนยันการลบพนักงานหลายรายการ</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            คุณต้องการลบพนักงานที่เลือกจำนวน <span className="font-medium text-foreground">{selectedIds.length}</span> รายการใช่หรือไม่?<br />การดำเนินการนี้ไม่สามารถยกเลิกได้
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90" disabled={isBulkDeleting}>
+                            {isBulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}ลบ {selectedIds.length} รายการ
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

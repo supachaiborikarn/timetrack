@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
         title: "ลงเวลาทำงาน",
         href: "/admin/attendance",
         icon: Clock,
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
     },
     {
         title: "ตารางกะ",
