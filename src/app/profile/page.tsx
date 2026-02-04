@@ -144,22 +144,22 @@ const EditableField = ({
     };
 
     return (
-        <div className="flex flex-col space-y-2 p-3 rounded-lg border bg-card text-card-foreground shadow-sm">
+        <div className="flex flex-col space-y-2 p-3 rounded-lg border border-orange-900/10 bg-[#1a1412] shadow-sm">
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-muted">
-                        <Icon className="w-4 h-4 text-muted-foreground" />
+                    <div className="p-2 rounded-full bg-orange-500/10">
+                        <Icon className="w-4 h-4 text-[#F09410]" />
                     </div>
                     <div>
-                        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                        <p className="text-xs text-stone-500 font-medium">{label}</p>
                         {!isEditing ? (
-                            <p className="text-sm font-medium mt-0.5">{value || placeholder}</p>
+                            <p className="text-sm font-medium mt-0.5 text-[#F0D0C7]">{value || placeholder}</p>
                         ) : (
                             <div className="mt-1">
                                 <Input
                                     value={tempValue}
                                     onChange={(e) => setTempValue(e.target.value)}
-                                    className="h-8 text-sm"
+                                    className="h-8 text-sm bg-[#2a2420] border-orange-900/30 text-[#F0D0C7] focus-visible:ring-orange-500"
                                     placeholder={placeholder}
                                     autoFocus
                                 />
@@ -173,11 +173,11 @@ const EditableField = ({
                     <div className="flex items-center gap-1">
                         {pendingRequest ? (
                             <div className="flex flex-col items-end">
-                                <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200 text-[10px] whitespace-nowrap">
+                                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] whitespace-nowrap">
                                     <Clock className="w-3 h-3 mr-1" />
                                     รออนุมัติ
                                 </Badge>
-                                <span className="text-[10px] text-muted-foreground mt-1">
+                                <span className="text-[10px] text-stone-500 mt-1">
                                     เป็น: {pendingRequest.newValue}
                                 </span>
                             </div>
@@ -186,7 +186,7 @@ const EditableField = ({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    className="h-7 w-7 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/30"
                                     onClick={handleSave}
                                     disabled={isSaving}
                                 >
@@ -195,7 +195,7 @@ const EditableField = ({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-950/30"
                                     onClick={() => {
                                         setIsEditing(false);
                                         setTempValue(value || "");
@@ -209,7 +209,7 @@ const EditableField = ({
                             <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                className="h-7 w-7 text-stone-500 hover:text-[#F09410] hover:bg-orange-500/10"
                                 onClick={() => setIsEditing(true)}
                             >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -407,41 +407,50 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50/50 p-4 pb-24">
+    return (
+        <div className="min-h-screen bg-[#1a1412] p-4 pb-24">
             <div className="max-w-lg mx-auto space-y-6">
                 {/* Header Profile */}
                 <div className="text-center pt-8 pb-4">
-                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-4xl font-bold text-white shadow-xl ring-4 ring-white">
-                        {profile?.nickName?.charAt(0) || profile?.name?.charAt(0) || "?"}
+                    <div className="relative inline-block">
+                        <div className="relative w-28 h-28 mx-auto rounded-full p-[3px] bg-gradient-to-br from-[#F09410] to-[#BC430D] shadow-xl shadow-orange-900/20">
+                            <div className="w-full h-full rounded-full bg-[#2a2420] flex items-center justify-center text-4xl font-bold text-[#F09410] ring-4 ring-[#1a1412]">
+                                {profile?.nickName?.charAt(0) || profile?.name?.charAt(0) || "?"}
+                            </div>
+                        </div>
+                        <div className="absolute bottom-1 right-1 p-2 bg-[#2a2420] rounded-full ring-4 ring-[#1a1412]">
+                            <Edit2 className="w-4 h-4 text-[#F09410]" />
+                        </div>
                     </div>
+
                     <div className="mt-4 space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-900">
+                        <h1 className="text-2xl font-bold text-[#F0D0C7]">
                             {profile?.nickName ? `${profile.nickName}` : profile?.name}
                         </h1>
-                        <p className="text-slate-500 font-medium">{profile?.name}</p>
-                        <div className="flex items-center justify-center gap-2 mt-2">
-                            <Badge variant="outline" className="bg-white">{profile?.employeeId}</Badge>
-                            <Badge className="bg-indigo-600">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
+                        <p className="text-stone-400 font-medium">{profile?.name}</p>
+                        <div className="flex items-center justify-center gap-2 mt-3">
+                            <Badge variant="outline" className="bg-[#2a2420] text-[#F0D0C7] border-orange-900/30">{profile?.employeeId}</Badge>
+                            <Badge className="bg-gradient-to-r from-[#F09410] to-[#BC430D] text-white border-0 shadow-lg shadow-orange-900/20">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
                         </div>
                     </div>
                 </div>
 
                 {/* Tabs */}
                 <Tabs defaultValue="personal" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5 p-1 bg-white/50 backdrop-blur border shadow-sm rounded-xl">
-                        <TabsTrigger value="personal" className="text-xs px-1">ข้อมูล</TabsTrigger>
-                        <TabsTrigger value="contact" className="text-xs px-1">ติดต่อ</TabsTrigger>
-                        <TabsTrigger value="financial" className="text-xs px-1">การเงิน</TabsTrigger>
-                        <TabsTrigger value="social" className="text-xs px-1">ประกัน</TabsTrigger>
-                        <TabsTrigger value="security" className="text-xs px-1">รหัส</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-5 p-1 bg-[#2a2420] border border-orange-900/20 rounded-xl">
+                        <TabsTrigger value="personal" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ข้อมูล</TabsTrigger>
+                        <TabsTrigger value="contact" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ติดต่อ</TabsTrigger>
+                        <TabsTrigger value="financial" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">การเงิน</TabsTrigger>
+                        <TabsTrigger value="social" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ประกัน</TabsTrigger>
+                        <TabsTrigger value="security" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">รหัส</TabsTrigger>
                     </TabsList>
 
                     {/* Personal Info */}
                     <TabsContent value="personal" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-none shadow-md">
+                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
                             <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <User className="w-5 h-5 text-indigo-600" />
+                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
+                                    <User className="w-5 h-5 text-[#F09410]" />
                                     ข้อมูลทั่วไป
                                 </CardTitle>
                             </CardHeader>
@@ -454,50 +463,50 @@ export default function ProfilePage() {
                                     pendingRequest={getPendingRequest("nickName")}
                                     onRequestEdit={handleRequestEdit}
                                 />
-                                <div className="p-3 rounded-lg border bg-slate-50">
+                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                     <div className="flex items-center gap-3">
-                                        <Building2 className="w-5 h-5 text-slate-400" />
+                                        <Building2 className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-slate-500">สถานี</p>
-                                            <p className="font-medium text-slate-700">{profile?.station?.name || "-"}</p>
+                                            <p className="text-xs text-stone-500">สถานี</p>
+                                            <p className="font-medium text-[#F0D0C7]">{profile?.station?.name || "-"}</p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-3 rounded-lg border bg-slate-50">
+                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                     <div className="flex items-center gap-3">
-                                        <Briefcase className="w-5 h-5 text-slate-400" />
+                                        <Briefcase className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-slate-500">แผนก</p>
-                                            <p className="font-medium text-slate-700">{profile?.department?.name || "-"}</p>
+                                            <p className="text-xs text-stone-500">แผนก</p>
+                                            <p className="font-medium text-[#F0D0C7]">{profile?.department?.name || "-"}</p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-3 rounded-lg border bg-slate-50">
+                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                     <div className="flex items-center gap-3">
-                                        <FileText className="w-5 h-5 text-slate-400" />
+                                        <FileText className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-slate-500">เลขบัตรประชาชน</p>
-                                            <p className="font-medium text-slate-700">{profile?.citizenId || "-"}</p>
+                                            <p className="text-xs text-stone-500">เลขบัตรประชาชน</p>
+                                            <p className="font-medium text-[#F0D0C7]">{profile?.citizenId || "-"}</p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-3 rounded-lg border bg-slate-50">
+                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                     <div className="flex items-center gap-3">
-                                        <Calendar className="w-5 h-5 text-slate-400" />
+                                        <Calendar className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-slate-500">วันเกิด</p>
-                                            <p className="font-medium text-slate-700">
+                                            <p className="text-xs text-stone-500">วันเกิด</p>
+                                            <p className="font-medium text-[#F0D0C7]">
                                                 {profile?.birthDate ? formatThaiDate(new Date(profile.birthDate), "d MMMM yyyy") : "-"}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-3 rounded-lg border bg-slate-50">
+                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                     <div className="flex items-center gap-3">
-                                        <Clock className="w-5 h-5 text-slate-400" />
+                                        <Clock className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-slate-500">วันที่เริ่มงาน</p>
-                                            <p className="font-medium text-slate-700">
+                                            <p className="text-xs text-stone-500">วันที่เริ่มงาน</p>
+                                            <p className="font-medium text-[#F0D0C7]">
                                                 {profile?.startDate ? formatThaiDate(new Date(profile.startDate), "d MMMM yyyy") : "-"}
                                             </p>
                                         </div>
@@ -509,13 +518,13 @@ export default function ProfilePage() {
 
                     {/* Contact Info */}
                     <TabsContent value="contact" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-none shadow-md">
+                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
                             <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Contact className="w-5 h-5 text-indigo-600" />
+                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
+                                    <Contact className="w-5 h-5 text-[#F09410]" />
                                     การติดต่อ
                                 </CardTitle>
-                                <CardDescription>แก้ไขได้โดยการส่งคำขอ</CardDescription>
+                                <CardDescription className="text-stone-500">แก้ไขได้โดยการส่งคำขอ</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <EditableField
@@ -548,30 +557,30 @@ export default function ProfilePage() {
 
                     {/* Financial Info */}
                     <TabsContent value="financial" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-none shadow-md">
+                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
                             <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <DollarSign className="w-5 h-5 text-indigo-600" />
+                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
+                                    <DollarSign className="w-5 h-5 text-[#F09410]" />
                                     ข้อมูลการเงิน
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {profile?.dailyRate && Number(profile.dailyRate) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
-                                        <span className="text-green-700 text-sm">ค่าแรงรายวัน</span>
-                                        <span className="font-bold text-green-700">฿{formatMoney(Number(profile.dailyRate))}</span>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/30 border border-emerald-900/30">
+                                        <span className="text-emerald-400/80 text-sm">ค่าแรงรายวัน</span>
+                                        <span className="font-bold text-emerald-400">฿{formatMoney(Number(profile.dailyRate))}</span>
                                     </div>
                                 )}
                                 {profile?.baseSalary && Number(profile.baseSalary) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-100">
-                                        <span className="text-blue-700 text-sm">เงินเดือน</span>
-                                        <span className="font-bold text-blue-700">฿{formatMoney(Number(profile.baseSalary))}</span>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-950/30 border border-blue-900/30">
+                                        <span className="text-blue-400/80 text-sm">เงินเดือน</span>
+                                        <span className="font-bold text-blue-400">฿{formatMoney(Number(profile.baseSalary))}</span>
                                     </div>
                                 )}
 
-                                <div className="mt-4 pt-4 border-t">
-                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                        <Wallet className="w-4 h-4" /> บัญชีธนาคาร
+                                <div className="mt-4 pt-4 border-t border-orange-900/20">
+                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
+                                        <Wallet className="w-4 h-4 text-[#F09410]" /> บัญชีธนาคาร
                                     </h3>
                                     <div className="space-y-3">
                                         <EditableField
@@ -593,25 +602,25 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 pt-4 border-t">
-                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                        <FileText className="w-4 h-4" /> ประวัติเงินเดือน
+                                <div className="mt-4 pt-4 border-t border-orange-900/20">
+                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
+                                        <FileText className="w-4 h-4 text-[#F09410]" /> ประวัติเงินเดือน
                                     </h3>
                                     {payslips.length > 0 ? (
                                         <div className="space-y-3">
                                             {payslips.map((slip) => (
-                                                <div key={slip.id} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                                                <div key={slip.id} className="flex items-center justify-between p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
                                                     <div>
-                                                        <p className="font-medium text-slate-800">{slip.period?.name || "ไม่ระบุรอบ"}</p>
-                                                        <p className="text-xs text-slate-500">
-                                                            สุทธิ: <span className="text-green-600 font-bold">฿{formatMoney(Number(slip.netPay))}</span>
+                                                        <p className="font-medium text-[#F0D0C7]">{slip.period?.name || "ไม่ระบุรอบ"}</p>
+                                                        <p className="text-xs text-stone-500">
+                                                            สุทธิ: <span className="text-emerald-400 font-bold">฿{formatMoney(Number(slip.netPay))}</span>
                                                         </p>
                                                     </div>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
                                                         disabled
-                                                        className="h-8 text-xs text-slate-400"
+                                                        className="h-8 text-xs text-stone-500 border-stone-800 bg-stone-900/50"
                                                     >
                                                         <FileText className="w-3 h-3 mr-1" />
                                                         PDF เร็วๆ นี้
@@ -620,7 +629,7 @@ export default function ProfilePage() {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-6 text-slate-500 text-sm border-2 border-dashed rounded-lg bg-slate-50">
+                                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-900/20 rounded-lg bg-[#1a1412]">
                                             ยังไม่มีประวัติเงินเดือน
                                         </div>
                                     )}
