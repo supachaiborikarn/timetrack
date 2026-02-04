@@ -6,6 +6,7 @@ export const authConfig = {
     },
     // Using JWT strategy for session
     session: { strategy: "jwt" },
+    trustHost: true,
     secret: process.env.AUTH_SECRET,
     callbacks: {
         async jwt({ token, user }: { token: any, user: any }) {
