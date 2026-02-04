@@ -228,6 +228,7 @@ export default function ProfilePage() {
     const [requests, setRequests] = useState<EditRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [payslips, setPayslips] = useState<any[]>([]);
 
     // Password change state
     const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -266,9 +267,21 @@ export default function ProfilePage() {
         }
     };
 
+    const fetchPayslips = async () => {
+        try {
+            const res = await fetch("/api/payslip");
+            if (res.ok) {
+                const data = await res.json();
+                setPayslips(data.payslips || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch payslips:", error);
+        }
+    };
+
     const initialize = async () => {
         setIsLoading(true);
-        await Promise.all([fetchProfile(), fetchRequests()]);
+        await Promise.all([fetchProfile(), fetchRequests(), fetchPayslips()]);
         setIsLoading(false);
     };
 
@@ -578,6 +591,39 @@ export default function ProfilePage() {
                                             onRequestEdit={handleRequestEdit}
                                         />
                                     </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t">
+                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                        <FileText className="w-4 h-4" /> ประวัติเงินเดือน
+                                    </h3>
+                                    {payslips.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {payslips.map((slip) => (
+                                                <div key={slip.id} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                                                    <div>
+                                                        <p className="font-medium text-slate-800">{slip.period?.name || "ไม่ระบุรอบ"}</p>
+                                                        <p className="text-xs text-slate-500">
+                                                            สุทธิ: <span className="text-green-600 font-bold">฿{formatMoney(Number(slip.netPay))}</span>
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled
+                                                        className="h-8 text-xs text-slate-400"
+                                                    >
+                                                        <FileText className="w-3 h-3 mr-1" />
+                                                        PDF เร็วๆ นี้
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-6 text-slate-500 text-sm border-2 border-dashed rounded-lg bg-slate-50">
+                                            ยังไม่มีประวัติเงินเดือน
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
