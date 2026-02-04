@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({
-            records: records.map((r) => ({
+            records: records.map((r: any) => ({
                 id: r.id,
                 date: r.date.toISOString(),
                 checkInTime: r.checkInTime?.toISOString() || null,
@@ -71,6 +71,10 @@ export async function GET(request: NextRequest) {
                 actualHours: r.actualHours ? Number(r.actualHours) : null,
                 overtimeHours: r.overtimeHours ? Number(r.overtimeHours) : null,
                 status: r.status,
+                breakStartTime: r.breakStartTime?.toISOString() || null,
+                breakEndTime: r.breakEndTime?.toISOString() || null,
+                breakDurationMin: r.breakDurationMin || null,
+                breakPenaltyAmount: r.breakPenaltyAmount ? Number(r.breakPenaltyAmount) : null,
                 user: {
                     id: r.user.id,
                     name: r.user.name,
