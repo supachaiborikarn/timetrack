@@ -48,32 +48,70 @@ export default function QRScanPage() {
             const position = await getCurrentPosition();
             const deviceId = getDeviceFingerprint();
 
-            const res = await fetch("/api/attendance/check-in", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    deviceId,
-                    method: "QR",
-                    qrCode: decodedText,
-                }),
-            });
+            // First, check if employee is on break
+            const todayRes = await fetch("/api/attendance/today");
+            const todayData = await todayRes.json();
 
-            const data = await res.json();
+            const isOnBreak = todayData?.attendance?.breakStartTime && !todayData?.attendance?.breakEndTime;
 
-            if (res.ok) {
-                setScanResult(decodedText);
-                toast.success("เช็คอินสำเร็จ!", {
-                    description: `เวลา ${formatTime(new Date())}`,
+            if (isOnBreak) {
+                // Employee is on break - call break-end API
+                const res = await fetch("/api/attendance/break-end", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        deviceId,
+                        method: "QR",
+                        qrCode: decodedText,
+                    }),
                 });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    setScanResult(decodedText);
+                    if (data.penaltyAmount > 0) {
+                        toast.warning("จบพักเบรก - กลับมาสาย!", {
+                            description: `โดนหักเงิน ฿${data.penaltyAmount}`,
+                        });
+                    } else {
+                        toast.success("จบพักเบรกเรียบร้อย!", {
+                            description: `พัก ${data.durationMin} นาที`,
+                        });
+                    }
+                } else {
+                    toast.error("จบพักไม่สำเร็จ", {
+                        description: data.error || "กรุณาลองใหม่",
+                    });
+                }
             } else {
-                toast.error("เช็คอินไม่สำเร็จ", {
-                    description: data.error || "กรุณาลองใหม่",
+                // Normal check-in flow
+                const res = await fetch("/api/attendance/check-in", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        deviceId,
+                        method: "QR",
+                        qrCode: decodedText,
+                    }),
                 });
-                // If failed, maybe we want to allow rescanning?
-                // For now, let's keep it stopped so user sees the error.
-                // User can click "Start Scan" again.
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    setScanResult(decodedText);
+                    toast.success("เช็คอินสำเร็จ!", {
+                        description: `เวลา ${formatTime(new Date())}`,
+                    });
+                } else {
+                    toast.error("เช็คอินไม่สำเร็จ", {
+                        description: data.error || "กรุณาลองใหม่",
+                    });
+                }
             }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้";

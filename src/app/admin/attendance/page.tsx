@@ -71,6 +71,10 @@ interface AttendanceRecord {
     actualHours: number | null;
     overtimeHours: number | null;
     status: string;
+    breakStartTime: string | null;
+    breakEndTime: string | null;
+    breakDurationMin: number | null;
+    breakPenaltyAmount: number | null;
     user: {
         id: string;
         name: string;
@@ -217,6 +221,28 @@ export default function AttendanceReviewPage() {
             }
         } catch {
             toast.error("เกิดข้อผิดพลาด");
+        }
+    };
+
+    // Break management for supervisors
+    const handleBreakManage = async (employeeId: string, action: 'start' | 'end') => {
+        try {
+            const res = await fetch("/api/attendance/break-manage", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ employeeId, action }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(data.message);
+                fetchRecords();
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
         }
     };
 
@@ -729,7 +755,36 @@ export default function AttendanceReviewPage() {
                                                 {getStatusBadge(record.status, record.lateMinutes)}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <div className="flex justify-center gap-1">
+                                                <div className="flex justify-center gap-1 flex-wrap">
+                                                    {/* Break Management Buttons */}
+                                                    {record.checkInTime && !record.checkOutTime && (
+                                                        <>
+                                                            {!record.breakStartTime ? (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-7 px-2 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                                    onClick={() => handleBreakManage(record.user.id, 'start')}
+                                                                >
+                                                                    เริ่มพักให้
+                                                                </Button>
+                                                            ) : !record.breakEndTime ? (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-7 px-2 text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                                                                    onClick={() => handleBreakManage(record.user.id, 'end')}
+                                                                >
+                                                                    จบพักให้
+                                                                </Button>
+                                                            ) : (
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    พักแล้ว {record.breakDurationMin} นาที
+                                                                </Badge>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    {/* Approve/Reject Buttons */}
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
