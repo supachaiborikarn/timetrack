@@ -6,3 +6,4 @@ export { CheckInOutButtons } from "./CheckInOutButtons";
 export { BreakButtons } from "./BreakButtons";
 export { QuickActionCards } from "./QuickActionCards";
 export { MenuList } from "./MenuList";
+export { OfflineIndicator } from "./OfflineIndicator";

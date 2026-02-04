@@ -14,6 +14,7 @@ import {
   BreakButtons,
   QuickActionCards,
   MenuList,
+  OfflineIndicator,
 } from "@/components/dashboard";
 
 export default function EmployeeDashboard() {
@@ -120,6 +121,9 @@ export default function EmployeeDashboard() {
         {/* Menu List */}
         <MenuList userRole={session?.user?.role} />
       </main>
+
+      {/* Offline Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }

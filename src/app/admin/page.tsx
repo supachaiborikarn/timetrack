@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AttendanceChart, LatenessTrendChart } from "@/components/analytics";
 
 import {
     Users,
@@ -25,6 +26,7 @@ import {
     Loader2,
     CalendarDays,
     Building2,
+    BarChart3,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -47,15 +49,22 @@ interface RecentRequest {
     createdAt: string;
 }
 
+interface AnalyticsData {
+    weekly: Array<{ day: string; onTime: number; late: number; absent: number }>;
+    trend: Array<{ date: string; lateCount: number; avgLateMinutes: number }>;
+}
+
 export default function AdminDashboard() {
     const { data: session, status } = useSession();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
+    const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (session?.user?.id) {
             fetchDashboardData();
+            fetchAnalytics();
         }
     }, [session?.user?.id]);
 
@@ -71,6 +80,18 @@ export default function AdminDashboard() {
             console.error("Failed to fetch dashboard data:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchAnalytics = async () => {
+        try {
+            const res = await fetch("/api/admin/analytics");
+            if (res.ok) {
+                const data = await res.json();
+                setAnalytics(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch analytics:", error);
         }
     };
 
@@ -315,6 +336,39 @@ export default function AdminDashboard() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Analytics Charts */}
+                {analytics && (
+                    <div className="grid lg:grid-cols-2 gap-6">
+                        {/* Weekly Attendance Chart */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-2">
+                                    <BarChart3 className="w-5 h-5 text-blue-500" />
+                                    <CardTitle className="text-lg">สถิติ Attendance รายสัปดาห์</CardTitle>
+                                </div>
+                                <CardDescription>ข้อมูล 7 วันล่าสุด</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <AttendanceChart data={analytics.weekly} />
+                            </CardContent>
+                        </Card>
+
+                        {/* Lateness Trend Chart */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-orange-500" />
+                                    <CardTitle className="text-lg">Trend การมาสาย</CardTitle>
+                                </div>
+                                <CardDescription>ข้อมูล 30 วันล่าสุด</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <LatenessTrendChart data={analytics.trend} />
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
 
                 {/* Approval Summary (if pending) */}
                 {stats && stats.pendingApprovals > 0 && (

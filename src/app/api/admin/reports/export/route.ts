@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { format } from "@/lib/date-utils";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export async function GET(request: NextRequest) {
     try {
@@ -144,8 +146,54 @@ export async function GET(request: NextRequest) {
 
         XLSX.utils.book_append_sheet(wb, ws, "รายงานสรุป");
 
-        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        // Handle different export formats
+        if (exportFormat === "pdf") {
+            // Generate PDF
+            const doc = new jsPDF();
 
+            // Title
+            doc.setFontSize(16);
+            doc.text("Attendance Report", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Period: ${startDate} - ${endDate}`, 14, 28);
+
+            // Table
+            autoTable(doc, {
+                startY: 35,
+                head: [["ID", "Name", "Station", "Dept", "Days", "Hours", "OT", "Late", "Penalty"]],
+                body: employees.map((e) => [
+                    e.employeeId,
+                    e.name,
+                    e.station,
+                    e.department,
+                    e.workDays,
+                    e.totalHours.toFixed(1),
+                    e.overtimeHours.toFixed(1),
+                    e.lateDays,
+                    e.latePenalty.toFixed(0),
+                ]),
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [59, 130, 246] },
+            });
+
+            // Summary
+            const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+            doc.setFontSize(10);
+            doc.text(`Summary: ${employees.length} employees | ${totalWorkDays} work days | ${totalHours.toFixed(1)} hours | ${totalOT.toFixed(1)} OT | ${totalLatePenalty.toFixed(0)} THB penalty`, 14, finalY);
+
+            const pdfBuffer = doc.output("arraybuffer");
+            const filename = `report_${startDate}_${endDate}.pdf`;
+
+            return new NextResponse(pdfBuffer, {
+                headers: {
+                    "Content-Type": "application/pdf",
+                    "Content-Disposition": `attachment; filename="${filename}"`,
+                },
+            });
+        }
+
+        // Default: Excel format
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
         const filename = `report_${startDate}_${endDate}.xlsx`;
 
         return new NextResponse(buf, {

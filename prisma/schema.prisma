@@ -58,9 +58,24 @@ model User {
   registeredStation          Station?               @relation("RegisteredStation", fields: [registeredStationId], references: [id])
   station                    Station?               @relation("WorkStation", fields: [stationId], references: [id])
   profileEditRequests        ProfileEditRequest[]
+  pushSubscriptions          PushSubscription[]
 
   @@index([stationId])
   @@index([departmentId])
+}
+
+// Push Notification Subscription
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Station {
