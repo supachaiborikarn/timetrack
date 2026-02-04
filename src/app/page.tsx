@@ -474,11 +474,20 @@ export default function EmployeeDashboard() {
             variant="outline"
             className={`h-12 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white ${!isOnBreak ? "opacity-50 cursor-not-allowed" : "bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/30"
               }`}
-            disabled={!isOnBreak || isChecking}
-            onClick={handleEndBreak}
+            disabled={!isOnBreak}
+            asChild={isOnBreak}
           >
-            <Timer className="w-4 h-4 mr-2" />
-            จบพักเบรก
+            {isOnBreak ? (
+              <a href="/qr-scan">
+                <QrCode className="w-4 h-4 mr-2" />
+                สแกนจบพัก
+              </a>
+            ) : (
+              <span>
+                <Timer className="w-4 h-4 mr-2" />
+                จบพักเบรก
+              </span>
+            )}
           </Button>
         </div>
 
