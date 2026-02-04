@@ -37,9 +37,10 @@ declare module "@auth/core/jwt" {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-    adapter: PrismaAdapter(prisma) as never,
+    // Note: Adapter removed - not needed for credentials-only providers with JWT strategy
+    // The PrismaAdapter was causing Configuration errors with NextAuth v5 beta
     session: { strategy: "jwt" },
-    secret: process.env.AUTH_SECRET || "dev-secret-please-change-in-production",
+    secret: process.env.AUTH_SECRET,
     pages: {
         signIn: "/login",
     },
