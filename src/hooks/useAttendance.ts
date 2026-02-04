@@ -68,6 +68,8 @@ export function useAttendance(userId: string | undefined) {
     useEffect(() => {
         if (userId) {
             fetchTodayData();
+        } else {
+            setIsLoading(false);
         }
     }, [userId, fetchTodayData]);
 
