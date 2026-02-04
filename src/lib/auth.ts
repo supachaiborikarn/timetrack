@@ -25,7 +25,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         OR: [
                             { phone: loginKey },
                             { username: loginKey },
-                            { name: loginKey }
+                            { name: loginKey },
+                            { nickName: loginKey }
                         ],
                         isActive: true
                     },
@@ -70,7 +71,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             { email: loginKey },
                             { username: loginKey },
                             { employeeId: loginKey },
-                            { name: loginKey }
+                            { name: loginKey },
+                            { nickName: loginKey }
                         ],
                         isActive: true
                     },
