@@ -28,8 +28,7 @@ export async function GET() {
                 id: user.id,
                 employeeId: user.employeeId,
                 name: user.name,
-                nickname: user.nickname,
-                realName: user.realName,
+                nickName: user.nickName,
                 email: user.email,
                 phone: user.phone,
                 role: user.role,
@@ -39,16 +38,11 @@ export async function GET() {
                 hourlyRate: user.hourlyRate,
                 dailyRate: user.dailyRate,
                 baseSalary: user.baseSalary,
-                specialPay: user.specialPay,
-                housingCost: user.housingCost,
-                workHours: user.workHours,
                 // Bank info
                 bankAccountNumber: user.bankAccountNumber,
                 bankName: user.bankName,
-                // Social security
-                socialSecurityStation: user.socialSecurityStation,
                 // Additional
-                position: user.position,
+                createdAt: user.createdAt,
                 createdAt: user.createdAt,
             },
         });
