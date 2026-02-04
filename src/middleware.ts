@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
     if (
         pathname.startsWith("/login") ||
         pathname.startsWith("/api/auth") ||
+        pathname.startsWith("/auth-debug") ||
         pathname.startsWith("/_next") ||
         pathname.startsWith("/icons") ||
         pathname === "/manifest.json" ||
