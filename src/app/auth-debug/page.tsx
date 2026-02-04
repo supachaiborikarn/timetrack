@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AuthDebugPage() {
     const session = await auth();
-    const headerList = headers();
+    const headerList = await headers();
 
     // masked env vars
     const hasAuthSecret = !!process.env.AUTH_SECRET;
