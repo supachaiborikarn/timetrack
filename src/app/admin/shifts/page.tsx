@@ -67,10 +67,12 @@ interface Shift {
     endTime: string;
 }
 
+
 interface ScheduleEmployee {
     employee: {
         id: string;
         name: string;
+        nickName: string | null;
         employeeId: string;
         department: string;
         departmentCode: string;
@@ -92,6 +94,8 @@ interface SelectedCell {
     date: string;
     hasShift: boolean;
 }
+
+
 
 export default function ShiftManagementPage() {
     const { data: session, status } = useSession();

@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
                     employeeId: emp.employeeId,
                     department: emp.department?.name || "-",
                     departmentCode: emp.department?.code || "",
+                    nickName: emp.nickName || null,
                 },
                 schedule,
             };

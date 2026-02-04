@@ -38,7 +38,7 @@ export async function GET() {
                 station: e.station,
                 department: e.department,
                 // New Fields
-                nickname: e.nickName,
+                nickName: e.nickName,
                 gender: e.gender,
                 birthDate: e.birthDate,
                 address: e.address,
