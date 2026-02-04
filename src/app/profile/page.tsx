@@ -407,7 +407,7 @@ export default function ProfilePage() {
     }
 
     return (
-    return (
+
         <div className="min-h-screen bg-[#1a1412] p-4 pb-24">
             <div className="max-w-lg mx-auto space-y-6">
                 {/* Header Profile */}
