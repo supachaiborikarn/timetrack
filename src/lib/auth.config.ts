@@ -29,7 +29,6 @@ export const authConfig = {
             return session;
         },
         authorized({ auth, request: { nextUrl } }: { auth: any, request: { nextUrl: any } }) {
-            // const isLoggedIn = !!auth?.user;
             const isOnLogin = nextUrl.pathname.startsWith('/login');
 
             // Allow access to login page
@@ -42,19 +41,4 @@ export const authConfig = {
         },
     },
     providers: [], // Providers configured in auth.ts
-} satisfies NextAuthConfig;
-authorized({ auth, request: { nextUrl } }) {
-    const isLoggedIn = !!auth?.user;
-    const isOnLogin = nextUrl.pathname.startsWith('/login');
-
-    // Allow access to login page
-    if (isOnLogin) {
-        return true; // Use middleware logic to redirect if already logged in if needed
-    }
-
-    // By default, let middleware handle specific route protection
-    return true;
-},
-    },
-providers: [], // Providers configured in auth.ts
 } satisfies NextAuthConfig;
