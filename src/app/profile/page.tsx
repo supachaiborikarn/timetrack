@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,15 +30,23 @@ import {
     Shield,
     DollarSign,
     AlertTriangle,
+    MapPin,
+    Calendar,
+    Contact,
+    Check,
+    X,
+    Edit2,
+    Clock,
+    FileText
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatThaiDate } from "@/lib/date-utils";
 
 interface Profile {
     id: string;
     employeeId: string;
     name: string;
     nickName: string | null;
-
     email: string | null;
     phone: string | null;
     role: string;
@@ -48,12 +56,31 @@ interface Profile {
     hourlyRate: number;
     dailyRate: number | null;
     baseSalary: number | null;
-    workHours: null;
     // Bank info
     bankAccountNumber: string | null;
     bankName: string | null;
-    // Social security
+    // Personal info
+    address: string | null;
+    birthDate: string | null;
+    gender: string | null;
+    citizenId: string | null;
+    // Emergency contact
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
+    emergencyContactRelation: string | null;
+    // Employment info
+    startDate: string | null;
+    employeeStatus: string;
 
+    createdAt: string;
+}
+
+interface EditRequest {
+    id: string;
+    fieldName: string;
+    fieldLabel: string;
+    newValue: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
     createdAt: string;
 }
 
@@ -65,17 +92,141 @@ const roleLabels: Record<string, string> = {
     EMPLOYEE: "พนักงาน",
 };
 
+// Reusable Editable Field Component
+interface EditableFieldProps {
+    label: string;
+    value: string | null;
+    fieldName: string;
+    icon: any;
+    isEditable?: boolean;
+    pendingRequest?: EditRequest;
+    onRequestEdit: (fieldName: string, newValue: string) => Promise<void>;
+    placeholder?: string;
+}
+
+const EditableField = ({
+    label,
+    value,
+    fieldName,
+    icon: Icon,
+    isEditable = true,
+    pendingRequest,
+    onRequestEdit,
+    placeholder = "-"
+}: EditableFieldProps) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [tempValue, setTempValue] = useState(value || "");
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setTempValue(value || "");
+    }, [value]);
+
+    const handleSave = async () => {
+        if (!tempValue.trim() && !value) return; // Don't save empty if it was empty
+        if (tempValue === value) {
+            setIsEditing(false);
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await onRequestEdit(fieldName, tempValue);
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Save failed", error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col space-y-2 p-3 rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-muted">
+                        <Icon className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                        {!isEditing ? (
+                            <p className="text-sm font-medium mt-0.5">{value || placeholder}</p>
+                        ) : (
+                            <div className="mt-1">
+                                <Input
+                                    value={tempValue}
+                                    onChange={(e) => setTempValue(e.target.value)}
+                                    className="h-8 text-sm"
+                                    placeholder={placeholder}
+                                    autoFocus
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Actions */}
+                {isEditable && (
+                    <div className="flex items-center gap-1">
+                        {pendingRequest ? (
+                            <div className="flex flex-col items-end">
+                                <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200 text-[10px] whitespace-nowrap">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    รออนุมัติ
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground mt-1">
+                                    เป็น: {pendingRequest.newValue}
+                                </span>
+                            </div>
+                        ) : isEditing ? (
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => {
+                                        setIsEditing(false);
+                                        setTempValue(value || "");
+                                    }}
+                                    disabled={isSaving}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => setIsEditing(true)}
+                            >
+                                <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 export default function ProfilePage() {
     const { data: session, status } = useSession();
     const [profile, setProfile] = useState<Profile | null>(null);
+    const [requests, setRequests] = useState<EditRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Form state
-    const [phone, setPhone] = useState("");
-    const [email, setEmail] = useState("");
-
-    // Password change
+    // Password change state
     const [showPasswordSection, setShowPasswordSection] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -83,54 +234,65 @@ export default function ProfilePage() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
 
-    // PIN change
+    // PIN change state
     const [showPinSection, setShowPinSection] = useState(false);
     const [newPin, setNewPin] = useState("");
     const [confirmPin, setConfirmPin] = useState("");
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchProfile();
-        }
-    }, [session?.user?.id]);
-
     const fetchProfile = async () => {
-        setIsLoading(true);
         try {
             const res = await fetch("/api/profile");
             if (res.ok) {
                 const data = await res.json();
                 setProfile(data.profile);
-                setPhone(data.profile.phone || "");
-                setEmail(data.profile.email || "");
             }
         } catch (error) {
             console.error("Failed to fetch profile:", error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
-    const handleSaveBasicInfo = async () => {
-        setIsSaving(true);
+    const fetchRequests = async () => {
         try {
-            const res = await fetch("/api/profile", {
-                method: "PUT",
+            const res = await fetch("/api/profile/edit-request");
+            if (res.ok) {
+                const data = await res.json();
+                setRequests(data.requests || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch requests:", error);
+        }
+    };
+
+    const initialize = async () => {
+        setIsLoading(true);
+        await Promise.all([fetchProfile(), fetchRequests()]);
+        setIsLoading(false);
+    };
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            initialize();
+        }
+    }, [session?.user?.id]);
+
+    const handleRequestEdit = async (fieldName: string, newValue: string) => {
+        try {
+            const res = await fetch("/api/profile/edit-request", {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone, email }),
+                body: JSON.stringify({ fieldName, newValue }),
             });
 
+            const data = await res.json();
+
             if (res.ok) {
-                toast.success("บันทึกข้อมูลเรียบร้อย");
-                fetchProfile();
+                toast.success(data.message || "ส่งคำขอแก้ไขเรียบร้อย");
+                fetchRequests(); // Refresh requests
             } else {
-                const data = await res.json();
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
-        } finally {
-            setIsSaving(false);
+            toast.error("เกิดข้อผิดพลาดในการส่งคำขอ");
         }
     };
 
@@ -205,6 +367,17 @@ export default function ProfilePage() {
         }
     };
 
+    // Helper to get pending request for a field
+    const getPendingRequest = (fieldName: string) => {
+        return requests.find(r => r.fieldName === fieldName && r.status === "PENDING");
+    };
+
+    // Format currency
+    const formatMoney = (amount: number | null | undefined) => {
+        if (!amount) return "-";
+        return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2 }).format(amount);
+    };
+
     if (status === "loading" || isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -217,238 +390,242 @@ export default function ProfilePage() {
         redirect("/login");
     }
 
-    // Format currency
-    const formatMoney = (amount: number | null | undefined) => {
-        if (!amount) return "-";
-        return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2 }).format(amount);
-    };
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 p-4 pb-24">
+        <div className="min-h-screen bg-slate-50/50 p-4 pb-24">
             <div className="max-w-lg mx-auto space-y-6">
-                {/* Header */}
-                <div className="text-center pt-4">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+                {/* Header Profile */}
+                <div className="text-center pt-8 pb-4">
+                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-4xl font-bold text-white shadow-xl ring-4 ring-white">
                         {profile?.nickName?.charAt(0) || profile?.name?.charAt(0) || "?"}
                     </div>
-                    <h1 className="text-xl font-bold text-foreground mt-4">
-                        {profile?.nickName ? `${profile.nickName}` : profile?.name}
-                    </h1>
-                    <p className="text-muted-foreground text-sm">{profile?.employeeId}</p>
-                    <Badge className="mt-2 text-xs">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
-
+                    <div className="mt-4 space-y-1">
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            {profile?.nickName ? `${profile.nickName}` : profile?.name}
+                        </h1>
+                        <p className="text-slate-500 font-medium">{profile?.name}</p>
+                        <div className="flex items-center justify-center gap-2 mt-2">
+                            <Badge variant="outline" className="bg-white">{profile?.employeeId}</Badge>
+                            <Badge className="bg-indigo-600">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Tabs */}
                 <Tabs defaultValue="personal" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="personal" className="text-xs px-2">
-                            <User className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">ส่วนตัว</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="financial" className="text-xs px-2">
-                            <Wallet className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">การเงิน</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="social" className="text-xs px-2">
-                            <Shield className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">ประกัน</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="security" className="text-xs px-2">
-                            <Lock className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">รหัส</span>
-                        </TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-5 p-1 bg-white/50 backdrop-blur border shadow-sm rounded-xl">
+                        <TabsTrigger value="personal" className="text-xs px-1">ข้อมูล</TabsTrigger>
+                        <TabsTrigger value="contact" className="text-xs px-1">ติดต่อ</TabsTrigger>
+                        <TabsTrigger value="financial" className="text-xs px-1">การเงิน</TabsTrigger>
+                        <TabsTrigger value="social" className="text-xs px-1">ประกัน</TabsTrigger>
+                        <TabsTrigger value="security" className="text-xs px-1">รหัส</TabsTrigger>
                     </TabsList>
 
-                    {/* Tab 1: Personal Info */}
-                    <TabsContent value="personal" className="space-y-4 mt-4">
-                        <Card>
+                    {/* Personal Info */}
+                    <TabsContent value="personal" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <User className="w-5 h-5" />
-                                    ข้อมูลส่วนตัว
+                                    <User className="w-5 h-5 text-indigo-600" />
+                                    ข้อมูลทั่วไป
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                {profile?.station && (
-                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                        <Building2 className="w-5 h-5 text-muted-foreground" />
+                            <CardContent className="space-y-3">
+                                <EditableField
+                                    label="ชื่อเล่น"
+                                    value={profile?.nickName}
+                                    fieldName="nickName"
+                                    icon={User}
+                                    pendingRequest={getPendingRequest("nickName")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
+                                <div className="p-3 rounded-lg border bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <Building2 className="w-5 h-5 text-slate-400" />
                                         <div>
-                                            <p className="text-xs text-muted-foreground">สถานี</p>
-                                            <p className="font-medium">{profile.station.name}</p>
+                                            <p className="text-xs text-slate-500">สถานี</p>
+                                            <p className="font-medium text-slate-700">{profile?.station?.name || "-"}</p>
                                         </div>
                                     </div>
-                                )}
-
-                                {profile?.department && (
-                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                        <Briefcase className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                                <div className="p-3 rounded-lg border bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <Briefcase className="w-5 h-5 text-slate-400" />
                                         <div>
-                                            <p className="text-xs text-muted-foreground">แผนก</p>
-                                            <p className="font-medium">{profile.department.name}</p>
+                                            <p className="text-xs text-slate-500">แผนก</p>
+                                            <p className="font-medium text-slate-700">{profile?.department?.name || "-"}</p>
                                         </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Contact Info - Editable */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Phone className="w-5 h-5" />
-                                    ข้อมูลติดต่อ
-                                </CardTitle>
-                                <CardDescription>แก้ไขได้</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="flex items-center gap-2">
-                                        <Phone className="w-4 h-4" />
-                                        เบอร์โทร
-                                    </Label>
-                                    <Input
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        placeholder="08X-XXX-XXXX"
-                                    />
                                 </div>
-
-                                <div className="space-y-2">
-                                    <Label className="flex items-center gap-2">
-                                        <Mail className="w-4 h-4" />
-                                        Email
-                                    </Label>
-                                    <Input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="example@email.com"
-                                    />
+                                <div className="p-3 rounded-lg border bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-5 h-5 text-slate-400" />
+                                        <div>
+                                            <p className="text-xs text-slate-500">เลขบัตรประชาชน</p>
+                                            <p className="font-medium text-slate-700">{profile?.citizenId || "-"}</p>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                <Button
-                                    onClick={handleSaveBasicInfo}
-                                    disabled={isSaving}
-                                    className="w-full"
-                                >
-                                    {isSaving ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <Save className="w-4 h-4 mr-2" />
-                                    )}
-                                    บันทึกข้อมูลติดต่อ
-                                </Button>
+                                <div className="p-3 rounded-lg border bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <Calendar className="w-5 h-5 text-slate-400" />
+                                        <div>
+                                            <p className="text-xs text-slate-500">วันเกิด</p>
+                                            <p className="font-medium text-slate-700">
+                                                {profile?.birthDate ? formatThaiDate(new Date(profile.birthDate), "d MMMM yyyy") : "-"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-3 rounded-lg border bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <Clock className="w-5 h-5 text-slate-400" />
+                                        <div>
+                                            <p className="text-xs text-slate-500">วันที่เริ่มงาน</p>
+                                            <p className="font-medium text-slate-700">
+                                                {profile?.startDate ? formatThaiDate(new Date(profile.startDate), "d MMMM yyyy") : "-"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* Tab 2: Financial Info */}
-                    <TabsContent value="financial" className="space-y-4 mt-4">
-                        {/* Wage Info */}
-                        <Card>
+                    {/* Contact Info */}
+                    <TabsContent value="contact" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <DollarSign className="w-5 h-5" />
-                                    ข้อมูลค่าแรง
+                                    <Contact className="w-5 h-5 text-indigo-600" />
+                                    การติดต่อ
                                 </CardTitle>
+                                <CardDescription>แก้ไขได้โดยการส่งคำขอ</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {profile?.dailyRate && Number(profile.dailyRate) > 0 ? (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10">
-                                        <span className="text-muted-foreground">ค่าแรงรายวัน</span>
-                                        <span className="font-bold text-green-600">฿{formatMoney(Number(profile.dailyRate))}</span>
-                                    </div>
-                                ) : profile?.baseSalary && Number(profile.baseSalary) > 0 ? (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10">
-                                        <span className="text-muted-foreground">เงินเดือน</span>
-                                        <span className="font-bold text-blue-600">฿{formatMoney(Number(profile.baseSalary))}</span>
-                                    </div>
-                                ) : null}
-
-
-
-                            </CardContent>
-                        </Card>
-
-                        {/* Bank Account */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Wallet className="w-5 h-5" />
-                                    บัญชีธนาคาร
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {profile?.bankAccountNumber ? (
-                                    <>
-                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                            <span className="text-muted-foreground">ธนาคาร</span>
-                                            <span className="font-medium">{profile.bankName || "-"}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                            <span className="text-muted-foreground">เลขบัญชี</span>
-                                            <span className="font-medium font-mono">{profile.bankAccountNumber}</span>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-4 text-muted-foreground">
-                                        <Wallet className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p>ยังไม่มีข้อมูลบัญชีธนาคาร</p>
-                                        <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
-                                    </div>
-                                )}
+                                <EditableField
+                                    label="เบอร์โทรศัพท์"
+                                    value={profile?.phone}
+                                    fieldName="phone"
+                                    icon={Phone}
+                                    pendingRequest={getPendingRequest("phone")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
+                                <EditableField
+                                    label="อีเมล"
+                                    value={profile?.email}
+                                    fieldName="email"
+                                    icon={Mail}
+                                    pendingRequest={getPendingRequest("email")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
+                                <EditableField
+                                    label="ที่อยู่"
+                                    value={profile?.address}
+                                    fieldName="address"
+                                    icon={MapPin}
+                                    pendingRequest={getPendingRequest("address")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* Tab 3: Social Security */}
-                    <TabsContent value="social" className="space-y-4 mt-4">
-                        <Card>
+                    {/* Financial Info */}
+                    <TabsContent value="financial" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Shield className="w-5 h-5" />
-                                    ประกันสังคม
+                                    <DollarSign className="w-5 h-5 text-indigo-600" />
+                                    ข้อมูลการเงิน
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <div className="text-center py-4 text-muted-foreground">
-                                    <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p>ยังไม่มีข้อมูลประกันสังคม</p>
-                                    <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
+                                {profile?.dailyRate && Number(profile.dailyRate) > 0 && (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
+                                        <span className="text-green-700 text-sm">ค่าแรงรายวัน</span>
+                                        <span className="font-bold text-green-700">฿{formatMoney(Number(profile.dailyRate))}</span>
+                                    </div>
+                                )}
+                                {profile?.baseSalary && Number(profile.baseSalary) > 0 && (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-100">
+                                        <span className="text-blue-700 text-sm">เงินเดือน</span>
+                                        <span className="font-bold text-blue-700">฿{formatMoney(Number(profile.baseSalary))}</span>
+                                    </div>
+                                )}
+
+                                <div className="mt-4 pt-4 border-t">
+                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                        <Wallet className="w-4 h-4" /> บัญชีธนาคาร
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <EditableField
+                                            label="ชื่อธนาคาร"
+                                            value={profile?.bankName}
+                                            fieldName="bankName"
+                                            icon={Building2}
+                                            pendingRequest={getPendingRequest("bankName")}
+                                            onRequestEdit={handleRequestEdit}
+                                        />
+                                        <EditableField
+                                            label="เลขบัญชี"
+                                            value={profile?.bankAccountNumber}
+                                            fieldName="bankAccountNumber"
+                                            icon={CreditCard}
+                                            pendingRequest={getPendingRequest("bankAccountNumber")}
+                                            onRequestEdit={handleRequestEdit}
+                                        />
+                                    </div>
                                 </div>
-
-
                             </CardContent>
                         </Card>
+                    </TabsContent>
 
-                        {/* Emergency Contact - Placeholder */}
-                        <Card>
+                    {/* Social Security & Emergency */}
+                    <TabsContent value="social" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Phone className="w-5 h-5" />
+                                    <Shield className="w-5 h-5 text-indigo-600" />
                                     ผู้ติดต่อฉุกเฉิน
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <div className="text-center py-4 text-muted-foreground">
-                                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p>ยังไม่มีข้อมูลผู้ติดต่อฉุกเฉิน</p>
-                                    <p className="text-xs">กรุณาติดต่อ HR เพื่อเพิ่มข้อมูล</p>
-                                </div>
+                            <CardContent className="space-y-3">
+                                <EditableField
+                                    label="ชื่อผู้ติดต่อ"
+                                    value={profile?.emergencyContactName}
+                                    fieldName="emergencyContactName"
+                                    icon={User}
+                                    pendingRequest={getPendingRequest("emergencyContactName")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
+                                <EditableField
+                                    label="ความสัมพันธ์"
+                                    value={profile?.emergencyContactRelation}
+                                    fieldName="emergencyContactRelation"
+                                    icon={Contact}
+                                    pendingRequest={getPendingRequest("emergencyContactRelation")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
+                                <EditableField
+                                    label="เบอร์โทรศัพท์"
+                                    value={profile?.emergencyContactPhone}
+                                    fieldName="emergencyContactPhone"
+                                    icon={Phone}
+                                    pendingRequest={getPendingRequest("emergencyContactPhone")}
+                                    onRequestEdit={handleRequestEdit}
+                                />
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* Tab 4: Security (Password & PIN) */}
-                    <TabsContent value="security" className="space-y-4 mt-4">
+                    {/* Security */}
+                    <TabsContent value="security" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
                         {/* Change Password */}
-                        <Card>
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Lock className="w-5 h-5" />
-                                    เปลี่ยนรหัสผ่าน
+                                    <Lock className="w-5 h-5 text-indigo-600" />
+                                    รหัสผ่านเข้าสู่ระบบ
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -456,13 +633,16 @@ export default function ProfilePage() {
                                     <Button
                                         variant="outline"
                                         onClick={() => setShowPasswordSection(true)}
-                                        className="w-full"
+                                        className="w-full justify-between"
                                     >
-                                        <Key className="w-4 h-4 mr-2" />
-                                        เปลี่ยนรหัสผ่าน
+                                        <span className="flex items-center gap-2">
+                                            <Key className="w-4 h-4" />
+                                            เปลี่ยนรหัสผ่าน
+                                        </span>
+                                        <Edit2 className="w-3 h-3 opacity-50" />
                                     </Button>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
                                         <div className="space-y-2">
                                             <Label>รหัสผ่านปัจจุบัน</Label>
                                             <div className="relative">
@@ -540,26 +720,28 @@ export default function ProfilePage() {
                         </Card>
 
                         {/* Change PIN */}
-                        <Card>
+                        <Card className="border-none shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Key className="w-5 h-5" />
-                                    เปลี่ยน PIN
+                                    <Key className="w-5 h-5 text-indigo-600" />
+                                    PIN (สำหรับลงเวลา)
                                 </CardTitle>
-                                <CardDescription>PIN สำหรับลงเวลาผ่าน QR</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {!showPinSection ? (
                                     <Button
                                         variant="outline"
                                         onClick={() => setShowPinSection(true)}
-                                        className="w-full"
+                                        className="w-full justify-between"
                                     >
-                                        <Key className="w-4 h-4 mr-2" />
-                                        เปลี่ยน PIN
+                                        <span className="flex items-center gap-2">
+                                            <Key className="w-4 h-4" />
+                                            เปลี่ยน PIN
+                                        </span>
+                                        <Edit2 className="w-3 h-3 opacity-50" />
                                     </Button>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
                                         <div className="space-y-2">
                                             <Label>PIN ใหม่ (4-6 หลัก)</Label>
                                             <Input
