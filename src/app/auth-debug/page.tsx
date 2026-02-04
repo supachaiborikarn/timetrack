@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { DebugLoginForm } from "./debug-form";
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,25 @@ export default async function AuthDebugPage() {
                         Top level host: {headerList.get('host')}
                     </pre>
                 </section>
+                <section className="border p-4 rounded">
+                    <h2 className="font-bold mb-2">Test Login (Server Action)</h2>
+                    <form action={async (formData) => {
+                        "use server";
+                        const { debugLogin } = await import("./actions");
+                        // We can't easily alert from server action in this raw form without client component
+                        // So we will just console log on server for now or maybe better to make this a client component wrapper?
+                        // Let's keep it simple and just use a client component for the form part.
+                    }}>
+                        <div className="bg-yellow-50 p-2 text-yellow-800 text-xs mb-2">
+                            Check Vercel Logs for output or use the client-side debugger below.
+                        </div>
+                    </form>
+                    <DebugLoginForm />
+                </section>
             </div>
         </div>
     );
 }
+
+
+
