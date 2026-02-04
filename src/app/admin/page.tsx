@@ -82,11 +82,13 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!session || !session.user || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+    if (!session || !session.user || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
         redirect("/");
     }
 
-    const statsCards = [
+    const { role } = session.user;
+
+    const allStatsCards = [
         {
             title: "พนักงานทั้งหมด",
             value: stats?.totalEmployees || 0,
@@ -94,6 +96,7 @@ export default function AdminDashboard() {
             color: "text-blue-500",
             bgColor: "bg-blue-500/10",
             href: "/admin/employees",
+            roles: ["ADMIN", "HR"],
         },
         {
             title: "เข้างานวันนี้",
@@ -123,16 +126,21 @@ export default function AdminDashboard() {
         },
     ];
 
-    const quickActions = [
-        { title: "จัดการพนักงาน", icon: Users, href: "/admin/employees", color: "text-blue-500" },
-        { title: "สถานี/แผนก", icon: Building2, href: "/admin/stations", color: "text-cyan-500" },
+    const statsCards = allStatsCards.filter(card => !card.roles || card.roles.includes(role));
+
+    const allQuickActions = [
+        { title: "จัดการพนักงาน", icon: Users, href: "/admin/employees", color: "text-blue-500", roles: ["ADMIN", "HR"] },
+        { title: "สถานี/แผนก", icon: Building2, href: "/admin/stations", color: "text-cyan-500", roles: ["ADMIN", "HR"] },
         { title: "ตารางกะ", icon: Calendar, href: "/admin/shifts", color: "text-indigo-500" },
+        { title: "ลงเวลาทำงาน", icon: Clock, href: "/admin/attendance", color: "text-green-500" },
         { title: "Shift Pool", icon: Shuffle, href: "/admin/shift-pool", color: "text-purple-500" },
         { title: "Availability", icon: CalendarDays, href: "/admin/availability", color: "text-pink-500" },
-        { title: "เงินเดือน", icon: Wallet, href: "/admin/payroll", color: "text-green-500" },
-        { title: "รายงาน", icon: FileText, href: "/admin/reports", color: "text-orange-500" },
-        { title: "QR Codes", icon: QrCode, href: "/admin/qr-codes", color: "text-teal-500" },
+        { title: "เงินเดือน", icon: Wallet, href: "/admin/payroll", color: "text-green-500", roles: ["ADMIN", "HR"] },
+        { title: "รายงาน", icon: FileText, href: "/admin/reports", color: "text-orange-500", roles: ["ADMIN", "HR", "MANAGER"] },
+        { title: "QR Codes", icon: QrCode, href: "/admin/qr-codes", color: "text-teal-500", roles: ["ADMIN", "HR"] },
     ];
+
+    const quickActions = allQuickActions.filter(action => !action.roles || action.roles.includes(role));
 
     const getRequestIcon = (type: string) => {
         switch (type) {
