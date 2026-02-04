@@ -26,25 +26,25 @@ export function MenuList({ userRole }: MenuListProps) {
             {/* Admin Dashboard Link - Full Width */}
             {showAdminLink && (
                 <a href="/admin" className="col-span-full block group">
-                    <Card className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 border-0 shadow-lg shadow-blue-900/20 hover:shadow-blue-600/30 hover:-translate-y-1 transition-all duration-300">
-                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
+                    <Card className="relative overflow-hidden bg-gradient-to-r from-[#F09410] to-[#BC430D] border-0 shadow-lg shadow-orange-900/20 hover:shadow-orange-600/30 hover:-translate-y-1 transition-all duration-300">
+                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
                         <CardContent className="p-4 flex items-center justify-between relative z-10">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-md shadow-inner group-hover:scale-110 transition-transform duration-300">
                                     <Settings className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-white font-bold text-lg leading-tight">Admin Dashboard</h3>
+                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">Admin System</h3>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <Badge className="bg-black/20 text-white hover:bg-black/30 border-0 backdrop-blur-md">
+                                        <Badge className="bg-black/20 text-[#FEEAF0] hover:bg-black/30 border-0 backdrop-blur-md font-normal">
                                             {userRole}
                                         </Badge>
-                                        <span className="text-blue-100 text-xs text-opacity-80">จัดการระบบ</span>
+                                        <span className="text-[#F0D0C7] text-xs opacity-90">Manage & Configure</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="p-2 rounded-full bg-white/10 group-hover:bg-white/20 transition-colors">
-                                <ChevronRight className="w-5 h-5 text-white" />
+                            <div className="p-2 rounded-full bg-black/10 group-hover:bg-black/20 transition-colors backdrop-blur-sm">
+                                <ChevronRight className="w-5 h-5 text-white/90" />
                             </div>
                         </CardContent>
                     </Card>
@@ -53,14 +53,14 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Schedule */}
             <a href="/schedule" className="block group">
-                <Card className="h-full bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 group">
                     <CardContent className="p-4 flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                            <Calendar className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
+                        <div className="p-3 rounded-xl bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                            <Calendar className="w-6 h-6 text-[#F09410] group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-slate-100 font-semibold group-hover:text-blue-400 transition-colors">ตารางกะ</h3>
-                            <p className="text-slate-400 text-xs mt-0.5">ดูเวลางานของคุณ</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">ตารางกะ</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ดูเวลางานของคุณ</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -68,20 +68,20 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Shift Pool */}
             <a href="/shift-pool" className="block group">
-                <Card className="h-full bg-slate-800/50 border-emerald-500/30 hover:bg-emerald-950/30 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl -mr-8 -mt-8" />
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-gradient-to-br hover:from-[#2a2420] hover:to-[#241705] hover:border-[#BC430D]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-[#BC430D]/5 rounded-full blur-xl -mr-10 -mt-10 group-hover:bg-[#BC430D]/10 transition-all" />
                     <CardContent className="p-4 flex items-center gap-4 relative z-10">
-                        <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-                            <svg className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="p-3 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+                            <svg className="w-6 h-6 text-[#BC430D] group-hover:scale-110 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-slate-100 font-semibold group-hover:text-emerald-400 transition-colors">กะว่าง / สลับกะ</h3>
-                                <Badge className="bg-emerald-500/20 text-emerald-400 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#BC430D] transition-colors">กะว่าง / สลับกะ</h3>
+                                <Badge className="bg-[#BC430D]/20 text-[#BC430D] text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                             </div>
-                            <p className="text-slate-400 text-xs mt-0.5">หาคนแทน / รับงานเพิ่ม</p>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">หาคนแทน / รับงานเพิ่ม</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -89,20 +89,19 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Availability */}
             <a href="/availability" className="block group">
-                <Card className="h-full bg-slate-800/50 border-purple-500/30 hover:bg-purple-950/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-xl -mr-8 -mt-8" />
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
                     <CardContent className="p-4 flex items-center gap-4 relative z-10">
-                        <div className="p-3 rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
-                            <svg className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+                            <svg className="w-6 h-6 text-amber-500 group-hover:scale-110 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-slate-100 font-semibold group-hover:text-purple-400 transition-colors">แจ้งวันว่าง</h3>
-                                <Badge className="bg-purple-500/20 text-purple-400 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-amber-500 transition-colors">แจ้งวันว่าง</h3>
+                                <Badge className="bg-amber-500/20 text-amber-500 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                             </div>
-                            <p className="text-slate-400 text-xs mt-0.5">ระบุวันว่างทำงาน</p>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ระบุวันว่างทำงาน</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -110,14 +109,14 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* History */}
             <a href="/history" className="block group">
-                <Card className="h-full bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
-                            <History className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform duration-300" />
+                        <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                            <History className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-slate-100 font-semibold group-hover:text-green-400 transition-colors">ประวัติลงเวลา</h3>
-                            <p className="text-slate-400 text-xs mt-0.5">ตรวจสอบการเข้า-ออก</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-emerald-500 transition-colors">ประวัติลงเวลา</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ตรวจสอบการเข้า-ออก</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -125,14 +124,14 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Requests */}
             <a href="/requests" className="block group">
-                <Card className="h-full bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
-                            <FileEdit className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform duration-300" />
+                        <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                            <FileEdit className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-slate-100 font-semibold group-hover:text-yellow-400 transition-colors">คำขอทั้งหมด</h3>
-                            <p className="text-slate-400 text-xs mt-0.5">ลากิจ / ลาป่วย / อื่นๆ</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-blue-400 transition-colors">คำขอทั้งหมด</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ลากิจ / ลาป่วย / อื่นๆ</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -140,22 +139,22 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Chat */}
             <a href="/announcements" className="col-span-full block group">
-                <Card className="bg-gradient-to-r from-indigo-900/40 to-blue-900/40 border-indigo-500/30 hover:from-indigo-900/60 hover:to-blue-900/60 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="bg-gradient-to-r from-[#2a2420] to-[#241705] border-orange-900/30 hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
-                                <MessageCircle className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                            <div className="p-3 rounded-xl bg-[#F09410]/10 group-hover:bg-[#F09410]/20 transition-colors">
+                                <MessageCircle className="w-6 h-6 text-[#F09410] group-hover:scale-110 transition-transform duration-300" />
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-slate-100 font-semibold group-hover:text-indigo-400 transition-colors">Team Chat & ประกาศ</h3>
-                                    <Badge className="bg-indigo-500/20 text-indigo-400 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
+                                    <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">Team Chat & ประกาศ</h3>
+                                    <Badge className="bg-[#F09410]/20 text-[#F09410] text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                                 </div>
-                                <p className="text-slate-400 text-xs mt-0.5">ข่าวสารและการสื่อสารในทีม</p>
+                                <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ข่าวสารและการสื่อสารในทีม</p>
                             </div>
                         </div>
-                        <div className="p-2 rounded-full bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
-                            <ChevronRight className="w-5 h-5 text-indigo-400" />
+                        <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
+                            <ChevronRight className="w-5 h-5 text-stone-500 group-hover:text-[#F09410]" />
                         </div>
                     </CardContent>
                 </Card>
@@ -163,14 +162,14 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Admin Security */}
             <a href="/admin/security" className="block group">
-                <Card className="h-full bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-red-500/50 hover:shadow-lg hover:shadow-red-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
                             <ShieldCheck className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-slate-100 font-semibold group-hover:text-red-400 transition-colors">Security</h3>
-                            <p className="text-slate-400 text-xs mt-0.5">Audit & Logs</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-red-400 transition-colors">Security</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">Audit & Logs</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -178,14 +177,14 @@ export function MenuList({ userRole }: MenuListProps) {
 
             {/* Profile */}
             <a href="/profile" className="block group">
-                <Card className="h-full bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 hover:-translate-y-1">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#FEEAF0]/30 hover:shadow-lg hover:shadow-orange-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-pink-500/10 group-hover:bg-pink-500/20 transition-colors">
-                            <UserCog className="w-6 h-6 text-pink-400 group-hover:scale-110 transition-transform duration-300" />
+                        <div className="p-3 rounded-xl bg-[#F0D0C7]/10 group-hover:bg-[#F0D0C7]/20 transition-colors">
+                            <UserCog className="w-6 h-6 text-[#F0D0C7] group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-slate-100 font-semibold group-hover:text-pink-400 transition-colors">โปรไฟล์</h3>
-                            <p className="text-slate-400 text-xs mt-0.5">ตั้งค่าส่วนตัว</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#FEEAF0] transition-colors">โปรไฟล์</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ตั้งค่าส่วนตัว</p>
                         </div>
                     </CardContent>
                 </Card>

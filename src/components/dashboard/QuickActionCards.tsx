@@ -7,27 +7,27 @@ export function QuickActionCards() {
     return (
         <div className="grid grid-cols-2 gap-3">
             <a href="/qr-scan">
-                <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+                <Card className="bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 transition cursor-pointer group">
                     <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                            <QrCode className="w-5 h-5 text-cyan-400" />
+                        <div className="w-10 h-10 rounded-xl bg-[#F09410]/10 group-hover:bg-[#F09410]/20 flex items-center justify-center transition-colors">
+                            <QrCode className="w-5 h-5 text-[#F09410]" />
                         </div>
                         <div className="text-sm">
-                            <p className="font-medium text-white">สแกน QR</p>
-                            <p className="text-xs text-slate-400">เช็คอินด้วย QR</p>
+                            <p className="font-medium text-[#F0D0C7] group-hover:text-[#F09410] transition-colors">สแกน QR</p>
+                            <p className="text-xs text-stone-500">เช็คอินด้วย QR</p>
                         </div>
                     </CardContent>
                 </Card>
             </a>
             <a href="/requests/time-correction">
-                <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer">
+                <Card className="bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-amber-500/50 transition cursor-pointer group">
                     <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                            <FileEdit className="w-5 h-5 text-yellow-400" />
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 flex items-center justify-center transition-colors">
+                            <FileEdit className="w-5 h-5 text-amber-500" />
                         </div>
                         <div className="text-sm">
-                            <p className="font-medium text-white">ขอแก้เวลา</p>
-                            <p className="text-xs text-slate-400">ลืมกดเข้า-ออก</p>
+                            <p className="font-medium text-[#F0D0C7] group-hover:text-amber-500 transition-colors">ขอแก้เวลา</p>
+                            <p className="text-xs text-stone-500">ลืมกดเข้า-ออก</p>
                         </div>
                     </CardContent>
                 </Card>
