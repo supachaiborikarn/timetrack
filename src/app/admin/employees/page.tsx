@@ -232,10 +232,12 @@ export default function EmployeesPage() {
     }
 
     const filteredEmployees = employees.filter((emp) => {
+        const searchLower = searchTerm.toLowerCase();
         const matchesSearch =
-            emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            emp.phone.includes(searchTerm);
+            (emp.name?.toLowerCase() || "").includes(searchLower) ||
+            (emp.employeeId?.toLowerCase() || "").includes(searchLower) ||
+            (emp.nickName?.toLowerCase() || "").includes(searchLower) ||
+            (emp.phone || "").includes(searchTerm);
         const matchesStatus =
             filterStatus === "all" ||
             (filterStatus === "active" && emp.isActive) ||
