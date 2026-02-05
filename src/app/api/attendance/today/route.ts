@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDay, getBangkokNow } from "@/lib/date-utils";
+import { startOfDay, getBangkokNow, addDays } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -39,12 +39,23 @@ export async function GET() {
             include: { shift: true },
         });
 
+        // Get tomorrow's shift assignment
+        const tomorrow = startOfDay(addDays(now, 1));
+        const tomorrowShiftAssignment = await prisma.shiftAssignment.findFirst({
+            where: {
+                userId: session.user.id,
+                date: tomorrow,
+            },
+            include: { shift: true },
+        });
+
         return NextResponse.json({
             attendance: attendance
                 ? {
                     checkInTime: attendance.checkInTime?.toISOString() || null,
                     checkOutTime: attendance.checkOutTime?.toISOString() || null,
                     lateMinutes: attendance.lateMinutes,
+                    latePenaltyAmount: Number(attendance.latePenaltyAmount || 0),
                     status: attendance.status,
                     // Break info
                     breakStartTime: attendance.breakStartTime?.toISOString() || null,
@@ -59,6 +70,14 @@ export async function GET() {
                     startTime: shiftAssignment.shift.startTime,
                     endTime: shiftAssignment.shift.endTime,
                     breakMinutes: shiftAssignment.shift.breakMinutes,
+                }
+                : null,
+            tomorrowShift: tomorrowShiftAssignment?.shift
+                ? {
+                    name: tomorrowShiftAssignment.shift.name,
+                    startTime: tomorrowShiftAssignment.shift.startTime,
+                    endTime: tomorrowShiftAssignment.shift.endTime,
+                    breakMinutes: tomorrowShiftAssignment.shift.breakMinutes,
                 }
                 : null,
             user: user

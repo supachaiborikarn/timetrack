@@ -15,6 +15,7 @@ import {
   QuickActionCards,
   MenuList,
   OfflineIndicator,
+  LatenessMonitorCard,
 } from "@/components/dashboard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -95,10 +96,22 @@ export default function EmployeeDashboard() {
           <BreakStatusAlert breakStartTime={todayData?.attendance?.breakStartTime || null} />
         )}
 
-        {/* Today's Shift Info */}
+        {/* Today's and Tomorrow's Shift Info */}
         <ShiftInfoCard
           shift={todayData?.shift || null}
+          tomorrowShift={todayData?.tomorrowShift || null}
           hourlyRate={todayData?.user?.hourlyRate || 0}
+        />
+
+        {/* Lateness & Break Monitor */}
+        <LatenessMonitorCard
+          lateMinutes={todayData?.attendance?.lateMinutes ?? null}
+          latePenaltyAmount={todayData?.attendance?.latePenaltyAmount || 0}
+          breakDurationMin={todayData?.attendance?.breakDurationMin ?? null}
+          breakPenaltyAmount={todayData?.attendance?.breakPenaltyAmount ?? null}
+          allowedBreakMinutes={todayData?.shift?.breakMinutes || 90}
+          isOnBreak={isOnBreak}
+          breakStartTime={todayData?.attendance?.breakStartTime || null}
         />
 
         {/* Attendance Status */}

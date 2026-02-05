@@ -121,6 +121,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -131,25 +132,24 @@
   .gradient-primary {
     @apply bg-gradient-to-r from-blue-500 to-blue-600;
   }
-  
+
   .gradient-success {
     @apply bg-gradient-to-r from-green-500 to-emerald-600;
   }
-  
+
   .gradient-warning {
     @apply bg-gradient-to-r from-amber-500 to-orange-600;
   }
-  
+
   .gradient-danger {
     @apply bg-gradient-to-r from-red-500 to-rose-600;
   }
-  
+
   .glass {
     @apply bg-white/10 backdrop-blur-lg border border-white/20;
   }
-  
+
   .dark .glass {
     @apply bg-black/20 backdrop-blur-lg border border-white/10;
   }
 }
-

@@ -9,6 +9,7 @@ interface AttendanceData {
     checkInTime: string | null;
     checkOutTime: string | null;
     lateMinutes: number | null;
+    latePenaltyAmount: number;
     status: string;
     breakStartTime: string | null;
     breakEndTime: string | null;
@@ -33,6 +34,7 @@ interface UserData {
 interface TodayData {
     attendance: AttendanceData | null;
     shift: ShiftData | null;
+    tomorrowShift: ShiftData | null;
     user: UserData | null;
 }
 
