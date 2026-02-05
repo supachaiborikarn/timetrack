@@ -100,7 +100,10 @@ export default function EmployeeDashboard() {
         />
 
         {/* Attendance Status */}
-        <AttendanceStatusCard attendance={todayData?.attendance || null} />
+        <AttendanceStatusCard
+          attendance={todayData?.attendance || null}
+          stationName={todayData?.user?.station}
+        />
 
         {/* Check-in/out Buttons */}
         <CheckInOutButtons

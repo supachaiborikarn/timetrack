@@ -17,13 +17,19 @@ interface AttendanceData {
 
 interface AttendanceStatusCardProps {
     attendance: AttendanceData | null;
+    stationName?: string | null;
 }
 
-export function AttendanceStatusCard({ attendance }: AttendanceStatusCardProps) {
+export function AttendanceStatusCard({ attendance, stationName }: AttendanceStatusCardProps) {
     const hasCheckedIn = !!attendance?.checkInTime;
     const hasCheckedOut = !!attendance?.checkOutTime;
     const isOnBreak = !!attendance?.breakStartTime && !attendance?.breakEndTime;
     const hasTakenBreak = !!attendance?.breakEndTime;
+
+    // Check if user is frontyard employee (หน้าลาน)
+    const isFrontyardEmployee = stationName?.toLowerCase().includes("หน้าลาน") ||
+        stationName?.toLowerCase().includes("frontyard") ||
+        stationName?.toLowerCase().includes("front yard");
 
     return (
         <Card className="bg-slate-800/50 border-slate-700">
@@ -85,7 +91,7 @@ export function AttendanceStatusCard({ attendance }: AttendanceStatusCardProps) 
                             <p className="text-lg font-semibold text-white">
                                 {attendance?.checkOutTime
                                     ? formatTime(new Date(attendance.checkOutTime))
-                                    : attendance?.checkInTime
+                                    : attendance?.checkInTime && isFrontyardEmployee
                                         ? <span className="text-yellow-400 text-base">
                                             {formatTime(new Date(new Date(attendance.checkInTime).getTime() + 12 * 60 * 60 * 1000))} (ครบ 12 ชม.)
                                         </span>
