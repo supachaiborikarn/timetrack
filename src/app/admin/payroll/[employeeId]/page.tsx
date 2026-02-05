@@ -23,6 +23,7 @@ import {
     Clock,
     RotateCcw,
     CheckCircle2,
+    Edit2,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 
@@ -65,6 +66,8 @@ interface EmployeePayrollData {
     };
 }
 
+type EditField = "wage" | "ot" | "checkIn" | "checkOut";
+
 export default function EmployeePayrollDetailPage() {
     const { data: session, status } = useSession();
     const params = useParams();
@@ -80,7 +83,7 @@ export default function EmployeePayrollDetailPage() {
     );
     const [data, setData] = useState<EmployeePayrollData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [editingCell, setEditingCell] = useState<{ date: string; field: "wage" | "ot" } | null>(null);
+    const [editingCell, setEditingCell] = useState<{ date: string; field: EditField } | null>(null);
     const [editValue, setEditValue] = useState("");
     const [savingDate, setSavingDate] = useState<string | null>(null);
 
@@ -109,9 +112,20 @@ export default function EmployeePayrollDetailPage() {
         fetchData();
     }, [fetchData]);
 
-    const handleStartEdit = (date: string, field: "wage" | "ot", currentValue: number) => {
+    // Helper to convert ISO string to HH:mm format
+    const isoToTimeInput = (isoString: string | null): string => {
+        if (!isoString) return "";
+        const date = new Date(isoString);
+        return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    };
+
+    const handleStartEdit = (date: string, field: EditField, currentValue: number | string | null) => {
         setEditingCell({ date, field });
-        setEditValue(currentValue.toString());
+        if (field === "checkIn" || field === "checkOut") {
+            setEditValue(typeof currentValue === "string" ? isoToTimeInput(currentValue) : "");
+        } else {
+            setEditValue((currentValue ?? 0).toString());
+        }
     };
 
     const handleSaveEdit = async () => {
@@ -120,25 +134,49 @@ export default function EmployeePayrollDetailPage() {
         setSavingDate(date);
 
         try {
-            const payload: Record<string, unknown> = {
-                userId: employeeId,
-                date,
-            };
+            if (field === "checkIn" || field === "checkOut") {
+                // Call time update API
+                const payload: Record<string, unknown> = {
+                    userId: employeeId,
+                    date,
+                };
+                if (field === "checkIn") {
+                    payload.checkInTime = editValue || null;
+                } else {
+                    payload.checkOutTime = editValue || null;
+                }
 
-            if (field === "wage") {
-                payload.overrideDailyWage = parseFloat(editValue) || 0;
+                const res = await fetch("/api/admin/attendance/update-time", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                    await fetchData();
+                }
             } else {
-                payload.overrideOT = parseFloat(editValue) || 0;
-            }
+                // Wage/OT override
+                const payload: Record<string, unknown> = {
+                    userId: employeeId,
+                    date,
+                };
 
-            const res = await fetch("/api/admin/payroll/employee-daily", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+                if (field === "wage") {
+                    payload.overrideDailyWage = parseFloat(editValue) || 0;
+                } else {
+                    payload.overrideOT = parseFloat(editValue) || 0;
+                }
 
-            if (res.ok) {
-                await fetchData();
+                const res = await fetch("/api/admin/payroll/employee-daily", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                    await fetchData();
+                }
             }
         } catch (error) {
             console.error("Failed to save:", error);
@@ -363,11 +401,51 @@ export default function EmployeePayrollDetailPage() {
                                                 <TableCell className={`${isWeekend ? "text-red-400" : "text-slate-300"}`}>
                                                     {record.dayOfWeek}
                                                 </TableCell>
-                                                <TableCell className="text-center text-white">
-                                                    {formatTime(record.checkInTime)}
+                                                {/* Check-in Cell - Editable */}
+                                                <TableCell className="text-center">
+                                                    {editingCell?.date === record.date && editingCell?.field === "checkIn" ? (
+                                                        <Input
+                                                            type="time"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={handleSaveEdit}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                            className="w-24 bg-slate-700 border-cyan-500 text-white text-center"
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStartEdit(record.date, "checkIn", record.checkInTime)}
+                                                            className="px-2 py-1 rounded hover:bg-slate-700 text-white flex items-center justify-center gap-1 w-full group"
+                                                            disabled={isSaving}
+                                                        >
+                                                            {formatTime(record.checkInTime)}
+                                                            <Edit2 className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
+                                                        </button>
+                                                    )}
                                                 </TableCell>
-                                                <TableCell className="text-center text-white">
-                                                    {formatTime(record.checkOutTime)}
+                                                {/* Check-out Cell - Editable */}
+                                                <TableCell className="text-center">
+                                                    {editingCell?.date === record.date && editingCell?.field === "checkOut" ? (
+                                                        <Input
+                                                            type="time"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={handleSaveEdit}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                            className="w-24 bg-slate-700 border-cyan-500 text-white text-center"
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStartEdit(record.date, "checkOut", record.checkOutTime)}
+                                                            className="px-2 py-1 rounded hover:bg-slate-700 text-white flex items-center justify-center gap-1 w-full group"
+                                                            disabled={isSaving}
+                                                        >
+                                                            {formatTime(record.checkOutTime)}
+                                                            <Edit2 className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
+                                                        </button>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-400">
                                                     {record.actualHours?.toFixed(1) || "-"}
@@ -392,8 +470,8 @@ export default function EmployeePayrollDetailPage() {
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "wage", record.dailyWage)}
                                                             className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isWageOverridden
-                                                                    ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                    : "text-green-400"
+                                                                ? "text-amber-400 font-bold bg-amber-500/10"
+                                                                : "text-green-400"
                                                                 }`}
                                                             disabled={isSaving}
                                                         >
@@ -418,8 +496,8 @@ export default function EmployeePayrollDetailPage() {
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "ot", record.otAmount)}
                                                             className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isOTOverridden
-                                                                    ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                    : "text-purple-400"
+                                                                ? "text-amber-400 font-bold bg-amber-500/10"
+                                                                : "text-purple-400"
                                                                 }`}
                                                             disabled={isSaving}
                                                         >
