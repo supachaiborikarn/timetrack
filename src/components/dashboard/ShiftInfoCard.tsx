@@ -53,29 +53,6 @@ export function ShiftInfoCard({ shift, tomorrowShift, hourlyRate }: ShiftInfoCar
                     )}
                 </div>
 
-                {shift && (
-                    <div className="grid grid-cols-3 gap-3 pt-4 border-t border-orange-900/20">
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-[#F0D0C7]">
-                                {expectedHours?.toFixed(1) || "-"}
-                            </p>
-                            <p className="text-xs text-stone-500">{t("shift.hoursRequired")}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-[#F0D0C7]">
-                                {shift.breakMinutes}
-                            </p>
-                            <p className="text-xs text-stone-500">{t("shift.breakMinutes")}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-green-400">
-                                ฿{hourlyRate || 0}
-                            </p>
-                            <p className="text-xs text-stone-500">{t("shift.perHour")}</p>
-                        </div>
-                    </div>
-                )}
-
                 {/* Tomorrow's Shift */}
                 <div className="flex items-center gap-3 mt-4 pt-4 border-t border-orange-900/20">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">

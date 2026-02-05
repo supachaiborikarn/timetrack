@@ -56,13 +56,14 @@ async function main() {
         }
     }
 
-    // Get all shifts keyed by startTime
+    // Get all shifts keyed by startTime-endTime range
     const shifts = await prisma.shift.findMany();
-    const shiftByTime = {};
+    const shiftByRange = {};
     for (const s of shifts) {
-        shiftByTime[s.startTime] = s;
+        const key = `${s.startTime}-${s.endTime}`;
+        shiftByRange[key] = s;
     }
-    console.log("Available shifts:", Object.keys(shiftByTime).join(", "));
+    console.log("Available shifts:", Object.keys(shiftByRange).join(", "));
 
     // Generate all dates in February 2026
     const year = 2026;
@@ -88,9 +89,11 @@ async function main() {
                 continue;
             }
 
-            const shift = shiftByTime[entry.startTime];
+            // Match shift by startTime-endTime range
+            const shiftKey = `${entry.startTime}-${entry.endTime}`;
+            const shift = shiftByRange[shiftKey];
             if (!shift) {
-                console.log(`Skip: Shift ${entry.startTime} not found`);
+                console.log(`Skip: Shift ${shiftKey} not found`);
                 skipped++;
                 continue;
             }
