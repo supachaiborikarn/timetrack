@@ -99,6 +99,15 @@ export async function GET() {
                     hourlyRate: Number(user.hourlyRate),
                 }
                 : null,
+            // Debug info - remove after fix
+            _debug: {
+                bangkokNow: now.toISOString(),
+                todayQuery: today.toISOString(),
+                tomorrowQuery: tomorrow.toISOString(),
+                userId: session.user.id,
+                shiftFound: shiftAssignment?.shift?.name || null,
+                tomorrowShiftFound: tomorrowShiftAssignment?.shift?.name || null,
+            },
         });
     } catch (error) {
         console.error("Error fetching today data:", error);

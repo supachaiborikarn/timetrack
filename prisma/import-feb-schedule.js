@@ -73,10 +73,9 @@ async function main() {
     let skipped = 0;
 
     for (let day = 1; day <= daysInMonth; day++) {
-        // Thai timezone: stored as previous day 17:00 UTC
-        const dateUTC = new Date(Date.UTC(year, month, day - 1, 17, 0, 0, 0));
-        const thaiDate = new Date(year, month, day);
-        const dow = thaiDate.getDay();
+        // Store as UTC midnight (same as admin creates on web)
+        const dateUTC = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+        const dow = dateUTC.getUTCDay();
 
         const daySchedule = schedule[dow];
         if (!daySchedule) continue;
