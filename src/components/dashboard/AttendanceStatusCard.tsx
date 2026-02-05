@@ -15,21 +15,23 @@ interface AttendanceData {
     breakPenaltyAmount: number | null;
 }
 
-interface AttendanceStatusCardProps {
-    attendance: AttendanceData | null;
-    departmentName?: string | null;
+interface ShiftData {
+    name: string;
+    startTime: string;
+    endTime: string;
+    breakMinutes: number;
 }
 
-export function AttendanceStatusCard({ attendance, departmentName }: AttendanceStatusCardProps) {
+interface AttendanceStatusCardProps {
+    attendance: AttendanceData | null;
+    shift?: ShiftData | null;
+}
+
+export function AttendanceStatusCard({ attendance, shift }: AttendanceStatusCardProps) {
     const hasCheckedIn = !!attendance?.checkInTime;
     const hasCheckedOut = !!attendance?.checkOutTime;
     const isOnBreak = !!attendance?.breakStartTime && !attendance?.breakEndTime;
     const hasTakenBreak = !!attendance?.breakEndTime;
-
-    // Check if user is frontyard employee (หน้าลาน)
-    const isFrontyardEmployee = departmentName?.toLowerCase().includes("หน้าลาน") ||
-        departmentName?.toLowerCase().includes("frontyard") ||
-        departmentName?.toLowerCase().includes("front yard");
 
     return (
         <Card className="bg-slate-800/50 border-slate-700">
@@ -91,9 +93,9 @@ export function AttendanceStatusCard({ attendance, departmentName }: AttendanceS
                             <p className="text-lg font-semibold text-white">
                                 {attendance?.checkOutTime
                                     ? formatTime(new Date(attendance.checkOutTime))
-                                    : attendance?.checkInTime && isFrontyardEmployee
+                                    : shift?.endTime
                                         ? <span className="text-yellow-400 text-base">
-                                            {formatTime(new Date(new Date(attendance.checkInTime).getTime() + 12 * 60 * 60 * 1000))} (ครบ 12 ชม.)
+                                            {shift.endTime} ({shift.name})
                                         </span>
                                         : "--:--"}
                             </p>
@@ -104,3 +106,4 @@ export function AttendanceStatusCard({ attendance, departmentName }: AttendanceS
         </Card>
     );
 }
+
