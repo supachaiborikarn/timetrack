@@ -34,9 +34,16 @@ import {
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 
+interface Department {
+    id: string;
+    name: string;
+    code: string;
+}
+
 interface Station {
     id: string;
     name: string;
+    departments: Department[];
 }
 
 interface PayrollData {
@@ -82,7 +89,16 @@ export default function PayrollPage() {
     const [startDate, setStartDate] = useState(format(startOfMonth(now), "yyyy-MM-dd"));
     const [endDate, setEndDate] = useState(format(endOfMonth(now), "yyyy-MM-dd"));
     const [stationId, setStationId] = useState("all");
+    const [departmentId, setDepartmentId] = useState("all");
     const [normalHoursPerDay, setNormalHoursPerDay] = useState("10.5");
+
+    // Bonus amounts per employee (manually entered)
+    const [bonusAmounts, setBonusAmounts] = useState<Record<string, number>>({});
+
+    // Get filtered departments based on selected station
+    const filteredDepartments = stationId === "all"
+        ? stations.flatMap(s => s.departments)
+        : stations.find(s => s.id === stationId)?.departments || [];
 
     useEffect(() => {
         fetchStations();
@@ -100,6 +116,29 @@ export default function PayrollPage() {
         }
     };
 
+    // Reset department when station changes
+    const handleStationChange = (value: string) => {
+        setStationId(value);
+        setDepartmentId("all"); // Reset department when station changes
+    };
+
+    // Handle bonus amount change
+    const handleBonusChange = (employeeId: string, value: string) => {
+        const numValue = parseFloat(value) || 0;
+        setBonusAmounts(prev => ({
+            ...prev,
+            [employeeId]: numValue
+        }));
+    };
+
+    // Calculate total bonus
+    const totalBonus = Object.values(bonusAmounts).reduce((sum, val) => sum + val, 0);
+
+    // Calculate adjusted grand total
+    const adjustedGrandTotal = payrollData
+        ? payrollData.summary.grandTotal + totalBonus
+        : 0;
+
     const calculatePayroll = async () => {
         setIsLoading(true);
         try {
@@ -108,6 +147,7 @@ export default function PayrollPage() {
                 endDate,
                 normalHoursPerDay,
                 ...(stationId !== "all" && { stationId }),
+                ...(departmentId !== "all" && { departmentId }),
             });
 
             const res = await fetch(`/api/admin/payroll?${params}`);
@@ -128,6 +168,7 @@ export default function PayrollPage() {
             endDate,
             normalHoursPerDay,
             ...(stationId !== "all" && { stationId }),
+            ...(departmentId !== "all" && { departmentId }),
         });
         window.open(`/api/admin/payroll/export?${params}`, "_blank");
     };
@@ -249,7 +290,7 @@ export default function PayrollPage() {
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs text-slate-400">สถานี</label>
-                                <Select value={stationId} onValueChange={setStationId}>
+                                <Select value={stationId} onValueChange={handleStationChange}>
                                     <SelectTrigger className="w-40 bg-slate-700 border-slate-600">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -258,6 +299,22 @@ export default function PayrollPage() {
                                         {stations.map((s) => (
                                             <SelectItem key={s.id} value={s.id}>
                                                 {s.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400">แผนก</label>
+                                <Select value={departmentId} onValueChange={setDepartmentId}>
+                                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-800 border-slate-700">
+                                        <SelectItem value="all">ทั้งหมด</SelectItem>
+                                        {filteredDepartments.map((d) => (
+                                            <SelectItem key={d.id} value={d.id}>
+                                                {d.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -313,14 +370,14 @@ export default function PayrollPage() {
                             <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
                                 <CardContent className="py-4 text-center">
                                     <DollarSign className="w-6 h-6 text-white mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-white">฿{formatCurrency(payrollData.summary.grandTotal)}</p>
-                                    <p className="text-xs text-green-200">ค่าแรงรวม</p>
+                                    <p className="text-2xl font-bold text-white">฿{formatCurrency(adjustedGrandTotal)}</p>
+                                    <p className="text-xs text-green-200">ค่าแรงรวม (รวมพิเศษ)</p>
                                 </CardContent>
                             </Card>
                         </div>
 
                         {/* Breakdown */}
-                        <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="grid grid-cols-4 gap-4 mb-6">
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
                                     <p className="text-lg font-bold text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
@@ -331,6 +388,12 @@ export default function PayrollPage() {
                                 <CardContent className="py-4 text-center">
                                     <p className="text-lg font-bold text-purple-400">฿{formatCurrency(payrollData.summary.totalOvertimePay)}</p>
                                     <p className="text-xs text-slate-400">ค่า OT</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-lg font-bold text-amber-400">+฿{formatCurrency(totalBonus)}</p>
+                                    <p className="text-xs text-slate-400">เงินพิเศษรวม</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-slate-800/50 border-slate-700">
@@ -352,31 +415,47 @@ export default function PayrollPage() {
                                         <TableRow className="border-slate-700">
                                             <TableHead className="text-slate-300">รหัส</TableHead>
                                             <TableHead className="text-slate-300">ชื่อ</TableHead>
-                                            <TableHead className="text-slate-300">สถานี</TableHead>
+                                            <TableHead className="text-slate-300">แผนก</TableHead>
                                             <TableHead className="text-slate-300 text-center">วัน</TableHead>
                                             <TableHead className="text-slate-300 text-center">ชม.ปกติ</TableHead>
                                             <TableHead className="text-slate-300 text-center">OT</TableHead>
                                             <TableHead className="text-slate-300 text-right">ค่าแรงปกติ</TableHead>
                                             <TableHead className="text-slate-300 text-right">ค่า OT</TableHead>
                                             <TableHead className="text-slate-300 text-right">หักสาย</TableHead>
-                                            <TableHead className="text-slate-300 text-right">รวม</TableHead>
+                                            <TableHead className="text-slate-300 text-center">เงินพิเศษ</TableHead>
+                                            <TableHead className="text-slate-300 text-right">รวมสุทธิ</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {payrollData.employees.map((emp) => (
-                                            <TableRow key={emp.id} className="border-slate-700">
-                                                <TableCell className="text-slate-400">{emp.employeeId}</TableCell>
-                                                <TableCell className="text-white font-medium">{emp.name}</TableCell>
-                                                <TableCell className="text-slate-400">{emp.station}</TableCell>
-                                                <TableCell className="text-center text-white">{emp.workDays}</TableCell>
-                                                <TableCell className="text-center text-blue-400">{emp.regularHours.toFixed(1)}</TableCell>
-                                                <TableCell className="text-center text-purple-400">{emp.overtimeHours.toFixed(1)}</TableCell>
-                                                <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
-                                                <TableCell className="text-right text-purple-400">฿{formatCurrency(emp.overtimePay)}</TableCell>
-                                                <TableCell className="text-right text-red-400">-฿{formatCurrency(emp.latePenalty)}</TableCell>
-                                                <TableCell className="text-right text-green-400 font-bold">฿{formatCurrency(emp.totalPay)}</TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {payrollData.employees.map((emp) => {
+                                            const empBonus = bonusAmounts[emp.id] || 0;
+                                            const empGrandTotal = emp.totalPay + empBonus;
+                                            return (
+                                                <TableRow key={emp.id} className="border-slate-700">
+                                                    <TableCell className="text-slate-400">{emp.employeeId}</TableCell>
+                                                    <TableCell className="text-white font-medium">{emp.name}</TableCell>
+                                                    <TableCell className="text-slate-400">{emp.department}</TableCell>
+                                                    <TableCell className="text-center text-white">{emp.workDays}</TableCell>
+                                                    <TableCell className="text-center text-blue-400">{emp.regularHours.toFixed(1)}</TableCell>
+                                                    <TableCell className="text-center text-purple-400">{emp.overtimeHours.toFixed(1)}</TableCell>
+                                                    <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
+                                                    <TableCell className="text-right text-purple-400">฿{formatCurrency(emp.overtimePay)}</TableCell>
+                                                    <TableCell className="text-right text-red-400">-฿{formatCurrency(emp.latePenalty)}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="100"
+                                                            value={bonusAmounts[emp.id] || ""}
+                                                            onChange={(e) => handleBonusChange(emp.id, e.target.value)}
+                                                            placeholder="0"
+                                                            className="w-24 bg-slate-700 border-slate-600 text-amber-400 text-center"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-green-400 font-bold">฿{formatCurrency(empGrandTotal)}</TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -393,6 +472,6 @@ export default function PayrollPage() {
                     </Card>
                 )}
             </main>
-        </div>
+        </div >
     );
 }

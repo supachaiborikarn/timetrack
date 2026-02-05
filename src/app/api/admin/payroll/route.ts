@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
         const stationId = searchParams.get("stationId");
+        const departmentId = searchParams.get("departmentId");
         const normalHoursPerDay = parseFloat(searchParams.get("normalHoursPerDay") || "10.5");
 
         if (!startDate || !endDate) {
@@ -30,6 +31,10 @@ export async function GET(request: NextRequest) {
 
         if (stationId) {
             employeeWhere.stationId = stationId;
+        }
+
+        if (departmentId) {
+            employeeWhere.departmentId = departmentId;
         }
 
         const employees = await prisma.user.findMany({
