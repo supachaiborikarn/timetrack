@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/lib/language-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,20 +30,13 @@ export const viewport: Viewport = {
   themeColor: "#3b82f6",
 };
 
-// import { NextIntlClientProvider } from "next-intl";
-// import { getLocale, getMessages } from "next-intl/server";
-
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // const locale = await getLocale();
-  // const messages = await getMessages();
-  const locale = "th";
-
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -55,12 +49,15 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Toaster position="top-center" richColors />
+            <LanguageProvider>
+              {children}
+              <Toaster position="top-center" richColors />
+            </LanguageProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>
     </html>
   );
 }
+
 
