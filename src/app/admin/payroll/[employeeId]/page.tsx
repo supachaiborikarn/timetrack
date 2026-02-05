@@ -128,6 +128,27 @@ export default function EmployeePayrollDetailPage() {
         }
     };
 
+    // Helper to update a single record in state (optimistic update)
+    const updateLocalRecord = (date: string, updates: Partial<DailyRecord>) => {
+        if (!data) return;
+
+        const updatedRecords = data.dailyRecords.map(record =>
+            record.date === date ? { ...record, ...updates } : record
+        );
+
+        // Recalculate summary
+        const summary = {
+            totalDays: updatedRecords.length,
+            workDays: updatedRecords.filter(d => d.checkInTime).length,
+            totalWage: updatedRecords.reduce((sum, d) => sum + d.dailyWage, 0),
+            totalOT: updatedRecords.reduce((sum, d) => sum + d.otAmount, 0),
+            totalLatePenalty: updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0),
+            grandTotal: updatedRecords.reduce((sum, d) => sum + d.total, 0),
+        };
+
+        setData({ ...data, dailyRecords: updatedRecords, summary });
+    };
+
     const handleSaveEdit = async () => {
         if (!editingCell || !data) return;
         const { date, field } = editingCell;
@@ -153,7 +174,33 @@ export default function EmployeePayrollDetailPage() {
                 });
 
                 if (res.ok) {
-                    await fetchData();
+                    const json = await res.json();
+                    const result = json.data;
+                    // Optimistic update for time
+                    const record = data.dailyRecords.find(r => r.date === date);
+                    if (record) {
+                        const actualHours = result.actualHours ?? record.actualHours;
+                        const normalHoursPerDay = 10.5;
+                        const otHours = actualHours && actualHours > normalHoursPerDay
+                            ? actualHours - normalHoursPerDay : 0;
+                        const otAmount = record.isOTOverridden
+                            ? record.otAmount
+                            : otHours * data.employee.hourlyRate * data.employee.otMultiplier;
+                        const dailyWage = record.isWageOverridden
+                            ? record.dailyWage
+                            : (result.checkInTime ? data.employee.defaultDailyRate : 0);
+                        const total = dailyWage + otAmount - record.latePenalty;
+
+                        updateLocalRecord(date, {
+                            checkInTime: result.checkInTime,
+                            checkOutTime: result.checkOutTime,
+                            actualHours,
+                            otHours: Math.round(otHours * 100) / 100,
+                            otAmount: Math.round(otAmount * 100) / 100,
+                            dailyWage,
+                            total: Math.round(total * 100) / 100,
+                        });
+                    }
                 }
             } else {
                 // Wage/OT override
@@ -162,10 +209,11 @@ export default function EmployeePayrollDetailPage() {
                     date,
                 };
 
+                const numValue = parseFloat(editValue) || 0;
                 if (field === "wage") {
-                    payload.overrideDailyWage = parseFloat(editValue) || 0;
+                    payload.overrideDailyWage = numValue;
                 } else {
-                    payload.overrideOT = parseFloat(editValue) || 0;
+                    payload.overrideOT = numValue;
                 }
 
                 const res = await fetch("/api/admin/payroll/employee-daily", {
@@ -175,7 +223,25 @@ export default function EmployeePayrollDetailPage() {
                 });
 
                 if (res.ok) {
-                    await fetchData();
+                    // Optimistic update for wage/OT
+                    const record = data.dailyRecords.find(r => r.date === date);
+                    if (record) {
+                        if (field === "wage") {
+                            const total = numValue + record.otAmount - record.latePenalty;
+                            updateLocalRecord(date, {
+                                dailyWage: numValue,
+                                isWageOverridden: true,
+                                total: Math.round(total * 100) / 100,
+                            });
+                        } else {
+                            const total = record.dailyWage + numValue - record.latePenalty;
+                            updateLocalRecord(date, {
+                                otAmount: numValue,
+                                isOTOverridden: true,
+                                total: Math.round(total * 100) / 100,
+                            });
+                        }
+                    }
                 }
             }
         } catch (error) {
