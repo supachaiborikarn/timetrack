@@ -17,6 +17,7 @@ import {
   OfflineIndicator,
 } from "@/components/dashboard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function EmployeeDashboard() {
   const { data: session, status } = useSession();
@@ -71,6 +72,7 @@ export default function EmployeeDashboard() {
             </a>
           </div>
           <div className="flex gap-2 items-center">
+            <ThemeToggle />
             <LanguageSwitcher />
             <Button
               variant="ghost"
