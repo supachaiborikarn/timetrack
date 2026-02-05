@@ -65,6 +65,7 @@ model User {
   reviewSubmissions          ReviewSubmission[]
   auditLogs                  AuditLog[]
   overtimeRequests           OvertimeRequest[] @relation("OvertimeRequests")
+  dailyPayrollOverrides      DailyPayrollOverride[]
 
   @@index([stationId])
   @@index([departmentId])
@@ -631,4 +632,21 @@ model ProfileEditRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+// Daily Payroll Override - Admin can override wage/OT per day
+model DailyPayrollOverride {
+  id                 String   @id @default(cuid())
+  userId             String
+  date               DateTime
+  overrideDailyWage  Decimal? // ถ้า null ใช้ค่า default จาก User.dailyRate
+  overrideOT         Decimal? // ถ้า null ใช้ค่าคำนวณอัตโนมัติ
+  note               String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
 }

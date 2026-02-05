@@ -31,6 +31,7 @@ import {
     Clock,
     DollarSign,
     TrendingUp,
+    Eye,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 
@@ -424,6 +425,7 @@ export default function PayrollPage() {
                                             <TableHead className="text-slate-300 text-right">หักสาย</TableHead>
                                             <TableHead className="text-slate-300 text-center">เงินพิเศษ</TableHead>
                                             <TableHead className="text-slate-300 text-right">รวมสุทธิ</TableHead>
+                                            <TableHead className="text-slate-300 text-center w-20"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -453,6 +455,19 @@ export default function PayrollPage() {
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-right text-green-400 font-bold">฿{formatCurrency(empGrandTotal)}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-blue-400 hover:text-blue-300 hover:bg-slate-700"
+                                                            asChild
+                                                        >
+                                                            <a href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
+                                                                <Eye className="w-4 h-4 mr-1" />
+                                                                ดูรายวัน
+                                                            </a>
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             );
                                         })}
