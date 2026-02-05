@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 interface ShiftInfoCardProps {
     shift: {
@@ -15,6 +16,8 @@ interface ShiftInfoCardProps {
 }
 
 export function ShiftInfoCard({ shift, hourlyRate }: ShiftInfoCardProps) {
+    const { t } = useLanguage();
+
     const getExpectedHours = () => {
         if (!shift) return null;
         const [startH, startM] = shift.startTime.split(":").map(Number);
@@ -34,9 +37,9 @@ export function ShiftInfoCard({ shift, hourlyRate }: ShiftInfoCardProps) {
                         <Calendar className="w-5 h-5 text-purple-400" />
                     </div>
                     <div className="flex-1">
-                        <p className="text-sm text-slate-400">กะวันนี้</p>
+                        <p className="text-sm text-slate-400">{t("shift.today")}</p>
                         <p className="font-medium text-white">
-                            {shift?.name || "ไม่มีกะ"}
+                            {shift?.name || t("shift.noShift")}
                         </p>
                     </div>
                     {shift && (
@@ -52,19 +55,19 @@ export function ShiftInfoCard({ shift, hourlyRate }: ShiftInfoCardProps) {
                             <p className="text-2xl font-bold text-white">
                                 {expectedHours?.toFixed(1) || "-"}
                             </p>
-                            <p className="text-xs text-slate-400">ชม.ที่ต้องทำ</p>
+                            <p className="text-xs text-slate-400">{t("shift.hoursRequired")}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-2xl font-bold text-white">
                                 {shift.breakMinutes}
                             </p>
-                            <p className="text-xs text-slate-400">นาทีพัก</p>
+                            <p className="text-xs text-slate-400">{t("shift.breakMinutes")}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-2xl font-bold text-green-400">
                                 ฿{hourlyRate || 0}
                             </p>
-                            <p className="text-xs text-slate-400">ต่อชม.</p>
+                            <p className="text-xs text-slate-400">{t("shift.perHour")}</p>
                         </div>
                     </div>
                 )}

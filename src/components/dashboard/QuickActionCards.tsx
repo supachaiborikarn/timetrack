@@ -2,8 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { QrCode, FileEdit } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 export function QuickActionCards() {
+    const { t } = useLanguage();
+
     return (
         <div className="grid grid-cols-2 gap-3">
             <a href="/qr-scan">
@@ -13,8 +16,8 @@ export function QuickActionCards() {
                             <QrCode className="w-5 h-5 text-[#F09410]" />
                         </div>
                         <div className="text-sm">
-                            <p className="font-medium text-[#F0D0C7] group-hover:text-[#F09410] transition-colors">สแกน QR</p>
-                            <p className="text-xs text-stone-500">เช็คอินด้วย QR</p>
+                            <p className="font-medium text-[#F0D0C7] group-hover:text-[#F09410] transition-colors">{t("menu.qrCode")}</p>
+                            <p className="text-xs text-stone-500">{t("menu.scanQR")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -26,8 +29,8 @@ export function QuickActionCards() {
                             <FileEdit className="w-5 h-5 text-amber-500" />
                         </div>
                         <div className="text-sm">
-                            <p className="font-medium text-[#F0D0C7] group-hover:text-amber-500 transition-colors">ขอแก้เวลา</p>
-                            <p className="text-xs text-stone-500">ลืมกดเข้า-ออก</p>
+                            <p className="font-medium text-[#F0D0C7] group-hover:text-amber-500 transition-colors">{t("menu.timeEdit")}</p>
+                            <p className="text-xs text-stone-500">{t("menu.requestEdit")}</p>
                         </div>
                     </CardContent>
                 </Card>

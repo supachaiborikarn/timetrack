@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { LogIn, LogOut, Loader2 } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 interface CheckInOutButtonsProps {
     hasCheckedIn: boolean;
@@ -20,6 +21,8 @@ export function CheckInOutButtons({
     onCheckIn,
     onCheckOut,
 }: CheckInOutButtonsProps) {
+    const { t } = useLanguage();
+
     return (
         <div className="grid grid-cols-2 gap-3">
             <Button
@@ -35,7 +38,7 @@ export function CheckInOutButtons({
                 ) : (
                     <LogIn className="w-5 h-5 mr-2" />
                 )}
-                เข้าเวร
+                {t("dashboard.checkIn")}
             </Button>
             <Button
                 className={`h-16 text-lg font-semibold ${!hasCheckedIn || hasCheckedOut
@@ -50,7 +53,7 @@ export function CheckInOutButtons({
                 ) : (
                     <LogOut className="w-5 h-5 mr-2" />
                 )}
-                เลิกเวร
+                {t("dashboard.checkOut")}
             </Button>
         </div>
     );
