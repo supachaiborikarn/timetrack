@@ -30,6 +30,14 @@ export default function RequestsPage() {
 
     const menuItems = [
         {
+            href: "/requests/overtime",
+            icon: Clock,
+            iconColor: "text-orange-400",
+            bgColor: "bg-orange-500/20",
+            title: "ขอทำโอที",
+            description: "ขออนุมัติทำงานล่วงเวลา",
+        },
+        {
             href: "/requests/time-correction",
             icon: Clock,
             iconColor: "text-yellow-400",

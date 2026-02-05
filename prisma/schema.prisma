@@ -64,6 +64,7 @@ model User {
   comments                   Comment[]
   reviewSubmissions          ReviewSubmission[]
   auditLogs                  AuditLog[]
+  overtimeRequests           OvertimeRequest[] @relation("OvertimeRequests")
 
   @@index([stationId])
   @@index([departmentId])
@@ -209,6 +210,7 @@ model LeaveBalance {
 model OvertimeRequest {
   id          String    @id @default(cuid())
   userId      String
+  user        User      @relation("OvertimeRequests", fields: [userId], references: [id], onDelete: Cascade)
   date        DateTime
   hours       Decimal
   reason      String

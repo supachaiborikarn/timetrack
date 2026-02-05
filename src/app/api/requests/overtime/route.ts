@@ -30,6 +30,15 @@ export async function GET(request: NextRequest) {
         const requests = await prisma.overtimeRequest.findMany({
             where,
             orderBy: { createdAt: "desc" },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        employeeId: true,
+                        nickName: true,
+                    },
+                },
+            },
         });
 
         return NextResponse.json({ requests });
