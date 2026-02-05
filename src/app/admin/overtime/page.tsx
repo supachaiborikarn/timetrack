@@ -161,7 +161,7 @@ export default function AdminOvertimePage() {
         );
     }
 
-    if (!session || !session.user || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+    if (!session || !session.user || !["ADMIN", "HR", "MANAGER", "CLERK"].includes(session.user.role)) {
         redirect("/");
     }
 

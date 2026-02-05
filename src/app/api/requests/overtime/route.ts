@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         // Build where clause based on role
         const where: Record<string, unknown> = {};
 
-        if (["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        if (["ADMIN", "HR", "MANAGER", "CLERK"].includes(session.user.role)) {
             // Admin can see all or filter by userId
             if (userId) where.userId = userId;
         } else {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CLERK"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
