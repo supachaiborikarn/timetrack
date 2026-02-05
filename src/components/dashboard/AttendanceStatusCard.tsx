@@ -17,19 +17,19 @@ interface AttendanceData {
 
 interface AttendanceStatusCardProps {
     attendance: AttendanceData | null;
-    stationName?: string | null;
+    departmentName?: string | null;
 }
 
-export function AttendanceStatusCard({ attendance, stationName }: AttendanceStatusCardProps) {
+export function AttendanceStatusCard({ attendance, departmentName }: AttendanceStatusCardProps) {
     const hasCheckedIn = !!attendance?.checkInTime;
     const hasCheckedOut = !!attendance?.checkOutTime;
     const isOnBreak = !!attendance?.breakStartTime && !attendance?.breakEndTime;
     const hasTakenBreak = !!attendance?.breakEndTime;
 
     // Check if user is frontyard employee (หน้าลาน)
-    const isFrontyardEmployee = stationName?.toLowerCase().includes("หน้าลาน") ||
-        stationName?.toLowerCase().includes("frontyard") ||
-        stationName?.toLowerCase().includes("front yard");
+    const isFrontyardEmployee = departmentName?.toLowerCase().includes("หน้าลาน") ||
+        departmentName?.toLowerCase().includes("frontyard") ||
+        departmentName?.toLowerCase().includes("front yard");
 
     return (
         <Card className="bg-slate-800/50 border-slate-700">

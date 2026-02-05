@@ -102,7 +102,7 @@ export default function EmployeeDashboard() {
         {/* Attendance Status */}
         <AttendanceStatusCard
           attendance={todayData?.attendance || null}
-          stationName={todayData?.user?.station}
+          departmentName={todayData?.user?.department}
         />
 
         {/* Check-in/out Buttons */}
