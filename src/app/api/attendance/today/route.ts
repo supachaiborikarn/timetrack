@@ -13,6 +13,11 @@ export async function GET() {
         const now = getBangkokNow();
         const today = startOfDay(now);
 
+        // Debug logging
+        console.log('[API] getBangkokNow:', now.toISOString());
+        console.log('[API] startOfDay(today):', today.toISOString());
+        console.log('[API] userId:', session.user.id);
+
         // Get user with station and department
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
@@ -39,8 +44,12 @@ export async function GET() {
             include: { shift: true },
         });
 
+        console.log('[API] shiftAssignment found:', shiftAssignment ? shiftAssignment.shift?.name : 'NULL');
+
         // Get tomorrow's shift assignment
         const tomorrow = startOfDay(addDays(now, 1));
+        console.log('[API] tomorrow:', tomorrow.toISOString());
+
         const tomorrowShiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {
                 userId: session.user.id,
@@ -48,6 +57,8 @@ export async function GET() {
             },
             include: { shift: true },
         });
+
+        console.log('[API] tomorrowShiftAssignment found:', tomorrowShiftAssignment ? tomorrowShiftAssignment.shift?.name : 'NULL');
 
         return NextResponse.json({
             attendance: attendance
