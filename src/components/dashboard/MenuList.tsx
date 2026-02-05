@@ -20,13 +20,13 @@ interface MenuListProps {
 }
 
 export function MenuList({ userRole }: MenuListProps) {
-    const showAdminLink = userRole && ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(userRole);
-    const isClerk = userRole === "CLERK";
+    const showAdminLink = userRole && ["ADMIN", "HR", "MANAGER"].includes(userRole);
+    const isClerkOrCashier = userRole && ["CLERK", "CASHIER"].includes(userRole);
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Admin Dashboard Link - Full Width (for non-CLERK roles) */}
-            {showAdminLink && !isClerk && (
+            {showAdminLink && !isClerkOrCashier && (
                 <a href="/admin" className="col-span-full block group">
                     <Card className="relative overflow-hidden bg-gradient-to-r from-[#F09410] to-[#BC430D] border-0 shadow-lg shadow-orange-900/20 hover:shadow-orange-600/30 hover:-translate-y-1 transition-all duration-300">
                         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
@@ -54,7 +54,7 @@ export function MenuList({ userRole }: MenuListProps) {
             )}
 
             {/* CLERK Quick Check-in Link */}
-            {isClerk && (
+            {isClerkOrCashier && (
                 <a href="/admin/attendance" className="col-span-full block group">
                     <Card className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 border-0 shadow-lg shadow-emerald-900/20 hover:shadow-emerald-500/30 hover:-translate-y-1 transition-all duration-300">
                         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
