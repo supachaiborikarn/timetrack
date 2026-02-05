@@ -44,6 +44,7 @@ import {
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { PasskeyButton } from "@/components/auth/PasskeyButton";
+import { useLanguage } from "@/lib/language-context";
 
 interface Profile {
     id: string;
@@ -120,6 +121,7 @@ const EditableField = ({
     const [isEditing, setIsEditing] = useState(false);
     const [tempValue, setTempValue] = useState(value || "");
     const [isSaving, setIsSaving] = useState(false);
+    const { t } = useLanguage();
 
     useEffect(() => {
         setTempValue(value || "");
@@ -175,10 +177,10 @@ const EditableField = ({
                             <div className="flex flex-col items-end">
                                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] whitespace-nowrap">
                                     <Clock className="w-3 h-3 mr-1" />
-                                    รออนุมัติ
+                                    {t("profile.pendingApproval")}
                                 </Badge>
                                 <span className="text-[10px] text-stone-500 mt-1">
-                                    เป็น: {pendingRequest.newValue}
+                                    {t("profile.changeTo")}: {pendingRequest.newValue}
                                 </span>
                             </div>
                         ) : isEditing ? (
@@ -223,6 +225,7 @@ const EditableField = ({
 };
 
 export default function ProfilePage() {
+    const { t, language } = useLanguage();
     const { data: session, status } = useSession();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [requests, setRequests] = useState<EditRequest[]>([]);
@@ -430,7 +433,9 @@ export default function ProfilePage() {
                         <p className="text-stone-400 font-medium">{profile?.name}</p>
                         <div className="flex items-center justify-center gap-2 mt-3">
                             <Badge variant="outline" className="bg-[#2a2420] text-[#F0D0C7] border-orange-900/30">{profile?.employeeId}</Badge>
-                            <Badge className="bg-gradient-to-r from-[#F09410] to-[#BC430D] text-white border-0 shadow-lg shadow-orange-900/20">{roleLabels[profile?.role || "EMPLOYEE"]}</Badge>
+                            <Badge className="bg-gradient-to-r from-[#F09410] to-[#BC430D] text-white border-0 shadow-lg shadow-orange-900/20">
+                                {profile?.role ? t(`role.${profile.role.toLowerCase()}`) : "-"}
+                            </Badge>
                         </div>
                     </div>
                 </div>
@@ -438,11 +443,11 @@ export default function ProfilePage() {
                 {/* Tabs */}
                 <Tabs defaultValue="personal" className="w-full">
                     <TabsList className="grid w-full grid-cols-5 p-1 bg-[#2a2420] border border-orange-900/20 rounded-xl">
-                        <TabsTrigger value="personal" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ข้อมูล</TabsTrigger>
-                        <TabsTrigger value="contact" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ติดต่อ</TabsTrigger>
-                        <TabsTrigger value="financial" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">การเงิน</TabsTrigger>
-                        <TabsTrigger value="social" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">ประกัน</TabsTrigger>
-                        <TabsTrigger value="security" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">รหัส</TabsTrigger>
+                        <TabsTrigger value="personal" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.personal")}</TabsTrigger>
+                        <TabsTrigger value="contact" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.contact")}</TabsTrigger>
+                        <TabsTrigger value="financial" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.financial")}</TabsTrigger>
+                        <TabsTrigger value="social" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.insurance")}</TabsTrigger>
+                        <TabsTrigger value="security" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.security")}</TabsTrigger>
                     </TabsList>
 
                     {/* Personal Info */}
@@ -451,12 +456,12 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
                                     <User className="w-5 h-5 text-[#F09410]" />
-                                    ข้อมูลทั่วไป
+                                    {t("profile.generalInfo")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <EditableField
-                                    label="ชื่อเล่น"
+                                    label={t("profile.nickname")}
                                     value={profile?.nickName}
                                     fieldName="nickName"
                                     icon={User}
@@ -467,7 +472,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-3">
                                         <Building2 className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-stone-500">สถานี</p>
+                                            <p className="text-xs text-stone-500">{t("profile.station")}</p>
                                             <p className="font-medium text-[#F0D0C7]">{profile?.station?.name || "-"}</p>
                                         </div>
                                     </div>
@@ -476,7 +481,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-3">
                                         <Briefcase className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-stone-500">แผนก</p>
+                                            <p className="text-xs text-stone-500">{t("profile.department")}</p>
                                             <p className="font-medium text-[#F0D0C7]">{profile?.department?.name || "-"}</p>
                                         </div>
                                     </div>
@@ -485,7 +490,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-3">
                                         <FileText className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-stone-500">เลขบัตรประชาชน</p>
+                                            <p className="text-xs text-stone-500">{t("profile.citizenId")}</p>
                                             <p className="font-medium text-[#F0D0C7]">{profile?.citizenId || "-"}</p>
                                         </div>
                                     </div>
@@ -494,7 +499,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-3">
                                         <Calendar className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-stone-500">วันเกิด</p>
+                                            <p className="text-xs text-stone-500">{t("profile.birthDate")}</p>
                                             <p className="font-medium text-[#F0D0C7]">
                                                 {profile?.birthDate ? formatThaiDate(new Date(profile.birthDate), "d MMMM yyyy") : "-"}
                                             </p>
@@ -505,7 +510,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-3">
                                         <Clock className="w-5 h-5 text-stone-500" />
                                         <div>
-                                            <p className="text-xs text-stone-500">วันที่เริ่มงาน</p>
+                                            <p className="text-xs text-stone-500">{t("profile.startDate")}</p>
                                             <p className="font-medium text-[#F0D0C7]">
                                                 {profile?.startDate ? formatThaiDate(new Date(profile.startDate), "d MMMM yyyy") : "-"}
                                             </p>
@@ -522,13 +527,13 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
                                     <Contact className="w-5 h-5 text-[#F09410]" />
-                                    การติดต่อ
+                                    {t("profile.contact")}
                                 </CardTitle>
-                                <CardDescription className="text-stone-500">แก้ไขได้โดยการส่งคำขอ</CardDescription>
+                                <CardDescription className="text-stone-500">{t("profile.editByRequest")}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <EditableField
-                                    label="เบอร์โทรศัพท์"
+                                    label={t("profile.phone")}
                                     value={profile?.phone}
                                     fieldName="phone"
                                     icon={Phone}
@@ -536,7 +541,7 @@ export default function ProfilePage() {
                                     onRequestEdit={handleRequestEdit}
                                 />
                                 <EditableField
-                                    label="อีเมล"
+                                    label={t("profile.email")}
                                     value={profile?.email}
                                     fieldName="email"
                                     icon={Mail}
@@ -544,7 +549,7 @@ export default function ProfilePage() {
                                     onRequestEdit={handleRequestEdit}
                                 />
                                 <EditableField
-                                    label="ที่อยู่"
+                                    label={t("profile.address")}
                                     value={profile?.address}
                                     fieldName="address"
                                     icon={MapPin}
@@ -561,30 +566,30 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
                                     <DollarSign className="w-5 h-5 text-[#F09410]" />
-                                    ข้อมูลการเงิน
+                                    {t("profile.financial")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {profile?.dailyRate && Number(profile.dailyRate) > 0 && (
                                     <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/30 border border-emerald-900/30">
-                                        <span className="text-emerald-400/80 text-sm">ค่าแรงรายวัน</span>
+                                        <span className="text-emerald-400/80 text-sm">{t("profile.dailyWage")}</span>
                                         <span className="font-bold text-emerald-400">฿{formatMoney(Number(profile.dailyRate))}</span>
                                     </div>
                                 )}
                                 {profile?.baseSalary && Number(profile.baseSalary) > 0 && (
                                     <div className="flex items-center justify-between p-3 rounded-lg bg-blue-950/30 border border-blue-900/30">
-                                        <span className="text-blue-400/80 text-sm">เงินเดือน</span>
+                                        <span className="text-blue-400/80 text-sm">{t("profile.salary")}</span>
                                         <span className="font-bold text-blue-400">฿{formatMoney(Number(profile.baseSalary))}</span>
                                     </div>
                                 )}
 
                                 <div className="mt-4 pt-4 border-t border-orange-900/20">
                                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
-                                        <Wallet className="w-4 h-4 text-[#F09410]" /> บัญชีธนาคาร
+                                        <Wallet className="w-4 h-4 text-[#F09410]" /> {t("profile.bankAccount")}
                                     </h3>
                                     <div className="space-y-3">
                                         <EditableField
-                                            label="ชื่อธนาคาร"
+                                            label={t("profile.bankName")}
                                             value={profile?.bankName}
                                             fieldName="bankName"
                                             icon={Building2}
@@ -592,7 +597,7 @@ export default function ProfilePage() {
                                             onRequestEdit={handleRequestEdit}
                                         />
                                         <EditableField
-                                            label="เลขบัญชี"
+                                            label={t("profile.accountNumber")}
                                             value={profile?.bankAccountNumber}
                                             fieldName="bankAccountNumber"
                                             icon={CreditCard}
@@ -604,7 +609,7 @@ export default function ProfilePage() {
 
                                 <div className="mt-4 pt-4 border-t border-orange-900/20">
                                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
-                                        <FileText className="w-4 h-4 text-[#F09410]" /> ประวัติเงินเดือน
+                                        <FileText className="w-4 h-4 text-[#F09410]" /> {t("profile.payHistory")}
                                     </h3>
                                     {payslips.length > 0 ? (
                                         <div className="space-y-3">
@@ -630,7 +635,7 @@ export default function ProfilePage() {
                                         </div>
                                     ) : (
                                         <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-900/20 rounded-lg bg-[#1a1412]">
-                                            ยังไม่มีประวัติเงินเดือน
+                                            {t("profile.noPayHistory")}
                                         </div>
                                     )}
                                 </div>
@@ -644,12 +649,12 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <Shield className="w-5 h-5 text-indigo-600" />
-                                    ผู้ติดต่อฉุกเฉิน
+                                    {t("profile.emergency")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <EditableField
-                                    label="ชื่อผู้ติดต่อ"
+                                    label={t("profile.emergencyName")}
                                     value={profile?.emergencyContactName}
                                     fieldName="emergencyContactName"
                                     icon={User}
@@ -657,7 +662,7 @@ export default function ProfilePage() {
                                     onRequestEdit={handleRequestEdit}
                                 />
                                 <EditableField
-                                    label="ความสัมพันธ์"
+                                    label={t("profile.emergencyRelation")}
                                     value={profile?.emergencyContactRelation}
                                     fieldName="emergencyContactRelation"
                                     icon={Contact}
@@ -665,7 +670,7 @@ export default function ProfilePage() {
                                     onRequestEdit={handleRequestEdit}
                                 />
                                 <EditableField
-                                    label="เบอร์โทรศัพท์"
+                                    label={t("profile.emergencyPhone")}
                                     value={profile?.emergencyContactPhone}
                                     fieldName="emergencyContactPhone"
                                     icon={Phone}
@@ -683,7 +688,7 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <Lock className="w-5 h-5 text-indigo-600" />
-                                    รหัสผ่านเข้าสู่ระบบ
+                                    {t("profile.password")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -695,14 +700,14 @@ export default function ProfilePage() {
                                     >
                                         <span className="flex items-center gap-2">
                                             <Key className="w-4 h-4" />
-                                            เปลี่ยนรหัสผ่าน
+                                            {t("profile.changePassword")}
                                         </span>
                                         <Edit2 className="w-3 h-3 opacity-50" />
                                     </Button>
                                 ) : (
                                     <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
                                         <div className="space-y-2">
-                                            <Label>รหัสผ่านปัจจุบัน</Label>
+                                            <Label>{t("profile.currentPassword")}</Label>
                                             <div className="relative">
                                                 <Input
                                                     type={showCurrentPassword ? "text" : "password"}
@@ -722,7 +727,7 @@ export default function ProfilePage() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>รหัสผ่านใหม่</Label>
+                                            <Label>{t("profile.newPassword")}</Label>
                                             <div className="relative">
                                                 <Input
                                                     type={showNewPassword ? "text" : "password"}
@@ -742,7 +747,7 @@ export default function ProfilePage() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>ยืนยันรหัสผ่านใหม่</Label>
+                                            <Label>{t("profile.confirmPassword")}</Label>
                                             <Input
                                                 type="password"
                                                 value={confirmPassword}
@@ -761,7 +766,7 @@ export default function ProfilePage() {
                                                 }}
                                                 className="flex-1"
                                             >
-                                                ยกเลิก
+                                                {t("profile.cancel")}
                                             </Button>
                                             <Button
                                                 onClick={handleChangePassword}
@@ -769,7 +774,7 @@ export default function ProfilePage() {
                                                 className="flex-1"
                                             >
                                                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                                บันทึก
+                                                {t("profile.save")}
                                             </Button>
                                         </div>
                                     </div>
@@ -782,9 +787,9 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <Fingerprint className="w-5 h-5 text-indigo-600" />
-                                    Biometric Authentication
+                                    {t("profile.biometric")}
                                 </CardTitle>
-                                <CardDescription>เข้าสู่ระบบด้วย Face ID / Touch ID</CardDescription>
+                                <CardDescription>{t("profile.biometricDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <PasskeyButton />
@@ -796,7 +801,7 @@ export default function ProfilePage() {
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <Key className="w-5 h-5 text-indigo-600" />
-                                    PIN (สำหรับลงเวลา)
+                                    {t("profile.pin")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -808,14 +813,14 @@ export default function ProfilePage() {
                                     >
                                         <span className="flex items-center gap-2">
                                             <Key className="w-4 h-4" />
-                                            เปลี่ยน PIN
+                                            {t("profile.changePin")}
                                         </span>
                                         <Edit2 className="w-3 h-3 opacity-50" />
                                     </Button>
                                 ) : (
                                     <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
                                         <div className="space-y-2">
-                                            <Label>PIN ใหม่ (4-6 หลัก)</Label>
+                                            <Label>{t("profile.newPin")}</Label>
                                             <Input
                                                 type="password"
                                                 inputMode="numeric"
@@ -827,7 +832,7 @@ export default function ProfilePage() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>ยืนยัน PIN ใหม่</Label>
+                                            <Label>{t("profile.confirmPin")}</Label>
                                             <Input
                                                 type="password"
                                                 inputMode="numeric"
@@ -848,7 +853,7 @@ export default function ProfilePage() {
                                                 }}
                                                 className="flex-1"
                                             >
-                                                ยกเลิก
+                                                {t("profile.cancel")}
                                             </Button>
                                             <Button
                                                 onClick={handleChangePin}
@@ -856,7 +861,7 @@ export default function ProfilePage() {
                                                 className="flex-1"
                                             >
                                                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                                บันทึก
+                                                {t("profile.save")}
                                             </Button>
                                         </div>
                                     </div>
