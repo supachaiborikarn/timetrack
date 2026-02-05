@@ -28,6 +28,7 @@ import {
     Wallet,
     Bell,
     Shield,
+    FolderKanban,
 } from "lucide-react";
 
 interface NavItem {
@@ -51,9 +52,15 @@ const navItems: NavItem[] = [
         roles: ["ADMIN", "HR"],
     },
     {
-        title: "สถานี/แผนก",
+        title: "สถานี",
         href: "/admin/stations",
         icon: Building2,
+        roles: ["ADMIN", "HR"],
+    },
+    {
+        title: "แผนก",
+        href: "/admin/departments",
+        icon: FolderKanban,
         roles: ["ADMIN", "HR"],
     },
     {
