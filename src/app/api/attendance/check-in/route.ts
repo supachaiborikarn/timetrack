@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
     startOfDay,
     getBangkokNow,
@@ -13,17 +14,14 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return ApiErrors.unauthorized();
         }
 
         const body = await request.json();
         const { latitude, longitude, deviceId, method, qrCode } = body;
 
         if (!latitude || !longitude) {
-            return NextResponse.json(
-                { error: "กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง" },
-                { status: 400 }
-            );
+            return ApiErrors.validation("กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง");
         }
 
         // Get user with station info
@@ -33,14 +31,11 @@ export async function POST(request: NextRequest) {
         });
 
         if (!user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
+            return ApiErrors.notFound("User");
         }
 
         if (!user.station) {
-            return NextResponse.json(
-                { error: "คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด" },
-                { status: 400 }
-            );
+            return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
         }
 
         // Validate GPS location
@@ -54,19 +49,17 @@ export async function POST(request: NextRequest) {
         );
 
         if (!isWithinRadius) {
-            return NextResponse.json(
-                { error: "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คอิน" },
-                { status: 400 }
+            return errorResponse(
+                "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คอิน",
+                400,
+                "INVALID_LOCATION"
             );
         }
 
         // If QR method, validate QR code
         if (method === "QR") {
             if (!qrCode || qrCode !== user.station.qrCode) {
-                return NextResponse.json(
-                    { error: "QR Code ไม่ถูกต้อง" },
-                    { status: 400 }
-                );
+                return ApiErrors.validation("QR Code ไม่ถูกต้อง");
             }
         }
 
@@ -93,9 +86,10 @@ export async function POST(request: NextRequest) {
         });
 
         if (existingAttendance?.checkInTime) {
-            return NextResponse.json(
-                { error: "คุณได้เช็คอินแล้ววันนี้" },
-                { status: 400 }
+            return errorResponse(
+                "คุณได้เช็คอินแล้ววันนี้",
+                400,
+                "ALREADY_CHECKED_IN"
             );
         }
 
@@ -156,19 +150,13 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                checkInTime: attendance.checkInTime,
-                lateMinutes,
-                latePenaltyAmount,
-            },
+        return successResponse({
+            checkInTime: attendance.checkInTime,
+            lateMinutes,
+            latePenaltyAmount,
         });
     } catch (error) {
         console.error("Check-in error:", error);
-        return NextResponse.json(
-            { error: "เกิดข้อผิดพลาด กรุณาลองใหม่" },
-            { status: 500 }
-        );
+        return ApiErrors.internal("เกิดข้อผิดพลาด กรุณาลองใหม่");
     }
 }

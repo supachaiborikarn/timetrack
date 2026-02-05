@@ -54,6 +54,33 @@ interface AnalyticsData {
     trend: Array<{ date: string; lateCount: number; avgLateMinutes: number }>;
 }
 
+// Helper functions moved outside component for performance
+const getRequestIcon = (type: string) => {
+    switch (type) {
+        case "shift_swap":
+            return <Shuffle className="w-4 h-4 text-purple-500" />;
+        case "leave":
+            return <Calendar className="w-4 h-4 text-blue-500" />;
+        case "time_correction":
+            return <Clock className="w-4 h-4 text-amber-500" />;
+        default:
+            return <AlertCircle className="w-4 h-4 text-slate-500" />;
+    }
+};
+
+const getRequestLabel = (type: string) => {
+    switch (type) {
+        case "shift_swap":
+            return "สลับกะ";
+        case "leave":
+            return "ลางาน";
+        case "time_correction":
+            return "แก้ไขเวลา";
+        default:
+            return type;
+    }
+};
+
 export default function AdminDashboard() {
     const { data: session, status } = useSession();
     const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -162,32 +189,6 @@ export default function AdminDashboard() {
     ];
 
     const quickActions = allQuickActions.filter(action => !action.roles || action.roles.includes(role));
-
-    const getRequestIcon = (type: string) => {
-        switch (type) {
-            case "shift_swap":
-                return <Shuffle className="w-4 h-4 text-purple-500" />;
-            case "leave":
-                return <Calendar className="w-4 h-4 text-blue-500" />;
-            case "time_correction":
-                return <Clock className="w-4 h-4 text-amber-500" />;
-            default:
-                return <AlertCircle className="w-4 h-4 text-slate-500" />;
-        }
-    };
-
-    const getRequestLabel = (type: string) => {
-        switch (type) {
-            case "shift_swap":
-                return "สลับกะ";
-            case "leave":
-                return "ลางาน";
-            case "time_correction":
-                return "แก้ไขเวลา";
-            default:
-                return type;
-        }
-    };
 
     return (
         <>

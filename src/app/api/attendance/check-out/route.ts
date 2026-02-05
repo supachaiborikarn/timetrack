@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
     startOfDay,
     getBangkokNow,
@@ -12,17 +13,14 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return ApiErrors.unauthorized();
         }
 
         const body = await request.json();
         const { latitude, longitude, deviceId, method } = body;
 
         if (!latitude || !longitude) {
-            return NextResponse.json(
-                { error: "กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง" },
-                { status: 400 }
-            );
+            return ApiErrors.validation("กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง");
         }
 
         // Get user with station info
@@ -32,10 +30,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!user || !user.station) {
-            return NextResponse.json(
-                { error: "คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด" },
-                { status: 400 }
-            );
+            return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
         }
 
         // Validate GPS location
@@ -49,9 +44,10 @@ export async function POST(request: NextRequest) {
         );
 
         if (!isWithinRadius) {
-            return NextResponse.json(
-                { error: "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คเอาต์" },
-                { status: 400 }
+            return errorResponse(
+                "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คเอาต์",
+                400,
+                "INVALID_LOCATION"
             );
         }
 
@@ -68,16 +64,18 @@ export async function POST(request: NextRequest) {
         });
 
         if (!attendance || !attendance.checkInTime) {
-            return NextResponse.json(
-                { error: "คุณยังไม่ได้เช็คอินวันนี้" },
-                { status: 400 }
+            return errorResponse(
+                "คุณยังไม่ได้เช็คอินวันนี้",
+                400,
+                "NOT_CHECKED_IN"
             );
         }
 
         if (attendance.checkOutTime) {
-            return NextResponse.json(
-                { error: "คุณได้เช็คเอาต์แล้ววันนี้" },
-                { status: 400 }
+            return errorResponse(
+                "คุณได้เช็คเอาต์แล้ววันนี้",
+                400,
+                "ALREADY_CHECKED_OUT"
             );
         }
 
@@ -122,19 +120,13 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                checkOutTime: updatedAttendance.checkOutTime,
-                totalHours,
-                overtimeHours,
-            },
+        return successResponse({
+            checkOutTime: updatedAttendance.checkOutTime,
+            totalHours,
+            overtimeHours,
         });
     } catch (error) {
         console.error("Check-out error:", error);
-        return NextResponse.json(
-            { error: "เกิดข้อผิดพลาด กรุณาลองใหม่" },
-            { status: 500 }
-        );
+        return ApiErrors.internal("เกิดข้อผิดพลาด กรุณาลองใหม่");
     }
 }

@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ApiErrors, successResponse } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return ApiErrors.unauthorized();
         }
 
         const { searchParams } = new URL(request.url);
@@ -14,10 +15,7 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get("endDate");
 
         if (!startDate || !endDate) {
-            return NextResponse.json(
-                { error: "startDate and endDate are required" },
-                { status: 400 }
-            );
+            return ApiErrors.validation("startDate and endDate are required");
         }
 
         const records = await prisma.attendance.findMany({
@@ -33,7 +31,7 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        return NextResponse.json({
+        return successResponse({
             records: records.map((r) => ({
                 id: r.id,
                 date: r.date.toISOString(),
@@ -47,9 +45,6 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error("Error fetching attendance history:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return ApiErrors.internal();
     }
 }
