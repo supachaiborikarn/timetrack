@@ -11,7 +11,8 @@ import {
     ChevronRight,
     MessageCircle,
     ClipboardCheck,
-    ShieldCheck
+    ShieldCheck,
+    UserPlus
 } from "lucide-react";
 
 interface MenuListProps {
@@ -20,11 +21,12 @@ interface MenuListProps {
 
 export function MenuList({ userRole }: MenuListProps) {
     const showAdminLink = userRole && ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(userRole);
+    const isClerk = userRole === "CLERK";
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Admin Dashboard Link - Full Width */}
-            {showAdminLink && (
+            {/* Admin Dashboard Link - Full Width (for non-CLERK roles) */}
+            {showAdminLink && !isClerk && (
                 <a href="/admin" className="col-span-full block group">
                     <Card className="relative overflow-hidden bg-gradient-to-r from-[#F09410] to-[#BC430D] border-0 shadow-lg shadow-orange-900/20 hover:shadow-orange-600/30 hover:-translate-y-1 transition-all duration-300">
                         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
@@ -40,6 +42,34 @@ export function MenuList({ userRole }: MenuListProps) {
                                             {userRole}
                                         </Badge>
                                         <span className="text-[#F0D0C7] text-xs opacity-90">Manage & Configure</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-2 rounded-full bg-black/10 group-hover:bg-black/20 transition-colors backdrop-blur-sm">
+                                <ChevronRight className="w-5 h-5 text-white/90" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </a>
+            )}
+
+            {/* CLERK Quick Check-in Link */}
+            {isClerk && (
+                <a href="/admin/attendance" className="col-span-full block group">
+                    <Card className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 border-0 shadow-lg shadow-emerald-900/20 hover:shadow-emerald-500/30 hover:-translate-y-1 transition-all duration-300">
+                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
+                        <CardContent className="p-4 flex items-center justify-between relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-md shadow-inner group-hover:scale-110 transition-transform duration-300">
+                                    <UserPlus className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">+ เช็คอินแทน</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge className="bg-black/20 text-emerald-100 hover:bg-black/30 border-0 backdrop-blur-md font-normal">
+                                            {userRole}
+                                        </Badge>
+                                        <span className="text-emerald-100 text-xs opacity-90">ลงเวลาให้พนักงาน</span>
                                     </div>
                                 </div>
                             </div>
