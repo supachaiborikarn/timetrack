@@ -31,7 +31,15 @@ import {
     Users,
     Navigation,
     Map,
+    Plus,
 } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Station {
@@ -64,6 +72,7 @@ export default function StationsPage() {
     const [formData, setFormData] = useState({
         name: "",
         code: "",
+        type: "GAS_STATION" as "GAS_STATION" | "COFFEE_SHOP",
         address: "",
         latitude: 0,
         longitude: 0,
@@ -98,6 +107,7 @@ export default function StationsPage() {
         setFormData({
             name: station.name,
             code: station.code,
+            type: station.type as "GAS_STATION" | "COFFEE_SHOP",
             address: station.address,
             latitude: station.latitude,
             longitude: station.longitude,
@@ -108,16 +118,37 @@ export default function StationsPage() {
         setDialogOpen(true);
     };
 
+    const openCreateDialog = () => {
+        setEditingStation(null);
+        setFormData({
+            name: "",
+            code: "",
+            type: "GAS_STATION",
+            address: "",
+            latitude: 0,
+            longitude: 0,
+            radius: 100,
+            qrCode: "",
+            wifiSSID: "",
+        });
+        setDialogOpen(true);
+    };
+
     const handleSave = async () => {
-        if (!editingStation) return;
+        const isCreating = !editingStation;
+
+        if (!formData.name || !formData.code) {
+            toast.error("กรุณากรอกชื่อและรหัสสถานี");
+            return;
+        }
 
         setIsSaving(true);
         try {
             const res = await fetch("/api/admin/stations", {
-                method: "PUT",
+                method: isCreating ? "POST" : "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    id: editingStation.id,
+                    ...(editingStation && { id: editingStation.id }),
                     ...formData,
                 }),
             });
@@ -196,6 +227,10 @@ export default function StationsPage() {
                     <h1 className="text-2xl font-bold text-foreground">สถานี / สาขา</h1>
                     <p className="text-muted-foreground">จัดการสถานีและตำแหน่ง GPS</p>
                 </div>
+                <Button onClick={openCreateDialog}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    เพิ่มสถานี
+                </Button>
             </div>
 
             {/* Stats */}
@@ -320,11 +355,13 @@ export default function StationsPage() {
                 )}
             </Card>
 
-            {/* Edit Dialog */}
+            {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>แก้ไขสถานี: {editingStation?.name}</DialogTitle>
+                        <DialogTitle>
+                            {editingStation ? `แก้ไขสถานี: ${editingStation.name}` : "เพิ่มสถานีใหม่"}
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -344,12 +381,31 @@ export default function StationsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>ที่อยู่</Label>
-                            <Input
-                                value={formData.address}
-                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>ประเภทสถานี</Label>
+                                <Select
+                                    value={formData.type}
+                                    onValueChange={(value: "GAS_STATION" | "COFFEE_SHOP") =>
+                                        setFormData({ ...formData, type: value })
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="GAS_STATION">ปั๊มน้ำมัน</SelectItem>
+                                        <SelectItem value="COFFEE_SHOP">ร้านกาแฟ</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>ที่อยู่</Label>
+                                <Input
+                                    value={formData.address}
+                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                />
+                            </div>
                         </div>
 
                         <div className="border-t border-border pt-4">
