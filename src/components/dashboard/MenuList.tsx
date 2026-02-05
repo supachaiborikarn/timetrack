@@ -14,12 +14,14 @@ import {
     ShieldCheck,
     UserPlus
 } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 interface MenuListProps {
     userRole?: string;
 }
 
 export function MenuList({ userRole }: MenuListProps) {
+    const { t } = useLanguage();
     const showAdminLink = userRole && ["ADMIN", "HR", "MANAGER"].includes(userRole);
     const isClerkOrCashier = userRole && ["CLERK", "CASHIER"].includes(userRole);
 
@@ -36,12 +38,12 @@ export function MenuList({ userRole }: MenuListProps) {
                                     <Settings className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">Admin System</h3>
+                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">{t("menu.adminSystem")}</h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Badge className="bg-black/20 text-[#FEEAF0] hover:bg-black/30 border-0 backdrop-blur-md font-normal">
                                             {userRole}
                                         </Badge>
-                                        <span className="text-[#F0D0C7] text-xs opacity-90">Manage & Configure</span>
+                                        <span className="text-[#F0D0C7] text-xs opacity-90">{t("menu.manageSystem")}</span>
                                     </div>
                                 </div>
                             </div>
@@ -64,12 +66,12 @@ export function MenuList({ userRole }: MenuListProps) {
                                     <UserPlus className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">+ เช็คอินแทน</h3>
+                                    <h3 className="text-white font-bold text-lg leading-tight tracking-wide">{t("menu.manualCheckIn")}</h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Badge className="bg-black/20 text-emerald-100 hover:bg-black/30 border-0 backdrop-blur-md font-normal">
                                             {userRole}
                                         </Badge>
-                                        <span className="text-emerald-100 text-xs opacity-90">ลงเวลาให้พนักงาน</span>
+                                        <span className="text-emerald-100 text-xs opacity-90">{t("menu.checkInForEmployee")}</span>
                                     </div>
                                 </div>
                             </div>
@@ -89,8 +91,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <Calendar className="w-6 h-6 text-[#F09410] group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">ตารางกะ</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ดูเวลางานของคุณ</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">{t("menu.schedule")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.viewSchedule")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -108,10 +110,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#BC430D] transition-colors">กะว่าง / สลับกะ</h3>
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#BC430D] transition-colors">{t("menu.shiftPool")}</h3>
                                 <Badge className="bg-[#BC430D]/20 text-[#BC430D] text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                             </div>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">หาคนแทน / รับงานเพิ่ม</p>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.findShifts")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -128,10 +130,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-amber-500 transition-colors">แจ้งวันว่าง</h3>
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-amber-500 transition-colors">{t("menu.availability")}</h3>
                                 <Badge className="bg-amber-500/20 text-amber-500 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                             </div>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ระบุวันว่างทำงาน</p>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.setAvailability")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -145,8 +147,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <History className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-emerald-500 transition-colors">ประวัติลงเวลา</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ตรวจสอบการเข้า-ออก</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-emerald-500 transition-colors">{t("menu.history")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.viewHistory")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -160,8 +162,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <FileEdit className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-blue-400 transition-colors">คำขอทั้งหมด</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ลากิจ / ลาป่วย / อื่นๆ</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-blue-400 transition-colors">{t("menu.requests")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.requestsDesc")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -177,10 +179,10 @@ export function MenuList({ userRole }: MenuListProps) {
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">Team Chat & ประกาศ</h3>
+                                    <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#F09410] transition-colors">{t("menu.chat")}</h3>
                                     <Badge className="bg-[#F09410]/20 text-[#F09410] text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
                                 </div>
-                                <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ข่าวสารและการสื่อสารในทีม</p>
+                                <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.chatDesc")}</p>
                             </div>
                         </div>
                         <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
@@ -198,8 +200,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <ShieldCheck className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-red-400 transition-colors">Security</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">Audit & Logs</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-red-400 transition-colors">{t("menu.security")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.securityDesc")}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -213,8 +215,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <UserCog className="w-6 h-6 text-[#F0D0C7] group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#FEEAF0] transition-colors">โปรไฟล์</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ตั้งค่าส่วนตัว</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-[#FEEAF0] transition-colors">{t("menu.profile")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.profileDesc")}</p>
                         </div>
                     </CardContent>
                 </Card>
