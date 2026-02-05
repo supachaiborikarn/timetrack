@@ -78,6 +78,7 @@ interface AttendanceRecord {
     user: {
         id: string;
         name: string;
+        nickName: string | null;
         employeeId: string;
         department: string;
         station: string;
@@ -711,10 +712,10 @@ export default function AttendanceReviewPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium text-sm shadow-sm">
-                                                        {record.user.name.charAt(0)}
+                                                        {(record.user.nickName || record.user.name).charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-foreground">{record.user.name}</p>
+                                                        <p className="font-medium text-foreground">{record.user.nickName || record.user.name}</p>
                                                         <p className="text-xs text-muted-foreground font-mono">{record.user.employeeId}</p>
                                                     </div>
                                                 </div>

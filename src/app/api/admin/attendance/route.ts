@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
                 user: {
                     id: r.user.id,
                     name: r.user.name,
+                    nickName: r.user.nickName || null,
                     employeeId: r.user.employeeId,
                     station: r.user.station?.name || "-",
                     department: r.user.department?.name || "-",
