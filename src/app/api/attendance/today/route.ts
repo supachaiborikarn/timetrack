@@ -67,6 +67,13 @@ export async function GET() {
         });
 
         return successResponse({
+            // DEBUG INFO - REMOVE AFTER FIXING
+            _debug: {
+                nowUTC: new Date().toISOString(),
+                bangkokNow: now.toISOString(),
+                todayQuery: today.toISOString(),
+                foundAttendance: !!attendance,
+            },
             attendance: attendance
                 ? {
                     checkInTime: attendance.checkInTime?.toISOString() || null,
