@@ -175,7 +175,12 @@ export default function AnnouncementsPage() {
                                         {post.content}
                                     </CardContent>
                                     <CardFooter className="pt-0 pb-3 border-t bg-slate-50/50">
-                                        <Button variant="ghost" size="sm" className="gap-2 text-slate-500 mt-2 hover:text-slate-900">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="gap-2 text-slate-500 mt-2 hover:text-slate-900"
+                                            onClick={() => window.location.href = `/announcements/${post.id}`}
+                                        >
                                             <MessageSquare className="w-4 h-4" />
                                             {post._count.comments} ความคิดเห็น
                                         </Button>

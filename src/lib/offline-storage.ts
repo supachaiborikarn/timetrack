@@ -155,9 +155,9 @@ function getEndpointForAction(type: PendingAction['type']): string {
         case 'check-out':
             return '/api/attendance/check-out';
         case 'break-start':
-            return '/api/attendance/break/start';
+            return '/api/attendance/break-start';
         case 'break-end':
-            return '/api/attendance/break/end';
+            return '/api/attendance/break-end';
     }
 }
 
