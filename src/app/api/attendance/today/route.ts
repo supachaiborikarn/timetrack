@@ -13,6 +13,14 @@ export async function GET() {
         const now = getBangkokNow();
         const today = startOfDayBangkok(now);
 
+        // Debug logging for production
+        console.log('[today API] Debug:', {
+            userId: session.user.id,
+            nowUTC: new Date().toISOString(),
+            bangkokNow: now.toISOString(),
+            todayQuery: today.toISOString(),
+        });
+
         // Get user with station and department
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
