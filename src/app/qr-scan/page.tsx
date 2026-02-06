@@ -52,13 +52,19 @@ export default function QRScanPage() {
             // Add timestamp to prevent caching
             const todayRes = await fetch(`/api/attendance/today?t=${Date.now()}`, {
                 cache: "no-store",
-                headers: { "Pragma": "no-cache" }
+                headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
             });
             const todayData = await todayRes.json();
+
+            // Debug logging
+            console.log("[QR-SCAN] Today API Response:", JSON.stringify(todayData, null, 2));
 
             const attendance = todayData?.attendance;
             const isOnBreak = attendance?.breakStartTime && !attendance?.breakEndTime;
             const isCheckedIn = !!attendance?.checkInTime;
+
+            console.log("[QR-SCAN] isOnBreak:", isOnBreak, "isCheckedIn:", isCheckedIn);
+            console.log("[QR-SCAN] breakStartTime:", attendance?.breakStartTime, "breakEndTime:", attendance?.breakEndTime);
 
             if (isOnBreak) {
                 // Employee is on break - call break-end API
