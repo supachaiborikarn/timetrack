@@ -35,11 +35,37 @@ export async function POST(request: NextRequest) {
         const actualNow = new Date(); // Use actual UTC time
         const durationMin = Math.floor((actualNow.getTime() - breakStart.getTime()) / (1000 * 60));
 
+        // Check for Station-specific override
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            include: { station: true }
+        });
+
+        // Default global break duration
+        let ALLOWED_BREAK_MINS = 90;
+
+        // Custom logic for Supachai (SPC) -> 60 minutes
+        if (user?.station?.code === "SPC") {
+            ALLOWED_BREAK_MINS = 60;
+        }
+        // For others, we could respect shift config OR keep 90 as safety
+        else {
+            // Optional: if want to use DB shift config for others in future:
+            const assignment = await prisma.shiftAssignment.findFirst({
+                where: { userId: session.user.id, date: today },
+                include: { shift: true }
+            });
+            // Only use DB value if it exists AND is explicitly intended (e.g. > 60)
+            // For now, to be safe and match legacy behavior, we keep default 90 for non-SPC
+            if (assignment?.shift?.breakMinutes && assignment.shift.breakMinutes > 90) {
+                ALLOWED_BREAK_MINS = assignment.shift.breakMinutes;
+            }
+        }
+
         let penaltyAmount = 0;
-        const ALLOWED_BREAK_MINS = 90;
         const GRACE_PERIOD_MINS = 5;
 
-        // Penalty Logic: > 95 mins late -> deduct 1 hour wage
+        // Penalty Logic
         if (durationMin > (ALLOWED_BREAK_MINS + GRACE_PERIOD_MINS)) {
             penaltyAmount = Number(attendance.user.hourlyRate) * 1;
         }
@@ -57,7 +83,8 @@ export async function POST(request: NextRequest) {
             success: true,
             breakEndTime: actualNow,
             durationMin,
-            penaltyAmount
+            penaltyAmount,
+            allowedDuration: ALLOWED_BREAK_MINS
         });
 
     } catch (error) {
