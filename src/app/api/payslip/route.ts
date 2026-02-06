@@ -42,6 +42,15 @@ export async function GET(request: NextRequest) {
                             endDate: true,
                         },
                     },
+                    user: {
+                        select: {
+                            name: true,
+                            employeeId: true,
+                            bankName: true,
+                            bankAccountNumber: true,
+                            department: { select: { name: true } }
+                        }
+                    },
                 },
                 orderBy: { createdAt: "desc" },
                 take: 12,

@@ -114,6 +114,8 @@ export async function GET(request: NextRequest) {
                 overtimePay,
                 latePenalty,
                 totalPay,
+                bankName: emp.bankName,
+                bankAccountNumber: emp.bankAccountNumber,
             };
         });
 

@@ -398,6 +398,34 @@ export default function AdminDashboard() {
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Payroll Due Alert (Shows from 25th of month) */}
+                {new Date().getDate() >= 25 && ["ADMIN", "HR"].includes(role) && (
+                    <Card className="border-blue-500/50 bg-blue-500/5">
+                        <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-blue-500/10">
+                                        <Wallet className="w-5 h-5 text-blue-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-foreground">
+                                            ใกล้ถึงกำหนดจ่ายเงินเดือน
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            กรุณาตรวจสอบและปิดงวดบัญชีประจำเดือน
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button asChild className="shrink-0" variant="secondary">
+                                    <Link href="/admin/reports/payroll">
+                                        จัดการเงินเดือน <ArrowRight className="w-4 h-4 ml-1" />
+                                    </Link>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </>
     );

@@ -34,6 +34,7 @@ import {
     Eye,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
+import { generatePayslipPDF } from "@/lib/pdf-generator";
 
 interface Department {
     id: string;
@@ -456,17 +457,58 @@ export default function PayrollPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right text-green-400 font-bold">฿{formatCurrency(empGrandTotal)}</TableCell>
                                                     <TableCell className="text-center">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-blue-400 hover:text-blue-300 hover:bg-slate-700"
-                                                            asChild
-                                                        >
-                                                            <a href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
-                                                                <Eye className="w-4 h-4 mr-1" />
-                                                                ดูรายวัน
-                                                            </a>
-                                                        </Button>
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-blue-400 hover:text-blue-300 hover:bg-slate-700"
+                                                                asChild
+                                                            >
+                                                                <a href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
+                                                                    <Eye className="w-4 h-4 mr-1" />
+                                                                    ดูรายวัน
+                                                                </a>
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-orange-400 hover:text-orange-300 hover:bg-slate-700"
+                                                                onClick={() => {
+                                                                    const bonus = bonusAmounts[emp.id] || 0;
+                                                                    const totalPay = emp.totalPay + bonus;
+
+                                                                    // Mock object to match PDF generator expectation
+                                                                    const payslipObj = {
+                                                                        user: {
+                                                                            name: emp.name,
+                                                                            employeeId: emp.employeeId,
+                                                                            department: { name: emp.department },
+                                                                            bankName: (emp as any).bankName,
+                                                                            bankAccountNumber: (emp as any).bankAccountNumber
+                                                                        },
+                                                                        period: {
+                                                                            startDate: startDate,
+                                                                            endDate: endDate,
+                                                                            name: "Period"
+                                                                        },
+                                                                        createdAt: new Date().toISOString(),
+                                                                        basePay: emp.regularPay,
+                                                                        overtimePay: emp.overtimePay,
+                                                                        latePenalty: emp.latePenalty,
+                                                                        advanceDeduct: 0, // Not calculated in this view yet
+                                                                        otherDeduct: 0,
+                                                                        netPay: totalPay,
+                                                                        // Pass bonus as other income?
+                                                                        bonus: bonus
+                                                                    };
+
+                                                                    // We might need to adjust generator to handle bonus
+                                                                    generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+                                                                }}
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             );
