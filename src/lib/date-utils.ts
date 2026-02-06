@@ -18,17 +18,18 @@ import {
 import { th } from "date-fns/locale";
 
 // Bangkok timezone offset
-const BANGKOK_OFFSET_HOURS = 7;
-const BANGKOK_OFFSET_MS = BANGKOK_OFFSET_HOURS * 60 * 60 * 1000;
+const BANGKOK_OFFSET = 7 * 60; // +7 hours in minutes
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000; // +7 hours in ms
 
 /**
  * Get current Bangkok time as a Date object
- * Note: The returned Date represents Bangkok local time using UTC timestamp
+ * This works correctly on both client (browser) and server
  */
 export function getBangkokNow(): Date {
     const now = new Date();
-    // Add Bangkok offset to get Bangkok local time
-    return new Date(now.getTime() + BANGKOK_OFFSET_MS);
+    // Convert local time to UTC, then add Bangkok offset
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + BANGKOK_OFFSET * 60000);
 }
 
 /**
@@ -37,27 +38,29 @@ export function getBangkokNow(): Date {
  * For example: 2026-02-06 00:00:00 Bangkok = 2026-02-05 17:00:00 UTC
  * 
  * IMPORTANT: This function works correctly regardless of server timezone
+ * by calculating based on current UTC time directly
  */
 export function startOfDayBangkok(inputDate?: Date): Date {
-    // Get current UTC time
+    // Get current UTC timestamp
     const now = new Date();
-    const utcTime = now.getTime();
+    const utcTimestamp = now.getTime();
 
-    // Calculate Bangkok time
-    const bangkokTime = utcTime + BANGKOK_OFFSET_MS;
-    const bangkokDate = new Date(bangkokTime);
+    // Calculate what time it is in Bangkok right now
+    // by adding Bangkok offset to UTC
+    const bangkokTimestamp = utcTimestamp + BANGKOK_OFFSET_MS;
 
-    // Use UTC methods to extract Bangkok date components
-    // (since we shifted the time, UTC methods now give us Bangkok values)
-    const year = bangkokDate.getUTCFullYear();
-    const month = bangkokDate.getUTCMonth();
-    const day = bangkokDate.getUTCDate();
+    // Create a temp Date to extract Bangkok date components
+    // We use the shifted timestamp and UTC methods to get Bangkok date
+    const tempDate = new Date(bangkokTimestamp);
+    const year = tempDate.getUTCFullYear();
+    const month = tempDate.getUTCMonth();
+    const day = tempDate.getUTCDate();
 
-    // Create midnight Bangkok time in UTC
-    // Midnight Bangkok = that date at 00:00 UTC minus 7 hours = previous day 17:00 UTC
-    const midnightBangkokUTC = Date.UTC(year, month, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
+    // Calculate midnight Bangkok time in UTC
+    // Midnight in Bangkok = Date.UTC(year, month, day) - 7 hours
+    const midnightBangkokInUTC = Date.UTC(year, month, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
 
-    return new Date(midnightBangkokUTC);
+    return new Date(midnightBangkokInUTC);
 }
 
 /**
