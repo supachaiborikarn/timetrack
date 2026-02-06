@@ -48,8 +48,9 @@ export function useAttendance(userId: string | undefined) {
         try {
             const res = await fetch("/api/attendance/today");
             if (res.ok) {
-                const data = await res.json();
-                setTodayData(data);
+                const response = await res.json();
+                // Unwrap the data from API response structure { success, data }
+                setTodayData(response.data || response);
             }
         } catch (error) {
             console.error("Failed to fetch today data:", error);
