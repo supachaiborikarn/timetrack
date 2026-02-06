@@ -74,6 +74,7 @@ const navItems: NavItem[] = [
         title: "ตารางกะ",
         href: "/admin/shifts",
         icon: Calendar,
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
         requiredPermissions: ["shift.view", "shift.edit"],
     },
     {
