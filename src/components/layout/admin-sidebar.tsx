@@ -37,6 +37,7 @@ interface NavItem {
     icon: React.ComponentType<{ className?: string }>;
     badge?: number;
     roles?: string[];
+    requiredPermissions?: string[];
 }
 
 const navItems: NavItem[] = [
@@ -73,6 +74,7 @@ const navItems: NavItem[] = [
         title: "ตารางกะ",
         href: "/admin/shifts",
         icon: Calendar,
+        requiredPermissions: ["shift.view", "shift.edit"],
     },
     {
         title: "ประเภทกะ",
@@ -129,9 +131,10 @@ const navItems: NavItem[] = [
 
 interface AdminSidebarProps {
     pendingCount?: number;
+    userPermissions?: string[];
 }
 
-export function AdminSidebar({ pendingCount = 0 }: AdminSidebarProps) {
+export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -139,9 +142,27 @@ export function AdminSidebar({ pendingCount = 0 }: AdminSidebarProps) {
 
     const userRole = session?.user?.role || "EMPLOYEE";
 
-    const filteredNavItems = navItems.filter(
-        (item) => !item.roles || item.roles.includes(userRole)
-    );
+    // Filter nav items based on roles OR permissions
+    const filteredNavItems = navItems.filter((item) => {
+        // If no roles specified, check permissions
+        if (!item.roles) {
+            // For items without role restriction, check if user has any required permission
+            if (item.requiredPermissions) {
+                return item.requiredPermissions.some((perm: string) => userPermissions.includes(perm));
+            }
+            // Items available to all (like dashboard)
+            return true;
+        }
+        // User has the required role
+        if (item.roles.includes(userRole)) {
+            return true;
+        }
+        // User doesn't have role but may have permission
+        if (item.requiredPermissions) {
+            return item.requiredPermissions.some((perm: string) => userPermissions.includes(perm));
+        }
+        return false;
+    });
 
     const NavContent = () => (
         <div className="flex flex-col h-full">

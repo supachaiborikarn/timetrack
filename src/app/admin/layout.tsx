@@ -1,11 +1,21 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { redirect, usePathname } from "next/navigation";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+
+// Roles that always have admin access
+const ADMIN_ROLES = ["ADMIN", "HR", "MANAGER", "CASHIER"];
+
+// Permissions that grant access to specific admin pages
+const PERMISSION_PAGE_MAP: Record<string, string[]> = {
+    "/admin/shifts": ["shift.view", "shift.edit"],
+    "/admin/attendance": ["attendance.view"],
+    "/admin/approvals": ["request.approve", "attendance.approve"],
+};
 
 export default function AdminLayoutWrapper({
     children,
@@ -13,31 +23,47 @@ export default function AdminLayoutWrapper({
     children: React.ReactNode;
 }) {
     const { data: session, status } = useSession();
+    const pathname = usePathname();
     const [pendingCount, setPendingCount] = useState(0);
+    const [userPermissions, setUserPermissions] = useState<string[]>([]);
+    const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
     useEffect(() => {
-        // Fetch pending approvals count
-        const fetchPendingCount = async () => {
+        // Fetch pending approvals count and user permissions
+        const fetchData = async () => {
             try {
-                const res = await fetch("/api/admin/dashboard");
-                if (res.ok) {
-                    const data = await res.json();
+                const [dashboardRes, permRes] = await Promise.all([
+                    fetch("/api/admin/dashboard"),
+                    fetch("/api/user/permissions"),
+                ]);
+
+                if (dashboardRes.ok) {
+                    const data = await dashboardRes.json();
                     setPendingCount(data.stats?.pendingApprovals || 0);
                 }
+
+                if (permRes.ok) {
+                    const permData = await permRes.json();
+                    setUserPermissions(permData.permissions || []);
+                }
             } catch (error) {
-                console.error("Failed to fetch pending count:", error);
+                console.error("Failed to fetch data:", error);
+            } finally {
+                setPermissionsLoaded(true);
             }
         };
 
         if (session?.user?.id) {
-            fetchPendingCount();
+            fetchData();
             // Refresh every 60 seconds
-            const interval = setInterval(fetchPendingCount, 60000);
+            const interval = setInterval(fetchData, 60000);
             return () => clearInterval(interval);
+        } else {
+            setPermissionsLoaded(true);
         }
     }, [session?.user?.id]);
 
-    if (status === "loading") {
+    if (status === "loading" || !permissionsLoaded) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -45,13 +71,34 @@ export default function AdminLayoutWrapper({
         );
     }
 
-    if (!session || !session.user || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
+    const userRole = session?.user?.role || "EMPLOYEE";
+
+    // Check if user has access
+    const hasAdminRole = ADMIN_ROLES.includes(userRole);
+
+    // For EMPLOYEE role, check if they have permissions for the current page
+    let hasPermissionAccess = false;
+    if (!hasAdminRole && userRole === "EMPLOYEE") {
+        // Check if current path matches any permission-gated pages
+        for (const [pagePath, requiredPerms] of Object.entries(PERMISSION_PAGE_MAP)) {
+            if (pathname.startsWith(pagePath)) {
+                hasPermissionAccess = requiredPerms.some(perm => userPermissions.includes(perm));
+                break;
+            }
+        }
+        // Also allow access to main /admin page if they have any admin permissions
+        if (pathname === "/admin" && userPermissions.length > 0) {
+            hasPermissionAccess = true;
+        }
+    }
+
+    if (!session || !session.user || (!hasAdminRole && !hasPermissionAccess)) {
         redirect("/");
     }
 
     return (
         <div className="min-h-screen bg-background">
-            <AdminSidebar pendingCount={pendingCount} />
+            <AdminSidebar pendingCount={pendingCount} userPermissions={userPermissions} />
 
             {/* Main Content */}
             <main
@@ -68,3 +115,4 @@ export default function AdminLayoutWrapper({
         </div>
     );
 }
+
