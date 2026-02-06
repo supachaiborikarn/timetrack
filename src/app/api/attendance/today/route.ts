@@ -13,14 +13,6 @@ export async function GET() {
         const now = getBangkokNow();
         const today = startOfDayBangkok(now);
 
-        // Debug logging for production
-        console.log('[today API] Debug:', {
-            userId: session.user.id,
-            nowUTC: new Date().toISOString(),
-            bangkokNow: now.toISOString(),
-            todayQuery: today.toISOString(),
-        });
-
         // Get user with station and department
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
@@ -36,14 +28,6 @@ export async function GET() {
                 userId: session.user.id,
                 date: today,
             },
-        });
-
-        // More debug logging
-        console.log('[today API] Attendance query result:', {
-            found: !!attendance,
-            attendanceId: attendance?.id,
-            attendanceDate: attendance?.date?.toISOString(),
-            checkIn: attendance?.checkInTime?.toISOString(),
         });
 
         // Get today's shift assignment
@@ -67,13 +51,6 @@ export async function GET() {
         });
 
         return successResponse({
-            // DEBUG INFO - REMOVE AFTER FIXING
-            _debug: {
-                nowUTC: new Date().toISOString(),
-                bangkokNow: now.toISOString(),
-                todayQuery: today.toISOString(),
-                foundAttendance: !!attendance,
-            },
             attendance: attendance
                 ? {
                     checkInTime: attendance.checkInTime?.toISOString() || null,
