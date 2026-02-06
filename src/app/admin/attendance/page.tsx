@@ -108,6 +108,13 @@ export default function AttendanceReviewPage() {
     const [manualTime, setManualTime] = useState(format(getBangkokNow(), "HH:mm"));
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Break Edit State
+    const [isBreakEditOpen, setIsBreakEditOpen] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+    const [editBreakStartTime, setEditBreakStartTime] = useState("");
+    const [editBreakEndTime, setEditBreakEndTime] = useState("");
+    const [isBreakEditSubmitting, setIsBreakEditSubmitting] = useState(false);
+
     useEffect(() => {
         fetchStations();
     }, []);
@@ -244,6 +251,58 @@ export default function AttendanceReviewPage() {
             }
         } catch {
             toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
+        }
+    };
+
+    // Open break edit dialog
+    const openBreakEditDialog = (record: AttendanceRecord) => {
+        setEditingRecord(record);
+        // Convert to local datetime-local format for input
+        if (record.breakStartTime) {
+            const startDate = new Date(record.breakStartTime);
+            setEditBreakStartTime(format(startDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+            setEditBreakStartTime("");
+        }
+        if (record.breakEndTime) {
+            const endDate = new Date(record.breakEndTime);
+            setEditBreakEndTime(format(endDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+            setEditBreakEndTime("");
+        }
+        setIsBreakEditOpen(true);
+    };
+
+    // Submit break edit
+    const handleBreakEditSubmit = async () => {
+        if (!editingRecord) return;
+
+        setIsBreakEditSubmitting(true);
+        try {
+            const res = await fetch("/api/admin/attendance/break-edit", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    attendanceId: editingRecord.id,
+                    breakStartTime: editBreakStartTime ? new Date(editBreakStartTime).toISOString() : null,
+                    breakEndTime: editBreakEndTime ? new Date(editBreakEndTime).toISOString() : null,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(data.message);
+                setIsBreakEditOpen(false);
+                setEditingRecord(null);
+                fetchRecords();
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
+        } finally {
+            setIsBreakEditSubmitting(false);
         }
     };
 
@@ -779,9 +838,15 @@ export default function AttendanceReviewPage() {
                                                                     จบพักให้
                                                                 </Button>
                                                             ) : (
-                                                                <Badge variant="secondary" className="text-xs">
-                                                                    พักแล้ว {record.breakDurationMin} นาที
-                                                                </Badge>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-7 px-2 text-xs text-slate-600 border-slate-300 hover:bg-slate-50"
+                                                                    onClick={() => openBreakEditDialog(record)}
+                                                                    title="คลิกเพื่อแก้ไขเวลาพัก"
+                                                                >
+                                                                    พัก {record.breakDurationMin} นาที ✏️
+                                                                </Button>
                                                             )}
                                                         </>
                                                     )}
@@ -812,6 +877,71 @@ export default function AttendanceReviewPage() {
                     </div>
                 )}
             </Card>
+
+            {/* Break Edit Dialog */}
+            <Dialog open={isBreakEditOpen} onOpenChange={setIsBreakEditOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-orange-500/10">
+                                <Timer className="w-5 h-5 text-orange-500" />
+                            </div>
+                            แก้ไขเวลาพัก
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingRecord && (
+                                <span>
+                                    แก้ไขเวลาพักของ <strong>{editingRecord.user.name}</strong> ({editingRecord.user.employeeId})
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label className="text-sm font-medium">เวลาเริ่มพัก</Label>
+                            <Input
+                                type="datetime-local"
+                                value={editBreakStartTime}
+                                onChange={(e) => setEditBreakStartTime(e.target.value)}
+                                className="h-11"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label className="text-sm font-medium">เวลาจบพัก</Label>
+                            <Input
+                                type="datetime-local"
+                                value={editBreakEndTime}
+                                onChange={(e) => setEditBreakEndTime(e.target.value)}
+                                className="h-11"
+                            />
+                        </div>
+                        {editBreakStartTime && editBreakEndTime && (
+                            <div className="p-3 bg-muted rounded-lg">
+                                <p className="text-sm text-muted-foreground">
+                                    ระยะเวลาพัก: <strong className="text-foreground">
+                                        {Math.floor((new Date(editBreakEndTime).getTime() - new Date(editBreakStartTime).getTime()) / (1000 * 60))} นาที
+                                    </strong>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsBreakEditOpen(false)}>
+                            ยกเลิก
+                        </Button>
+                        <Button onClick={handleBreakEditSubmit} disabled={isBreakEditSubmitting} className="min-w-[100px]">
+                            {isBreakEditSubmitting ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    บันทึก
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
