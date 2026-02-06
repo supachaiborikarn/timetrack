@@ -49,10 +49,16 @@ export default function QRScanPage() {
             const deviceId = getDeviceFingerprint();
 
             // First, check if employee is on break
-            const todayRes = await fetch("/api/attendance/today");
+            // Add timestamp to prevent caching
+            const todayRes = await fetch(`/api/attendance/today?t=${Date.now()}`, {
+                cache: "no-store",
+                headers: { "Pragma": "no-cache" }
+            });
             const todayData = await todayRes.json();
 
-            const isOnBreak = todayData?.attendance?.breakStartTime && !todayData?.attendance?.breakEndTime;
+            const attendance = todayData?.attendance;
+            const isOnBreak = attendance?.breakStartTime && !attendance?.breakEndTime;
+            const isCheckedIn = !!attendance?.checkInTime;
 
             if (isOnBreak) {
                 // Employee is on break - call break-end API
@@ -86,8 +92,8 @@ export default function QRScanPage() {
                         description: data.error || "กรุณาลองใหม่",
                     });
                 }
-            } else {
-                // Normal check-in flow
+            } else if (!isCheckedIn) {
+                // Normal check-in flow (Only if NOT checked in)
                 const res = await fetch("/api/attendance/check-in", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -112,6 +118,16 @@ export default function QRScanPage() {
                         description: data.error || "กรุณาลองใหม่",
                     });
                 }
+            } else {
+                // Checked in, but NOT on break -> Maybe they want to start break? or Check out?
+                // The QR Scan page currently only supports Check-in and End-break.
+                // We should inform them instead of trying to check-in again.
+                toast.warning("คุณเช็คอินไปแล้ว", {
+                    description: "หากต้องการพักเบรก กรุณากดปุ่มพักเบรกในหน้าหลัก",
+                });
+                // Optional: Provide a way to Check Out if that's what they intended? 
+                // But for now, just stopping the error is safer.
+                setError("คุณเช็คอินไปแล้ววันนี้");
             }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้";
