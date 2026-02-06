@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDay, getBangkokNow } from "@/lib/date-utils";
+import { startOfDayBangkok, getBangkokNow } from "@/lib/date-utils";
 
 // GET: Dashboard stats for manager
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDay(now);
+        const today = startOfDayBangkok(now);
 
         // Get manager's station for filtering (if manager role)
         let stationFilter: { stationId?: string } = {};
