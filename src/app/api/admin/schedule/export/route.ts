@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
