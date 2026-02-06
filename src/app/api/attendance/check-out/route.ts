@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
-    startOfDay,
+    startOfDayBangkok,
     getBangkokNow,
     calculateWorkHours
 } from "@/lib/date-utils";
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         const localNow = getBangkokNow();
         const fullUtcNow = new Date(); // True UTC
-        const today = startOfDay(localNow);
+        const today = startOfDayBangkok(localNow);
 
         // Get today's attendance
         const attendance = await prisma.attendance.findFirst({

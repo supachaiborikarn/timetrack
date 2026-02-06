@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
-    startOfDay,
+    startOfDayBangkok,
     getBangkokNow,
     calculateLateMinutes,
     calculateLatePenalty
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
         // Use true UTC for database storage to prevent double-shifting on display
         const utcNow = new Date();
-        const today = startOfDay(localNow);
+        const today = startOfDayBangkok(localNow);
 
         // Check if already checked in today
         const existingAttendance = await prisma.attendance.findFirst({

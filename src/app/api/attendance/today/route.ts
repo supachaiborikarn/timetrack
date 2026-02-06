@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
-import { startOfDay, getBangkokNow, addDays } from "@/lib/date-utils";
+import { startOfDayBangkok, getBangkokNow, addDays } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -11,7 +11,7 @@ export async function GET() {
         }
 
         const now = getBangkokNow();
-        const today = startOfDay(now);
+        const today = startOfDayBangkok(now);
 
         // Get user with station and department
         const user = await prisma.user.findUnique({
@@ -40,7 +40,7 @@ export async function GET() {
         });
 
         // Get tomorrow's shift assignment
-        const tomorrow = startOfDay(addDays(now, 1));
+        const tomorrow = startOfDayBangkok(addDays(now, 1));
 
         const tomorrowShiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {

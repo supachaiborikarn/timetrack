@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getBangkokNow, startOfDay } from "@/lib/date-utils";
+import { getBangkokNow, startOfDayBangkok } from "@/lib/date-utils";
 
 // POST: Supervisor starts or ends break for an employee
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDay(now);
+        const today = startOfDayBangkok(now);
 
         // Find employee's attendance for today
         const attendanceRaw = await prisma.attendance.findFirst({

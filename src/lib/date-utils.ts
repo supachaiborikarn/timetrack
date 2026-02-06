@@ -30,6 +30,24 @@ export function getBangkokNow(): Date {
 }
 
 /**
+ * Get start of day in Bangkok timezone (for database queries)
+ * This returns a Date at 00:00:00 Bangkok time, represented in UTC
+ * For example: 2026-02-06 00:00:00 Bangkok = 2026-02-05 17:00:00 UTC
+ */
+export function startOfDayBangkok(date?: Date): Date {
+    const bangkokNow = date || getBangkokNow();
+    // Extract Bangkok date components 
+    const year = bangkokNow.getFullYear();
+    const month = bangkokNow.getMonth();
+    const day = bangkokNow.getDate();
+
+    // Create a Date at midnight Bangkok time, converted to UTC
+    // Bangkok is UTC+7, so midnight Bangkok = 17:00 previous day UTC
+    const utcMidnight = Date.UTC(year, month, day, 0, 0, 0, 0) - (BANGKOK_OFFSET * 60 * 1000);
+    return new Date(utcMidnight);
+}
+
+/**
  * Format date in Thai locale
  */
 export function formatThaiDate(date: Date | string, formatStr: string = "d MMM yyyy"): string {
