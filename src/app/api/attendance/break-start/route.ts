@@ -42,15 +42,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Update break start time
+        // Update break start time - use actual UTC time for database
+        const actualNow = new Date();
         await prisma.attendance.update({
             where: { id: attendance.id },
             data: {
-                breakStartTime: now,
+                breakStartTime: actualNow,
             },
         });
 
-        return NextResponse.json({ success: true, breakStartTime: now });
+        return NextResponse.json({ success: true, breakStartTime: actualNow });
 
     } catch (error) {
         console.error("Break start error:", error);

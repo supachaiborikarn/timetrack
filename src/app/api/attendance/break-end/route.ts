@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         }
 
         const breakStart = new Date(attendance.breakStartTime);
-        const breakEnd = new Date(now);
-        const durationMin = Math.floor((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60));
+        const actualNow = new Date(); // Use actual UTC time
+        const durationMin = Math.floor((actualNow.getTime() - breakStart.getTime()) / (1000 * 60));
 
         let penaltyAmount = 0;
         const ALLOWED_BREAK_MINS = 90;
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         await prisma.attendance.update({
             where: { id: attendance.id },
             data: {
-                breakEndTime: now,
+                breakEndTime: actualNow,
                 breakDurationMin: durationMin,
                 breakPenaltyAmount: penaltyAmount,
             },
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            breakEndTime: now,
+            breakEndTime: actualNow,
             durationMin,
             penaltyAmount
         });
