@@ -38,6 +38,14 @@ export async function GET() {
             },
         });
 
+        // More debug logging
+        console.log('[today API] Attendance query result:', {
+            found: !!attendance,
+            attendanceId: attendance?.id,
+            attendanceDate: attendance?.date?.toISOString(),
+            checkIn: attendance?.checkInTime?.toISOString(),
+        });
+
         // Get today's shift assignment
         const shiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {
