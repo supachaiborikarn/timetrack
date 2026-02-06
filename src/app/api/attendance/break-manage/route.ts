@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
 
         const now = getBangkokNow();
         const today = startOfDayBangkok(now);
+        // Use UTC time for database storage (matching employee APIs)
+        const utcNow = new Date();
 
         // Find employee's attendance for today
         const attendanceRaw = await prisma.attendance.findFirst({
@@ -52,13 +54,13 @@ export async function POST(request: NextRequest) {
 
             await prisma.attendance.update({
                 where: { id: attendance.id },
-                data: { breakStartTime: now },
+                data: { breakStartTime: utcNow },
             });
 
             return NextResponse.json({
                 success: true,
                 message: `เริ่มพักให้ ${attendance.user.name} เรียบร้อย`,
-                breakStartTime: now
+                breakStartTime: utcNow
             });
 
         } else if (action === 'end') {
@@ -71,8 +73,8 @@ export async function POST(request: NextRequest) {
             }
 
             const breakStart = new Date(attendance.breakStartTime);
-            const breakEnd = new Date(now);
-            const durationMin = Math.floor((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60));
+            // Use UTC time for calculation and storage (matching employee APIs)
+            const durationMin = Math.floor((utcNow.getTime() - breakStart.getTime()) / (1000 * 60));
 
             // Get employee's station for break duration override
             const employee = await prisma.user.findUnique({
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
             await prisma.attendance.update({
                 where: { id: attendance.id },
                 data: {
-                    breakEndTime: now,
+                    breakEndTime: utcNow,
                     breakDurationMin: durationMin,
                     breakPenaltyAmount: penaltyAmount,
                 },
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: `จบพักให้ ${attendance.user.name} เรียบร้อย`,
-                breakEndTime: now,
+                breakEndTime: utcNow,
                 durationMin,
                 penaltyAmount
             });
