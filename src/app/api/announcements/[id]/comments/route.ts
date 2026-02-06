@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // POST: Add a comment to an announcement
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await auth();
@@ -13,6 +13,7 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { id } = await params;
         const body = await request.json();
         const { content } = body;
 
@@ -22,7 +23,7 @@ export async function POST(
 
         // Check if announcement exists
         const announcement = await prisma.announcement.findUnique({
-            where: { id: params.id }
+            where: { id }
         });
 
         if (!announcement) {
@@ -33,11 +34,11 @@ export async function POST(
             data: {
                 content: content.trim(),
                 authorId: session.user.id,
-                announcementId: params.id
+                postId: id
             },
             include: {
                 author: {
-                    select: { name: true, nickName: true, image: true }
+                    select: { name: true, nickName: true }
                 }
             }
         });

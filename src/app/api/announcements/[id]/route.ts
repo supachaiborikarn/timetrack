@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // GET: Get a single announcement with comments
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await auth();
@@ -13,16 +13,18 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { id } = await params;
+
         const announcement = await prisma.announcement.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 author: {
-                    select: { name: true, nickName: true, image: true }
+                    select: { name: true, nickName: true }
                 },
                 comments: {
                     include: {
                         author: {
-                            select: { name: true, nickName: true, image: true }
+                            select: { name: true, nickName: true }
                         }
                     },
                     orderBy: { createdAt: "asc" }
