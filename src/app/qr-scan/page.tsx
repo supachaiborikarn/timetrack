@@ -59,7 +59,8 @@ export default function QRScanPage() {
             // Debug logging
             console.log("[QR-SCAN] Today API Response:", JSON.stringify(todayData, null, 2));
 
-            const attendance = todayData?.attendance;
+            // API returns { success, data: { attendance, ... } }
+            const attendance = todayData?.data?.attendance;
             const isOnBreak = attendance?.breakStartTime && !attendance?.breakEndTime;
             const isCheckedIn = !!attendance?.checkInTime;
 
