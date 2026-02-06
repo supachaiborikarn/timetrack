@@ -449,7 +449,7 @@ export default function ShiftManagementPage() {
         );
     }
 
-    if (!session || !["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+    if (!session || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
         redirect("/");
     }
 
