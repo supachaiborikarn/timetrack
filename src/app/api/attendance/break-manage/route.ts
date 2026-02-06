@@ -74,8 +74,21 @@ export async function POST(request: NextRequest) {
             const breakEnd = new Date(now);
             const durationMin = Math.floor((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60));
 
+            // Get employee's station for break duration override
+            const employee = await prisma.user.findUnique({
+                where: { id: employeeId },
+                include: { station: true }
+            });
+
+            // Default global break duration
+            let ALLOWED_BREAK_MINS = 90;
+
+            // Custom logic for Supachai (SPC) -> 60 minutes
+            if (employee?.station?.code === "SPC") {
+                ALLOWED_BREAK_MINS = 60;
+            }
+
             let penaltyAmount = 0;
-            const ALLOWED_BREAK_MINS = 90;
             const GRACE_PERIOD_MINS = 5;
 
             if (durationMin > (ALLOWED_BREAK_MINS + GRACE_PERIOD_MINS)) {
