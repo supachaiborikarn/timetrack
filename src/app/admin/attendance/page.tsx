@@ -47,6 +47,7 @@ import {
     TrendingUp,
     Filter,
     RefreshCw,
+    Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format, getBangkokNow, subDays } from "@/lib/date-utils";
@@ -114,6 +115,11 @@ export default function AttendanceReviewPage() {
     const [editBreakStartTime, setEditBreakStartTime] = useState("");
     const [editBreakEndTime, setEditBreakEndTime] = useState("");
     const [isBreakEditSubmitting, setIsBreakEditSubmitting] = useState(false);
+
+    // Time Edit State (inline editing)
+    const [editingTime, setEditingTime] = useState<{ recordId: string; field: "checkIn" | "checkOut" } | null>(null);
+    const [editTimeValue, setEditTimeValue] = useState("");
+    const [isTimeEditSubmitting, setIsTimeEditSubmitting] = useState(false);
 
     useEffect(() => {
         fetchStations();
@@ -304,6 +310,61 @@ export default function AttendanceReviewPage() {
         } finally {
             setIsBreakEditSubmitting(false);
         }
+    };
+
+    // Time edit functions
+    const isoToTimeInput = (isoString: string | null): string => {
+        if (!isoString) return "";
+        const date = new Date(isoString);
+        return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    };
+
+    const handleStartTimeEdit = (record: AttendanceRecord, field: "checkIn" | "checkOut") => {
+        const currentValue = field === "checkIn" ? record.checkInTime : record.checkOutTime;
+        setEditingTime({ recordId: record.id, field });
+        setEditTimeValue(isoToTimeInput(currentValue));
+    };
+
+    const handleSaveTimeEdit = async (record: AttendanceRecord) => {
+        if (!editingTime) return;
+
+        setIsTimeEditSubmitting(true);
+        try {
+            const payload: Record<string, unknown> = {
+                userId: record.user.id,
+                date: record.date,
+            };
+
+            if (editingTime.field === "checkIn") {
+                payload.checkInTime = editTimeValue || null;
+            } else {
+                payload.checkOutTime = editTimeValue || null;
+            }
+
+            const res = await fetch("/api/admin/attendance/update-time", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+                toast.success(`อัปเดตเวลา${editingTime.field === "checkIn" ? "เข้า" : "ออก"}งานสำเร็จ`);
+                fetchRecords();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการอัปเดต");
+        } finally {
+            setEditingTime(null);
+            setIsTimeEditSubmitting(false);
+        }
+    };
+
+    const handleCancelTimeEdit = () => {
+        setEditingTime(null);
+        setEditTimeValue("");
     };
 
     const handleExport = () => {
@@ -786,18 +847,92 @@ export default function AttendanceReviewPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <span className={`font-mono text-sm ${record.checkInTime ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-muted-foreground'}`}>
-                                                    {record.checkInTime
-                                                        ? format(new Date(record.checkInTime), "HH:mm")
-                                                        : "—"}
-                                                </span>
+                                                {editingTime?.recordId === record.id && editingTime?.field === "checkIn" ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Input
+                                                            type="time"
+                                                            value={editTimeValue}
+                                                            onChange={(e) => setEditTimeValue(e.target.value)}
+                                                            className="w-24 h-8 text-center text-sm"
+                                                            autoFocus
+                                                            disabled={isTimeEditSubmitting}
+                                                        />
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-green-600"
+                                                            onClick={() => handleSaveTimeEdit(record)}
+                                                            disabled={isTimeEditSubmitting}
+                                                        >
+                                                            {isTimeEditSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-red-600"
+                                                            onClick={handleCancelTimeEdit}
+                                                            disabled={isTimeEditSubmitting}
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartTimeEdit(record, "checkIn")}
+                                                        className="group inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-green-500/10 transition-colors"
+                                                    >
+                                                        <span className={`font-mono text-sm ${record.checkInTime ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-muted-foreground'}`}>
+                                                            {record.checkInTime
+                                                                ? format(new Date(record.checkInTime), "HH:mm")
+                                                                : "—"}
+                                                        </span>
+                                                        <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <span className={`font-mono text-sm ${record.checkOutTime ? 'text-orange-600 dark:text-orange-400 font-semibold' : 'text-muted-foreground'}`}>
-                                                    {record.checkOutTime
-                                                        ? format(new Date(record.checkOutTime), "HH:mm")
-                                                        : "—"}
-                                                </span>
+                                                {editingTime?.recordId === record.id && editingTime?.field === "checkOut" ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Input
+                                                            type="time"
+                                                            value={editTimeValue}
+                                                            onChange={(e) => setEditTimeValue(e.target.value)}
+                                                            className="w-24 h-8 text-center text-sm"
+                                                            autoFocus
+                                                            disabled={isTimeEditSubmitting}
+                                                        />
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-green-600"
+                                                            onClick={() => handleSaveTimeEdit(record)}
+                                                            disabled={isTimeEditSubmitting}
+                                                        >
+                                                            {isTimeEditSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-red-600"
+                                                            onClick={handleCancelTimeEdit}
+                                                            disabled={isTimeEditSubmitting}
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartTimeEdit(record, "checkOut")}
+                                                        className="group inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-orange-500/10 transition-colors"
+                                                    >
+                                                        <span className={`font-mono text-sm ${record.checkOutTime ? 'text-orange-600 dark:text-orange-400 font-semibold' : 'text-muted-foreground'}`}>
+                                                            {record.checkOutTime
+                                                                ? format(new Date(record.checkOutTime), "HH:mm")
+                                                                : "—"}
+                                                        </span>
+                                                        <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-center hidden sm:table-cell">
                                                 <span className="font-mono text-sm">
