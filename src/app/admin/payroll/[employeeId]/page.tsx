@@ -26,6 +26,7 @@ import {
     Edit2,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
+import { toast } from "sonner";
 
 interface DailyRecord {
     date: string;
@@ -100,9 +101,14 @@ export default function EmployeePayrollDetailPage() {
             if (res.ok) {
                 const json = await res.json();
                 setData(json.data);
+                const workDays = json.data?.summary?.workDays || 0;
+                toast.success(`โหลดข้อมูลสำเร็จ (${workDays} วันทำงาน)`);
+            } else {
+                toast.error("ไม่สามารถโหลดข้อมูลได้");
             }
         } catch (error) {
             console.error("Failed to fetch data:", error);
+            toast.error("เกิดข้อผิดพลาดในการโหลดข้อมูล");
         } finally {
             setIsLoading(false);
         }
