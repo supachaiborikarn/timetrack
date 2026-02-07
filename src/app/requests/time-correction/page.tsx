@@ -87,7 +87,8 @@ export default function TimeCorrectionPage() {
                 body: JSON.stringify({
                     date: selectedDate,
                     requestType,
-                    requestedTime: `${selectedDate}T${requestedTime}:00`,
+                    // Send as ISO string with timezone offset to ensure consistency
+                    requestedTime: new Date(`${selectedDate}T${requestedTime}:00`).toISOString(),
                     reason,
                 }),
             });

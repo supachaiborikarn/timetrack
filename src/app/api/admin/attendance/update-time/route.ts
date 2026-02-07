@@ -37,11 +37,10 @@ export async function PATCH(request: NextRequest) {
             if (checkInTime === null || checkInTime === "") {
                 updateData.checkInTime = null;
             } else {
-                // Parse time string (HH:mm) and combine with date
-                const [hours, minutes] = checkInTime.split(":").map(Number);
-                const inTime = new Date(dateObj);
-                inTime.setHours(hours, minutes, 0, 0);
-                updateData.checkInTime = inTime;
+                // Construct ISO string with +07:00 offset to ensure correct absolute time
+                // Format: YYYY-MM-DDTHH:mm:00+07:00
+                const dateTimeStr = `${date}T${checkInTime}:00+07:00`;
+                updateData.checkInTime = new Date(dateTimeStr);
                 updateData.checkInMethod = "ADMIN_EDIT";
             }
         }
@@ -50,11 +49,9 @@ export async function PATCH(request: NextRequest) {
             if (checkOutTime === null || checkOutTime === "") {
                 updateData.checkOutTime = null;
             } else {
-                // Parse time string (HH:mm) and combine with date
-                const [hours, minutes] = checkOutTime.split(":").map(Number);
-                const outTime = new Date(dateObj);
-                outTime.setHours(hours, minutes, 0, 0);
-                updateData.checkOutTime = outTime;
+                // Construct ISO string with +07:00 offset
+                const dateTimeStr = `${date}T${checkOutTime}:00+07:00`;
+                updateData.checkOutTime = new Date(dateTimeStr);
                 updateData.checkOutMethod = "ADMIN_EDIT";
             }
         }

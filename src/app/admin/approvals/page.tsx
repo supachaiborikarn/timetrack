@@ -20,6 +20,7 @@ import {
     XCircle,
     DollarSign,
     Calendar,
+    UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format } from "@/lib/date-utils";
@@ -56,11 +57,24 @@ interface WageRequest {
     user: { name: string; employeeId: string };
 }
 
+interface ProfileEditRequest {
+    id: string;
+    fieldName: string;
+    fieldLabel: string;
+    oldValue: string | null;
+    newValue: string;
+    status: string;
+    createdAt: string;
+    user: { name: string; employeeId: string; nickName: string | null };
+}
+
 export default function ApprovalsPage() {
     const { data: session, status } = useSession();
     const [timeCorrections, setTimeCorrections] = useState<TimeCorrection[]>([]);
     const [shiftSwaps, setShiftSwaps] = useState<ShiftSwap[]>([]);
     const [wageRequests, setWageRequests] = useState<WageRequest[]>([]);
+
+    const [profileEditRequests, setProfileEditRequests] = useState<ProfileEditRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -72,10 +86,11 @@ export default function ApprovalsPage() {
     const fetchRequests = async () => {
         setIsLoading(true);
         try {
-            const [tcRes, ssRes, wrRes] = await Promise.all([
+            const [tcRes, ssRes, wrRes, peRes] = await Promise.all([
                 fetch("/api/admin/requests/time-correction"),
                 fetch("/api/admin/requests/shift-swap"),
                 fetch("/api/admin/requests/wage").catch(() => ({ ok: false })),
+                fetch("/api/admin/requests/profile-edit").catch(() => ({ ok: false })),
             ]);
 
             if (tcRes.ok) {
@@ -89,6 +104,10 @@ export default function ApprovalsPage() {
             if ('json' in wrRes && wrRes.ok) {
                 const data = await wrRes.json();
                 setWageRequests(data.requests || []);
+            }
+            if ('json' in peRes && peRes.ok) {
+                const data = await peRes.json();
+                setProfileEditRequests(data.requests || []);
             }
         } catch (error) {
             console.error("Failed to fetch requests:", error);
@@ -133,6 +152,24 @@ export default function ApprovalsPage() {
         }
     };
 
+    const handleApproveProfileEdit = async (id: string, approved: boolean) => {
+        try {
+            const res = await fetch("/api/admin/requests/profile-edit", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+            });
+            if (res.ok) {
+                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                fetchRequests();
+            } else {
+                toast.error("เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        }
+    };
+
     if (status === "loading") {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -148,7 +185,8 @@ export default function ApprovalsPage() {
     const pendingTC = timeCorrections.filter((r) => r.status === "PENDING");
     const pendingSS = shiftSwaps.filter((r) => r.status === "PENDING" && r.targetAccepted);
     const pendingWR = wageRequests.filter((r) => r.status === "PENDING");
-    const totalPending = pendingTC.length + pendingSS.length + pendingWR.length;
+    const pendingPE = profileEditRequests.filter((r) => r.status === "PENDING");
+    const totalPending = pendingTC.length + pendingSS.length + pendingWR.length + pendingPE.length;
 
     return (
         <div className="space-y-6">
@@ -161,7 +199,7 @@ export default function ApprovalsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
                 <Card>
                     <CardContent className="py-4 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
@@ -195,10 +233,21 @@ export default function ApprovalsPage() {
                         </div>
                     </CardContent>
                 </Card>
+                <Card>
+                    <CardContent className="py-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                            <UserCog className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-foreground">{pendingPE.length}</p>
+                            <p className="text-xs text-muted-foreground">แก้ไขข้อมูล</p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Tabs defaultValue="time-correction" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="time-correction">
                         <Clock className="w-4 h-4 mr-2" />
                         แก้เวลา ({pendingTC.length})
@@ -210,6 +259,10 @@ export default function ApprovalsPage() {
                     <TabsTrigger value="wage">
                         <DollarSign className="w-4 h-4 mr-2" />
                         เบิกค่าแรง ({pendingWR.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="profile-edit">
+                        <UserCog className="w-4 h-4 mr-2" />
+                        ข้อมูล ({pendingPE.length})
                     </TabsTrigger>
                 </TabsList>
 
@@ -379,6 +432,70 @@ export default function ApprovalsPage() {
                                                     อนุมัติ
                                                 </Button>
                                                 <Button size="sm" variant="destructive">
+                                                    <XCircle className="w-4 h-4 mr-1" />
+                                                    ปฏิเสธ
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* Profile Edit Requests Tab */}
+                <TabsContent value="profile-edit" className="mt-4">
+                    {isLoading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        </div>
+                    ) : pendingPE.length === 0 ? (
+                        <Card>
+                            <CardContent className="py-12 text-center">
+                                <CheckCircle className="w-12 h-12 text-green-500/30 mx-auto mb-3" />
+                                <p className="text-muted-foreground">ไม่มีคำขอรอดำเนินการ</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingPE.map((req) => (
+                                <Card key={req.id}>
+                                    <CardContent className="py-4">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <p className="font-medium text-foreground">{req.user.name}</p>
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {req.user.employeeId}
+                                                    </Badge>
+                                                </div>
+                                                <div className="text-sm text-muted-foreground space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold">{req.fieldLabel}:</span>
+                                                        <span className="text-red-400 line-through decoration-red-400/50">{req.oldValue || "-"}</span>
+                                                        <span>→</span>
+                                                        <span className="text-green-500 font-medium">{req.newValue}</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        ขอเมื่อ: {formatThaiDate(new Date(req.createdAt), "d MMM yyyy HH:mm")}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700"
+                                                    onClick={() => handleApproveProfileEdit(req.id, true)}
+                                                >
+                                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                                    อนุมัติ
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => handleApproveProfileEdit(req.id, false)}
+                                                >
                                                     <XCircle className="w-4 h-4 mr-1" />
                                                     ปฏิเสธ
                                                 </Button>
