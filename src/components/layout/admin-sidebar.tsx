@@ -128,6 +128,12 @@ const navItems: NavItem[] = [
         icon: Shield,
         roles: ["ADMIN"],
     },
+    {
+        title: "Audit Log",
+        href: "/admin/audit-logs",
+        icon: FileText,
+        roles: ["ADMIN"],
+    },
 ];
 
 interface AdminSidebarProps {
