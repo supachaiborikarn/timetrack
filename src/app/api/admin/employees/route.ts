@@ -158,8 +158,8 @@ export async function POST(request: NextRequest) {
                 otRateMultiplier: otRateMultiplier || 1.5,
                 // New Fields Merged
                 nickName: nickname || nickName || null,
-                dailyRate: dailyRate || null,
-                baseSalary: baseSalary || null,
+                dailyRate: dailyRate || 0,
+                baseSalary: baseSalary || 0,
                 bankName: bankName || null,
                 bankAccountNumber: bankAccountNumber || null,
 

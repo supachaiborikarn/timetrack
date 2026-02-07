@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { startOfDayBangkok } from "@/lib/date-utils";
 
 // Get pending time correction requests (for managers/admin)
 export async function GET() {
@@ -84,16 +85,21 @@ export async function PUT(request: NextRequest) {
                 attendanceData.checkOutTime = updated.requestedTime;
             }
 
+            // Normalize date to match Attendance table convention (Bangkok Midnight)
+            // TimeCorrection uses UTC Midnight (00:00Z), while Attendance uses Bangkok Midnight (17:00Z prev day)
+            // startOfDayBangkok handles this conversion correctly
+            const attendanceDate = startOfDayBangkok(updated.date);
+
             await prisma.attendance.upsert({
                 where: {
                     userId_date: {
                         userId: updated.userId,
-                        date: updated.date,
+                        date: attendanceDate,
                     },
                 },
                 create: {
                     userId: updated.userId,
-                    date: updated.date,
+                    date: attendanceDate,
                     checkInTime: updated.requestType !== "CHECK_OUT" ? updated.requestedTime : undefined,
                     checkOutTime: updated.requestType !== "CHECK_IN" ? updated.requestedTime : undefined,
                     status: "APPROVED",

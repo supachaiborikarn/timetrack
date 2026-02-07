@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { startOfDayBangkok } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -50,10 +51,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Get original attendance for that date
+        // Normalize date to match Attendance table (Bangkok Midnight)
+        const attendanceDate = startOfDayBangkok(new Date(date));
+
         const attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
-                date: new Date(date),
+                date: attendanceDate,
             },
         });
 
