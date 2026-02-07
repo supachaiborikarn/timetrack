@@ -480,27 +480,29 @@ export default function AuditLogsPage() {
                                 <div className="space-y-2">
                                     <p className="text-sm text-muted-foreground">รายละเอียด</p>
                                     <div className="bg-muted rounded-lg p-4 space-y-2">
-                                        {selectedLog.details.employeeName && (
+                                        {typeof selectedLog.details.employeeName === 'string' && (
                                             <p>
                                                 <span className="text-muted-foreground">พนักงาน:</span>{" "}
-                                                <span className="font-medium">{String(selectedLog.details.employeeName)}</span>{" "}
-                                                <span className="text-xs text-muted-foreground">
-                                                    ({String(selectedLog.details.employeeId)})
-                                                </span>
+                                                <span className="font-medium">{selectedLog.details.employeeName}</span>{" "}
+                                                {typeof selectedLog.details.employeeId === 'string' && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        ({selectedLog.details.employeeId})
+                                                    </span>
+                                                )}
                                             </p>
                                         )}
-                                        {selectedLog.details.date && (
+                                        {typeof selectedLog.details.date === 'string' && (
                                             <p>
                                                 <span className="text-muted-foreground">วันที่ข้อมูล:</span>{" "}
-                                                <span className="font-medium">{String(selectedLog.details.date)}</span>
+                                                <span className="font-medium">{selectedLog.details.date}</span>
                                             </p>
                                         )}
-                                        {selectedLog.details.changes && Array.isArray(selectedLog.details.changes) && (
+                                        {Array.isArray(selectedLog.details.changes) && (
                                             <div>
                                                 <p className="text-muted-foreground mb-1">การเปลี่ยนแปลง:</p>
                                                 <ul className="list-disc list-inside space-y-1">
-                                                    {(selectedLog.details.changes as string[]).map((change, i) => (
-                                                        <li key={i} className="text-sm font-medium">{change}</li>
+                                                    {selectedLog.details.changes.map((change, i) => (
+                                                        <li key={i} className="text-sm font-medium">{String(change)}</li>
                                                     ))}
                                                 </ul>
                                             </div>
