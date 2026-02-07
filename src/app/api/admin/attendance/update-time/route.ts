@@ -28,7 +28,16 @@ export async function PATCH(request: NextRequest) {
                     date: dateObj,
                 },
             },
+            include: {
+                user: {
+                    select: { name: true, employeeId: true }
+                }
+            }
         });
+
+        // Store old values for audit log
+        const oldCheckInTime = attendance?.checkInTime?.toISOString() || null;
+        const oldCheckOutTime = attendance?.checkOutTime?.toISOString() || null;
 
         // Prepare update data
         const updateData: Record<string, unknown> = {};
@@ -78,11 +87,18 @@ export async function PATCH(request: NextRequest) {
             }
         }
 
+        const isCreating = !attendance;
+
         if (attendance) {
             // Update existing attendance
             attendance = await prisma.attendance.update({
                 where: { id: attendance.id },
                 data: updateData,
+                include: {
+                    user: {
+                        select: { name: true, employeeId: true }
+                    }
+                }
             });
         } else {
             // Create new attendance record
@@ -92,8 +108,43 @@ export async function PATCH(request: NextRequest) {
                     date: dateObj,
                     ...(updateData as object),
                 },
+                include: {
+                    user: {
+                        select: { name: true, employeeId: true }
+                    }
+                }
             });
         }
+
+        // Create Audit Log
+        const changes: string[] = [];
+        if (checkInTime !== undefined) {
+            const newCheckIn = attendance.checkInTime?.toISOString() || null;
+            changes.push(`เวลาเข้า: ${oldCheckInTime || "-"} → ${newCheckIn || "-"}`);
+        }
+        if (checkOutTime !== undefined) {
+            const newCheckOut = attendance.checkOutTime?.toISOString() || null;
+            changes.push(`เวลาออก: ${oldCheckOutTime || "-"} → ${newCheckOut || "-"}`);
+        }
+
+        await prisma.auditLog.create({
+            data: {
+                action: isCreating ? "CREATE" : "UPDATE",
+                entity: "Attendance",
+                entityId: attendance.id,
+                details: JSON.stringify({
+                    employeeId: attendance.user.employeeId,
+                    employeeName: attendance.user.name,
+                    date: date,
+                    changes: changes,
+                    oldCheckInTime,
+                    oldCheckOutTime,
+                    newCheckInTime: attendance.checkInTime?.toISOString() || null,
+                    newCheckOutTime: attendance.checkOutTime?.toISOString() || null,
+                }),
+                userId: session.user.id,
+            },
+        });
 
         return successResponse({
             id: attendance.id,

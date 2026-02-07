@@ -199,6 +199,21 @@ export async function POST(request: NextRequest) {
 
         const dateObj = new Date(date);
 
+        // Get existing override and employee info for audit
+        const existing = await prisma.dailyPayrollOverride.findUnique({
+            where: {
+                userId_date: {
+                    userId,
+                    date: dateObj,
+                },
+            },
+        });
+
+        const employee = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, employeeId: true },
+        });
+
         // Upsert override
         const override = await prisma.dailyPayrollOverride.upsert({
             where: {
@@ -218,6 +233,34 @@ export async function POST(request: NextRequest) {
                 overrideDailyWage,
                 overrideOT,
                 note,
+            },
+        });
+
+        // Create audit log
+        const changes: string[] = [];
+        if (overrideDailyWage !== undefined) {
+            changes.push(`ค่าแรง: ${existing?.overrideDailyWage?.toString() || "auto"} → ${overrideDailyWage}`);
+        }
+        if (overrideOT !== undefined) {
+            changes.push(`OT: ${existing?.overrideOT?.toString() || "auto"} → ${overrideOT}`);
+        }
+
+        await prisma.auditLog.create({
+            data: {
+                action: existing ? "UPDATE" : "CREATE",
+                entity: "DailyPayrollOverride",
+                entityId: override.id,
+                details: JSON.stringify({
+                    employeeId: employee?.employeeId,
+                    employeeName: employee?.name,
+                    date: date,
+                    changes: changes,
+                    oldDailyWage: existing?.overrideDailyWage?.toString() || null,
+                    oldOT: existing?.overrideOT?.toString() || null,
+                    newDailyWage: override.overrideDailyWage?.toString() || null,
+                    newOT: override.overrideOT?.toString() || null,
+                }),
+                userId: session.user.id,
             },
         });
 
@@ -244,12 +287,46 @@ export async function DELETE(request: NextRequest) {
             return ApiErrors.validation("userId and date are required");
         }
 
+        // Get existing override for audit
+        const existing = await prisma.dailyPayrollOverride.findUnique({
+            where: {
+                userId_date: {
+                    userId,
+                    date: new Date(date),
+                },
+            },
+        });
+
+        const employee = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, employeeId: true },
+        });
+
         await prisma.dailyPayrollOverride.deleteMany({
             where: {
                 userId,
                 date: new Date(date),
             },
         });
+
+        // Create audit log for deletion
+        if (existing) {
+            await prisma.auditLog.create({
+                data: {
+                    action: "DELETE",
+                    entity: "DailyPayrollOverride",
+                    entityId: existing.id,
+                    details: JSON.stringify({
+                        employeeId: employee?.employeeId,
+                        employeeName: employee?.name,
+                        date: date,
+                        deletedDailyWage: existing.overrideDailyWage?.toString() || null,
+                        deletedOT: existing.overrideOT?.toString() || null,
+                    }),
+                    userId: session.user.id,
+                },
+            });
+        }
 
         return successResponse({ deleted: true });
     } catch (error) {
