@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { addDays } from "@/lib/date-utils";
+
+// Helper to create Bangkok midnight from date string (YYYY-MM-DD)
+// For startDate: we want the beginning of that day in Bangkok
+// For endDate: we want the end of that day (start of next day) in Bangkok
+function parseDateStringToBangkokMidnight(dateStr: string): Date {
+    // Parse the date string as Bangkok time
+    // Input: "2026-02-08" should mean 2026-02-08 00:00:00 Bangkok (+7)
+    // Which is 2026-02-07 17:00:00 UTC
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000; // +7 hours
+    const midnightBangkokInUTC = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
+    return new Date(midnightBangkokInUTC);
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -22,11 +36,17 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Parse dates as Bangkok timezone
+        // For endDate, we want to include records up to end of that day
+        // So we add 1 day and use lt instead of lte
+        const startDateBangkok = parseDateStringToBangkokMidnight(startDate);
+        const endDateBangkok = addDays(parseDateStringToBangkokMidnight(endDate), 1);
+
         // Build where clause
         const where: Record<string, unknown> = {
             date: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
+                gte: startDateBangkok,
+                lt: endDateBangkok,
             },
         };
 

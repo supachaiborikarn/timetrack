@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { subDays, startOfDay, endOfDay, format } from "@/lib/date-utils";
+import { subDays, format, startOfDayBangkok, getBangkokNow, addDays } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -10,8 +10,8 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const now = new Date();
-        const today = startOfDay(now);
+        const now = getBangkokNow();
+        const today = startOfDayBangkok(now);
 
         // Get last 7 days for weekly chart
         const weeklyData = [];
