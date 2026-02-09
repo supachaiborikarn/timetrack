@@ -156,6 +156,52 @@ export async function GET(request: NextRequest) {
             ? Math.round((todayAttendance / todayAssignments) * 100)
             : 0;
 
+        // Combine all requests into a unified format for dashboard display
+        const allRequests: Array<{
+            id: string;
+            type: "shift_swap" | "leave" | "time_correction";
+            employeeName: string;
+            description: string;
+            createdAt: string;
+        }> = [];
+
+        // Add shift swaps
+        recentRequests.forEach((swap: any) => {
+            allRequests.push({
+                id: swap.id,
+                type: "shift_swap",
+                employeeName: swap.requester?.name || "Unknown",
+                description: `ขอสลับกะกับ ${swap.target?.name || "Unknown"}`,
+                createdAt: swap.createdAt.toISOString(),
+            });
+        });
+
+        // Add leaves
+        recentLeaves.forEach((leave: any) => {
+            allRequests.push({
+                id: leave.id,
+                type: "leave",
+                employeeName: leave.user?.name || "Unknown",
+                description: `ขอลา ${leave.leaveType === "SICK" ? "ป่วย" : leave.leaveType === "ANNUAL" ? "พักร้อน" : leave.leaveType === "PERSONAL" ? "กิจ" : leave.leaveType}`,
+                createdAt: leave.createdAt.toISOString(),
+            });
+        });
+
+        // Add time corrections
+        recentTimeCorrections.forEach((tc: any) => {
+            allRequests.push({
+                id: tc.id,
+                type: "time_correction",
+                employeeName: tc.user?.name || "Unknown",
+                description: `ขอแก้ไขเวลา${tc.correctionType === "CHECK_IN" ? "เข้างาน" : "ออกงาน"}`,
+                createdAt: tc.createdAt.toISOString(),
+            });
+        });
+
+        // Sort by createdAt descending and take top 5
+        allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const topRequests = allRequests.slice(0, 5);
+
         return NextResponse.json({
             stats: {
                 totalEmployees,
@@ -169,6 +215,7 @@ export async function GET(request: NextRequest) {
                 openShifts,
             },
             recent: {
+                requests: topRequests,
                 shiftSwaps: recentRequests,
                 leaves: recentLeaves,
                 timeCorrections: recentTimeCorrections,
