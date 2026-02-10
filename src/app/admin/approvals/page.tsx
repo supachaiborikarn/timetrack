@@ -170,6 +170,24 @@ export default function ApprovalsPage() {
         }
     };
 
+    const handleApproveWageRequest = async (id: string, approved: boolean) => {
+        try {
+            const res = await fetch("/api/admin/requests/wage", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+            });
+            if (res.ok) {
+                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                fetchRequests();
+            } else {
+                toast.error("เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        }
+    };
+
     if (status === "loading") {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -427,11 +445,19 @@ export default function ApprovalsPage() {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700"
+                                                    onClick={() => handleApproveWageRequest(req.id, true)}
+                                                >
                                                     <CheckCircle className="w-4 h-4 mr-1" />
                                                     อนุมัติ
                                                 </Button>
-                                                <Button size="sm" variant="destructive">
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => handleApproveWageRequest(req.id, false)}
+                                                >
                                                     <XCircle className="w-4 h-4 mr-1" />
                                                     ปฏิเสธ
                                                 </Button>

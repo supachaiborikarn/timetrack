@@ -31,6 +31,8 @@
     "menu.viewHistory": "ตรวจสอบการเข้า-ออก",
     "menu.requests": "คำขอทั้งหมด",
     "menu.requestsDesc": "ลากิจ / ลาป่วย / อื่นๆ",
+    "menu.salaryAdvance": "เบิกค่าแรง",
+    "menu.salaryAdvanceDesc": "ขอเบิกเงินค่าแรงล่วงหน้า",
     "menu.chat": "Team Chat & ประกาศ",
     "menu.chatDesc": "ข่าวสารและการสื่อสารในทีม",
     "menu.security": "Security",

@@ -31,6 +31,8 @@
     "menu.viewHistory": "တက်ရောက်မှုမှတ်တမ်း",
     "menu.requests": "တောင်းဆိုချက်များ",
     "menu.requestsDesc": "ခွင့် / နာမကျန်း / အခြား",
+    "menu.salaryAdvance": "ကြိုတင်လစာ",
+    "menu.salaryAdvanceDesc": "လစာကြိုတင်ထုတ်ယူရန်",
     "menu.chat": "အဖွဲ့ Chat & ကြေငြာချက်",
     "menu.chatDesc": "အဖွဲ့သတင်းနှင့်ဆက်သွယ်မှု",
     "menu.security": "လုံခြုံရေး",

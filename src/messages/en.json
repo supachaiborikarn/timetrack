@@ -31,6 +31,8 @@
     "menu.viewHistory": "Check attendance",
     "menu.requests": "All Requests",
     "menu.requestsDesc": "Leave / Sick / Other",
+    "menu.salaryAdvance": "Salary Advance",
+    "menu.salaryAdvanceDesc": "Request salary advance",
     "menu.chat": "Team Chat & Announcements",
     "menu.chatDesc": "Team news and communication",
     "menu.security": "Security",

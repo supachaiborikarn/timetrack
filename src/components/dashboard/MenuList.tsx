@@ -178,8 +178,8 @@ export function MenuList({ userRole }: MenuListProps) {
                             <Banknote className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform duration-300" />
                         </div>
                         <div>
-                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-green-400 transition-colors">เบิกค่าแรง</h3>
-                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ขอเบิกเงินค่าแรงล่วงหน้า</p>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-green-400 transition-colors">{t("menu.salaryAdvance")}</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.salaryAdvanceDesc")}</p>
                         </div>
                     </CardContent>
                 </Card>
