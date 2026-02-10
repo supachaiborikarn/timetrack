@@ -424,7 +424,10 @@ model Advance {
   userId     String
   amount     Decimal
   date       DateTime
+  month      Int?
+  year       Int?
   reason     String?
+  note       String?
   status     AdvanceStatus @default(PENDING)
   approvedBy String?
   approvedAt DateTime?
@@ -435,6 +438,7 @@ model Advance {
 
   @@index([userId, date])
   @@index([status])
+  @@index([month, year])
 }
 
 model SystemConfig {

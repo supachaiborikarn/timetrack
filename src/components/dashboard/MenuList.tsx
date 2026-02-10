@@ -12,7 +12,8 @@ import {
     MessageCircle,
     ClipboardCheck,
     ShieldCheck,
-    UserPlus
+    UserPlus,
+    Banknote,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 
@@ -164,6 +165,21 @@ export function MenuList({ userRole }: MenuListProps) {
                         <div>
                             <h3 className="text-[#F0D0C7] font-semibold group-hover:text-blue-400 transition-colors">{t("menu.requests")}</h3>
                             <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.requestsDesc")}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </a>
+
+            {/* Advance / เบิกค่าแรง */}
+            <a href="/advances" className="block group">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-green-500/50 hover:shadow-lg hover:shadow-green-900/10 transition-all duration-300 hover:-translate-y-1">
+                    <CardContent className="p-4 flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                            <Banknote className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform duration-300" />
+                        </div>
+                        <div>
+                            <h3 className="text-[#F0D0C7] font-semibold group-hover:text-green-400 transition-colors">เบิกค่าแรง</h3>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ขอเบิกเงินค่าแรงล่วงหน้า</p>
                         </div>
                     </CardContent>
                 </Card>

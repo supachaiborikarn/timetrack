@@ -29,6 +29,7 @@ import {
     Bell,
     Shield,
     FolderKanban,
+    Banknote,
 } from "lucide-react";
 
 interface NavItem {
@@ -102,6 +103,12 @@ const navItems: NavItem[] = [
         title: "เงินเดือน",
         href: "/admin/payroll",
         icon: Wallet,
+        roles: ["ADMIN", "HR"],
+    },
+    {
+        title: "เบิกค่าแรง",
+        href: "/admin/advances",
+        icon: Banknote,
         roles: ["ADMIN", "HR"],
     },
     {
