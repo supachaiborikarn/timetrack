@@ -515,7 +515,7 @@ export const AddEmployeeDialog = ({
                     baseSalary: formData.baseSalary || null,
                     otRateMultiplier: formData.otRateMultiplier,
 
-                    registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
+                    registeredStationId: formData.registeredStationId === "none" || !formData.registeredStationId ? null : formData.registeredStationId,
                 }),
             });
             const data = await res.json();
@@ -626,12 +626,11 @@ export const EditEmployeeDialog = ({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...formData,
-                    hourlyRate: formData.hourlyRate,
-                    dailyRate: formData.dailyRate || null,
-                    baseSalary: formData.baseSalary || null,
-                    otRateMultiplier: formData.otRateMultiplier,
-
-                    registeredStationId: formData.registeredStationId === "none" ? null : formData.registeredStationId,
+                    hourlyRate: formData.hourlyRate || 0,
+                    dailyRate: formData.dailyRate || 0,
+                    baseSalary: formData.baseSalary || 0,
+                    otRateMultiplier: formData.otRateMultiplier || 1.5,
+                    registeredStationId: formData.registeredStationId === "none" || !formData.registeredStationId ? null : formData.registeredStationId,
                 }),
             });
             const data = await res.json();

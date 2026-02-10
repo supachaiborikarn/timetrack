@@ -88,6 +88,10 @@ export async function PUT(
             isSocialSecurityRegistered,
             socialSecurityNumber,
             registeredStationId,
+            // Emergency Contact
+            emergencyContactName,
+            emergencyContactPhone,
+            emergencyContactRelation,
         } = body;
 
         // Check if employee exists
@@ -105,19 +109,16 @@ export async function PUT(
             role,
             stationId: stationId || null,
             departmentId: departmentId || null,
-            hourlyRate,
-            dailyRate: dailyRate || null,
-            baseSalary: baseSalary || null,
-            otRateMultiplier,
+            hourlyRate: parseFloat(hourlyRate) || 0,
+            dailyRate: parseFloat(dailyRate) || 0,
+            baseSalary: parseFloat(baseSalary) || 0,
+            otRateMultiplier: parseFloat(otRateMultiplier) || 1.5,
             isActive,
-            // New fields
-            // New fields merged
+            // Bank
             bankAccountNumber: bankAccountNumber || null,
             bankName: bankName || null,
-            // Additional CSV data
-            // Removed invalid fields: position, workHours, specialPay, housingCost
 
-            // Remote fields
+            // Personal
             gender: gender || null,
             birthDate: birthDate ? new Date(birthDate) : null,
             address: address || null,
@@ -125,9 +126,15 @@ export async function PUT(
             startDate: startDate ? new Date(startDate) : null,
             probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
 
+            // Social Security
             isSocialSecurityRegistered: isSocialSecurityRegistered || false,
             socialSecurityNumber: socialSecurityNumber || null,
             registeredStationId: registeredStationId || null,
+
+            // Emergency Contact
+            emergencyContactName: emergencyContactName || null,
+            emergencyContactPhone: emergencyContactPhone || null,
+            emergencyContactRelation: emergencyContactRelation || null,
         };
 
         // Only update PIN if provided
