@@ -33,10 +33,13 @@ export async function GET() {
                 email: e.email,
                 role: e.role,
                 hourlyRate: Number(e.hourlyRate),
+                dailyRate: Number(e.dailyRate),
+                baseSalary: Number(e.baseSalary),
                 otRateMultiplier: Number(e.otRateMultiplier),
                 isActive: e.isActive,
                 station: e.station,
                 department: e.department,
+                registeredStationId: e.registeredStationId,
                 // New Fields
                 nickName: e.nickName,
                 gender: e.gender,

@@ -85,8 +85,7 @@ interface Employee {
     bankAccountNumber: string | null;
     bankName: string | null;
     // Social security
-
-    // Remote fields (merged)
+    registeredStationId: string | null;
     registeredStation: { id: string; name: string } | null;
     isSocialSecurityRegistered: boolean;
     socialSecurityNumber: string | null;
