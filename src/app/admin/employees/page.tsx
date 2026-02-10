@@ -682,7 +682,7 @@ export default function EmployeesPage() {
                                                 {emp.station?.name || "-"}
                                                 {emp.department && <span className="text-xs block">{emp.department.name}</span>}
                                             </div>
-                                            {emp.registeredStation && emp.registeredStation.id !== emp.station?.id && (
+                                            {emp.registeredStation && (
                                                 <div className="text-xs text-orange-500/80 mt-1" title="สถานีที่ขึ้นทะเบียน">
                                                     ® {emp.registeredStation.name}
                                                 </div>
