@@ -21,6 +21,9 @@ import {
     DollarSign,
     Calendar,
     UserCog,
+    Banknote,
+    Building2,
+    Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format } from "@/lib/date-utils";
@@ -48,13 +51,23 @@ interface ShiftSwap {
     target: { name: string; employeeId: string };
 }
 
+interface Station {
+    id: string;
+    name: string;
+    code: string;
+}
+
 interface WageRequest {
     id: string;
     amount: number;
     reason: string;
     status: string;
     createdAt: string;
-    user: { name: string; employeeId: string };
+    user: {
+        name: string;
+        employeeId: string;
+        registeredStation?: { id: string; name: string; code: string } | null;
+    };
 }
 
 interface ProfileEditRequest {
@@ -77,19 +90,35 @@ export default function ApprovalsPage() {
     const [profileEditRequests, setProfileEditRequests] = useState<ProfileEditRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Wage tab extras
+    const [wageStations, setWageStations] = useState<Station[]>([]);
+    const [wageFilterStation, setWageFilterStation] = useState("");
+    const [wageTotalAmount, setWageTotalAmount] = useState(0);
+
     useEffect(() => {
         if (session?.user?.id) {
             fetchRequests();
         }
     }, [session?.user?.id]);
 
+    // Re-fetch when station filter changes
+    useEffect(() => {
+        if (session?.user?.id) {
+            fetchRequests();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wageFilterStation]);
+
     const fetchRequests = async () => {
         setIsLoading(true);
         try {
+            const wrParams = new URLSearchParams();
+            if (wageFilterStation) wrParams.set("stationId", wageFilterStation);
+
             const [tcRes, ssRes, wrRes, peRes] = await Promise.all([
                 fetch("/api/admin/requests/time-correction"),
                 fetch("/api/admin/requests/shift-swap"),
-                fetch("/api/admin/requests/wage").catch(() => ({ ok: false })),
+                fetch(`/api/admin/requests/wage?${wrParams}`).catch(() => ({ ok: false })),
                 fetch("/api/admin/requests/profile-edit").catch(() => ({ ok: false })),
             ]);
 
@@ -104,6 +133,8 @@ export default function ApprovalsPage() {
             if ('json' in wrRes && wrRes.ok) {
                 const data = await wrRes.json();
                 setWageRequests(data.requests || []);
+                setWageStations(data.stations || []);
+                setWageTotalAmount(data.totalAmount || 0);
             }
             if ('json' in peRes && peRes.ok) {
                 const data = await peRes.json();
@@ -412,7 +443,47 @@ export default function ApprovalsPage() {
                 </TabsContent>
 
                 {/* Wage Requests Tab */}
-                <TabsContent value="wage" className="mt-4">
+                <TabsContent value="wage" className="mt-4 space-y-4">
+                    {/* Station Filter + Summary */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Station Filter */}
+                        <Card className="flex-1">
+                            <CardContent className="py-3 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                    <Filter className="w-4 h-4 text-blue-500" />
+                                </div>
+                                <select
+                                    value={wageFilterStation}
+                                    onChange={(e) => setWageFilterStation(e.target.value)}
+                                    className="flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                                >
+                                    <option value="">ทุกสถานี</option>
+                                    {wageStations.map((s) => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </CardContent>
+                        </Card>
+
+                        {/* Total Amount Summary */}
+                        <Card className="flex-1">
+                            <CardContent className="py-3 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                    <Banknote className="w-4 h-4 text-green-500" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">ยอดรวมรออนุมัติ</p>
+                                    <p className="text-lg font-bold text-green-500">
+                                        ฿{wageTotalAmount.toLocaleString()}
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="ml-auto text-xs">
+                                    {pendingWR.length} รายการ
+                                </Badge>
+                            </CardContent>
+                        </Card>
+                    </div>
+
                     {isLoading ? (
                         <div className="flex justify-center py-8">
                             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -421,7 +492,9 @@ export default function ApprovalsPage() {
                         <Card>
                             <CardContent className="py-12 text-center">
                                 <CheckCircle className="w-12 h-12 text-green-500/30 mx-auto mb-3" />
-                                <p className="text-muted-foreground">ไม่มีคำขอรอดำเนินการ</p>
+                                <p className="text-muted-foreground">
+                                    {wageFilterStation ? "ไม่มีรายการสำหรับสถานีนี้" : "ไม่มีคำขอรอดำเนินการ"}
+                                </p>
                             </CardContent>
                         </Card>
                     ) : (
@@ -436,6 +509,12 @@ export default function ApprovalsPage() {
                                                     <Badge variant="outline" className="text-xs">
                                                         {req.user.employeeId}
                                                     </Badge>
+                                                    {req.user.registeredStation && (
+                                                        <Badge variant="secondary" className="text-xs gap-1">
+                                                            <Building2 className="w-3 h-3" />
+                                                            {req.user.registeredStation.name}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                                 <div className="text-sm text-muted-foreground space-y-1">
                                                     <p className="text-lg font-bold text-green-500">

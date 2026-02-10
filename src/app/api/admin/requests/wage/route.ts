@@ -3,12 +3,15 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // Get pending wage requests (Salary Advances)
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        const { searchParams } = new URL(request.url);
+        const stationId = searchParams.get("stationId");
 
         // Build where clause - only PENDING
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,22 +20,44 @@ export async function GET() {
         };
 
         // MANAGER/CASHIER can only see their station's employees
-        // Note: Relation might be user.stationId or user.registeredStationId depending on business logic
-        // For advances, usually it's about paying so registeredStationId might be more relevant, 
-        // but let's stick to standard visibility rules if any.
-        // For now, let's allow them to see all pending if they have access to this page, 
-        // or filter by user.stationId if strict.
         if (["MANAGER", "CASHIER"].includes(session.user.role) && session.user.stationId) {
             where.user = { stationId: session.user.stationId };
+        }
+
+        // Station filter from query params (overrides role-based filter for ADMIN/HR)
+        if (stationId) {
+            where.user = {
+                ...(where.user || {}),
+                registeredStationId: stationId,
+            };
         }
 
         const requests = await prisma.advance.findMany({
             where,
             include: {
-                user: { select: { name: true, employeeId: true, registeredStationId: true } },
+                user: {
+                    select: {
+                        name: true,
+                        employeeId: true,
+                        registeredStationId: true,
+                        registeredStation: {
+                            select: { id: true, name: true, code: true },
+                        },
+                    },
+                },
             },
             orderBy: { createdAt: "desc" },
             take: 100,
+        });
+
+        // Compute total amount
+        const totalAmount = requests.reduce((sum, r) => sum + Number(r.amount), 0);
+
+        // Get stations for filter dropdown
+        const stations = await prisma.station.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, code: true },
+            orderBy: { name: "asc" },
         });
 
         return NextResponse.json({
@@ -42,8 +67,14 @@ export async function GET() {
                 reason: r.reason || "-",
                 status: r.status,
                 createdAt: r.createdAt.toISOString(),
-                user: { name: r.user.name, employeeId: r.user.employeeId },
+                user: {
+                    name: r.user.name,
+                    employeeId: r.user.employeeId,
+                    registeredStation: r.user.registeredStation,
+                },
             })),
+            stations,
+            totalAmount,
         });
     } catch (error) {
         console.error("Error fetching wage requests:", error);
