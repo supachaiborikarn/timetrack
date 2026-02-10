@@ -185,6 +185,23 @@ export function MenuList({ userRole }: MenuListProps) {
                 </Card>
             </a>
 
+            {/* Manage Advances (For Cashier/Manager/HR/Admin) */}
+            {userRole && ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(userRole) && (
+                <a href="/admin/advances" className="block group">
+                    <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                                <Banknote className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+                            </div>
+                            <div>
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-emerald-400 transition-colors">จัดการเบิกค่าแรง</h3>
+                                <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">สำหรับเจ้าหน้าที่</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </a>
+            )}
+
             {/* Chat */}
             <a href="/announcements" className="col-span-full block group">
                 <Card className="bg-gradient-to-r from-[#2a2420] to-[#241705] border-orange-900/30 hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1">

@@ -27,6 +27,7 @@ import {
     CalendarDays,
     Building2,
     BarChart3,
+    Banknote,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -184,6 +185,7 @@ export default function AdminDashboard() {
         { title: "Shift Pool", icon: Shuffle, href: "/admin/shift-pool", color: "text-purple-500" },
         { title: "Availability", icon: CalendarDays, href: "/admin/availability", color: "text-pink-500" },
         { title: "เงินเดือน", icon: Wallet, href: "/admin/payroll", color: "text-green-500", roles: ["ADMIN", "HR"] },
+        { title: "เบิกค่าแรง", icon: Banknote, href: "/admin/advances", color: "text-green-500", roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
         { title: "รายงาน", icon: FileText, href: "/admin/reports", color: "text-orange-500", roles: ["ADMIN", "HR", "MANAGER"] },
         { title: "QR Codes", icon: QrCode, href: "/admin/qr-codes", color: "text-teal-500", roles: ["ADMIN", "HR"] },
     ];
