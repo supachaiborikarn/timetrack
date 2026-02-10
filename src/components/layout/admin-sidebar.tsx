@@ -109,7 +109,7 @@ const navItems: NavItem[] = [
         title: "เบิกค่าแรง",
         href: "/admin/advances",
         icon: Banknote,
-        roles: ["ADMIN", "HR"],
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
     },
     {
         title: "รายงาน",

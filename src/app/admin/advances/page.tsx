@@ -468,57 +468,61 @@ export default function AdminAdvancesPage() {
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex items-center justify-center gap-1">
-                                                        {adv.status === "PENDING" && (
+                                                        {["ADMIN", "HR"].includes(session?.user?.role || "") && (
                                                             <>
+                                                                {adv.status === "PENDING" && (
+                                                                    <>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                                                            onClick={() => handleQuickStatus(adv.id, "APPROVED")}
+                                                                            title="อนุมัติ"
+                                                                        >
+                                                                            <Check className="w-4 h-4" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                                            onClick={() => handleQuickStatus(adv.id, "REJECTED")}
+                                                                            title="ปฏิเสธ"
+                                                                        >
+                                                                            <X className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </>
+                                                                )}
+                                                                {adv.status === "APPROVED" && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                                                        onClick={() => handleQuickStatus(adv.id, "PAID")}
+                                                                        title="จ่ายแล้ว"
+                                                                    >
+                                                                        <DollarSign className="w-4 h-4" />
+                                                                    </Button>
+                                                                )}
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                                                    onClick={() => handleQuickStatus(adv.id, "APPROVED")}
-                                                                    title="อนุมัติ"
+                                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                                    onClick={() => openEdit(adv)}
+                                                                    title="แก้ไข"
                                                                 >
-                                                                    <Check className="w-4 h-4" />
+                                                                    <Edit2 className="w-3.5 h-3.5" />
                                                                 </Button>
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                                                    onClick={() => handleQuickStatus(adv.id, "REJECTED")}
-                                                                    title="ปฏิเสธ"
+                                                                    className="h-7 w-7 text-muted-foreground hover:text-red-500"
+                                                                    onClick={() => setDeleteConfirm(adv.id)}
+                                                                    title="ลบ"
                                                                 >
-                                                                    <X className="w-4 h-4" />
+                                                                    <Trash2 className="w-3.5 h-3.5" />
                                                                 </Button>
                                                             </>
                                                         )}
-                                                        {adv.status === "APPROVED" && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                                                onClick={() => handleQuickStatus(adv.id, "PAID")}
-                                                                title="จ่ายแล้ว"
-                                                            >
-                                                                <DollarSign className="w-4 h-4" />
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                            onClick={() => openEdit(adv)}
-                                                            title="แก้ไข"
-                                                        >
-                                                            <Edit2 className="w-3.5 h-3.5" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-red-500"
-                                                            onClick={() => setDeleteConfirm(adv.id)}
-                                                            title="ลบ"
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </Button>
                                                     </div>
                                                 </td>
                                             </tr>

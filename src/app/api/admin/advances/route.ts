@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
+        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
+        if (!session?.user?.id || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
         }
 
         const now = new Date();
-        const advMonth = month || now.getMonth() + 1;
-        const advYear = year || now.getFullYear();
+        const advMonth = month ? parseInt(String(month)) : now.getMonth() + 1;
+        const advYear = year ? parseInt(String(year)) : now.getFullYear();
 
         const advance = await prisma.advance.create({
             data: {
