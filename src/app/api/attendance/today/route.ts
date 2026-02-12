@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
-import { startOfDayBangkok, getBangkokNow, addDays } from "@/lib/date-utils";
+import { startOfDayBangkok, getBangkokNow, getBangkokHour, addDays, subDays } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -23,7 +23,7 @@ export async function GET() {
         });
 
         // Get today's attendance
-        const attendance = await prisma.attendance.findFirst({
+        let attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
                 date: today,
@@ -31,13 +31,43 @@ export async function GET() {
         });
 
         // Get today's shift assignment
-        const shiftAssignment = await prisma.shiftAssignment.findFirst({
+        let shiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {
                 userId: session.user.id,
                 date: today,
             },
             include: { shift: true },
         });
+
+        // Night shift cross-midnight support:
+        // If no attendance found today and it's before 10:00 AM Bangkok time,
+        // check if there's an open night shift from yesterday
+        const bangkokHour = getBangkokHour();
+        if (!attendance && bangkokHour < 10) {
+            const yesterday = startOfDayBangkok(subDays(new Date(), 1));
+            const yesterdayShiftAssignment = await prisma.shiftAssignment.findFirst({
+                where: {
+                    userId: session.user.id,
+                    date: yesterday,
+                },
+                include: { shift: true },
+            });
+
+            if (yesterdayShiftAssignment?.shift.isNightShift) {
+                const yesterdayAttendance = await prisma.attendance.findFirst({
+                    where: {
+                        userId: session.user.id,
+                        date: yesterday,
+                    },
+                });
+
+                // If checked in yesterday but not checked out, use yesterday's data
+                if (yesterdayAttendance?.checkInTime && !yesterdayAttendance?.checkOutTime) {
+                    attendance = yesterdayAttendance;
+                    shiftAssignment = yesterdayShiftAssignment;
+                }
+            }
+        }
 
         // Get tomorrow's shift assignment
         const tomorrow = startOfDayBangkok(addDays(now, 1));

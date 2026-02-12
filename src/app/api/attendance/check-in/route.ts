@@ -5,8 +5,10 @@ import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
     startOfDayBangkok,
     getBangkokNow,
+    getBangkokHour,
     calculateLateMinutes,
-    calculateLatePenalty
+    calculateLatePenalty,
+    subDays
 } from "@/lib/date-utils";
 import { isWithinGeofence } from "@/lib/geo";
 
@@ -91,6 +93,35 @@ export async function POST(request: NextRequest) {
                 400,
                 "ALREADY_CHECKED_IN"
             );
+        }
+
+        // Night shift guard: prevent new check-in if there's an open night shift from yesterday
+        if (getBangkokHour() < 10) {
+            const yesterday = startOfDayBangkok(subDays(new Date(), 1));
+            const yesterdayShiftAssignment = await prisma.shiftAssignment.findFirst({
+                where: {
+                    userId: session.user.id,
+                    date: yesterday,
+                },
+                include: { shift: true },
+            });
+
+            if (yesterdayShiftAssignment?.shift.isNightShift) {
+                const yesterdayAttendance = await prisma.attendance.findFirst({
+                    where: {
+                        userId: session.user.id,
+                        date: yesterday,
+                    },
+                });
+
+                if (yesterdayAttendance?.checkInTime && !yesterdayAttendance?.checkOutTime) {
+                    return errorResponse(
+                        "คุณยังไม่ได้เช็คเอาต์จากกะกลางคืนเมื่อวาน กรุณาเช็คเอาต์ก่อน",
+                        400,
+                        "NIGHT_SHIFT_NOT_CHECKED_OUT"
+                    );
+                }
+            }
         }
 
         // Get today's shift to calculate late minutes

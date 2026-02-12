@@ -38,14 +38,16 @@ export function getBangkokNow(): Date {
  * For example: 2026-02-06 00:00:00 Bangkok = 2026-02-05 17:00:00 UTC
  * 
  * IMPORTANT: This function works correctly regardless of server timezone
- * by calculating based on current UTC time directly
+ * by calculating based on UTC time directly
+ * 
+ * @param inputDate - Optional date to get start of day for. If not provided, uses current time.
  */
 export function startOfDayBangkok(inputDate?: Date): Date {
-    // Get current UTC timestamp
-    const now = new Date();
-    const utcTimestamp = now.getTime();
+    // Use inputDate if provided, otherwise current time
+    const baseDate = inputDate || new Date();
+    const utcTimestamp = baseDate.getTime();
 
-    // Calculate what time it is in Bangkok right now
+    // Calculate what time it is in Bangkok for the given date
     // by adding Bangkok offset to UTC
     const bangkokTimestamp = utcTimestamp + BANGKOK_OFFSET_MS;
 
@@ -61,6 +63,17 @@ export function startOfDayBangkok(inputDate?: Date): Date {
     const midnightBangkokInUTC = Date.UTC(year, month, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
 
     return new Date(midnightBangkokInUTC);
+}
+
+/**
+ * Get Bangkok hour (0-23) for a given date
+ * Useful for checking if it's morning/evening in Bangkok timezone
+ */
+export function getBangkokHour(date?: Date): number {
+    const baseDate = date || new Date();
+    const bangkokTimestamp = baseDate.getTime() + BANGKOK_OFFSET_MS;
+    const tempDate = new Date(bangkokTimestamp);
+    return tempDate.getUTCHours();
 }
 
 /**

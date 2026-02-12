@@ -5,7 +5,9 @@ import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
     startOfDayBangkok,
     getBangkokNow,
-    calculateWorkHours
+    getBangkokHour,
+    calculateWorkHours,
+    subDays
 } from "@/lib/date-utils";
 import { isWithinGeofence } from "@/lib/geo";
 
@@ -56,12 +58,42 @@ export async function POST(request: NextRequest) {
         const today = startOfDayBangkok(localNow);
 
         // Get today's attendance
-        const attendance = await prisma.attendance.findFirst({
+        let attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
                 date: today,
             },
         });
+
+        let attendanceDate = today;
+
+        // Night shift cross-midnight support:
+        // If no attendance found today and it's before 10:00 AM Bangkok time,
+        // check if there's an open night shift from yesterday
+        if ((!attendance || !attendance.checkInTime) && getBangkokHour() < 10) {
+            const yesterday = startOfDayBangkok(subDays(new Date(), 1));
+            const yesterdayShiftAssignment = await prisma.shiftAssignment.findFirst({
+                where: {
+                    userId: session.user.id,
+                    date: yesterday,
+                },
+                include: { shift: true },
+            });
+
+            if (yesterdayShiftAssignment?.shift.isNightShift) {
+                const yesterdayAttendance = await prisma.attendance.findFirst({
+                    where: {
+                        userId: session.user.id,
+                        date: yesterday,
+                    },
+                });
+
+                if (yesterdayAttendance?.checkInTime && !yesterdayAttendance?.checkOutTime) {
+                    attendance = yesterdayAttendance;
+                    attendanceDate = yesterday;
+                }
+            }
+        }
 
         if (!attendance || !attendance.checkInTime) {
             return errorResponse(
@@ -79,11 +111,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Get shift for break time calculation
+        // Get shift for break time calculation (use the correct date)
         const shiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {
                 userId: session.user.id,
-                date: today,
+                date: attendanceDate,
             },
             include: { shift: true },
         });
