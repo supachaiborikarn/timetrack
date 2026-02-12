@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok(now);
+        const today = startOfDayBangkok();
 
         // Find today's attendance
         const attendance = await prisma.attendance.findFirst({

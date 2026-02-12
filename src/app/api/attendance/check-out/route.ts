@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
         const localNow = getBangkokNow();
         const fullUtcNow = new Date(); // True UTC
-        const today = startOfDayBangkok(localNow);
+        const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
         // Get today's attendance
         let attendance = await prisma.attendance.findFirst({

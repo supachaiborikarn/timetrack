@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok(now);
+        const today = startOfDayBangkok();
         // Use UTC time for database storage (matching employee APIs)
         const utcNow = new Date();
 

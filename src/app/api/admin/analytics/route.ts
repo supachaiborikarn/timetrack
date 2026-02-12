@@ -11,7 +11,7 @@ export async function GET() {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok(now);
+        const today = startOfDayBangkok();
 
         // Get last 7 days for weekly chart
         const weeklyData = [];

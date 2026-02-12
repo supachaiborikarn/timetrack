@@ -11,7 +11,7 @@ export async function GET() {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok(now);
+        const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
         // Get user with station and department
         const user = await prisma.user.findUnique({
@@ -70,7 +70,7 @@ export async function GET() {
         }
 
         // Get tomorrow's shift assignment
-        const tomorrow = startOfDayBangkok(addDays(now, 1));
+        const tomorrow = startOfDayBangkok(addDays(new Date(), 1));
 
         const tomorrowShiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {

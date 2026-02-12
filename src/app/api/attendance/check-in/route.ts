@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         // Use true UTC for database storage to prevent double-shifting on display
         const utcNow = new Date();
-        const today = startOfDayBangkok(localNow);
+        const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
         // Check if already checked in today
         const existingAttendance = await prisma.attendance.findFirst({

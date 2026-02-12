@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok(now);
+        const today = startOfDayBangkok();
 
         // Get manager's station for filtering (if manager role)
         let stationFilter: { stationId?: string } = {};
