@@ -47,7 +47,7 @@ export async function GET() {
     }
 }
 
-// Approve/reject shift swap
+// Approve/reject shift swap (Bulk support)
 export async function PUT(request: NextRequest) {
     try {
         const session = await auth();
@@ -56,54 +56,73 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { id, status } = body;
+        const { id, ids, status } = body;
 
-        if (!id || !status) {
-            return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+        const targetIds = ids || (id ? [id] : []);
+
+        if (targetIds.length === 0 || !status) {
+            return NextResponse.json({ error: "ids (or id) and status are required" }, { status: 400 });
         }
 
-        // Get the swap request
-        const swap = await prisma.shiftSwap.findUnique({ where: { id } });
-        if (!swap) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
-        }
+        let successCount = 0;
+        let failCount = 0;
 
-        // Update shift swap status
-        await prisma.shiftSwap.update({
-            where: { id },
-            data: {
-                status,
-                approvedBy: session.user.id,
-                approvedAt: new Date(),
-            },
-        });
+        for (const targetId of targetIds) {
+            try {
+                // Get the swap request
+                const swap = await prisma.shiftSwap.findUnique({ where: { id: targetId } });
+                if (!swap) {
+                    console.warn(`Shift swap ${targetId} not found`);
+                    failCount++;
+                    continue;
+                }
 
-        // If approved, swap the shift assignments
-        if (status === "APPROVED") {
-            // Get current assignments
-            const requesterAssignment = await prisma.shiftAssignment.findFirst({
-                where: { userId: swap.requesterId, date: swap.requesterDate },
-            });
-            const targetAssignment = await prisma.shiftAssignment.findFirst({
-                where: { userId: swap.targetId, date: swap.targetDate },
-            });
+                // Update shift swap status
+                await prisma.shiftSwap.update({
+                    where: { id: targetId },
+                    data: {
+                        status,
+                        approvedBy: session.user.id,
+                        approvedAt: new Date(),
+                    },
+                });
 
-            if (requesterAssignment && targetAssignment) {
-                // Swap the shift IDs
-                await prisma.$transaction([
-                    prisma.shiftAssignment.update({
-                        where: { id: requesterAssignment.id },
-                        data: { shiftId: targetAssignment.shiftId },
-                    }),
-                    prisma.shiftAssignment.update({
-                        where: { id: targetAssignment.id },
-                        data: { shiftId: requesterAssignment.shiftId },
-                    }),
-                ]);
+                // If approved, swap the shift assignments
+                if (status === "APPROVED") {
+                    // Get current assignments
+                    const requesterAssignment = await prisma.shiftAssignment.findFirst({
+                        where: { userId: swap.requesterId, date: swap.requesterDate },
+                    });
+                    const targetAssignment = await prisma.shiftAssignment.findFirst({
+                        where: { userId: swap.targetId, date: swap.targetDate },
+                    });
+
+                    if (requesterAssignment && targetAssignment) {
+                        // Swap the shift IDs
+                        await prisma.$transaction([
+                            prisma.shiftAssignment.update({
+                                where: { id: requesterAssignment.id },
+                                data: { shiftId: targetAssignment.shiftId },
+                            }),
+                            prisma.shiftAssignment.update({
+                                where: { id: targetAssignment.id },
+                                data: { shiftId: requesterAssignment.shiftId },
+                            }),
+                        ]);
+                    }
+                }
+                successCount++;
+            } catch (error) {
+                console.error(`Error processing shift swap ${targetId}:`, error);
+                failCount++;
             }
         }
 
-        return NextResponse.json({ success: true });
+        if (successCount === 0 && failCount > 0) {
+            return NextResponse.json({ error: "Failed to process requests" }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, processed: successCount, failed: failCount });
     } catch (error) {
         console.error("Error updating shift swap:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

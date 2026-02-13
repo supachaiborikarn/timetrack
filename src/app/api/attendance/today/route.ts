@@ -22,7 +22,8 @@ export async function GET() {
             },
         });
 
-        // Get today's attendance
+        // CRITICAL FIX: improved logic to find relevant attendance
+        // 1. Try to find attendance for 'today' (strict date match)
         let attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
@@ -30,44 +31,34 @@ export async function GET() {
             },
         });
 
-        // Get today's shift assignment
-        let shiftAssignment = await prisma.shiftAssignment.findFirst({
+        // 2. If not found, check for ANY active attendance (not checked out)
+        // This handles night shifts, late checkouts, and date boundary issues
+        if (!attendance) {
+            const activeAttendance = await prisma.attendance.findFirst({
+                where: {
+                    userId: session.user.id,
+                    checkOutTime: null,
+                },
+                orderBy: { checkInTime: "desc" },
+            });
+
+            if (activeAttendance) {
+                attendance = activeAttendance;
+            }
+        }
+
+        // Determine which date to use for Shift Assignment lookup
+        // If we found an attendance, use its date. Otherwise use today.
+        const queryDate = attendance ? attendance.date : today;
+
+        // Get shift assignment for the determined date
+        const shiftAssignment = await prisma.shiftAssignment.findFirst({
             where: {
                 userId: session.user.id,
-                date: today,
+                date: queryDate,
             },
             include: { shift: true },
         });
-
-        // Night shift cross-midnight support:
-        // If no attendance found today and it's before 10:00 AM Bangkok time,
-        // check if there's an open night shift from yesterday
-        const bangkokHour = getBangkokHour();
-        if (!attendance && bangkokHour < 10) {
-            const yesterday = startOfDayBangkok(subDays(new Date(), 1));
-            const yesterdayShiftAssignment = await prisma.shiftAssignment.findFirst({
-                where: {
-                    userId: session.user.id,
-                    date: yesterday,
-                },
-                include: { shift: true },
-            });
-
-            if (yesterdayShiftAssignment?.shift.isNightShift) {
-                const yesterdayAttendance = await prisma.attendance.findFirst({
-                    where: {
-                        userId: session.user.id,
-                        date: yesterday,
-                    },
-                });
-
-                // If checked in yesterday but not checked out, use yesterday's data
-                if (yesterdayAttendance?.checkInTime && !yesterdayAttendance?.checkOutTime) {
-                    attendance = yesterdayAttendance;
-                    shiftAssignment = yesterdayShiftAssignment;
-                }
-            }
-        }
 
         // Get tomorrow's shift assignment
         const tomorrow = startOfDayBangkok(addDays(new Date(), 1));

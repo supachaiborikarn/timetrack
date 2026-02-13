@@ -57,43 +57,18 @@ export async function POST(request: NextRequest) {
         const fullUtcNow = new Date(); // True UTC
         const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
-        // Get today's attendance
+        // CRITICAL FIX: Find ANY active attendance (not checked out) regardless of date
+        // This ensures check-out works even if the date boundary was crossed weirdly
+        // or if it's a night shift from yesterday.
         let attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
-                date: today,
+                checkOutTime: null,
             },
+            orderBy: { checkInTime: "desc" },
         });
 
-        let attendanceDate = today;
-
-        // Night shift cross-midnight support:
-        // If no attendance found today and it's before 10:00 AM Bangkok time,
-        // check if there's an open night shift from yesterday
-        if ((!attendance || !attendance.checkInTime) && getBangkokHour() < 10) {
-            const yesterday = startOfDayBangkok(subDays(new Date(), 1));
-            const yesterdayShiftAssignment = await prisma.shiftAssignment.findFirst({
-                where: {
-                    userId: session.user.id,
-                    date: yesterday,
-                },
-                include: { shift: true },
-            });
-
-            if (yesterdayShiftAssignment?.shift.isNightShift) {
-                const yesterdayAttendance = await prisma.attendance.findFirst({
-                    where: {
-                        userId: session.user.id,
-                        date: yesterday,
-                    },
-                });
-
-                if (yesterdayAttendance?.checkInTime && !yesterdayAttendance?.checkOutTime) {
-                    attendance = yesterdayAttendance;
-                    attendanceDate = yesterday;
-                }
-            }
-        }
+        let attendanceDate = attendance ? attendance.date : today;
 
         if (!attendance || !attendance.checkInTime) {
             return errorResponse(

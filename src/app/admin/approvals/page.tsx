@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format } from "@/lib/date-utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TimeCorrection {
     id: string;
@@ -95,6 +96,11 @@ export default function ApprovalsPage() {
     const [wageFilterStation, setWageFilterStation] = useState("");
     const [wageTotalAmount, setWageTotalAmount] = useState(0);
 
+    // Bulk Actions State
+    const [activeTab, setActiveTab] = useState("time-correction");
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
     useEffect(() => {
         if (session?.user?.id) {
             fetchRequests();
@@ -147,75 +153,121 @@ export default function ApprovalsPage() {
         }
     };
 
-    const handleApproveTimeCorrection = async (id: string, approved: boolean) => {
+    const handleBulkAction = async (approved: boolean) => {
+        if (selectedIds.size === 0) return;
+        setIsBulkProcessing(true);
+        const ids = Array.from(selectedIds);
+
+        try {
+            if (activeTab === "time-correction") await handleApproveTimeCorrection(ids, approved);
+            else if (activeTab === "shift-swap") await handleApproveShiftSwap(ids, approved);
+            else if (activeTab === "wage") await handleApproveWageRequest(ids, approved);
+            else if (activeTab === "profile-edit") await handleApproveProfileEdit(ids, approved);
+
+            setSelectedIds(new Set()); // Clear selection on success
+        } catch (error) {
+            console.error("Bulk action failed:", error);
+            toast.error("เกิดข้อผิดพลาดในการทำรายการบางรายการ");
+        } finally {
+            setIsBulkProcessing(false);
+        }
+    };
+
+    const handleApproveTimeCorrection = async (ids: string[], approved: boolean) => {
         try {
             const res = await fetch("/api/admin/requests/time-correction", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+                body: JSON.stringify({ ids, status: approved ? "APPROVED" : "REJECTED" }),
             });
+            const data = await res.json();
             if (res.ok) {
-                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                toast.success(approved ? `อนุมัติ ${data.processed} รายการแล้ว` : `ปฏิเสธ ${data.processed} รายการแล้ว`);
                 fetchRequests();
             } else {
-                toast.error("เกิดข้อผิดพลาด");
+                toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
         }
     };
 
-    const handleApproveShiftSwap = async (id: string, approved: boolean) => {
+    const handleApproveShiftSwap = async (ids: string[], approved: boolean) => {
         try {
             const res = await fetch("/api/admin/requests/shift-swap", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+                body: JSON.stringify({ ids, status: approved ? "APPROVED" : "REJECTED" }),
             });
+            const data = await res.json();
             if (res.ok) {
-                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                toast.success(approved ? `อนุมัติ ${data.processed} รายการแล้ว` : `ปฏิเสธ ${data.processed} รายการแล้ว`);
                 fetchRequests();
             } else {
-                toast.error("เกิดข้อผิดพลาด");
+                toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
         }
     };
 
-    const handleApproveProfileEdit = async (id: string, approved: boolean) => {
+    const handleApproveProfileEdit = async (ids: string[], approved: boolean) => {
         try {
             const res = await fetch("/api/admin/requests/profile-edit", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+                body: JSON.stringify({ ids, status: approved ? "APPROVED" : "REJECTED" }),
             });
+            const data = await res.json();
             if (res.ok) {
-                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                toast.success(approved ? `อนุมัติ ${data.processed} รายการแล้ว` : `ปฏิเสธ ${data.processed} รายการแล้ว`);
                 fetchRequests();
             } else {
-                toast.error("เกิดข้อผิดพลาด");
+                toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
         }
     };
 
-    const handleApproveWageRequest = async (id: string, approved: boolean) => {
+    const handleApproveWageRequest = async (ids: string[], approved: boolean) => {
         try {
             const res = await fetch("/api/admin/requests/wage", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, status: approved ? "APPROVED" : "REJECTED" }),
+                body: JSON.stringify({ ids, status: approved ? "APPROVED" : "REJECTED" }),
             });
+            const data = await res.json();
             if (res.ok) {
-                toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว");
+                toast.success(approved ? `อนุมัติ ${data.processed} รายการแล้ว` : `ปฏิเสธ ${data.processed} รายการแล้ว`);
                 fetchRequests();
             } else {
-                toast.error("เกิดข้อผิดพลาด");
+                toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+        }
+    };
+
+    // Selection Helpers
+    const toggleSelection = (id: string) => {
+        const newSet = new Set(selectedIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedIds(newSet);
+    };
+
+    const handleSelectAll = (ids: string[]) => {
+        if (ids.every(id => selectedIds.has(id))) {
+            // Deselect all
+            const newSet = new Set(selectedIds);
+            ids.forEach(id => newSet.delete(id));
+            setSelectedIds(newSet);
+        } else {
+            // Select all
+            const newSet = new Set(selectedIds);
+            ids.forEach(id => newSet.add(id));
+            setSelectedIds(newSet);
         }
     };
 
@@ -295,7 +347,7 @@ export default function ApprovalsPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="time-correction" className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelectedIds(new Set()); }} className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="time-correction">
                         <Clock className="w-4 h-4 mr-2" />
@@ -330,48 +382,60 @@ export default function ApprovalsPage() {
                         </Card>
                     ) : (
                         <div className="space-y-3">
+                            <div className="flex justify-end pb-2">
+                                <Button variant="outline" size="sm" onClick={() => handleSelectAll(pendingTC.map(r => r.id))}>
+                                    {pendingTC.every(r => selectedIds.has(r.id)) ? "ยกเลิกเลือกทั้งหมด" : "เลือกทั้งหมด"}
+                                </Button>
+                            </div>
                             {pendingTC.map((req) => (
                                 <Card key={req.id}>
                                     <CardContent className="py-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <p className="font-medium text-foreground">{req.user.name}</p>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {req.user.employeeId}
-                                                    </Badge>
+                                        <div className="flex items-start gap-4">
+                                            <Checkbox
+                                                checked={selectedIds.has(req.id)}
+                                                onCheckedChange={() => toggleSelection(req.id)}
+                                                className="mt-1"
+                                            />
+                                            <div className="flex-1 flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <p className="font-medium text-foreground">{req.user.name}</p>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {req.user.employeeId}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground space-y-1">
+                                                        <p>วันที่: {formatThaiDate(new Date(req.date), "d MMM yyyy")}</p>
+                                                        <p>
+                                                            ประเภท:{" "}
+                                                            {req.requestType === "CHECK_IN"
+                                                                ? "เข้าเวร"
+                                                                : req.requestType === "CHECK_OUT"
+                                                                    ? "เลิกเวร"
+                                                                    : "ทั้งสอง"}
+                                                        </p>
+                                                        <p>เวลาที่ขอ: {format(new Date(req.requestedTime), "HH:mm")}</p>
+                                                        <p>เหตุผล: {req.reason}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-sm text-muted-foreground space-y-1">
-                                                    <p>วันที่: {formatThaiDate(new Date(req.date), "d MMM yyyy")}</p>
-                                                    <p>
-                                                        ประเภท:{" "}
-                                                        {req.requestType === "CHECK_IN"
-                                                            ? "เข้าเวร"
-                                                            : req.requestType === "CHECK_OUT"
-                                                                ? "เลิกเวร"
-                                                                : "ทั้งสอง"}
-                                                    </p>
-                                                    <p>เวลาที่ขอ: {format(new Date(req.requestedTime), "HH:mm")}</p>
-                                                    <p>เหตุผล: {req.reason}</p>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleApproveTimeCorrection([req.id], true)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                        อนุมัติ
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleApproveTimeCorrection([req.id], false)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        ปฏิเสธ
+                                                    </Button>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleApproveTimeCorrection(req.id, true)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    อนุมัติ
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleApproveTimeCorrection(req.id, false)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    ปฏิเสธ
-                                                </Button>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -396,43 +460,55 @@ export default function ApprovalsPage() {
                         </Card>
                     ) : (
                         <div className="space-y-3">
+                            <div className="flex justify-end pb-2">
+                                <Button variant="outline" size="sm" onClick={() => handleSelectAll(pendingSS.map(r => r.id))}>
+                                    {pendingSS.every(r => selectedIds.has(r.id)) ? "ยกเลิกเลือกทั้งหมด" : "เลือกทั้งหมด"}
+                                </Button>
+                            </div>
                             {pendingSS.map((req) => (
                                 <Card key={req.id}>
                                     <CardContent className="py-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <p className="font-medium text-foreground">
-                                                        {req.requester.name} ↔ {req.target.name}
-                                                    </p>
+                                        <div className="flex items-start gap-4">
+                                            <Checkbox
+                                                checked={selectedIds.has(req.id)}
+                                                onCheckedChange={() => toggleSelection(req.id)}
+                                                className="mt-1"
+                                            />
+                                            <div className="flex-1 flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <p className="font-medium text-foreground">
+                                                            {req.requester.name} ↔ {req.target.name}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground space-y-1">
+                                                        <p>
+                                                            {req.requester.name} ({formatThaiDate(new Date(req.requesterDate), "d MMM")})
+                                                        </p>
+                                                        <p>
+                                                            {req.target.name} ({formatThaiDate(new Date(req.targetDate), "d MMM")})
+                                                        </p>
+                                                        {req.reason && <p>เหตุผล: {req.reason}</p>}
+                                                    </div>
                                                 </div>
-                                                <div className="text-sm text-muted-foreground space-y-1">
-                                                    <p>
-                                                        {req.requester.name} ({formatThaiDate(new Date(req.requesterDate), "d MMM")})
-                                                    </p>
-                                                    <p>
-                                                        {req.target.name} ({formatThaiDate(new Date(req.targetDate), "d MMM")})
-                                                    </p>
-                                                    {req.reason && <p>เหตุผล: {req.reason}</p>}
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleApproveShiftSwap([req.id], true)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                        อนุมัติ
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleApproveShiftSwap([req.id], false)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        ปฏิเสธ
+                                                    </Button>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleApproveShiftSwap(req.id, true)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    อนุมัติ
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleApproveShiftSwap(req.id, false)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    ปฏิเสธ
-                                                </Button>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -499,47 +575,59 @@ export default function ApprovalsPage() {
                         </Card>
                     ) : (
                         <div className="space-y-3">
+                            <div className="flex justify-end pb-2">
+                                <Button variant="outline" size="sm" onClick={() => handleSelectAll(pendingWR.map(r => r.id))}>
+                                    {pendingWR.every(r => selectedIds.has(r.id)) ? "ยกเลิกเลือกทั้งหมด" : "เลือกทั้งหมด"}
+                                </Button>
+                            </div>
                             {pendingWR.map((req) => (
                                 <Card key={req.id}>
                                     <CardContent className="py-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <p className="font-medium text-foreground">{req.user.name}</p>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {req.user.employeeId}
-                                                    </Badge>
-                                                    {req.user.registeredStation && (
-                                                        <Badge variant="secondary" className="text-xs gap-1">
-                                                            <Building2 className="w-3 h-3" />
-                                                            {req.user.registeredStation.name}
+                                        <div className="flex items-start gap-4">
+                                            <Checkbox
+                                                checked={selectedIds.has(req.id)}
+                                                onCheckedChange={() => toggleSelection(req.id)}
+                                                className="mt-1"
+                                            />
+                                            <div className="flex-1 flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <p className="font-medium text-foreground">{req.user.name}</p>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {req.user.employeeId}
                                                         </Badge>
-                                                    )}
+                                                        {req.user.registeredStation && (
+                                                            <Badge variant="secondary" className="text-xs gap-1">
+                                                                <Building2 className="w-3 h-3" />
+                                                                {req.user.registeredStation.name}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground space-y-1">
+                                                        <p className="text-lg font-bold text-green-500">
+                                                            ฿{req.amount.toLocaleString()}
+                                                        </p>
+                                                        <p>เหตุผล: {req.reason}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-sm text-muted-foreground space-y-1">
-                                                    <p className="text-lg font-bold text-green-500">
-                                                        ฿{req.amount.toLocaleString()}
-                                                    </p>
-                                                    <p>เหตุผล: {req.reason}</p>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleApproveWageRequest([req.id], true)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                        อนุมัติ
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleApproveWageRequest([req.id], false)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        ปฏิเสธ
+                                                    </Button>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleApproveWageRequest(req.id, true)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    อนุมัติ
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleApproveWageRequest(req.id, false)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    ปฏิเสธ
-                                                </Button>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -564,46 +652,58 @@ export default function ApprovalsPage() {
                         </Card>
                     ) : (
                         <div className="space-y-3">
+                            <div className="flex justify-end pb-2">
+                                <Button variant="outline" size="sm" onClick={() => handleSelectAll(pendingPE.map(r => r.id))}>
+                                    {pendingPE.every(r => selectedIds.has(r.id)) ? "ยกเลิกเลือกทั้งหมด" : "เลือกทั้งหมด"}
+                                </Button>
+                            </div>
                             {pendingPE.map((req) => (
                                 <Card key={req.id}>
                                     <CardContent className="py-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <p className="font-medium text-foreground">{req.user.name}</p>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {req.user.employeeId}
-                                                    </Badge>
-                                                </div>
-                                                <div className="text-sm text-muted-foreground space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-semibold">{req.fieldLabel}:</span>
-                                                        <span className="text-red-400 line-through decoration-red-400/50">{req.oldValue || "-"}</span>
-                                                        <span>→</span>
-                                                        <span className="text-green-500 font-medium">{req.newValue}</span>
+                                        <div className="flex items-start gap-4">
+                                            <Checkbox
+                                                checked={selectedIds.has(req.id)}
+                                                onCheckedChange={() => toggleSelection(req.id)}
+                                                className="mt-1"
+                                            />
+                                            <div className="flex-1 flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <p className="font-medium text-foreground">{req.user.name}</p>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {req.user.employeeId}
+                                                        </Badge>
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        ขอเมื่อ: {formatThaiDate(new Date(req.createdAt), "d MMM yyyy HH:mm")}
-                                                    </p>
+                                                    <div className="text-sm text-muted-foreground space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-semibold">{req.fieldLabel}:</span>
+                                                            <span className="text-red-400 line-through decoration-red-400/50">{req.oldValue || "-"}</span>
+                                                            <span>→</span>
+                                                            <span className="text-green-500 font-medium">{req.newValue}</span>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            ขอเมื่อ: {formatThaiDate(new Date(req.createdAt), "d MMM yyyy HH:mm")}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleApproveProfileEdit(req.id, true)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    อนุมัติ
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => handleApproveProfileEdit(req.id, false)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    ปฏิเสธ
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        onClick={() => handleApproveProfileEdit([req.id], true)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                        อนุมัติ
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleApproveProfileEdit([req.id], false)}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        ปฏิเสธ
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -613,6 +713,36 @@ export default function ApprovalsPage() {
                     )}
                 </TabsContent>
             </Tabs>
+            {/* Bulk Action Bar */}
+            {selectedIds.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-6 py-3 rounded-full shadow-lg flex items-center gap-4 animate-in slide-in-from-bottom-5">
+                    <span className="font-medium text-sm whitespace-nowrap">
+                        เลือก {selectedIds.size} รายการ
+                    </span>
+                    <div className="h-4 w-px bg-background/20" />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            className="bg-green-600 text-white hover:bg-green-700 h-8"
+                            onClick={() => handleBulkAction(true)}
+                            disabled={isBulkProcessing}
+                        >
+                            {isBulkProcessing && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+                            อนุมัติ
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8"
+                            onClick={() => handleBulkAction(false)}
+                            disabled={isBulkProcessing}
+                        >
+                            ปฏิเสธ
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

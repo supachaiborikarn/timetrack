@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Approve/reject wage request
+// Approve/reject wage request (Bulk support)
 export async function PUT(request: NextRequest) {
     try {
         const session = await auth();
@@ -91,30 +91,47 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { id, status } = body;
+        const { id, ids, status } = body;
 
-        if (!id || !status) {
-            return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+        const targetIds = ids || (id ? [id] : []);
+
+        if (targetIds.length === 0 || !status) {
+            return NextResponse.json({ error: "ids (or id) and status are required" }, { status: 400 });
         }
 
-        // Prepare update data
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = {
-            status,
-        };
+        let successCount = 0;
+        let failCount = 0;
 
-        if (status === "APPROVED") {
-            updateData.approvedBy = session.user.id;
-            updateData.approvedAt = new Date();
+        for (const targetId of targetIds) {
+            try {
+                // Prepare update data
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const updateData: any = {
+                    status,
+                };
+
+                if (status === "APPROVED") {
+                    updateData.approvedBy = session.user.id;
+                    updateData.approvedAt = new Date();
+                }
+
+                await prisma.advance.update({
+                    where: { id: targetId },
+                    data: updateData,
+                });
+
+                successCount++;
+            } catch (error) {
+                console.error(`Error processing wage request ${targetId}:`, error);
+                failCount++;
+            }
         }
 
-        const updated = await prisma.advance.update({
-            where: { id },
-            data: updateData,
-            include: { user: true },
-        });
+        if (successCount === 0 && failCount > 0) {
+            return NextResponse.json({ error: "Failed to process requests" }, { status: 500 });
+        }
 
-        return NextResponse.json({ success: true, request: updated });
+        return NextResponse.json({ success: true, processed: successCount, failed: failCount });
     } catch (error) {
         console.error("Error updating wage request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

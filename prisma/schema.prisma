@@ -8,27 +8,27 @@ datasource db {
 }
 
 model User {
-  id                         String            @id @default(cuid())
-  employeeId                 String            @unique
-  username                   String?           @unique
+  id                         String                 @id @default(cuid())
+  employeeId                 String                 @unique
+  username                   String?                @unique
   name                       String
-  email                      String?           @unique
-  phone                      String?           @unique
+  email                      String?                @unique
+  phone                      String?                @unique
   pin                        String
   password                   String?
-  role                       Role              @default(EMPLOYEE)
+  role                       Role                   @default(EMPLOYEE)
   stationId                  String?
   departmentId               String?
   deviceId                   String?
   photoUrl                   String?
-  hourlyRate                 Decimal           @default(0)
-  dailyRate                  Decimal           @default(0)
-  baseSalary                 Decimal           @default(0)
-  otRateMultiplier           Decimal           @default(1.5)
-  isActive                   Boolean           @default(true)
-  employeeStatus             EmployeeStatus    @default(ACTIVE)
-  createdAt                  DateTime          @default(now())
-  updatedAt                  DateTime          @updatedAt
+  hourlyRate                 Decimal                @default(0)
+  dailyRate                  Decimal                @default(0)
+  baseSalary                 Decimal                @default(0)
+  otRateMultiplier           Decimal                @default(1.5)
+  isActive                   Boolean                @default(true)
+  employeeStatus             EmployeeStatus         @default(ACTIVE)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
   address                    String?
   bankAccountNumber          String?
   bankName                   String?
@@ -38,42 +38,41 @@ model User {
   emergencyContactPhone      String?
   emergencyContactRelation   String?
   gender                     String?
-  isSocialSecurityRegistered Boolean           @default(false)
+  isSocialSecurityRegistered Boolean                @default(false)
   nickName                   String?
   probationEndDate           DateTime?
   registeredStationId        String?
   socialSecurityNumber       String?
-  startDate                  DateTime?         @default(now())
+  startDate                  DateTime?              @default(now())
   advances                   Advance[]
-  approvedAttendances        Attendance[]      @relation("AttendanceApprover")
+  announcements              Announcement[]
+  approvedAttendances        Attendance[]           @relation("AttendanceApprover")
   attendances                Attendance[]
-  approvedLeaves             Leave[]           @relation("LeaveApprover")
+  auditLogs                  AuditLog[]
+  authenticators             Authenticator[]
+  comments                   Comment[]
+  dailyPayrollOverrides      DailyPayrollOverride[]
+  approvedLeaves             Leave[]                @relation("LeaveApprover")
   leaves                     Leave[]
+  notifications              Notification[]
+  overtimeRequests           OvertimeRequest[]      @relation("OvertimeRequests")
   payrollRecords             PayrollRecord[]
+  profileEditRequests        ProfileEditRequest[]
+  pushSubscriptions          PushSubscription[]
+  reviewSubmissions          ReviewSubmission[]
   shiftAssignments           ShiftAssignment[]
-  swapRequestsSent           ShiftSwap[]       @relation("SwapRequester")
+  swapRequestsSent           ShiftSwap[]            @relation("SwapRequester")
   swapRequestsReceived       ShiftSwap[]            @relation("SwapTarget")
+  specialIncomes             SpecialIncome[]
   timeCorrections            TimeCorrection[]
   department                 Department?            @relation(fields: [departmentId], references: [id])
   registeredStation          Station?               @relation("RegisteredStation", fields: [registeredStationId], references: [id])
   station                    Station?               @relation("WorkStation", fields: [stationId], references: [id])
-  profileEditRequests        ProfileEditRequest[]
-  pushSubscriptions          PushSubscription[]
-  authenticators             Authenticator[]
-  announcements              Announcement[]
-  comments                   Comment[]
-  reviewSubmissions          ReviewSubmission[]
-  auditLogs                  AuditLog[]
-  overtimeRequests           OvertimeRequest[] @relation("OvertimeRequests")
-  dailyPayrollOverrides      DailyPayrollOverride[]
-  notifications              Notification[]
-  specialIncomes             SpecialIncome[]
 
   @@index([stationId])
   @@index([departmentId])
 }
 
-// WebAuthn Authenticator
 model Authenticator {
   credentialID         String  @unique
   userId               String
@@ -88,7 +87,6 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
-// Announcements / Team Chat
 model Announcement {
   id        String    @id @default(cuid())
   title     String
@@ -104,26 +102,25 @@ model Announcement {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   content   String
   postId    String
   authorId  String
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
+  author    User         @relation(fields: [authorId], references: [id])
   post      Announcement @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User     @relation(fields: [authorId], references: [id])
 
   @@index([postId])
 }
 
-// Performance Reviews
 model ReviewPeriod {
-  id          String   @id @default(cuid())
-  title       String // e.g., "H1 2025"
+  id          String             @id @default(cuid())
+  title       String
   startDate   DateTime
   endDate     DateTime
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   submissions ReviewSubmission[]
 }
 
@@ -131,58 +128,54 @@ model ReviewSubmission {
   id            String       @id @default(cuid())
   employeeId    String
   periodId      String
-  selfReview    String       @db.Text
-  managerReview String?      @db.Text
-  rating        Int? // 1-5
-  status        String       @default("DRAFT") // DRAFT, SUBMITTED, COMPLETED
+  selfReview    String
+  managerReview String?
+  rating        Int?
+  status        String       @default("DRAFT")
   submittedAt   DateTime?
   completedAt   DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-  
   employee      User         @relation(fields: [employeeId], references: [id])
   period        ReviewPeriod @relation(fields: [periodId], references: [id])
 
   @@unique([employeeId, periodId])
 }
 
-// Security & Audit
 model AuditLog {
   id        String   @id @default(cuid())
-  action    String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
-  entity    String   // User, Shift, Announcement, etc.
+  action    String
+  entity    String
   entityId  String?
-  details   String?  // JSON or text description
+  details   String?
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
 }
 
-// Push Notification Subscription
 model PushSubscription {
   id        String   @id @default(cuid())
   endpoint  String   @unique
   p256dh    String
   auth      String
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
-// Shift Template for reusable shift patterns
 model ShiftTemplate {
   id          String   @id @default(cuid())
   name        String
   description String?
-  shifts      Json     // Array of { dayOfWeek, shiftTypeId }
+  shifts      Json
   stationId   String?
   createdById String
   createdAt   DateTime @default(now())
@@ -191,38 +184,36 @@ model ShiftTemplate {
   @@index([stationId])
 }
 
-// Leave Balance Tracking
 model LeaveBalance {
-  id           String @id @default(cuid())
-  userId       String
-  year         Int
-  sickLeave    Int    @default(30)
-  annualLeave  Int    @default(6)
-  personalLeave Int   @default(3)  
-  usedSick     Int    @default(0)
-  usedAnnual   Int    @default(0)
-  usedPersonal Int    @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  year          Int
+  sickLeave     Int      @default(30)
+  annualLeave   Int      @default(6)
+  personalLeave Int      @default(3)
+  usedSick      Int      @default(0)
+  usedAnnual    Int      @default(0)
+  usedPersonal  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([userId, year])
   @@index([userId])
 }
 
-// Overtime Request
 model OvertimeRequest {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation("OvertimeRequests", fields: [userId], references: [id], onDelete: Cascade)
-  date        DateTime
-  hours       Decimal
-  reason      String
-  status      String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  id           String    @id @default(cuid())
+  userId       String
+  date         DateTime
+  hours        Decimal
+  reason       String
+  status       String    @default("PENDING")
   approvedById String?
-  approvedAt  DateTime?
+  approvedAt   DateTime?
   rejectReason String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation("OvertimeRequests", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -425,16 +416,16 @@ model Advance {
   userId     String
   amount     Decimal
   date       DateTime
-  month      Int?
-  year       Int?
   reason     String?
-  note       String?
   status     AdvanceStatus @default(PENDING)
   approvedBy String?
   approvedAt DateTime?
   paidAt     DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+  month      Int?
+  note       String?
+  year       Int?
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
@@ -549,6 +540,79 @@ model RolePermission {
   @@index([role])
 }
 
+model ProfileEditRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  fieldName    String
+  fieldLabel   String
+  oldValue     String?
+  newValue     String
+  status       String    @default("PENDING")
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedBy   String?
+  rejectReason String?
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model DailyPayrollOverride {
+  id                String   @id @default(cuid())
+  userId            String
+  date              DateTime
+  overrideDailyWage Decimal?
+  overrideOT        Decimal?
+  note              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model SpecialIncome {
+  id          String    @id @default(cuid())
+  userId      String
+  date        DateTime
+  shiftId     String?
+  stationId   String?
+  type        String
+  description String?
+  salesAmount Decimal?
+  percentage  Decimal?
+  amount      Decimal
+  status      String    @default("PENDING")
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([stationId, date])
+  @@index([status])
+}
+
 enum Role {
   ADMIN
   HR
@@ -619,81 +683,4 @@ enum AvailabilityStatus {
   AVAILABLE
   UNAVAILABLE
   PREFERRED_OFF
-}
-
-// Profile Edit Request for approval workflow
-model ProfileEditRequest {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  fieldName    String    // e.g., "phone", "bankAccountNumber", "address"
-  fieldLabel   String    // Thai label for display e.g., "เบอร์โทร"
-  oldValue     String?
-  newValue     String
-  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  createdAt    DateTime  @default(now())
-  reviewedAt   DateTime?
-  reviewedBy   String?
-  rejectReason String?
-
-  @@index([userId])
-  @@index([status])
-}
-
-// Daily Payroll Override - Admin can override wage/OT per day
-model DailyPayrollOverride {
-  id                 String   @id @default(cuid())
-  userId             String
-  date               DateTime
-  overrideDailyWage  Decimal? // ถ้า null ใช้ค่า default จาก User.dailyRate
-  overrideOT         Decimal? // ถ้า null ใช้ค่าคำนวณอัตโนมัติ
-  note               String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date])
-  @@index([userId])
-  @@index([date])
-}
-
-// Notification Model
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String   // SHIFT_REMINDER, REQUEST_PENDING, ANNOUNCEMENT, SWAP_REQUEST, APPROVAL
-  title     String
-  message   String
-  link      String?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isRead])
-  @@index([createdAt])
-}
-
-// Special Income (Sales Commission, Bonus, Tips, etc.)
-model SpecialIncome {
-  id             String   @id @default(cuid())
-  userId         String
-  date           DateTime
-  shiftId        String?          // กะที่ได้รายได้พิเศษ
-  stationId      String?          // สถานีที่ขาย
-  type           String           // SALES_COMMISSION, BONUS, TIP, OTHER
-  description    String?          // รายละเอียด
-  salesAmount    Decimal?         // ยอดขาย (ถ้ามี)
-  percentage     Decimal?         // เปอร์เซ็นต์ที่ได้
-  amount         Decimal          // จำนวนเงินที่ได้
-  status         String   @default("PENDING")  // PENDING, APPROVED, PAID
-  approvedBy     String?
-  approvedAt     DateTime?
-  createdBy      String           // คนที่ลงข้อมูล
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
-  @@index([stationId, date])
-  @@index([status])
 }

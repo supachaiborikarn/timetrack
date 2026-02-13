@@ -79,17 +79,22 @@ export async function POST(request: NextRequest) {
         const utcNow = new Date();
         const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
-        // Check if already checked in today
-        const existingAttendance = await prisma.attendance.findFirst({
+        // CRITICAL FIX: Check for ANY active attendance (not checked out) regardless of date
+        // This prevents creating duplicate records if a user scans late (near midnight/next day boundary)
+        // or forgets to check out from yesterday.
+        const activeAttendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
-                date: today,
+                checkOutTime: null,
             },
+            orderBy: { checkInTime: "desc" },
         });
 
-        if (existingAttendance?.checkInTime) {
+        if (activeAttendance) {
+            // Optional: If the active attendance is very old (e.g. > 24 hours), maybe we should auto-close it?
+            // For now, simpler is safer: Block new check-in and tell user to check out.
             return errorResponse(
-                "คุณได้เช็คอินแล้ววันนี้",
+                "คุณยังมีรายการเช็คอินค้างอยู่ กรุณาเช็คเอาต์รายการเดิมก่อน",
                 400,
                 "ALREADY_CHECKED_IN"
             );
