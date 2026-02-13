@@ -202,6 +202,50 @@ export async function GET(request: NextRequest) {
         allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         const topRequests = allRequests.slice(0, 5);
 
+        // Monthly attendance summary for calendar widget
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        monthStart.setHours(monthStart.getHours() - 7); // Adjust for Bangkok TZ
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        monthEnd.setHours(monthEnd.getHours() - 7);
+
+        const monthlyRecords = await prisma.attendance.findMany({
+            where: {
+                date: { gte: monthStart, lte: monthEnd },
+                user: stationFilter.stationId
+                    ? { stationId: stationFilter.stationId }
+                    : { isActive: true, role: "EMPLOYEE" },
+            },
+            select: {
+                date: true,
+                status: true,
+                lateMinutes: true,
+                checkInTime: true,
+            },
+        });
+
+        // Aggregate by day
+        const dailyMap = new Map<string, { onTime: number; late: number; absent: number }>();
+        monthlyRecords.forEach((rec) => {
+            // Convert date to Bangkok date string
+            const d = new Date(rec.date.getTime() + 7 * 60 * 60 * 1000);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            if (!dailyMap.has(key)) {
+                dailyMap.set(key, { onTime: 0, late: 0, absent: 0 });
+            }
+            const entry = dailyMap.get(key)!;
+            if (!rec.checkInTime) {
+                entry.absent++;
+            } else if (rec.lateMinutes && rec.lateMinutes > 0) {
+                entry.late++;
+            } else {
+                entry.onTime++;
+            }
+        });
+
+        const monthlyAttendance = Array.from(dailyMap.entries())
+            .map(([date, counts]) => ({ date, ...counts }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+
         return NextResponse.json({
             stats: {
                 totalEmployees,
@@ -220,6 +264,7 @@ export async function GET(request: NextRequest) {
                 leaves: recentLeaves,
                 timeCorrections: recentTimeCorrections,
             },
+            monthlyAttendance,
         });
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);

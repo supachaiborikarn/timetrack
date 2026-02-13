@@ -8,4 +8,5 @@ export { QuickActionCards } from "./QuickActionCards";
 export { MenuList } from "./MenuList";
 export { OfflineIndicator } from "./OfflineIndicator";
 export { LatenessMonitorCard } from "./LatenessMonitorCard";
+export { AttendanceCalendar } from "./AttendanceCalendar";
 

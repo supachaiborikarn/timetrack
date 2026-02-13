@@ -42,6 +42,8 @@ import {
     RefreshCw,
     Loader2,
     Calendar,
+    CalendarDays,
+    LayoutGrid,
     Users,
     Trash2,
     Copy,
@@ -58,6 +60,8 @@ import { toast } from "sonner";
 import { QuickAssignPanel } from "@/components/shifts/quick-assign-panel";
 import { RowQuickFill } from "@/components/shifts/row-quick-fill";
 import { ShiftTemplateManager } from "@/components/shifts/shift-template-manager";
+import { ShiftCalendarView } from "@/components/shifts/shift-calendar-view";
+import { getShiftPastelColor, dayOffPastelColor, defaultPastelColor } from "@/lib/pastel-colors";
 
 interface Station {
     id: string;
@@ -139,6 +143,9 @@ export default function ShiftManagementPage() {
 
     // Template Manager
     const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
+
+    // View mode toggle
+    const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
 
     const months = [
         { value: 1, label: "มกราคม" },
@@ -420,21 +427,8 @@ export default function ShiftManagementPage() {
     };
 
     const getShiftColor = (code: string) => {
-        const colors: Record<string, string> = {
-            A: "bg-blue-500",
-            B: "bg-green-500",
-            C: "bg-purple-500",
-            D: "bg-orange-500",
-            E: "bg-pink-500",
-            F: "bg-cyan-500",
-            G: "bg-yellow-500",
-            H: "bg-red-400",
-            CAFE: "bg-amber-600",
-            OIL: "bg-slate-600",
-            WASH: "bg-teal-500",
-            GAS: "bg-indigo-500",
-        };
-        return colors[code] || "bg-gray-500";
+        const color = getShiftPastelColor(code);
+        return color;
     };
 
     const isCellSelected = (userId: string, date: string) => {
@@ -462,6 +456,29 @@ export default function ShiftManagementPage() {
                     <p className="text-muted-foreground">ตั้งค่าและสร้างตารางกะรายเดือน</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* View Toggle */}
+                    <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                        <button
+                            onClick={() => setViewMode("table")}
+                            className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${viewMode === "table"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                }`}
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                            ตาราง
+                        </button>
+                        <button
+                            onClick={() => setViewMode("calendar")}
+                            className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${viewMode === "calendar"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                }`}
+                        >
+                            <CalendarDays className="w-4 h-4" />
+                            ปฏิทิน
+                        </button>
+                    </div>
                     <Button
                         onClick={() => setQuickAssignOpen(true)}
                         disabled={!scheduleData}
@@ -626,16 +643,21 @@ export default function ShiftManagementPage() {
                     <CardContent className="py-3">
                         <div className="flex flex-wrap gap-2 items-center">
                             <span className="text-muted-foreground text-sm mr-2">กะ:</span>
-                            {scheduleData.shifts.map((shift) => (
-                                <Badge
-                                    key={shift.id}
-                                    className={`${getShiftColor(shift.code)} text-foreground text-xs`}
-                                >
-                                    {shift.code}: {shift.startTime}-{shift.endTime}
-                                </Badge>
-                            ))}
-                            <Badge className="bg-red-900 text-foreground text-xs">X: วันหยุด</Badge>
-                            <div className="ml-auto text-xs text-slate-500">
+                            {scheduleData.shifts.map((shift) => {
+                                const color = getShiftColor(shift.code);
+                                return (
+                                    <span
+                                        key={shift.id}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color.bg} ${color.text} ${color.border}`}
+                                    >
+                                        {shift.code}: {shift.startTime}-{shift.endTime}
+                                    </span>
+                                );
+                            })}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${dayOffPastelColor.bg} ${dayOffPastelColor.text} ${dayOffPastelColor.border}`}>
+                                X: วันหยุด
+                            </span>
+                            <div className="ml-auto text-xs text-muted-foreground">
                                 💡 Shift+คลิก เพื่อเลือกหลายช่อง
                             </div>
                         </div>
@@ -643,11 +665,13 @@ export default function ShiftManagementPage() {
                 </Card>
             )}
 
-            {/* Schedule Table */}
+            {/* Schedule View */}
             {isLoading ? (
                 <div className="flex justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
                 </div>
+            ) : scheduleData && viewMode === "calendar" ? (
+                <ShiftCalendarView scheduleData={scheduleData} />
             ) : scheduleData ? (
                 <Card className="bg-card border-border overflow-hidden">
                     <div className="overflow-x-auto">
@@ -666,7 +690,7 @@ export default function ShiftManagementPage() {
                                         return (
                                             <TableHead
                                                 key={i}
-                                                className={`text-center p-1 min-w-[36px] ${isWeekend ? "text-red-400" : "text-foreground"
+                                                className={`text-center p-1 min-w-[36px] ${isWeekend ? "text-rose-400 bg-amber-50/40 dark:bg-amber-900/5" : "text-foreground"
                                                     }`}
                                             >
                                                 {day}
@@ -711,13 +735,18 @@ export default function ShiftManagementPage() {
                                             const dateKey = `${selectedYear}-${selectedMonth.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
                                             const assignment = row.schedule[dateKey];
                                             const isSelected = isCellSelected(row.employee.id, dateKey);
+                                            const date = new Date(selectedYear, selectedMonth - 1, day);
+                                            const dayOfWeek = date.getDay();
+                                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
                                             return (
                                                 <TableCell
                                                     key={day}
                                                     className={`text-center p-1 cursor-pointer transition-all ${isSelected
-                                                        ? "bg-blue-500/30 ring-2 ring-blue-400"
-                                                        : "hover:bg-muted/50"
+                                                        ? "bg-blue-100/60 dark:bg-blue-900/30 ring-2 ring-blue-300 dark:ring-blue-600"
+                                                        : isWeekend
+                                                            ? "bg-amber-50/40 dark:bg-amber-900/5 hover:bg-amber-100/50 dark:hover:bg-amber-900/10"
+                                                            : "hover:bg-muted/50"
                                                         }`}
                                                     onClick={(e) =>
                                                         handleCellClick(
@@ -731,21 +760,18 @@ export default function ShiftManagementPage() {
                                                     }
                                                 >
                                                     {assignment ? (
-                                                        assignment.isDayOff ? (
-                                                            <span className="inline-block w-7 h-7 rounded text-xs leading-7 bg-red-900 text-foreground font-medium">
-                                                                X
-                                                            </span>
-                                                        ) : (
-                                                            <span
-                                                                className={`inline-block w-7 h-7 rounded text-xs leading-7 text-foreground font-medium ${getShiftColor(
-                                                                    assignment.shiftCode
-                                                                )}`}
-                                                            >
-                                                                {assignment.shiftCode}
-                                                            </span>
-                                                        )
+                                                        (() => {
+                                                            const color = assignment.isDayOff ? dayOffPastelColor : getShiftColor(assignment.shiftCode);
+                                                            return (
+                                                                <span
+                                                                    className={`inline-block px-1.5 py-0.5 rounded-md text-xs font-medium border ${color.bg} ${color.text} ${color.border}`}
+                                                                >
+                                                                    {assignment.isDayOff ? "X" : assignment.shiftCode}
+                                                                </span>
+                                                            );
+                                                        })()
                                                     ) : (
-                                                        <span className="inline-block w-7 h-7 rounded text-xs leading-7 text-slate-600 hover:bg-slate-600/30 hover:text-muted-foreground">
+                                                        <span className="inline-block w-7 h-7 rounded text-xs leading-7 text-muted-foreground/40 hover:bg-muted/50 hover:text-muted-foreground">
                                                             <Plus className="w-3 h-3 inline-block" />
                                                         </span>
                                                     )}
@@ -789,18 +815,21 @@ export default function ShiftManagementPage() {
                             <SelectContent className="bg-card border-border">
                                 <SelectItem value="DAYOFF">
                                     <span className="flex items-center gap-2">
-                                        <span className="w-4 h-4 rounded bg-red-900"></span>
+                                        <span className={`w-4 h-4 rounded border ${dayOffPastelColor.bg} ${dayOffPastelColor.border}`}></span>
                                         วันหยุด (X)
                                     </span>
                                 </SelectItem>
-                                {scheduleData?.shifts.map((shift) => (
-                                    <SelectItem key={shift.id} value={shift.id}>
-                                        <span className="flex items-center gap-2">
-                                            <span className={`w-4 h-4 rounded ${getShiftColor(shift.code)}`}></span>
-                                            {shift.code}: {shift.startTime}-{shift.endTime}
-                                        </span>
-                                    </SelectItem>
-                                ))}
+                                {scheduleData?.shifts.map((shift) => {
+                                    const color = getShiftColor(shift.code);
+                                    return (
+                                        <SelectItem key={shift.id} value={shift.id}>
+                                            <span className="flex items-center gap-2">
+                                                <span className={`w-4 h-4 rounded border ${color.bg} ${color.border}`}></span>
+                                                {shift.code}: {shift.startTime}-{shift.endTime}
+                                            </span>
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                     </div>
@@ -851,18 +880,21 @@ export default function ShiftManagementPage() {
                             <SelectContent className="bg-card border-border">
                                 <SelectItem value="DAYOFF">
                                     <span className="flex items-center gap-2">
-                                        <span className="w-4 h-4 rounded bg-red-900"></span>
+                                        <span className={`w-4 h-4 rounded border ${dayOffPastelColor.bg} ${dayOffPastelColor.border}`}></span>
                                         วันหยุด (X)
                                     </span>
                                 </SelectItem>
-                                {scheduleData?.shifts.map((shift) => (
-                                    <SelectItem key={shift.id} value={shift.id}>
-                                        <span className="flex items-center gap-2">
-                                            <span className={`w-4 h-4 rounded ${getShiftColor(shift.code)}`}></span>
-                                            {shift.code}: {shift.startTime}-{shift.endTime}
-                                        </span>
-                                    </SelectItem>
-                                ))}
+                                {scheduleData?.shifts.map((shift) => {
+                                    const color = getShiftColor(shift.code);
+                                    return (
+                                        <SelectItem key={shift.id} value={shift.id}>
+                                            <span className="flex items-center gap-2">
+                                                <span className={`w-4 h-4 rounded border ${color.bg} ${color.border}`}></span>
+                                                {shift.code}: {shift.startTime}-{shift.endTime}
+                                            </span>
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                     </div>

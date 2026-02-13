@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceChart, LatenessTrendChart } from "@/components/analytics";
+import { AttendanceCalendar } from "@/components/dashboard";
+import { statCardColors } from "@/lib/pastel-colors";
 
 import {
     Users,
@@ -55,6 +57,13 @@ interface AnalyticsData {
     trend: Array<{ date: string; lateCount: number; avgLateMinutes: number }>;
 }
 
+interface MonthlyAttendanceDay {
+    date: string;
+    onTime: number;
+    late: number;
+    absent: number;
+}
+
 // Helper functions moved outside component for performance
 const getRequestIcon = (type: string) => {
     switch (type) {
@@ -87,6 +96,7 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+    const [monthlyAttendance, setMonthlyAttendance] = useState<MonthlyAttendanceDay[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -103,6 +113,7 @@ export default function AdminDashboard() {
                 const data = await res.json();
                 setStats(data.stats);
                 setRecentRequests(data.recent?.requests || []);
+                setMonthlyAttendance(data.monthlyAttendance || []);
             }
         } catch (error) {
             console.error("Failed to fetch dashboard data:", error);
@@ -142,8 +153,8 @@ export default function AdminDashboard() {
             title: "พนักงานทั้งหมด",
             value: stats?.totalEmployees || 0,
             icon: Users,
-            color: "text-blue-500",
-            bgColor: "bg-blue-500/10",
+            color: statCardColors.employees.icon,
+            bgColor: statCardColors.employees.iconBg,
             href: "/admin/employees",
             roles: ["ADMIN", "HR"],
         },
@@ -152,16 +163,16 @@ export default function AdminDashboard() {
             value: `${stats?.todayAttendance || 0}/${stats?.todayExpected || 0}`,
             subtitle: `${stats?.attendanceRate || 0}%`,
             icon: Clock,
-            color: "text-green-500",
-            bgColor: "bg-green-500/10",
+            color: statCardColors.attendance.icon,
+            bgColor: statCardColors.attendance.iconBg,
             href: "/admin/attendance",
         },
         {
             title: "รอการอนุมัติ",
             value: stats?.pendingApprovals || 0,
             icon: ClipboardCheck,
-            color: stats?.pendingApprovals && stats.pendingApprovals > 0 ? "text-amber-500" : "text-slate-500",
-            bgColor: stats?.pendingApprovals && stats.pendingApprovals > 0 ? "bg-amber-500/10" : "bg-slate-500/10",
+            color: stats?.pendingApprovals && stats.pendingApprovals > 0 ? "text-amber-500 dark:text-amber-400" : "text-slate-500",
+            bgColor: stats?.pendingApprovals && stats.pendingApprovals > 0 ? statCardColors.approvals.iconBg : "bg-slate-100 dark:bg-slate-800/40",
             href: "/admin/approvals",
             badge: stats?.pendingApprovals ? stats.pendingApprovals : undefined,
         },
@@ -169,8 +180,8 @@ export default function AdminDashboard() {
             title: "Open Shifts",
             value: stats?.openShifts || 0,
             icon: Shuffle,
-            color: "text-purple-500",
-            bgColor: "bg-purple-500/10",
+            color: statCardColors.shifts.icon,
+            bgColor: statCardColors.shifts.iconBg,
             href: "/admin/shift-pool",
         },
     ];
@@ -340,6 +351,9 @@ export default function AdminDashboard() {
                     </Card>
                 </div>
 
+                {/* Attendance Calendar Widget */}
+                <AttendanceCalendar data={monthlyAttendance} />
+
                 {/* Analytics Charts */}
                 {analytics && (
                     <div className="grid lg:grid-cols-2 gap-6">
@@ -375,12 +389,12 @@ export default function AdminDashboard() {
 
                 {/* Approval Summary (if pending) */}
                 {stats && stats.pendingApprovals > 0 && (
-                    <Card className="border-amber-500/50 bg-amber-500/5">
+                    <Card className="border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/10">
                         <CardContent className="p-4">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-amber-500/10">
-                                        <AlertCircle className="w-5 h-5 text-amber-500" />
+                                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                                        <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                                     </div>
                                     <div>
                                         <p className="font-medium text-foreground">
