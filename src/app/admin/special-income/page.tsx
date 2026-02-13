@@ -776,8 +776,12 @@ export default function SpecialIncomePage() {
                             <CardContent className="py-3 flex items-center gap-3">
                                 <DollarSign className="w-8 h-8 text-emerald-500 shrink-0" />
                                 <div>
-                                    <p className="text-xl font-bold text-emerald-500">฿{formatCurrency(dailyTotal)}</p>
-                                    <p className="text-xs text-muted-foreground">รวมวันนี้</p>
+                                    <p className="text-xl font-bold text-emerald-500">
+                                        ฿{formatCurrency(dailyRangeMode === "day" ? dailyTotal : (summary?.totalAmount || 0))}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {dailyRangeMode === "day" ? "รวมวันนี้" : "รวมช่วงที่เลือก"}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -785,8 +789,12 @@ export default function SpecialIncomePage() {
                             <CardContent className="py-3 flex items-center gap-3">
                                 <Users className="w-8 h-8 text-purple-400 shrink-0" />
                                 <div>
-                                    <p className="text-xl font-bold text-purple-400">{clerks.length}</p>
-                                    <p className="text-xs text-muted-foreground">เสมียน</p>
+                                    <p className="text-xl font-bold text-purple-400">
+                                        {dailyRangeMode === "day" ? clerks.length : (summary?.uniqueEmployees || 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {dailyRangeMode === "day" ? "เสมียน" : "พนักงาน"}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -795,9 +803,13 @@ export default function SpecialIncomePage() {
                                 <Percent className="w-8 h-8 text-blue-400 shrink-0" />
                                 <div>
                                     <p className="text-xl font-bold text-blue-400">
-                                        {Object.values(dailyEntries).filter(e => parseFloat(e.amount) > 0).length}
+                                        {dailyRangeMode === "day"
+                                            ? Object.values(dailyEntries).filter(e => parseFloat(e.amount) > 0).length
+                                            : (summary?.totalRecords || 0)}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">ลงข้อมูลแล้ว</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {dailyRangeMode === "day" ? "ลงข้อมูลแล้ว" : "รายการทั้งหมด"}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -812,242 +824,352 @@ export default function SpecialIncomePage() {
                         </Card>
                     </div>
 
-                    {/* Daily entry table */}
-                    <Card className="border-border">
-                        <CardHeader className="pb-2">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <Percent className="w-4 h-4 text-blue-400" />
-                                    เปอร์เซ็นต์ขายประจำวัน
-                                    {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                                </CardTitle>
-                                <Button
-                                    onClick={saveAllEntries}
-                                    disabled={changedEntries.size === 0 || isSaving}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    size="sm"
-                                >
-                                    {isSaving ? (
-                                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                                    ) : (
-                                        <Save className="w-4 h-4 mr-1.5" />
-                                    )}
-                                    บันทึก {changedEntries.size > 0 ? `(${changedEntries.size})` : ""}
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-8">#</TableHead>
-                                        <TableHead className="min-w-[150px]">พนักงาน</TableHead>
-                                        <TableHead className="w-[140px] text-right">ยอดขาย (฿)</TableHead>
-                                        <TableHead className="w-[100px] text-center">% เปอร์เซ็นต์</TableHead>
-                                        <TableHead className="w-[140px] text-right">จำนวนเงิน (฿)</TableHead>
-                                        <TableHead className="min-w-[160px]">หมายเหตุ</TableHead>
-                                        <TableHead className="w-[80px] text-center">สถานะ</TableHead>
-                                        <TableHead className="w-[70px] text-center">จัดการ</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {clerks.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                                                <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                                                <p>ไม่พบเสมียนในสถานีที่เลือก</p>
-                                                <p className="text-xs mt-1">กรุณาเลือกสถานี หรือตรวจสอบข้อมูลพนักงาน</p>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        clerks.map((emp, index) => {
-                                            const entry = dailyEntries[emp.id] || { salesAmount: "", percentage: "", amount: "", description: "" };
-                                            const hasExisting = !!entry.existingId;
-                                            const isChanged = changedEntries.has(emp.id);
-                                            const hasAmount = parseFloat(entry.amount) > 0;
+                    {/* === Single day: Inline entry table === */}
+                    {dailyRangeMode === "day" && (
+                        <>
+                            <Card className="border-border">
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <Percent className="w-4 h-4 text-blue-400" />
+                                            เปอร์เซ็นต์ขายประจำวัน
+                                            {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                                        </CardTitle>
+                                        <Button
+                                            onClick={saveAllEntries}
+                                            disabled={changedEntries.size === 0 || isSaving}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                            size="sm"
+                                        >
+                                            {isSaving ? (
+                                                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                            ) : (
+                                                <Save className="w-4 h-4 mr-1.5" />
+                                            )}
+                                            บันทึก {changedEntries.size > 0 ? `(${changedEntries.size})` : ""}
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-8">#</TableHead>
+                                                <TableHead className="min-w-[150px]">พนักงาน</TableHead>
+                                                <TableHead className="w-[140px] text-right">ยอดขาย (฿)</TableHead>
+                                                <TableHead className="w-[100px] text-center">% เปอร์เซ็นต์</TableHead>
+                                                <TableHead className="w-[140px] text-right">จำนวนเงิน (฿)</TableHead>
+                                                <TableHead className="min-w-[160px]">หมายเหตุ</TableHead>
+                                                <TableHead className="w-[80px] text-center">สถานะ</TableHead>
+                                                <TableHead className="w-[70px] text-center">จัดการ</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {clerks.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                                                        <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                        <p>ไม่พบเสมียนในสถานีที่เลือก</p>
+                                                        <p className="text-xs mt-1">กรุณาเลือกสถานี หรือตรวจสอบข้อมูลพนักงาน</p>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                clerks.map((emp, index) => {
+                                                    const entry = dailyEntries[emp.id] || { salesAmount: "", percentage: "", amount: "", description: "" };
+                                                    const hasExisting = !!entry.existingId;
+                                                    const isChanged = changedEntries.has(emp.id);
+                                                    const hasAmount = parseFloat(entry.amount) > 0;
 
-                                            return (
-                                                <TableRow
-                                                    key={emp.id}
-                                                    className={`
-                                                        ${isChanged ? "bg-emerald-500/5" : ""}
-                                                        ${hasExisting && !isChanged ? "bg-blue-500/5" : ""}
-                                                    `}
-                                                >
-                                                    <TableCell className="text-muted-foreground text-xs">
-                                                        {index + 1}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full shrink-0 ${hasExisting ? "bg-emerald-500" : "bg-slate-600"}`} />
-                                                            <div>
-                                                                <p className="font-medium text-sm">
-                                                                    {emp.nickName || emp.name}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {emp.employeeId}
-                                                                    {emp.station && ` • ${emp.station.name}`}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.01"
-                                                            placeholder="0.00"
-                                                            value={entry.salesAmount}
-                                                            onChange={(e) => updateEntry(emp.id, "salesAmount", e.target.value)}
-                                                            className="text-right h-8 text-sm"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            max="100"
-                                                            step="0.01"
-                                                            placeholder="0.00"
-                                                            value={entry.percentage}
-                                                            onChange={(e) => updateEntry(emp.id, "percentage", e.target.value)}
-                                                            className="text-center h-8 text-sm"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.01"
-                                                            placeholder="0.00"
-                                                            value={entry.amount}
-                                                            onChange={(e) => updateEntry(emp.id, "amount", e.target.value)}
-                                                            className={`text-right h-8 text-sm font-bold ${hasAmount ? "text-emerald-500" : ""}`}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            placeholder="หมายเหตุ..."
-                                                            value={entry.description}
-                                                            onChange={(e) => updateEntry(emp.id, "description", e.target.value)}
-                                                            className="h-8 text-sm"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        {entry.existingStatus ? (
-                                                            <Badge variant="outline" className={`text-[10px] ${STATUS_BADGES[entry.existingStatus]?.color || ""}`}>
-                                                                {STATUS_BADGES[entry.existingStatus]?.label || entry.existingStatus}
+                                                    return (
+                                                        <TableRow
+                                                            key={emp.id}
+                                                            className={`
+                                                                ${isChanged ? "bg-emerald-500/5" : ""}
+                                                                ${hasExisting && !isChanged ? "bg-blue-500/5" : ""}
+                                                            `}
+                                                        >
+                                                            <TableCell className="text-muted-foreground text-xs">
+                                                                {index + 1}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`w-2 h-2 rounded-full shrink-0 ${hasExisting ? "bg-emerald-500" : "bg-slate-600"}`} />
+                                                                    <div>
+                                                                        <p className="font-medium text-sm">
+                                                                            {emp.nickName || emp.name}
+                                                                        </p>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {emp.employeeId}
+                                                                            {emp.station && ` • ${emp.station.name}`}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0.00"
+                                                                    value={entry.salesAmount}
+                                                                    onChange={(e) => updateEntry(emp.id, "salesAmount", e.target.value)}
+                                                                    className="text-right h-8 text-sm"
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    step="0.01"
+                                                                    placeholder="0.00"
+                                                                    value={entry.percentage}
+                                                                    onChange={(e) => updateEntry(emp.id, "percentage", e.target.value)}
+                                                                    className="text-center h-8 text-sm"
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0.00"
+                                                                    value={entry.amount}
+                                                                    onChange={(e) => updateEntry(emp.id, "amount", e.target.value)}
+                                                                    className={`text-right h-8 text-sm font-bold ${hasAmount ? "text-emerald-500" : ""}`}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Input
+                                                                    placeholder="หมายเหตุ..."
+                                                                    value={entry.description}
+                                                                    onChange={(e) => updateEntry(emp.id, "description", e.target.value)}
+                                                                    className="h-8 text-sm"
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {entry.existingStatus ? (
+                                                                    <Badge variant="outline" className={`text-[10px] ${STATUS_BADGES[entry.existingStatus]?.color || ""}`}>
+                                                                        {STATUS_BADGES[entry.existingStatus]?.label || entry.existingStatus}
+                                                                    </Badge>
+                                                                ) : hasAmount ? (
+                                                                    <span className="text-[10px] text-muted-foreground">ใหม่</span>
+                                                                ) : (
+                                                                    <span className="text-[10px] text-muted-foreground">-</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {entry.existingId && entry.existingStatus === "PENDING" && (
+                                                                    <div className="flex gap-0.5 justify-center">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="text-green-400 hover:text-green-300 h-7 w-7 p-0"
+                                                                            onClick={() => handleApprove(entry.existingId!)}
+                                                                            title="อนุมัติ"
+                                                                        >
+                                                                            <Check className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="text-red-400 hover:text-red-300 h-7 w-7 p-0"
+                                                                            onClick={() => setDeleteId(entry.existingId!)}
+                                                                            title="ลบ"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                {/* Daily total footer */}
+                                {clerks.length > 0 && (
+                                    <div className="border-t border-border px-4 py-3 flex items-center justify-between bg-muted/30">
+                                        <span className="text-sm font-medium text-muted-foreground">รวมทั้งวัน</span>
+                                        <span className="text-lg font-bold text-emerald-500">฿{formatCurrency(dailyTotal)}</span>
+                                    </div>
+                                )}
+                            </Card>
+
+                            {/* Other income for this day (if any) */}
+                            {records.filter(r => r.type !== "SALES_COMMISSION").length > 0 && (
+                                <Card className="border-border">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <Gift className="w-4 h-4 text-amber-400" />
+                                            โบนัส / ทิป / อื่นๆ วันนี้
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>พนักงาน</TableHead>
+                                                    <TableHead>ประเภท</TableHead>
+                                                    <TableHead className="text-right">จำนวนเงิน</TableHead>
+                                                    <TableHead>รายละเอียด</TableHead>
+                                                    <TableHead className="text-center">สถานะ</TableHead>
+                                                    <TableHead className="text-center w-20">จัดการ</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {records.filter(r => r.type !== "SALES_COMMISSION").map(rec => (
+                                                    <TableRow key={rec.id}>
+                                                        <TableCell className="font-medium text-sm">{rec.user.name}</TableCell>
+                                                        <TableCell>
+                                                            <span className={`text-sm ${TYPE_OPTIONS.find(t => t.value === rec.type)?.color || ""}`}>
+                                                                {TYPE_OPTIONS.find(t => t.value === rec.type)?.label || rec.type}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-bold text-emerald-500">
+                                                            ฿{formatCurrency(Number(rec.amount))}
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{rec.description || "-"}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="outline" className={STATUS_BADGES[rec.status]?.color || ""}>
+                                                                {STATUS_BADGES[rec.status]?.label || rec.status}
                                                             </Badge>
-                                                        ) : hasAmount ? (
-                                                            <span className="text-[10px] text-muted-foreground">ใหม่</span>
-                                                        ) : (
-                                                            <span className="text-[10px] text-muted-foreground">-</span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        {entry.existingId && entry.existingStatus === "PENDING" && (
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
                                                             <div className="flex gap-0.5 justify-center">
+                                                                {rec.status === "PENDING" && (
+                                                                    <Button
+                                                                        variant="ghost" size="sm"
+                                                                        className="text-green-400 h-7 w-7 p-0"
+                                                                        onClick={() => handleApprove(rec.id)}
+                                                                    >
+                                                                        <Check className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                )}
                                                                 <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="text-green-400 hover:text-green-300 h-7 w-7 p-0"
-                                                                    onClick={() => handleApprove(entry.existingId!)}
-                                                                    title="อนุมัติ"
-                                                                >
-                                                                    <Check className="w-3.5 h-3.5" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="text-red-400 hover:text-red-300 h-7 w-7 p-0"
-                                                                    onClick={() => setDeleteId(entry.existingId!)}
-                                                                    title="ลบ"
+                                                                    variant="ghost" size="sm"
+                                                                    className="text-red-400 h-7 w-7 p-0"
+                                                                    onClick={() => setDeleteId(rec.id)}
                                                                 >
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </Button>
                                                             </div>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        {/* Daily total footer */}
-                        {clerks.length > 0 && (
-                            <div className="border-t border-border px-4 py-3 flex items-center justify-between bg-muted/30">
-                                <span className="text-sm font-medium text-muted-foreground">รวมทั้งวัน</span>
-                                <span className="text-lg font-bold text-emerald-500">฿{formatCurrency(dailyTotal)}</span>
-                            </div>
-                        )}
-                    </Card>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </Card>
+                            )}
+                        </>
+                    )}
 
-                    {/* Other income for this day (if any) */}
-                    {records.filter(r => r.type !== "SALES_COMMISSION").length > 0 && (
+                    {/* === Range mode: Records table === */}
+                    {dailyRangeMode !== "day" && (
                         <Card className="border-border">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <Gift className="w-4 h-4 text-amber-400" />
-                                    โบนัส / ทิป / อื่นๆ วันนี้
+                                <CardTitle className="text-base flex items-center justify-between">
+                                    <span className="flex items-center gap-2">
+                                        <CalendarDays className="w-4 h-4 text-blue-400" />
+                                        รายการรายได้พิเศษ
+                                        {records.length > 0 && (
+                                            <Badge variant="outline" className="text-xs">{records.length} รายการ</Badge>
+                                        )}
+                                        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                                    </span>
                                 </CardTitle>
                             </CardHeader>
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>พนักงาน</TableHead>
+                                            <TableHead className="w-[100px]">วันที่</TableHead>
+                                            <TableHead className="min-w-[130px]">พนักงาน</TableHead>
                                             <TableHead>ประเภท</TableHead>
+                                            <TableHead className="text-right">ยอดขาย</TableHead>
+                                            <TableHead className="text-center">%</TableHead>
                                             <TableHead className="text-right">จำนวนเงิน</TableHead>
-                                            <TableHead>รายละเอียด</TableHead>
                                             <TableHead className="text-center">สถานะ</TableHead>
+                                            <TableHead>รายละเอียด</TableHead>
                                             <TableHead className="text-center w-20">จัดการ</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {records.filter(r => r.type !== "SALES_COMMISSION").map(rec => (
-                                            <TableRow key={rec.id}>
-                                                <TableCell className="font-medium text-sm">{rec.user.name}</TableCell>
-                                                <TableCell>
-                                                    <span className={`text-sm ${TYPE_OPTIONS.find(t => t.value === rec.type)?.color || ""}`}>
-                                                        {TYPE_OPTIONS.find(t => t.value === rec.type)?.label || rec.type}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold text-emerald-500">
-                                                    ฿{formatCurrency(Number(rec.amount))}
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">{rec.description || "-"}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <Badge variant="outline" className={STATUS_BADGES[rec.status]?.color || ""}>
-                                                        {STATUS_BADGES[rec.status]?.label || rec.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="flex gap-0.5 justify-center">
-                                                        {rec.status === "PENDING" && (
-                                                            <Button
-                                                                variant="ghost" size="sm"
-                                                                className="text-green-400 h-7 w-7 p-0"
-                                                                onClick={() => handleApprove(rec.id)}
-                                                            >
-                                                                <Check className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="ghost" size="sm"
-                                                            className="text-red-400 h-7 w-7 p-0"
-                                                            onClick={() => setDeleteId(rec.id)}
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </Button>
-                                                    </div>
+                                        {records.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                                                    {isLoading ? (
+                                                        <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                                                    ) : (
+                                                        <div>
+                                                            <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                            <p>ไม่มีข้อมูลในช่วงที่เลือก</p>
+                                                        </div>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            records.map((rec) => (
+                                                <TableRow key={rec.id}>
+                                                    <TableCell className="text-sm whitespace-nowrap">{formatShortDate(rec.date)}</TableCell>
+                                                    <TableCell>
+                                                        <p className="font-medium text-sm">{rec.user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{rec.user.employeeId}</p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className={`text-sm ${TYPE_OPTIONS.find(t => t.value === rec.type)?.color || ""}`}>
+                                                            {TYPE_OPTIONS.find(t => t.value === rec.type)?.label || rec.type}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-sm">
+                                                        {rec.salesAmount ? `฿${formatCurrency(Number(rec.salesAmount))}` : "-"}
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm">
+                                                        {rec.percentage ? `${Number(rec.percentage)}%` : "-"}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-bold text-emerald-500">
+                                                        ฿{formatCurrency(Number(rec.amount))}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge variant="outline" className={STATUS_BADGES[rec.status]?.color || ""}>
+                                                            {STATUS_BADGES[rec.status]?.label || rec.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                                                        {rec.description || "-"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex gap-0.5 justify-center">
+                                                            {rec.status === "PENDING" && (
+                                                                <Button variant="ghost" size="sm" className="text-green-400 h-7 w-7 p-0" onClick={() => handleApprove(rec.id)}>
+                                                                    <Check className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            )}
+                                                            <Button variant="ghost" size="sm" className="text-red-400 h-7 w-7 p-0" onClick={() => setDeleteId(rec.id)}>
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
+                            {/* Range total footer */}
+                            {records.length > 0 && (
+                                <div className="border-t border-border px-4 py-3 flex items-center justify-between bg-muted/30">
+                                    <span className="text-sm font-medium text-muted-foreground">
+                                        รวม {records.length} รายการ
+                                    </span>
+                                    <span className="text-lg font-bold text-emerald-500">
+                                        ฿{formatCurrency(summary?.totalAmount || 0)}
+                                    </span>
+                                </div>
+                            )}
                         </Card>
                     )}
                 </>
