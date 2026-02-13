@@ -14,6 +14,7 @@ import {
     ShieldCheck,
     UserPlus,
     Banknote,
+    Wallet,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 
@@ -180,6 +181,25 @@ export function MenuList({ userRole }: MenuListProps) {
                         <div>
                             <h3 className="text-[#F0D0C7] font-semibold group-hover:text-green-400 transition-colors">{t("menu.salaryAdvance")}</h3>
                             <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">{t("menu.salaryAdvanceDesc")}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </a>
+
+            {/* Wallet / กระเป๋าเงิน */}
+            <a href="/wallet" className="block group">
+                <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-gradient-to-br hover:from-[#2a2420] hover:to-[#1a2420] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl -mr-10 -mt-10 group-hover:bg-emerald-500/10 transition-all" />
+                    <CardContent className="p-4 flex items-center gap-4 relative z-10">
+                        <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                            <Wallet className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-[#F0D0C7] font-semibold group-hover:text-emerald-400 transition-colors">กระเป๋าเงิน</h3>
+                                <Badge className="bg-emerald-500/20 text-emerald-500 text-[10px] px-1.5 py-0 h-4 border-0">NEW</Badge>
+                            </div>
+                            <p className="text-stone-500 text-xs mt-0.5 group-hover:text-stone-400">ดูรายได้รายวัน • ยอดสะสม</p>
                         </div>
                     </CardContent>
                 </Card>
