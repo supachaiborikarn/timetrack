@@ -26,17 +26,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                 const loginKey = credentials.phone as string;
 
-                const user = await prisma.user.findFirst({
+                // Step 1: ค้นหาจาก unique fields ก่อน (phone, username)
+                let user = await prisma.user.findFirst({
                     where: {
                         OR: [
                             { phone: loginKey },
                             { username: loginKey },
-                            { name: loginKey },
-                            { nickName: loginKey }
                         ],
                         isActive: true
                     },
                 });
+
+                // Step 2: ถ้าไม่เจอ ค้นจาก name/nickName แต่ต้องมีแค่คนเดียว
+                if (!user) {
+                    const nameMatches = await prisma.user.findMany({
+                        where: {
+                            OR: [
+                                { name: loginKey },
+                                { nickName: loginKey }
+                            ],
+                            isActive: true
+                        },
+                    });
+                    if (nameMatches.length === 1) {
+                        user = nameMatches[0];
+                    }
+                    // ถ้ามีมากกว่า 1 คน → return null (ต้องใช้ phone/username แทน)
+                }
 
                 if (!user) return null;
 
@@ -71,18 +87,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                 if (!loginKey || !password) return null;
 
-                const user = await prisma.user.findFirst({
+                // Step 1: ค้นหาจาก unique fields ก่อน (email, username, employeeId)
+                let user = await prisma.user.findFirst({
                     where: {
                         OR: [
                             { email: loginKey },
                             { username: loginKey },
                             { employeeId: loginKey },
-                            { name: loginKey },
-                            { nickName: loginKey }
                         ],
                         isActive: true
                     },
                 });
+
+                // Step 2: ถ้าไม่เจอ ค้นจาก name/nickName แต่ต้องมีแค่คนเดียว
+                if (!user) {
+                    const nameMatches = await prisma.user.findMany({
+                        where: {
+                            OR: [
+                                { name: loginKey },
+                                { nickName: loginKey }
+                            ],
+                            isActive: true
+                        },
+                    });
+                    if (nameMatches.length === 1) {
+                        user = nameMatches[0];
+                    }
+                    // ถ้ามีมากกว่า 1 คน → return null (ต้องใช้ email/username/employeeId แทน)
+                }
 
                 if (!user || !user.password) return null;
 

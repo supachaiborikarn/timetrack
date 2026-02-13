@@ -39,7 +39,7 @@ function LoginForm() {
             });
 
             if (result?.error) {
-                setError("ชื่อ, เบอร์โทร หรือ PIN ไม่ถูกต้อง");
+                setError("ข้อมูลไม่ถูกต้อง หากชื่อซ้ำ กรุณาใช้เบอร์โทรหรือ username แทน");
             } else {
                 router.push(callbackUrl);
                 router.refresh();
