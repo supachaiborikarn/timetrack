@@ -31,6 +31,7 @@ import {
     FolderKanban,
     Banknote,
     TrendingUp,
+    MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -147,6 +148,12 @@ const navItems: NavItem[] = [
         href: "/admin/audit-logs",
         icon: FileText,
         roles: ["ADMIN"],
+    },
+    {
+        title: "One-on-One",
+        href: "/admin/engagement/one-on-one",
+        icon: MessageSquare,
+        roles: ["ADMIN", "HR", "MANAGER"],
     },
 ];
 

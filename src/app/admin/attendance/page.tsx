@@ -330,9 +330,14 @@ export default function AttendanceReviewPage() {
 
         setIsTimeEditSubmitting(true);
         try {
+            // Convert ISO date to YYYY-MM-DD in Bangkok timezone (+7)
+            // record.date is ISO like "2026-02-07T17:00:00.000Z" (which is 2026-02-08 Bangkok)
+            const bangkokDate = new Date(new Date(record.date).getTime() + 7 * 60 * 60 * 1000);
+            const dateStr = bangkokDate.toISOString().split("T")[0];
+
             const payload: Record<string, unknown> = {
                 userId: record.user.id,
-                date: record.date,
+                date: dateStr,
             };
 
             if (editingTime.field === "checkIn") {

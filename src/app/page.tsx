@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { toast } from "sonner";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LogOut, Loader2, User } from "lucide-react";
@@ -19,6 +21,7 @@ import {
 } from "@/components/dashboard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
 
 export default function EmployeeDashboard() {
   const { data: session, status } = useSession();
@@ -36,6 +39,42 @@ export default function EmployeeDashboard() {
     handleCheckOut,
     handleStartBreak,
   } = useAttendance(session?.user?.id);
+
+  const [isMoodDialogOpen, setIsMoodDialogOpen] = useState(false);
+  const [isSubmittingMood, setIsSubmittingMood] = useState(false);
+
+  const onCheckOutClick = () => {
+    setIsMoodDialogOpen(true);
+  };
+
+  const handleMoodSubmit = async (mood: string, note: string) => {
+    setIsSubmittingMood(true);
+    try {
+      // 1. Submit Mood
+      const moodRes = await fetch("/api/engagement/happiness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood, note }),
+      });
+
+      if (!moodRes.ok) {
+        console.error("Failed to submit mood log");
+        // We continue to checkout anyway
+      }
+
+      // 2. Proceed to Check Out
+      await handleCheckOut();
+      setIsMoodDialogOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("เกิดข้อผิดพลาดในการบันทึกความรู้สึก");
+      // Try to checkout even if mood fails? Yes.
+      await handleCheckOut();
+      setIsMoodDialogOpen(false);
+    } finally {
+      setIsSubmittingMood(false);
+    }
+  };
 
   if (status === "loading" || isLoading) {
     return (
@@ -127,7 +166,7 @@ export default function EmployeeDashboard() {
           hasShift={!!todayData?.shift}
           isChecking={isChecking}
           onCheckIn={handleCheckIn}
-          onCheckOut={handleCheckOut}
+          onCheckOut={onCheckOutClick}
         />
 
         {/* Break Buttons */}
@@ -149,6 +188,13 @@ export default function EmployeeDashboard() {
 
       {/* Offline Indicator */}
       <OfflineIndicator />
+
+      <MoodCheckOutDialog
+        isOpen={isMoodDialogOpen}
+        onClose={() => setIsMoodDialogOpen(false)}
+        onConfirm={handleMoodSubmit}
+        isLoading={isSubmittingMood || isChecking} // isChecking comes from useAttendance
+      />
     </div>
   );
 }

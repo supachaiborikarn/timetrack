@@ -18,7 +18,14 @@ export async function PATCH(request: NextRequest) {
             return ApiErrors.validation("userId and date are required");
         }
 
-        const dateObj = new Date(date);
+        // Parse date as Bangkok midnight to match how dates are stored in DB
+        // Input "2026-02-08" should become 2026-02-08 00:00 Bangkok = 2026-02-07T17:00:00Z
+        const dateStr = typeof date === "string" && date.includes("T")
+            ? date.split("T")[0]
+            : date;
+        const [year, month, day] = dateStr.split("-").map(Number);
+        const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS);
 
         // Find existing attendance or create new one
         let attendance = await prisma.attendance.findUnique({
@@ -48,7 +55,7 @@ export async function PATCH(request: NextRequest) {
             } else {
                 // Construct ISO string with +07:00 offset to ensure correct absolute time
                 // Format: YYYY-MM-DDTHH:mm:00+07:00
-                const dateTimeStr = `${date}T${checkInTime}:00+07:00`;
+                const dateTimeStr = `${dateStr}T${checkInTime}:00+07:00`;
                 updateData.checkInTime = new Date(dateTimeStr);
                 updateData.checkInMethod = "ADMIN_EDIT";
             }
@@ -59,7 +66,7 @@ export async function PATCH(request: NextRequest) {
                 updateData.checkOutTime = null;
             } else {
                 // Construct ISO string with +07:00 offset
-                const dateTimeStr = `${date}T${checkOutTime}:00+07:00`;
+                const dateTimeStr = `${dateStr}T${checkOutTime}:00+07:00`;
                 updateData.checkOutTime = new Date(dateTimeStr);
                 updateData.checkOutMethod = "ADMIN_EDIT";
             }
