@@ -30,6 +30,7 @@ import {
     Shield,
     FolderKanban,
     Banknote,
+    TrendingUp,
 } from "lucide-react";
 
 interface NavItem {
@@ -104,6 +105,12 @@ const navItems: NavItem[] = [
         href: "/admin/payroll",
         icon: Wallet,
         roles: ["ADMIN", "HR"],
+    },
+    {
+        title: "รายได้พิเศษ",
+        href: "/admin/special-income",
+        icon: TrendingUp,
+        roles: ["ADMIN", "HR", "MANAGER"],
     },
     {
         title: "เบิกค่าแรง",

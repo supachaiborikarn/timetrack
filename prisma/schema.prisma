@@ -67,6 +67,7 @@ model User {
   overtimeRequests           OvertimeRequest[] @relation("OvertimeRequests")
   dailyPayrollOverrides      DailyPayrollOverride[]
   notifications              Notification[]
+  specialIncomes             SpecialIncome[]
 
   @@index([stationId])
   @@index([departmentId])
@@ -670,4 +671,29 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([createdAt])
+}
+
+// Special Income (Sales Commission, Bonus, Tips, etc.)
+model SpecialIncome {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime
+  shiftId        String?          // กะที่ได้รายได้พิเศษ
+  stationId      String?          // สถานีที่ขาย
+  type           String           // SALES_COMMISSION, BONUS, TIP, OTHER
+  description    String?          // รายละเอียด
+  salesAmount    Decimal?         // ยอดขาย (ถ้ามี)
+  percentage     Decimal?         // เปอร์เซ็นต์ที่ได้
+  amount         Decimal          // จำนวนเงินที่ได้
+  status         String   @default("PENDING")  // PENDING, APPROVED, PAID
+  approvedBy     String?
+  approvedAt     DateTime?
+  createdBy      String           // คนที่ลงข้อมูล
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([stationId, date])
+  @@index([status])
 }
