@@ -161,6 +161,11 @@ export default function SpecialIncomePage() {
     const [selectedDate, setSelectedDate] = useState(format(now, "yyyy-MM-dd"));
     const [selectedStation, setSelectedStation] = useState("all");
 
+    // Daily view date range filter
+    const [dailyRangeStart, setDailyRangeStart] = useState(format(now, "yyyy-MM-dd"));
+    const [dailyRangeEnd, setDailyRangeEnd] = useState(format(now, "yyyy-MM-dd"));
+    const [dailyRangeMode, setDailyRangeMode] = useState<"day" | "week" | "month" | "payroll" | "custom">("day");
+
     // Daily entries: { [userId]: DailyEntry }
     const [dailyEntries, setDailyEntries] = useState<Record<string, DailyEntry>>({});
     const [changedEntries, setChangedEntries] = useState<Set<string>>(new Set());
@@ -193,7 +198,7 @@ export default function SpecialIncomePage() {
         } else {
             fetchAllRecords();
         }
-    }, [viewMode, selectedDate, selectedStation, startDate, endDate, filterType, filterStatus]);
+    }, [viewMode, dailyRangeStart, dailyRangeEnd, selectedStation, startDate, endDate, filterType, filterStatus]);
 
     const fetchStations = async () => {
         try {
@@ -223,8 +228,8 @@ export default function SpecialIncomePage() {
         setIsLoading(true);
         try {
             const params = new URLSearchParams({
-                startDate: selectedDate,
-                endDate: selectedDate,
+                startDate: dailyRangeStart,
+                endDate: dailyRangeEnd,
                 ...(selectedStation !== "all" && { stationId: selectedStation }),
             });
 
@@ -233,18 +238,20 @@ export default function SpecialIncomePage() {
                 const data = await res.json();
                 const dayRecords: SpecialIncomeRecord[] = data.records || [];
 
-                // Populate daily entries from existing records
+                // Populate daily entries from existing records (for single day mode)
                 const entries: Record<string, DailyEntry> = {};
-                for (const rec of dayRecords) {
-                    if (rec.type === "SALES_COMMISSION") {
-                        entries[rec.userId] = {
-                            salesAmount: rec.salesAmount ? String(rec.salesAmount) : "",
-                            percentage: rec.percentage ? String(rec.percentage) : "",
-                            amount: String(rec.amount),
-                            description: rec.description || "",
-                            existingId: rec.id,
-                            existingStatus: rec.status,
-                        };
+                if (dailyRangeMode === "day") {
+                    for (const rec of dayRecords) {
+                        if (rec.type === "SALES_COMMISSION") {
+                            entries[rec.userId] = {
+                                salesAmount: rec.salesAmount ? String(rec.salesAmount) : "",
+                                percentage: rec.percentage ? String(rec.percentage) : "",
+                                amount: String(rec.amount),
+                                description: rec.description || "",
+                                existingId: rec.id,
+                                existingStatus: rec.status,
+                            };
+                        }
                     }
                 }
                 setDailyEntries(entries);
@@ -257,7 +264,7 @@ export default function SpecialIncomePage() {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedDate, selectedStation]);
+    }, [dailyRangeStart, dailyRangeEnd, selectedStation, dailyRangeMode]);
 
     const fetchAllRecords = async () => {
         setIsLoading(true);
@@ -283,11 +290,11 @@ export default function SpecialIncomePage() {
         }
     };
 
-    // Get clerks for the selected station
+    // Get clerks (CASHIER only) for the selected station
     const clerks = employees.filter((emp) => {
-        const isClerk = emp.role === "CASHIER" || emp.role === "EMPLOYEE";
-        if (selectedStation === "all") return isClerk;
-        return isClerk && (emp.stationId === selectedStation || emp.station?.id === selectedStation);
+        if (emp.role !== "CASHIER") return false;
+        if (selectedStation === "all") return true;
+        return emp.stationId === selectedStation || emp.station?.id === selectedStation;
     });
 
     // Update a daily entry
@@ -459,21 +466,71 @@ export default function SpecialIncomePage() {
         }
     };
 
-    // Date navigation
+    // Date navigation (for single day mode)
     const goToPreviousDay = () => {
         const d = new Date(selectedDate);
         d.setDate(d.getDate() - 1);
-        setSelectedDate(format(d, "yyyy-MM-dd"));
+        const dateStr = format(d, "yyyy-MM-dd");
+        setSelectedDate(dateStr);
+        setDailyRangeStart(dateStr);
+        setDailyRangeEnd(dateStr);
+        setDailyRangeMode("day");
     };
 
     const goToNextDay = () => {
         const d = new Date(selectedDate);
         d.setDate(d.getDate() + 1);
-        setSelectedDate(format(d, "yyyy-MM-dd"));
+        const dateStr = format(d, "yyyy-MM-dd");
+        setSelectedDate(dateStr);
+        setDailyRangeStart(dateStr);
+        setDailyRangeEnd(dateStr);
+        setDailyRangeMode("day");
     };
 
     const goToToday = () => {
-        setSelectedDate(format(now, "yyyy-MM-dd"));
+        const dateStr = format(now, "yyyy-MM-dd");
+        setSelectedDate(dateStr);
+        setDailyRangeStart(dateStr);
+        setDailyRangeEnd(dateStr);
+        setDailyRangeMode("day");
+    };
+
+    // Range presets
+    const setRangePreset = (mode: "day" | "week" | "month" | "payroll") => {
+        setDailyRangeMode(mode);
+        const today = getBangkokNow();
+        if (mode === "day") {
+            const dateStr = format(today, "yyyy-MM-dd");
+            setSelectedDate(dateStr);
+            setDailyRangeStart(dateStr);
+            setDailyRangeEnd(dateStr);
+        } else if (mode === "week") {
+            const dayOfWeek = today.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + mondayOffset);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            setDailyRangeStart(format(monday, "yyyy-MM-dd"));
+            setDailyRangeEnd(format(sunday, "yyyy-MM-dd"));
+        } else if (mode === "month") {
+            setDailyRangeStart(format(startOfMonth(today), "yyyy-MM-dd"));
+            setDailyRangeEnd(format(endOfMonth(today), "yyyy-MM-dd"));
+        } else if (mode === "payroll") {
+            // Payroll period: 26th of previous month to 25th of current month
+            const currentDay = today.getDate();
+            let payrollStart: Date;
+            let payrollEnd: Date;
+            if (currentDay >= 26) {
+                payrollStart = new Date(today.getFullYear(), today.getMonth(), 26);
+                payrollEnd = new Date(today.getFullYear(), today.getMonth() + 1, 25);
+            } else {
+                payrollStart = new Date(today.getFullYear(), today.getMonth() - 1, 26);
+                payrollEnd = new Date(today.getFullYear(), today.getMonth(), 25);
+            }
+            setDailyRangeStart(format(payrollStart, "yyyy-MM-dd"));
+            setDailyRangeEnd(format(payrollEnd, "yyyy-MM-dd"));
+        }
     };
 
     const formatCurrency = (amount: number) =>
@@ -561,31 +618,52 @@ export default function SpecialIncomePage() {
             {/* ============ DAILY VIEW ============ */}
             {viewMode === "daily" && (
                 <>
-                    {/* Date + Station selector */}
+                    {/* Controls: Date Range + Station */}
                     <Card className="border-border">
-                        <CardContent className="py-4">
-                            <div className="flex flex-wrap items-center gap-4">
-                                {/* Date navigation */}
-                                <div className="flex items-center gap-2">
-                                    <Button variant="outline" size="icon" onClick={goToPreviousDay} className="h-9 w-9">
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </Button>
-                                    <div className="text-center min-w-[200px]">
-                                        <Input
-                                            type="date"
-                                            value={selectedDate}
-                                            onChange={(e) => setSelectedDate(e.target.value)}
-                                            className="text-center font-medium"
-                                        />
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                            {formatThaiDate(selectedDate)}
-                                        </p>
-                                    </div>
-                                    <Button variant="outline" size="icon" onClick={goToNextDay} className="h-9 w-9">
-                                        <ChevronRight className="w-4 h-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={goToToday} className="text-xs">
+                        <CardContent className="py-4 space-y-3">
+                            {/* Row 1: Range presets + Station + Actions */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Range presets */}
+                                <div className="flex border border-border rounded-lg overflow-hidden">
+                                    <Button
+                                        variant={dailyRangeMode === "day" ? "default" : "ghost"}
+                                        size="sm"
+                                        className={`rounded-none text-xs ${dailyRangeMode === "day" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+                                        onClick={() => setRangePreset("day")}
+                                    >
                                         วันนี้
+                                    </Button>
+                                    <Button
+                                        variant={dailyRangeMode === "week" ? "default" : "ghost"}
+                                        size="sm"
+                                        className={`rounded-none text-xs ${dailyRangeMode === "week" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+                                        onClick={() => setRangePreset("week")}
+                                    >
+                                        สัปดาห์นี้
+                                    </Button>
+                                    <Button
+                                        variant={dailyRangeMode === "month" ? "default" : "ghost"}
+                                        size="sm"
+                                        className={`rounded-none text-xs ${dailyRangeMode === "month" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+                                        onClick={() => setRangePreset("month")}
+                                    >
+                                        เดือนนี้
+                                    </Button>
+                                    <Button
+                                        variant={dailyRangeMode === "payroll" ? "default" : "ghost"}
+                                        size="sm"
+                                        className={`rounded-none text-xs ${dailyRangeMode === "payroll" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+                                        onClick={() => setRangePreset("payroll")}
+                                    >
+                                        รอบเงินเดือน
+                                    </Button>
+                                    <Button
+                                        variant={dailyRangeMode === "custom" ? "default" : "ghost"}
+                                        size="sm"
+                                        className={`rounded-none text-xs ${dailyRangeMode === "custom" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}`}
+                                        onClick={() => setDailyRangeMode("custom")}
+                                    >
+                                        กำหนดเอง
                                     </Button>
                                 </div>
 
@@ -595,7 +673,7 @@ export default function SpecialIncomePage() {
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">สถานี:</span>
                                     <Select value={selectedStation} onValueChange={setSelectedStation}>
-                                        <SelectTrigger className="w-40">
+                                        <SelectTrigger className="w-36">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -632,6 +710,62 @@ export default function SpecialIncomePage() {
                                         </Button>
                                     )}
                                 </div>
+                            </div>
+
+                            {/* Row 2: Date controls */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                {dailyRangeMode === "day" ? (
+                                    /* Single day navigation */
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="icon" onClick={goToPreviousDay} className="h-8 w-8">
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+                                        <div className="text-center">
+                                            <Input
+                                                type="date"
+                                                value={selectedDate}
+                                                onChange={(e) => {
+                                                    setSelectedDate(e.target.value);
+                                                    setDailyRangeStart(e.target.value);
+                                                    setDailyRangeEnd(e.target.value);
+                                                }}
+                                                className="text-center font-medium w-40"
+                                            />
+                                        </div>
+                                        <Button variant="outline" size="icon" onClick={goToNextDay} className="h-8 w-8">
+                                            <ChevronRight className="w-4 h-4" />
+                                        </Button>
+                                        <span className="text-xs text-muted-foreground">{formatThaiDate(selectedDate)}</span>
+                                    </div>
+                                ) : (
+                                    /* Date range */
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">ตั้งแต่:</span>
+                                        <Input
+                                            type="date"
+                                            value={dailyRangeStart}
+                                            onChange={(e) => {
+                                                setDailyRangeStart(e.target.value);
+                                                if (dailyRangeMode !== "custom") setDailyRangeMode("custom");
+                                            }}
+                                            className="w-36"
+                                        />
+                                        <span className="text-sm text-muted-foreground">ถึง:</span>
+                                        <Input
+                                            type="date"
+                                            value={dailyRangeEnd}
+                                            onChange={(e) => {
+                                                setDailyRangeEnd(e.target.value);
+                                                if (dailyRangeMode !== "custom") setDailyRangeMode("custom");
+                                            }}
+                                            className="w-36"
+                                        />
+                                        <span className="text-xs text-muted-foreground">(
+                                            {formatThaiDate(dailyRangeStart)}
+                                            {dailyRangeStart !== dailyRangeEnd && ` — ${formatThaiDate(dailyRangeEnd)}`}
+                                            )</span>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
