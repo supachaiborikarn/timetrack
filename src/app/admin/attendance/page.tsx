@@ -448,7 +448,8 @@ export default function AttendanceReviewPage() {
     const filteredRecords = records.filter((r) =>
         searchTerm
             ? r.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.user.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+            r.user.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (r.user.nickName && r.user.nickName.toLowerCase().includes(searchTerm.toLowerCase()))
             : true
     );
 
