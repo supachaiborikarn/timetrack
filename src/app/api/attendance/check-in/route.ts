@@ -81,9 +81,7 @@ export async function POST(request: NextRequest) {
         const utcNow = new Date();
         const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
-        // CRITICAL FIX: Check for ANY active attendance (not checked out) regardless of date
-        // This prevents creating duplicate records if a user scans late (near midnight/next day boundary)
-        // or forgets to check out from yesterday.
+        // Check for ANY active attendance (not checked out) regardless of date
         const activeAttendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
@@ -93,13 +91,28 @@ export async function POST(request: NextRequest) {
         });
 
         if (activeAttendance) {
-            // Optional: If the active attendance is very old (e.g. > 24 hours), maybe we should auto-close it?
-            // For now, simpler is safer: Block new check-in and tell user to check out.
-            return errorResponse(
-                "คุณยังมีรายการเช็คอินค้างอยู่ กรุณาเช็คเอาต์รายการเดิมก่อน",
-                400,
-                "ALREADY_CHECKED_IN"
-            );
+            const hoursSinceCheckIn = activeAttendance.checkInTime
+                ? (Date.now() - new Date(activeAttendance.checkInTime).getTime()) / (1000 * 60 * 60)
+                : 999;
+
+            if (hoursSinceCheckIn >= 14) {
+                // Auto-close: set checkout to checkIn + 12 hours (max normal shift)
+                const autoCheckOut = new Date(new Date(activeAttendance.checkInTime!).getTime() + 12 * 60 * 60 * 1000);
+                await prisma.attendance.update({
+                    where: { id: activeAttendance.id },
+                    data: {
+                        checkOutTime: autoCheckOut,
+                        actualHours: 12,
+                        note: `ระบบปิดอัตโนมัติ (ไม่ได้เช็คเอาต์เกิน 14 ชม.) ${activeAttendance.note || ""}`.trim(),
+                    },
+                });
+            } else {
+                return errorResponse(
+                    "คุณยังมีรายการเช็คอินค้างอยู่ กรุณาเช็คเอาต์รายการเดิมก่อน",
+                    400,
+                    "ALREADY_CHECKED_IN"
+                );
+            }
         }
 
         // Night shift guard: prevent new check-in if there's an open night shift from yesterday
