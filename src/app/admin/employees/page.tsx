@@ -695,10 +695,7 @@ export default function EmployeesPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell text-muted-foreground">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span>{emp.dailyRate ? `฿${emp.dailyRate}/วัน` : (emp.baseSalary ? `฿${emp.baseSalary.toLocaleString()}/ด.` : `฿${emp.hourlyRate}/ชม.`)}</span>
-                                                <span className="text-xs">OT x{emp.otRateMultiplier}</span>
-                                            </div>
+                                            <span>{emp.dailyRate ? `฿${emp.dailyRate}/วัน` : (emp.baseSalary ? `฿${emp.baseSalary.toLocaleString()}/ด.` : `฿${emp.hourlyRate}/ชม.`)}</span>
                                         </TableCell>
                                         <TableCell>
                                             {emp.isSocialSecurityRegistered ? (
