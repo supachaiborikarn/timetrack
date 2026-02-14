@@ -197,6 +197,20 @@ export function parseTimeOnDate(date: Date, timeStr: string): Date {
     return result;
 }
 
+/**
+ * Parse a YYYY-MM-DD string to a Date object representing midnight in Bangkok
+ * This is used for matching dates stored in the database where
+ * 2026-02-13 in DB is actually 2026-02-12 17:00:00 UTC
+ */
+export function parseDateStringToBangkokMidnight(dateStr: string): Date {
+    // Handle both "2026-02-13" and "2026-02-13T00:00:00.000Z"
+    const simpleDate = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const [year, month, day] = simpleDate.split("-").map(Number);
+    // Midnight in Bangkok = Date.UTC(year, month-1, day) - 7 hours
+    const midnightBangkokInUTC = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
+    return new Date(midnightBangkokInUTC);
+}
+
 export {
     format,
     parseISO,

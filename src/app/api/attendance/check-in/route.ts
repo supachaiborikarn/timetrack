@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
@@ -10,7 +10,7 @@ import {
     calculateLatePenalty,
     subDays
 } from "@/lib/date-utils";
-import { isWithinGeofence } from "@/lib/geo";
+import { calculateDistance } from "@/lib/geo";
 
 export async function POST(request: NextRequest) {
     try {
@@ -41,21 +41,23 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate GPS location
-        const isWithinRadius = isWithinGeofence(
+        const distance = calculateDistance(
             { latitude, longitude },
             {
                 latitude: Number(user.station.latitude),
                 longitude: Number(user.station.longitude)
-            },
-            user.station.radius
+            }
         );
 
+        const isWithinRadius = distance <= user.station.radius;
+
         if (!isWithinRadius) {
-            return errorResponse(
-                "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คอิน",
-                400,
-                "INVALID_LOCATION"
-            );
+            return NextResponse.json({
+                error: `คุณอยู่นอกพื้นที่ (${Math.round(distance)} เมตร / ${user.station.radius} เมตร)`,
+                errorCode: "INVALID_LOCATION",
+                distance,
+                allowedRadius: user.station.radius
+            }, { status: 400 });
         }
 
         // If QR method, validate QR code

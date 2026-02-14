@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getBangkokNow, startOfDayBangkok } from "@/lib/date-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -10,12 +9,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const now = getBangkokNow();
-        const today = startOfDayBangkok();
-
-        // Find today's attendance
+        // Find active attendance (not checked out) regardless of date
+        // This handles night shifts correctly
         const attendance = await prisma.attendance.findFirst({
-            where: { userId: session.user.id, date: today },
+            where: {
+                userId: session.user.id,
+                checkOutTime: null,
+                checkInTime: { not: null },
+            },
+            orderBy: { checkInTime: "desc" },
             include: { user: true }
         });
 
@@ -50,9 +52,9 @@ export async function POST(request: NextRequest) {
         }
         // For others, we could respect shift config OR keep 90 as safety
         else {
-            // Optional: if want to use DB shift config for others in future:
+            // Use attendance.date to find the shift assignment for the correct date
             const assignment = await prisma.shiftAssignment.findFirst({
-                where: { userId: session.user.id, date: today },
+                where: { userId: session.user.id, date: attendance.date },
                 include: { shift: true }
             });
             // Only use DB value if it exists AND is explicitly intended (e.g. > 60)

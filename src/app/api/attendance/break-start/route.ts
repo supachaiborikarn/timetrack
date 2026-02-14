@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getBangkokNow, startOfDayBangkok } from "@/lib/date-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -10,27 +9,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const now = getBangkokNow();
-        const today = startOfDayBangkok();
-
-        // Find today's attendance
+        // Find active attendance (not checked out) regardless of date
+        // This handles night shifts correctly
         const attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
-                date: today,
+                checkOutTime: null,
+                checkInTime: { not: null },
             },
+            orderBy: { checkInTime: "desc" },
         });
 
         if (!attendance) {
             return NextResponse.json(
                 { error: "กรุณาเช็คอินก่อนพักเบรก" },
-                { status: 400 }
-            );
-        }
-
-        if (attendance.checkOutTime) {
-            return NextResponse.json(
-                { error: "คุณเช็คเอาต์ไปแล้ว ไม่สามารถพักเบรกได้" },
                 { status: 400 }
             );
         }

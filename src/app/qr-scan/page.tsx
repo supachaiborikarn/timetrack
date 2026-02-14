@@ -121,9 +121,23 @@ export default function QRScanPage() {
                         description: `เวลา ${formatTime(new Date())}`,
                     });
                 } else {
-                    toast.error("เช็คอินไม่สำเร็จ", {
-                        description: data.error || "กรุณาลองใหม่",
-                    });
+                    // Handle specific location error with detailed feedback
+                    if (data.errorCode === "INVALID_LOCATION" && data.distance && data.allowedRadius) {
+                        const dist = Math.round(data.distance);
+                        const radius = data.allowedRadius;
+                        const msg = `คุณอยู่ห่าง ${dist} เมตร (ต้องไม่เกิน ${radius} เมตร)`;
+
+                        toast.error("อยู่นอกพื้นที่เช็คอิน", {
+                            description: msg,
+                            duration: 5000,
+                        });
+                        setError(`อยู่นอกพื้นที่: ${dist}ม. / ${radius}ม.`);
+                    } else {
+                        toast.error("เช็คอินไม่สำเร็จ", {
+                            description: data.error || "กรุณาลองใหม่",
+                        });
+                        setError(data.error || "เช็คอินไม่สำเร็จ");
+                    }
                 }
             } else {
                 // Checked in, but NOT on break -> Maybe they want to start break? or Check out?

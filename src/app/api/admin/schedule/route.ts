@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { addDays, startOfMonth, endOfMonth, getDate, format } from "@/lib/date-utils";
+import { addDays, startOfMonth, endOfMonth, getDate, format, parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 
 // GET: Fetch shift assignments for a station/month
 export async function GET(request: NextRequest) {
@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const startDate = startOfMonth(new Date(year, month - 1));
+        const startDateStr = `${year}-${month.toString().padStart(2, "0")}-01`;
+        const startDate = parseDateStringToBangkokMidnight(startDateStr);
         const endDate = endOfMonth(startDate);
 
         // Get all employees of the station
@@ -123,7 +124,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const startDate = startOfMonth(new Date(year, month - 1));
+        const startDateStr = `${year}-${month.toString().padStart(2, "0")}-01`;
+        const startDate = parseDateStringToBangkokMidnight(startDateStr);
         const endDate = endOfMonth(startDate);
 
         // Get employees for station
@@ -244,13 +246,13 @@ export async function PUT(request: NextRequest) {
             where: {
                 userId_date: {
                     userId,
-                    date: new Date(date),
+                    date: parseDateStringToBangkokMidnight(date),
                 },
             },
             create: {
                 userId,
                 shiftId,
-                date: new Date(date),
+                date: parseDateStringToBangkokMidnight(date),
                 isDayOff: isDayOff || false,
             },
             update: {
@@ -286,7 +288,7 @@ export async function DELETE(request: NextRequest) {
                             where: {
                                 userId_date: {
                                     userId: item.userId,
-                                    date: new Date(item.date),
+                                    date: parseDateStringToBangkokMidnight(item.date),
                                 },
                             },
                         });
@@ -318,7 +320,7 @@ export async function DELETE(request: NextRequest) {
             where: {
                 userId_date: {
                     userId,
-                    date: new Date(date),
+                    date: parseDateStringToBangkokMidnight(date),
                 },
             },
         });

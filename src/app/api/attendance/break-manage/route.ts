@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getBangkokNow, startOfDayBangkok } from "@/lib/date-utils";
+import { getBangkokNow } from "@/lib/date-utils";
 
 // POST: Supervisor starts or ends break for an employee
 export async function POST(request: NextRequest) {
@@ -25,26 +25,24 @@ export async function POST(request: NextRequest) {
         }
 
         const now = getBangkokNow();
-        const today = startOfDayBangkok();
         // Use UTC time for database storage (matching employee APIs)
         const utcNow = new Date();
 
-        // Find employee's attendance for today
+        // Find employee's ACTIVE attendance (not checked out) regardless of date
+        // This handles night shifts and timezone edge cases correctly
         const attendanceRaw = await prisma.attendance.findFirst({
             where: {
                 userId: employeeId,
-                date: today,
+                checkOutTime: null,
+                checkInTime: { not: null },
             },
+            orderBy: { checkInTime: "desc" },
             include: { user: true }
         });
         const attendance = attendanceRaw as any;
 
         if (!attendance) {
-            return NextResponse.json({ error: "พนักงานยังไม่ได้เช็คอินวันนี้" }, { status: 400 });
-        }
-
-        if (attendance.checkOutTime) {
-            return NextResponse.json({ error: "พนักงานเช็คเอาต์ไปแล้ว" }, { status: 400 });
+            return NextResponse.json({ error: "พนักงานยังไม่ได้เช็คอินหรือเช็คเอาต์ไปแล้ว" }, { status: 400 });
         }
 
         if (action === 'start') {
