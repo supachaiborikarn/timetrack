@@ -32,6 +32,7 @@ import {
     Banknote,
     TrendingUp,
     MessageSquare,
+    Timer,
 } from "lucide-react";
 
 interface NavItem {
@@ -123,6 +124,12 @@ const navItems: NavItem[] = [
         title: "รายงาน",
         href: "/admin/reports",
         icon: FileText,
+        roles: ["ADMIN", "HR", "MANAGER"],
+    },
+    {
+        title: "สรุปเวลาพัก",
+        href: "/admin/reports/break-summary",
+        icon: Timer,
         roles: ["ADMIN", "HR", "MANAGER"],
     },
     {
