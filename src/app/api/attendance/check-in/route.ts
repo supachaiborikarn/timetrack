@@ -95,15 +95,27 @@ export async function POST(request: NextRequest) {
                 ? (Date.now() - new Date(activeAttendance.checkInTime).getTime()) / (1000 * 60 * 60)
                 : 999;
 
-            if (hoursSinceCheckIn >= 14) {
-                // Auto-close: set checkout to checkIn + 12 hours (max normal shift)
-                const autoCheckOut = new Date(new Date(activeAttendance.checkInTime!).getTime() + 12 * 60 * 60 * 1000);
+            // Check if the active record's shift is a night shift (may work up to 24h)
+            const activeShift = await prisma.shiftAssignment.findFirst({
+                where: {
+                    userId: session.user.id,
+                    date: activeAttendance.date,
+                },
+                include: { shift: true },
+            });
+            const isNightShift = activeShift?.shift?.isNightShift ?? false;
+            const autoCloseThreshold = isNightShift ? 26 : 14;
+            const autoCloseHours = isNightShift ? 24 : 12;
+
+            if (hoursSinceCheckIn >= autoCloseThreshold) {
+                // Auto-close: set checkout to checkIn + max shift hours
+                const autoCheckOut = new Date(new Date(activeAttendance.checkInTime!).getTime() + autoCloseHours * 60 * 60 * 1000);
                 await prisma.attendance.update({
                     where: { id: activeAttendance.id },
                     data: {
                         checkOutTime: autoCheckOut,
-                        actualHours: 12,
-                        note: `ระบบปิดอัตโนมัติ (ไม่ได้เช็คเอาต์เกิน 14 ชม.) ${activeAttendance.note || ""}`.trim(),
+                        actualHours: autoCloseHours,
+                        note: `ระบบปิดอัตโนมัติ (ไม่ได้เช็คเอาต์เกิน ${autoCloseThreshold} ชม.) ${activeAttendance.note || ""}`.trim(),
                     },
                 });
             } else {
