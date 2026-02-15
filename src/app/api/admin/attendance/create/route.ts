@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDay, getBangkokNow, calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
+import { startOfDayBangkok, calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
+
+// Convert date string "YYYY-MM-DD" to Bangkok midnight (same as check-in API)
+function parseDateToBangkokMidnight(dateStr: string): Date {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const midnightBangkokInUTC = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS;
+    return new Date(midnightBangkokInUTC);
+}
 
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || (session.user.role !== "ADMIN" && session.user.role !== "MANAGER" && session.user.role !== "HR" && session.user.role !== "CASHIER")) {
+        if (!session?.user?.id || !["ADMIN", "MANAGER", "HR", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -17,18 +25,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Parse date and time to create a Date object
-        // Assuming date is "yyyy-MM-dd" and time is "HH:mm" (local time inputs)
-        // We need to construct the UTC Date corresponding to that local time
-
-        // Helper to construct Date from local date/time strings
-        // E.g. "2024-02-03" + "08:00" -> Date object representing that time
+        // Parse date and time to create a UTC Date object
+        // date: "2026-02-15", time: "07:30" -> Date in UTC for Bangkok local time
         const targetDate = new Date(`${date}T${time}:00+07:00`);
 
-        const localDateForCalc = new Date(targetDate.getTime() + (7 * 60 * 60 * 1000)); // Shift for local calc if needed
-        const dayStart = startOfDay(localDateForCalc);
+        // Use Bangkok midnight — MUST match check-in API's startOfDayBangkok()
+        const dayStart = parseDateToBangkokMidnight(date);
 
-        // Find existing attendance
+        // Find existing attendance for this day (check both Bangkok midnight and UTC midnight for safety)
         let attendance = await prisma.attendance.findFirst({
             where: {
                 userId: userId,
@@ -36,9 +40,20 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Also check for records stored with UTC midnight (legacy/bug)
+        if (!attendance) {
+            const utcMidnight = new Date(`${date}T00:00:00Z`);
+            attendance = await prisma.attendance.findFirst({
+                where: {
+                    userId: userId,
+                    date: utcMidnight,
+                },
+            });
+        }
+
         if (type === "CHECK_IN") {
             if (attendance?.checkInTime) {
-                return NextResponse.json({ error: "User already checked in for this date" }, { status: 400 });
+                return NextResponse.json({ error: "พนักงานมีรายการเช็คอินของวันนี้แล้ว" }, { status: 400 });
             }
 
             // Calculate Late
@@ -49,8 +64,9 @@ export async function POST(request: NextRequest) {
 
             let lateMinutes = 0;
             if (shiftAssignment) {
-                // Use localDateForCalc for comparison against shift string
-                lateMinutes = calculateLateMinutes(localDateForCalc, shiftAssignment.shift.startTime);
+                // Create a local-like date for shift comparison
+                const localForCalc = new Date(targetDate.getTime() + (7 * 60 * 60 * 1000));
+                lateMinutes = calculateLateMinutes(localForCalc, shiftAssignment.shift.startTime);
             }
 
             attendance = await prisma.attendance.upsert({
@@ -74,7 +90,7 @@ export async function POST(request: NextRequest) {
             });
         } else if (type === "CHECK_OUT") {
             if (!attendance || !attendance.checkInTime) {
-                return NextResponse.json({ error: "Cannot check out without check in" }, { status: 400 });
+                return NextResponse.json({ error: "ไม่สามารถเช็คเอาต์ได้ เนื่องจากยังไม่มีรายการเช็คอิน" }, { status: 400 });
             }
 
             // Calculate work hours
@@ -83,19 +99,6 @@ export async function POST(request: NextRequest) {
                 include: { shift: true },
             });
             const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
-
-            // Note: date-utils calculateWorkHours is expecting 2 Date objects.
-            // If attendance.checkInTime is legacy (Fake BKK), and targetDate is UTC...
-            // Similar logic to check-out route fix:
-            let calCheckIn = attendance.checkInTime;
-            const now = new Date();
-            if (calCheckIn > now && targetDate < now) {
-                // If stored checkin is future (legacy) and we are saving legit UTC,
-                // we should shift targetDate to "Fake BKK" for calculation or shift CheckIn back.
-                // Easiest is to just calculate difference in MS.
-                // But let's stick to using standard logic, assuming Admin uses this for NEW records mainly.
-                // Or if fixing old records, Admin inputs time.
-            }
 
             const { totalHours, overtimeHours } = calculateWorkHours(attendance.checkInTime, targetDate, breakMinutes);
 
