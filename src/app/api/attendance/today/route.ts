@@ -33,6 +33,7 @@ export async function GET() {
 
         // 2. If not found, check for ANY active attendance (not checked out)
         // This handles night shifts, late checkouts, and date boundary issues
+        // BUT ignoring records older than 24 hours to prevent "stuck" state from old forgotten check-ins
         if (!attendance) {
             const activeAttendance = await prisma.attendance.findFirst({
                 where: {
@@ -43,7 +44,16 @@ export async function GET() {
             });
 
             if (activeAttendance) {
-                attendance = activeAttendance;
+                const hoursSinceCheckIn = activeAttendance.checkInTime
+                    ? (Date.now() - new Date(activeAttendance.checkInTime).getTime()) / (1000 * 60 * 60)
+                    : 999;
+
+                // Only use it if it's reasonably recent (< 24 hours) as an "active" session
+                // If it's older, we pretend it doesn't exist so the UI lets the user "Check In" again
+                // (The Check-In API will handle auto-closing the old one)
+                if (hoursSinceCheckIn < 24) {
+                    attendance = activeAttendance;
+                }
             }
         }
 
