@@ -107,11 +107,29 @@ export async function POST(request: NextRequest) {
         }
 
         // Calculate work hours
-        const { totalHours, overtimeHours } = calculateWorkHours(
-            attendance.checkInTime,
-            calculationEndTime,
-            breakMinutes
-        );
+        // Calculate work hours
+        // Safety check: If duration is absurdly long (> 24 hours), likely a forgotten checkout
+        // Cap it at standard shift (12 hours) to prevent massive OT and errors
+        const durationHours = (calculationEndTime.getTime() - attendance.checkInTime.getTime()) / (1000 * 60 * 60);
+        let finalTotalHours = 0;
+        let finalOvertimeHours = 0;
+        let finalCheckOutTime = fullUtcNow; // Default to now
+
+        if (durationHours > 24) {
+            // Cap at 12 hours
+            finalTotalHours = 12;
+            finalOvertimeHours = Math.max(0, 12 - (8)); // Assuming 8h regular
+            // Retroactively set checkout time to 12h after checkin
+            finalCheckOutTime = new Date(attendance.checkInTime.getTime() + 12 * 60 * 60 * 1000);
+        } else {
+            const { totalHours, overtimeHours } = calculateWorkHours(
+                attendance.checkInTime,
+                calculationEndTime,
+                breakMinutes
+            );
+            finalTotalHours = totalHours;
+            finalOvertimeHours = overtimeHours;
+        }
 
         // Update attendance record
         const updatedAttendance = await prisma.attendance.update({
@@ -122,15 +140,15 @@ export async function POST(request: NextRequest) {
                 checkOutLng: longitude,
                 checkOutDeviceId: deviceId,
                 checkOutMethod: method,
-                actualHours: totalHours,
-                overtimeHours: overtimeHours,
+                actualHours: finalTotalHours,
+                overtimeHours: finalOvertimeHours,
             },
         });
 
         return successResponse({
             checkOutTime: updatedAttendance.checkOutTime,
-            totalHours,
-            overtimeHours,
+            totalHours: finalTotalHours,
+            overtimeHours: finalOvertimeHours,
         });
     } catch (error) {
         console.error("Check-out error:", error);
