@@ -30,6 +30,9 @@ import {
     Building2,
     BarChart3,
     Banknote,
+    Phone,
+    MapPin,
+    UserCheck,
 } from "lucide-react";
 
 interface AbsentEmployee {
@@ -42,6 +45,9 @@ interface AbsentEmployee {
     station: string;
     shiftName: string;
     shiftTime: string;
+    leaveStatus: string | null;
+    leaveType: string | null;
+    overlaps: string[];
 }
 
 interface DashboardStats {
@@ -111,11 +117,9 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Phone, Clock, MapPin, UserCheck } from "lucide-react";
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession();
-    const router = useRouter();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -244,6 +248,63 @@ export default function AdminDashboard() {
                         </p>
                     </div>
                 </div>
+
+                {/* Stats Grid */}
+                {isLoading ? (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <Card key={i} className="animate-pulse">
+                                <CardContent className="p-6">
+                                    <div className="h-16 bg-muted rounded" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {statsCards.map((stat) => {
+                            const Icon = stat.icon;
+                            return (
+                                <Link key={stat.title} href={stat.href}>
+                                    <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer h-full">
+                                        <CardContent className="p-4 lg:p-6">
+                                            <div className="flex items-start justify-between">
+                                                <div className={`p-2 lg:p-3 rounded-xl ${stat.bgColor}`}>
+                                                    <Icon className={`w-5 h-5 lg:w-6 lg:h-6 ${stat.color}`} />
+                                                </div>
+                                                {stat.badge && stat.badge > 0 && (
+                                                    <Badge variant="destructive" className="text-xs">
+                                                        {stat.badge}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <div className="mt-3 lg:mt-4">
+                                                <p className="text-xl lg:text-2xl font-bold text-foreground">
+                                                    {stat.value}
+                                                </p>
+                                                {stat.subtitle && (
+                                                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                                                )}
+                                                <p className="text-xs lg:text-sm text-muted-foreground mt-1">
+                                                    {stat.title}
+                                                </p>
+                                                {/* Absent link for attendance card */}
+                                                {stat.title === "เข้างานวันนี้" && stats?.absentEmployees && stats.absentEmployees.length > 0 && (
+                                                    <button
+                                                        onClick={(e) => { e.preventDefault(); setIsAbsentDialogOpen(true); }}
+                                                        className="text-xs text-red-500 hover:underline font-medium mt-1"
+                                                    >
+                                                        ขาด {stats.absentEmployees.length} คน →
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Absent Employees Dialog */}
                 <Dialog open={isAbsentDialogOpen} onOpenChange={setIsAbsentDialogOpen}>

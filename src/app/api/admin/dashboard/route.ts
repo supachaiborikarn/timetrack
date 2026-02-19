@@ -375,7 +375,7 @@ export async function GET(request: NextRequest) {
                 todayAttendance,
                 todayExpected: todayAssignmentsCount,
                 attendanceRate,
-                pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeaves,
+                pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeavesCount,
                 pendingShiftSwaps,
                 pendingTimeCorrections,
                 pendingLeaves: pendingLeavesCount,
