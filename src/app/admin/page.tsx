@@ -32,6 +32,18 @@ import {
     Banknote,
 } from "lucide-react";
 
+interface AbsentEmployee {
+    id: string;
+    name: string;
+    nickName: string | null;
+    phone: string | null;
+    photoUrl: string | null;
+    department: string;
+    station: string;
+    shiftName: string;
+    shiftTime: string;
+}
+
 interface DashboardStats {
     totalEmployees: number;
     todayAttendance: number;
@@ -42,6 +54,7 @@ interface DashboardStats {
     pendingTimeCorrections: number;
     pendingLeaves: number;
     openShifts: number;
+    absentEmployees: AbsentEmployee[];
 }
 
 interface RecentRequest {
@@ -91,13 +104,24 @@ const getRequestLabel = (type: string) => {
     }
 };
 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Phone, Clock, MapPin, UserCheck } from "lucide-react";
+
 export default function AdminDashboard() {
     const { data: session, status } = useSession();
+    const router = useRouter();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [monthlyAttendance, setMonthlyAttendance] = useState<MonthlyAttendanceDay[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAbsentDialogOpen, setIsAbsentDialogOpen] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -221,53 +245,67 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Stats Grid */}
-                {isLoading ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {[...Array(4)].map((_, i) => (
-                            <Card key={i} className="animate-pulse">
-                                <CardContent className="p-6">
-                                    <div className="h-16 bg-muted rounded" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {statsCards.map((stat) => {
-                            const Icon = stat.icon;
-                            return (
-                                <Link key={stat.title} href={stat.href}>
-                                    <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer h-full">
-                                        <CardContent className="p-4 lg:p-6">
-                                            <div className="flex items-start justify-between">
-                                                <div className={`p-2 lg:p-3 rounded-xl ${stat.bgColor}`}>
-                                                    <Icon className={`w-5 h-5 lg:w-6 lg:h-6 ${stat.color}`} />
-                                                </div>
-                                                {stat.badge && stat.badge > 0 && (
-                                                    <Badge variant="destructive" className="text-xs">
-                                                        {stat.badge}
-                                                    </Badge>
-                                                )}
+                {/* Absent Employees Dialog */}
+                <Dialog open={isAbsentDialogOpen} onOpenChange={setIsAbsentDialogOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-red-500" />
+                                รายชื่อผู้ขาดงานวันนี้ ({stats?.absentEmployees.length || 0})
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto space-y-4">
+                            {stats?.absentEmployees.map((emp) => (
+                                <div key={emp.id} className="flex items-start space-x-3 p-3 rounded-lg border bg-card relative">
+                                    <Avatar>
+                                        <AvatarImage src={emp.photoUrl || undefined} />
+                                        <AvatarFallback>{emp.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-medium text-sm">
+                                                {emp.name} {emp.nickName ? `(${emp.nickName})` : ""}
+                                            </p>
+                                            {emp.leaveStatus && (
+                                                <Badge variant={emp.leaveStatus === "PENDING" ? "outline" : "destructive"}>
+                                                    {emp.leaveStatus === "PENDING" ? "รออนุมัติลา" : "ลาถูกปฏิเสธ"}
+                                                    ({emp.leaveType})
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center text-xs text-muted-foreground gap-1">
+                                            <MapPin className="h-3 w-3" />
+                                            {emp.station}
+                                        </div>
+                                        <div className="flex items-center text-xs text-muted-foreground gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {emp.shiftName} ({emp.shiftTime})
+                                        </div>
+
+                                        {/* Overlap Warning */}
+                                        {emp.overlaps.length > 0 && (
+                                            <div className="mt-2 text-xs bg-red-50 text-red-600 p-2 rounded-md border border-red-100 flex items-start gap-1">
+                                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                                <span>
+                                                    <strong>หยุดชนกัน:</strong> {emp.overlaps.join(", ")} ก็หยุดที่สถานีนี้เช่นกัน
+                                                </span>
                                             </div>
-                                            <div className="mt-3 lg:mt-4">
-                                                <p className="text-xl lg:text-2xl font-bold text-foreground">
-                                                    {stat.value}
-                                                </p>
-                                                {stat.subtitle && (
-                                                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                                                )}
-                                                <p className="text-xs lg:text-sm text-muted-foreground mt-1">
-                                                    {stat.title}
-                                                </p>
+                                        )}
+
+                                        {emp.phone && (
+                                            <div className="pt-1">
+                                                <a href={`tel:${emp.phone}`} className="inline-flex items-center text-xs text-blue-600 hover:underline gap-1">
+                                                    <Phone className="h-3 w-3" />
+                                                    {emp.phone}
+                                                </a>
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            );
-                        })}
-                    </div>
-                )}
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Main Content Grid */}
                 <div className="grid lg:grid-cols-3 gap-6">

@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
         const isWithinRadius = distance <= user.station.radius;
 
         if (!isWithinRadius) {
+            // Log the failure
+            await prisma.auditLog.create({
+                data: {
+                    action: "CHECK_IN_FAILED",
+                    entity: "Attendance",
+                    userId: session.user.id,
+                    details: `Location invalid. Distance: ${Math.round(distance)}m, Allowed: ${user.station.radius}m. Lat/Lng: ${latitude},${longitude}`,
+                }
+            });
+
             return NextResponse.json({
                 error: `คุณอยู่นอกพื้นที่ (${Math.round(distance)} เมตร / ${user.station.radius} เมตร)`,
                 errorCode: "INVALID_LOCATION",

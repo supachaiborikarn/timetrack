@@ -32,15 +32,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Count stats in parallel
-        const [
-            totalEmployees,
-            todayAttendance,
-            pendingShiftSwaps,
-            pendingTimeCorrections,
-            pendingLeaves,
-            openShifts,
-            todayAssignments,
-        ] = await Promise.all([
+        const counts = await Promise.all([
             // Total active employees
             prisma.user.count({
                 where: {
@@ -98,7 +90,7 @@ export async function GET(request: NextRequest) {
                 },
             }),
 
-            // Today's shift assignments
+            // Today's shift assignments count
             prisma.shiftAssignment.count({
                 where: {
                     date: today,
@@ -108,7 +100,138 @@ export async function GET(request: NextRequest) {
                         : undefined,
                 },
             }),
+
+            // Fetch details for Absent logic (Assignments)
+            prisma.shiftAssignment.findMany({
+                where: {
+                    date: today,
+                    isDayOff: false,
+                    user: {
+                        isActive: true,
+                        role: "EMPLOYEE",
+                        ...stationFilter,
+                    }
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            nickName: true,
+                            phone: true,
+                            photoUrl: true,
+                            department: { select: { name: true } },
+                            station: { select: { name: true } },
+                        }
+                    },
+                    shift: {
+                        select: {
+                            name: true,
+                            startTime: true,
+                            endTime: true,
+                        }
+                    }
+                }
+            }),
+
+            // Fetch details for Absent logic (Attendance)
+            prisma.attendance.findMany({
+                where: {
+                    date: today,
+                    checkInTime: { not: null },
+                    user: stationFilter.stationId
+                        ? { stationId: stationFilter.stationId }
+                        : undefined,
+                },
+                select: { userId: true }
+            }),
+
+            // Fetch Leaves for today to check context
+            prisma.leave.findMany({
+                where: {
+                    startDate: { lte: today },
+                    endDate: { gte: today },
+                    status: { in: ["PENDING", "APPROVED", "REJECTED"] },
+                    user: {
+                        isActive: true,
+                        role: "EMPLOYEE",
+                        ...stationFilter,
+                    }
+                },
+                select: {
+                    userId: true,
+                    type: true,
+                    status: true,
+                    reason: true,
+                }
+            })
         ]);
+
+        const totalEmployees = counts[0];
+        const todayAttendance = counts[1];
+        const pendingShiftSwaps = counts[2];
+        const pendingTimeCorrections = counts[3];
+        const pendingLeavesCount = counts[4];
+        const openShifts = counts[5];
+        const todayAssignmentsCount = counts[6];
+        const todayAssignmentsList = counts[7];
+        const todayAttendanceList = counts[8];
+        const todayLeavesList = counts[9];
+
+        // Create Maps for fast lookup
+        const presentUserIds = new Set(todayAttendanceList.map(a => a.userId));
+        const leaveMap = new Map(); // userId -> Leave Record
+        todayLeavesList.forEach(l => leaveMap.set(l.userId, l));
+
+        // Group assignments by station for overlap calculation
+        const stationAssignmentsMap = new Map<string, string[]>(); // stationName -> userIds[]
+
+        // 1. Identify Absent Candidates (Shift but no Check-in)
+        let absentCandidates = todayAssignmentsList.filter(sa => !presentUserIds.has(sa.user.id));
+
+        // 2. Filter out APPROVED leaves (Authorized Absence)
+        // We only want to show "Unexpected" absences or "Pending" leaves
+        absentCandidates = absentCandidates.filter(sa => {
+            const leave = leaveMap.get(sa.user.id);
+            // If on APPROVED leave, they are NOT "Absent" in the negative sense
+            if (leave && leave.status === "APPROVED") return false;
+            return true;
+        });
+
+        // 3. Build Overlap Map
+        absentCandidates.forEach(sa => {
+            const stationName = sa.user.station?.name || "Unknown";
+            if (!stationAssignmentsMap.has(stationName)) {
+                stationAssignmentsMap.set(stationName, []);
+            }
+            stationAssignmentsMap.get(stationName)!.push(sa.user.name);
+        });
+
+        // 4. Map to final response format
+        const absentEmployees = absentCandidates.map(sa => {
+            const leave = leaveMap.get(sa.user.id);
+            const stationName = sa.user.station?.name || "Unknown";
+
+            // Get others in same station (excluding self)
+            const othersInStation = stationAssignmentsMap.get(stationName) || [];
+            const overlaps = othersInStation.filter(name => name !== sa.user.name);
+
+            return {
+                id: sa.user.id,
+                name: sa.user.name,
+                nickName: sa.user.nickName,
+                phone: sa.user.phone,
+                photoUrl: sa.user.photoUrl,
+                department: sa.user.department?.name || "-",
+                station: stationName,
+                shiftName: sa.shift.name,
+                shiftTime: `${sa.shift.startTime} - ${sa.shift.endTime}`,
+                // Enhanced Context
+                leaveStatus: leave ? leave.status : null,
+                leaveType: leave ? leave.type : null,
+                overlaps: overlaps // List of other absent names in same station
+            };
+        });
 
         // Get recent pending requests (limited)
         const recentRequests = await prisma.shiftSwap.findMany({
@@ -152,8 +275,8 @@ export async function GET(request: NextRequest) {
         });
 
         // Calculate attendance percentage
-        const attendanceRate = todayAssignments > 0
-            ? Math.round((todayAttendance / todayAssignments) * 100)
+        const attendanceRate = todayAssignmentsCount > 0
+            ? Math.round((todayAttendance / todayAssignmentsCount) * 100)
             : 0;
 
         // Combine all requests into a unified format for dashboard display
@@ -250,13 +373,14 @@ export async function GET(request: NextRequest) {
             stats: {
                 totalEmployees,
                 todayAttendance,
-                todayExpected: todayAssignments,
+                todayExpected: todayAssignmentsCount,
                 attendanceRate,
                 pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeaves,
                 pendingShiftSwaps,
                 pendingTimeCorrections,
-                pendingLeaves,
+                pendingLeaves: pendingLeavesCount,
                 openShifts,
+                absentEmployees, // Add filtered list here
             },
             recent: {
                 requests: topRequests,
