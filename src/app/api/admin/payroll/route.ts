@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
             return {
                 id: emp.id,
                 name: emp.name,
+                nickName: emp.nickName,
                 employeeId: emp.employeeId,
                 station: emp.station?.name || "-",
                 department: emp.department?.name || "-",

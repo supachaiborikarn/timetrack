@@ -52,6 +52,7 @@ interface PayrollData {
     employees: Array<{
         id: string;
         name: string;
+        nickName: string | null;
         employeeId: string;
         station: string;
         department: string;
@@ -443,7 +444,9 @@ export default function PayrollPage() {
                                             return (
                                                 <TableRow key={emp.id} className="border-slate-700">
                                                     <TableCell className="text-slate-400">{emp.employeeId}</TableCell>
-                                                    <TableCell className="text-white font-medium">{emp.name}</TableCell>
+                                                    <TableCell className="text-white font-medium">
+                                                        {emp.name}{emp.nickName ? ` (${emp.nickName})` : ""}
+                                                    </TableCell>
                                                     <TableCell className="text-slate-400">{emp.department}</TableCell>
                                                     <TableCell className="text-center text-white">{emp.workDays}</TableCell>
                                                     <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
@@ -482,10 +485,9 @@ export default function PayrollPage() {
                                                                     const bonus = bonusAmounts[emp.id] || 0;
                                                                     const totalPay = emp.totalPay + bonus;
 
-                                                                    // Mock object to match PDF generator expectation
                                                                     const payslipObj = {
                                                                         user: {
-                                                                            name: emp.name,
+                                                                            name: emp.nickName ? `${emp.name} (${emp.nickName})` : emp.name,
                                                                             employeeId: emp.employeeId,
                                                                             department: { name: emp.department },
                                                                             bankName: (emp as any).bankName,
@@ -500,15 +502,18 @@ export default function PayrollPage() {
                                                                         basePay: emp.regularPay,
                                                                         overtimePay: emp.overtimePay,
                                                                         latePenalty: emp.latePenalty,
-                                                                        advanceDeduct: 0, // Not calculated in this view yet
+                                                                        advanceDeduct: 0,
                                                                         otherDeduct: 0,
                                                                         netPay: totalPay,
-                                                                        // Pass bonus as other income?
                                                                         bonus: bonus
                                                                     };
 
-                                                                    // We might need to adjust generator to handle bonus
-                                                                    generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+                                                                    try {
+                                                                        generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+                                                                    } catch (err) {
+                                                                        console.error("PDF generation error:", err);
+                                                                        alert("ไม่สามารถสร้าง PDF ได้: " + (err instanceof Error ? err.message : "Unknown error"));
+                                                                    }
                                                                 }}
                                                             >
                                                                 <Download className="w-4 h-4" />
