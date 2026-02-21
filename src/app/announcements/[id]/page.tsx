@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,6 +34,8 @@ interface Announcement {
     title: string;
     content: string;
     createdAt: string;
+    totalReads: number;
+    reads: ReadInfo[];
     author: {
         name: string;
         nickName: string | null;
@@ -50,8 +52,6 @@ export default function AnnouncementDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [newComment, setNewComment] = useState("");
     const [isPosting, setIsPosting] = useState(false);
-    const [readList, setReadList] = useState<ReadInfo[]>([]);
-    const [totalReads, setTotalReads] = useState(0);
     const [showReads, setShowReads] = useState(false);
 
     const isAdminOrManager = session?.user?.role &&
@@ -75,19 +75,6 @@ export default function AnnouncementDetailPage() {
         }
     };
 
-    const fetchReads = async () => {
-        try {
-            const res = await fetch(`/api/announcements/${params.id}/reads`);
-            if (res.ok) {
-                const data = await res.json();
-                setReadList(data.reads || []);
-                setTotalReads(data.totalReads || 0);
-            }
-        } catch {
-            // Not critical
-        }
-    };
-
     const markAsRead = async () => {
         try {
             await fetch(`/api/announcements/${params.id}/read`, {
@@ -102,9 +89,6 @@ export default function AnnouncementDetailPage() {
         if (params.id) {
             fetchPost();
             markAsRead();
-            if (isAdminOrManager) {
-                fetchReads();
-            }
         }
     }, [params.id]);
 
@@ -183,7 +167,7 @@ export default function AnnouncementDetailPage() {
                     </CardContent>
                 </Card>
 
-                {/* Read Status - Admin/Manager only */}
+                {/* Read Status - visible to admin/manager */}
                 {isAdminOrManager && (
                     <Card className="shadow-sm">
                         <CardContent className="py-3">
@@ -194,7 +178,7 @@ export default function AnnouncementDetailPage() {
                                 <div className="flex items-center gap-2">
                                     <Eye className="w-4 h-4 text-slate-500" />
                                     <span className="text-sm font-medium text-slate-700">
-                                        อ่านแล้ว {totalReads} คน
+                                        อ่านแล้ว {post.totalReads || 0} คน
                                     </span>
                                 </div>
                                 <span className="text-xs text-blue-500">
@@ -202,9 +186,9 @@ export default function AnnouncementDetailPage() {
                                 </span>
                             </button>
 
-                            {showReads && readList.length > 0 && (
+                            {showReads && post.reads && post.reads.length > 0 && (
                                 <div className="mt-3 pt-3 border-t space-y-2">
-                                    {readList.map((reader) => (
+                                    {post.reads.map((reader) => (
                                         <div key={reader.userId} className="flex items-center justify-between text-sm">
                                             <div className="flex items-center gap-2">
                                                 <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
@@ -221,7 +205,7 @@ export default function AnnouncementDetailPage() {
                                 </div>
                             )}
 
-                            {showReads && readList.length === 0 && (
+                            {showReads && (!post.reads || post.reads.length === 0) && (
                                 <p className="mt-3 pt-3 border-t text-center text-sm text-slate-400">
                                     ยังไม่มีใครอ่าน
                                 </p>
