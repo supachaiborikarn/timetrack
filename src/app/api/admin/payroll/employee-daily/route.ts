@@ -112,11 +112,8 @@ export async function GET(request: NextRequest) {
             const lateMinutes = attendance?.lateMinutes || null;
             const latePenalty = attendance ? Number(attendance.latePenaltyAmount) || 0 : 0;
 
-            // OT calculation
-            let otHours = 0;
-            if (actualHours && actualHours > normalHoursPerDay) {
-                otHours = actualHours - normalHoursPerDay;
-            }
+            // OT is not auto-calculated — HR adds manually via override
+            const otHours = 0;
 
             // Get wage (override or default)
             const isWageOverridden = override?.overrideDailyWage != null;
@@ -128,7 +125,7 @@ export async function GET(request: NextRequest) {
             const isOTOverridden = override?.overrideOT != null;
             const otAmount = isOTOverridden
                 ? Number(override!.overrideOT)
-                : (otHours * hourlyRate * otMultiplier);
+                : 0; // Default 0 — HR adds OT manually
 
             const total = dailyWage + otAmount - latePenalty;
 

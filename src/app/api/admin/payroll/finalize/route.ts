@@ -61,27 +61,21 @@ export async function POST(request: NextRequest) {
             const empAtt = attendance.filter(a => a.userId === emp.id);
             const normalHours = 10.5;
             const hourlyRate = Number(emp.hourlyRate) || (Number(emp.dailyRate) / normalHours);
-            const otMult = Number(emp.otRateMultiplier) || 1.5;
 
             let workDays = 0;
             let totalHours = 0;
-            let overtimeHours = 0;
             let regularPay = 0;
-            let overtimePay = 0;
+            const overtimePay = 0; // OT added manually by HR
             let latePenalty = 0;
 
             empAtt.forEach(att => {
                 if (!att.checkInTime) return;
                 workDays++;
-                let actual = att.actualHours ? Number(att.actualHours) : 0;
+                const actual = att.actualHours ? Number(att.actualHours) : 0;
                 totalHours += actual;
 
-                let regH = actual > normalHours ? normalHours : actual;
-                let otH = actual > normalHours ? actual - normalHours : 0;
-
-                overtimeHours += otH;
-                regularPay += regH * hourlyRate;
-                overtimePay += otH * hourlyRate * otMult;
+                // All hours count as regular — OT is manually added by HR
+                regularPay += actual * hourlyRate;
 
                 if (att.latePenaltyAmount) latePenalty += Number(att.latePenaltyAmount);
             });
@@ -100,7 +94,7 @@ export async function POST(request: NextRequest) {
                     update: {
                         workDays,
                         totalHours,
-                        overtimeHours,
+                        overtimeHours: 0,
                         basePay: regularPay,
                         overtimePay,
                         latePenalty,
@@ -112,7 +106,7 @@ export async function POST(request: NextRequest) {
                         userId: emp.id,
                         workDays,
                         totalHours,
-                        overtimeHours,
+                        overtimeHours: 0,
                         basePay: regularPay,
                         overtimePay,
                         latePenalty,

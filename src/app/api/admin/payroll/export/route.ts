@@ -64,12 +64,10 @@ export async function GET(request: NextRequest) {
 
             const dailyRate = Number(emp.dailyRate) || 0;
             const hourlyRate = Number(emp.hourlyRate) || (dailyRate / normalHoursPerDay);
-            const otMultiplier = Number(emp.otRateMultiplier) || 1.5;
 
             let workDays = 0;
             let totalHours = 0;
             let regularHours = 0;
-            let overtimeHours = 0;
             let latePenalty = 0;
 
             for (const record of empAttendance) {
@@ -78,12 +76,7 @@ export async function GET(request: NextRequest) {
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    if (actualHours <= normalHoursPerDay) {
-                        regularHours += actualHours;
-                    } else {
-                        regularHours += normalHoursPerDay;
-                        overtimeHours += (actualHours - normalHoursPerDay);
-                    }
+                    regularHours += actualHours;
 
                     if (record.latePenaltyAmount) {
                         latePenalty += Number(record.latePenaltyAmount);
@@ -92,7 +85,7 @@ export async function GET(request: NextRequest) {
             }
 
             const regularPay = regularHours * hourlyRate;
-            const overtimePay = overtimeHours * hourlyRate * otMultiplier;
+            const overtimePay = 0; // OT added manually by HR
             const totalPay = regularPay + overtimePay - latePenalty;
 
             return {
@@ -105,7 +98,7 @@ export async function GET(request: NextRequest) {
                 workDays,
                 totalHours,
                 regularHours,
-                overtimeHours,
+                overtimeHours: 0,
                 regularPay,
                 overtimePay,
                 latePenalty,
