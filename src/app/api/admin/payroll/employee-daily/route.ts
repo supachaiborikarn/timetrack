@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
                 hourlyRate: true,
                 otRateMultiplier: true,
                 stationId: true,
+                departmentId: true,
                 station: { select: { name: true } },
                 department: { select: { name: true } },
             },
@@ -104,12 +105,16 @@ export async function GET(request: NextRequest) {
         let colleagueAttendanceMap = new Map<string, Set<string>>();
         let colleagueNameMap = new Map<string, { name: string; nickName: string | null }>();
         if (employee.stationId) {
+            const colleagueWhere: Record<string, unknown> = {
+                stationId: employee.stationId,
+                id: { not: userId },
+                isActive: true,
+            };
+            if (employee.departmentId) {
+                colleagueWhere.departmentId = employee.departmentId;
+            }
             const colleagues = await prisma.user.findMany({
-                where: {
-                    stationId: employee.stationId,
-                    id: { not: userId },
-                    isActive: true,
-                },
+                where: colleagueWhere,
                 select: { id: true, name: true, nickName: true },
             });
 
