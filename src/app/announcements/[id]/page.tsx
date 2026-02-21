@@ -3,13 +3,20 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, ArrowLeft } from "lucide-react";
+import { Loader2, Send, ArrowLeft, Eye, CheckCircle2, Clock } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
+
+interface ReadInfo {
+    userId: string;
+    name: string;
+    nickName: string | null;
+    readAt: string;
+}
 
 interface Comment {
     id: string;
@@ -43,6 +50,12 @@ export default function AnnouncementDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [newComment, setNewComment] = useState("");
     const [isPosting, setIsPosting] = useState(false);
+    const [readList, setReadList] = useState<ReadInfo[]>([]);
+    const [totalReads, setTotalReads] = useState(0);
+    const [showReads, setShowReads] = useState(false);
+
+    const isAdminOrManager = session?.user?.role &&
+        ["ADMIN", "HR", "MANAGER"].includes(session.user.role as string);
 
     const fetchPost = async () => {
         try {
@@ -62,9 +75,36 @@ export default function AnnouncementDetailPage() {
         }
     };
 
+    const fetchReads = async () => {
+        try {
+            const res = await fetch(`/api/announcements/${params.id}/reads`);
+            if (res.ok) {
+                const data = await res.json();
+                setReadList(data.reads || []);
+                setTotalReads(data.totalReads || 0);
+            }
+        } catch {
+            // Not critical
+        }
+    };
+
+    const markAsRead = async () => {
+        try {
+            await fetch(`/api/announcements/${params.id}/read`, {
+                method: "POST",
+            });
+        } catch {
+            // Silently fail
+        }
+    };
+
     useEffect(() => {
         if (params.id) {
             fetchPost();
+            markAsRead();
+            if (isAdminOrManager) {
+                fetchReads();
+            }
         }
     }, [params.id]);
 
@@ -142,6 +182,53 @@ export default function AnnouncementDetailPage() {
                         {post.content}
                     </CardContent>
                 </Card>
+
+                {/* Read Status - Admin/Manager only */}
+                {isAdminOrManager && (
+                    <Card className="shadow-sm">
+                        <CardContent className="py-3">
+                            <button
+                                onClick={() => setShowReads(!showReads)}
+                                className="w-full flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Eye className="w-4 h-4 text-slate-500" />
+                                    <span className="text-sm font-medium text-slate-700">
+                                        อ่านแล้ว {totalReads} คน
+                                    </span>
+                                </div>
+                                <span className="text-xs text-blue-500">
+                                    {showReads ? "ซ่อน" : "ดูรายชื่อ"}
+                                </span>
+                            </button>
+
+                            {showReads && readList.length > 0 && (
+                                <div className="mt-3 pt-3 border-t space-y-2">
+                                    {readList.map((reader) => (
+                                        <div key={reader.userId} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                                                <span className="text-slate-700">
+                                                    {reader.nickName || reader.name}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {formatThaiDate(new Date(reader.readAt), "d MMM HH:mm")}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {showReads && readList.length === 0 && (
+                                <p className="mt-3 pt-3 border-t text-center text-sm text-slate-400">
+                                    ยังไม่มีใครอ่าน
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Comment Input */}
                 <Card className="shadow-sm">

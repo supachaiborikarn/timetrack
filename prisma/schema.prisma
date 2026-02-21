@@ -91,17 +91,21 @@ model Authenticator {
 }
 
 model Announcement {
-  id        String    @id @default(cuid())
-  title     String
-  content   String
-  authorId  String
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  author    User      @relation(fields: [authorId], references: [id])
-  comments  Comment[]
+  id                  String             @id @default(cuid())
+  title               String
+  content             String
+  authorId            String
+  isActive            Boolean            @default(true)
+  isPinned            Boolean            @default(false)
+  targetDepartmentIds String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  author              User               @relation(fields: [authorId], references: [id])
+  comments            Comment[]
+  reads               AnnouncementRead[]
 
   @@index([createdAt])
+  @@index([isPinned])
 }
 
 model Comment {
@@ -114,6 +118,18 @@ model Comment {
   post      Announcement @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
 }
 
 model ReviewPeriod {

@@ -11,9 +11,19 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const limit = Number(searchParams.get("limit")) || 20;
+        const pinnedOnly = searchParams.get("pinned") === "true";
+
+        // Get user's department
+        const currentUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { departmentId: true },
+        });
 
         const announcements = await prisma.announcement.findMany({
-            where: { isActive: true },
+            where: {
+                isActive: true,
+                ...(pinnedOnly ? { isPinned: true } : {}),
+            },
             include: {
                 author: {
                     select: {
@@ -22,14 +32,43 @@ export async function GET(request: NextRequest) {
                     },
                 },
                 _count: {
-                    select: { comments: true },
+                    select: { comments: true, reads: true },
+                },
+                reads: {
+                    where: { userId: session.user.id },
+                    select: { id: true },
+                    take: 1,
                 },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: [
+                { isPinned: "desc" },
+                { createdAt: "desc" },
+            ],
             take: limit,
         });
 
-        return NextResponse.json({ announcements });
+        // Filter by department targeting
+        const filtered = announcements
+            .filter((a) => {
+                if (!a.targetDepartmentIds) return true; // null = all departments
+                try {
+                    const targetDepts: string[] = JSON.parse(a.targetDepartmentIds);
+                    if (targetDepts.length === 0) return true; // empty = all
+                    return currentUser?.departmentId
+                        ? targetDepts.includes(currentUser.departmentId)
+                        : true;
+                } catch {
+                    return true;
+                }
+            })
+            .map((a) => ({
+                ...a,
+                isRead: a.reads.length > 0,
+                reads: undefined, // Remove the raw reads data
+                readCount: a._count.reads,
+            }));
+
+        return NextResponse.json({ announcements: filtered });
     } catch (error) {
         console.error("Get announcements error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -43,16 +82,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Only Admin/HR/Manager can post? Or everyone?
-        // Let's allow everyone for "Team Chat" feel, or restrict "Announcements" to admin.
-        // Requirement says "Team Chat / Announcements".
-        // Let's simple check: everyone can post?
-        // For now, allow everyone.
-
-        const { title, content } = await request.json();
+        const { title, content, isPinned, targetDepartmentIds } = await request.json();
 
         if (!content) {
             return NextResponse.json({ error: "Content required" }, { status: 400 });
+        }
+
+        // Only Admin/HR/Manager can pin or target departments
+        let canPin = false;
+        if (isPinned || (targetDepartmentIds && targetDepartmentIds.length > 0)) {
+            const user = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { role: true },
+            });
+            canPin = ["ADMIN", "HR", "MANAGER"].includes(user?.role || "");
         }
 
         const announcement = await prisma.announcement.create({
@@ -60,12 +103,17 @@ export async function POST(request: NextRequest) {
                 title: title || "ข้อความ",
                 content,
                 authorId: session.user.id,
+                isPinned: canPin ? (isPinned || false) : false,
+                targetDepartmentIds:
+                    canPin && targetDepartmentIds && targetDepartmentIds.length > 0
+                        ? JSON.stringify(targetDepartmentIds)
+                        : null,
             },
             include: {
                 author: {
-                    select: { name: true, nickName: true }
-                }
-            }
+                    select: { name: true, nickName: true },
+                },
+            },
         });
 
         return NextResponse.json({ announcement }, { status: 201 });

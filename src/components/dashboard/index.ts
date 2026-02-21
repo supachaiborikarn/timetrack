@@ -9,4 +9,5 @@ export { MenuList } from "./MenuList";
 export { OfflineIndicator } from "./OfflineIndicator";
 export { LatenessMonitorCard } from "./LatenessMonitorCard";
 export { AttendanceCalendar } from "./AttendanceCalendar";
+export { AnnouncementBanner } from "./AnnouncementBanner";
 

@@ -18,6 +18,7 @@ import {
   MenuList,
   OfflineIndicator,
   LatenessMonitorCard,
+  AnnouncementBanner,
 } from "@/components/dashboard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -129,6 +130,9 @@ export default function EmployeeDashboard() {
       <main className="p-4 space-y-4">
         {/* Real-time Clock */}
         <ClockCard currentTime={currentTime} />
+
+        {/* Pinned Announcements Banner */}
+        <AnnouncementBanner />
 
         {/* Break Status Alert */}
         {isOnBreak && (
