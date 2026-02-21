@@ -155,6 +155,14 @@ export default function BackfillAttendancePage() {
         return dates;
     };
 
+    // Convert UTC ISO string to Bangkok HH:mm
+    const toBangkokTimeStr = (isoStr: string): string => {
+        const d = new Date(isoStr);
+        const bangkokMs = d.getTime() + 7 * 60 * 60 * 1000;
+        const bangkokDate = new Date(bangkokMs);
+        return `${bangkokDate.getUTCHours().toString().padStart(2, "0")}:${bangkokDate.getUTCMinutes().toString().padStart(2, "0")}`;
+    };
+
     // Load table data
     const loadTable = useCallback(async () => {
         if (selectedEmployees.length === 0) {
@@ -168,38 +176,34 @@ export default function BackfillAttendancePage() {
 
         try {
             const dates = getDateRange(startDate, endDate);
-            const userIds = selectedEmployees.map((e) => e.id);
 
-            // Fetch existing attendance records
-            const params = new URLSearchParams({
-                startDate,
-                endDate,
-            });
+            // Build a lookup map from existing attendance records
+            // Fetch ALL records by paginating or fetching per-employee to avoid 500-limit
+            const existingMap = new Map<string, { checkInTime: string; checkOutTime: string }>();
 
-            const res = await fetch(`/api/admin/attendance?${params}`);
-            const data = res.ok ? await res.json() : { records: [] };
+            // Fetch in batches per employee to avoid the API's take:500 limit
+            for (const emp of selectedEmployees) {
+                const params = new URLSearchParams({
+                    startDate,
+                    endDate,
+                    userId: emp.id,
+                });
 
-            // Build a lookup map
-            const existingMap = new Map<string, { checkInTime: string | null; checkOutTime: string | null }>();
-            for (const record of data.records || []) {
-                // Parse date from record
-                const recordDate = new Date(record.date);
-                const bangkokDate = new Date(recordDate.getTime() + 7 * 60 * 60 * 1000);
-                const dateStr = format(bangkokDate, "yyyy-MM-dd");
-                const key = `${record.user.id}__${dateStr}`;
+                const res = await fetch(`/api/admin/attendance/by-user?${params}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    for (const record of data.records || []) {
+                        const recordDate = new Date(record.date);
+                        const bangkokDate = new Date(recordDate.getTime() + 7 * 60 * 60 * 1000);
+                        const dateStr = format(bangkokDate, "yyyy-MM-dd");
+                        const key = `${emp.id}__${dateStr}`;
 
-                let checkIn = "";
-                let checkOut = "";
-                if (record.checkInTime) {
-                    const d = new Date(record.checkInTime);
-                    checkIn = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                        const checkIn = record.checkInTime ? toBangkokTimeStr(record.checkInTime) : "";
+                        const checkOut = record.checkOutTime ? toBangkokTimeStr(record.checkOutTime) : "";
+
+                        existingMap.set(key, { checkInTime: checkIn, checkOutTime: checkOut });
+                    }
                 }
-                if (record.checkOutTime) {
-                    const d = new Date(record.checkOutTime);
-                    checkOut = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-                }
-
-                existingMap.set(key, { checkInTime: checkIn, checkOutTime: checkOut });
             }
 
             // Generate entries
@@ -844,10 +848,10 @@ export default function BackfillAttendancePage() {
                                                                 <TableRow
                                                                     key={entry.key}
                                                                     className={`transition-colors ${entry.dirty
-                                                                            ? "bg-amber-50/50 dark:bg-amber-950/10"
-                                                                            : weekend
-                                                                                ? "bg-red-50/30 dark:bg-red-950/10"
-                                                                                : ""
+                                                                        ? "bg-amber-50/50 dark:bg-amber-950/10"
+                                                                        : weekend
+                                                                            ? "bg-red-50/30 dark:bg-red-950/10"
+                                                                            : ""
                                                                         } ${!entry.existingRecord && !entry.checkInTime
                                                                             ? "bg-yellow-50/30 dark:bg-yellow-950/10"
                                                                             : ""
@@ -856,8 +860,8 @@ export default function BackfillAttendancePage() {
                                                                     <TableCell className="py-1.5">
                                                                         <span
                                                                             className={`text-sm font-medium ${weekend
-                                                                                    ? "text-red-500"
-                                                                                    : ""
+                                                                                ? "text-red-500"
+                                                                                : ""
                                                                                 }`}
                                                                         >
                                                                             {formatDateDisplay(entry.date)}
