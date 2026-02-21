@@ -12,11 +12,13 @@ interface DailyRecord {
     actualHours: number | null;
     lateMinutes: number | null;
     latePenalty: number;
+    isLatePenaltyOverridden: boolean;
     dailyWage: number;
     isWageOverridden: boolean;
     otHours: number;
     otAmount: number;
     isOTOverridden: boolean;
+    adjustment: number;
     note: string | null;
     total: number;
 }
@@ -127,7 +129,16 @@ export async function GET(request: NextRequest) {
                 ? Number(override!.overrideOT)
                 : 0; // Default 0 — HR adds OT manually
 
-            const total = dailyWage + otAmount - latePenalty;
+            // Get late penalty (override or auto)
+            const isLatePenaltyOverridden = override?.overrideLatePenalty != null;
+            const finalLatePenalty = isLatePenaltyOverridden
+                ? Number(override!.overrideLatePenalty)
+                : latePenalty;
+
+            // Get adjustment (+/- arbitrary amount)
+            const adjustment = override?.adjustment ? Number(override.adjustment) : 0;
+
+            const total = dailyWage + otAmount - finalLatePenalty + adjustment;
 
             dailyRecords.push({
                 date: dateKey,
@@ -136,12 +147,14 @@ export async function GET(request: NextRequest) {
                 checkOutTime: attendance?.checkOutTime?.toISOString() || null,
                 actualHours,
                 lateMinutes,
-                latePenalty,
+                latePenalty: finalLatePenalty,
+                isLatePenaltyOverridden,
                 dailyWage,
                 isWageOverridden,
                 otHours: Math.round(otHours * 100) / 100,
                 otAmount: Math.round(otAmount * 100) / 100,
                 isOTOverridden,
+                adjustment: Math.round(adjustment * 100) / 100,
                 note: override?.note || null,
                 total: Math.round(total * 100) / 100,
             });
@@ -156,6 +169,7 @@ export async function GET(request: NextRequest) {
             totalWage: dailyRecords.reduce((sum, d) => sum + d.dailyWage, 0),
             totalOT: dailyRecords.reduce((sum, d) => sum + d.otAmount, 0),
             totalLatePenalty: dailyRecords.reduce((sum, d) => sum + d.latePenalty, 0),
+            totalAdjustment: dailyRecords.reduce((sum, d) => sum + d.adjustment, 0),
             grandTotal: dailyRecords.reduce((sum, d) => sum + d.total, 0),
         };
 
@@ -188,7 +202,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { userId, date, overrideDailyWage, overrideOT, note } = body;
+        const { userId, date, overrideDailyWage, overrideOT, overrideLatePenalty, adjustment, note } = body;
 
         if (!userId || !date) {
             return ApiErrors.validation("userId and date are required");
@@ -222,6 +236,8 @@ export async function POST(request: NextRequest) {
             update: {
                 overrideDailyWage: overrideDailyWage !== undefined ? overrideDailyWage : undefined,
                 overrideOT: overrideOT !== undefined ? overrideOT : undefined,
+                overrideLatePenalty: overrideLatePenalty !== undefined ? overrideLatePenalty : undefined,
+                adjustment: adjustment !== undefined ? adjustment : undefined,
                 note: note !== undefined ? note : undefined,
             },
             create: {
@@ -229,6 +245,8 @@ export async function POST(request: NextRequest) {
                 date: dateObj,
                 overrideDailyWage,
                 overrideOT,
+                overrideLatePenalty,
+                adjustment,
                 note,
             },
         });
@@ -240,6 +258,12 @@ export async function POST(request: NextRequest) {
         }
         if (overrideOT !== undefined) {
             changes.push(`OT: ${existing?.overrideOT?.toString() || "auto"} → ${overrideOT}`);
+        }
+        if (overrideLatePenalty !== undefined) {
+            changes.push(`หักสาย: ${existing?.overrideLatePenalty?.toString() || "auto"} → ${overrideLatePenalty}`);
+        }
+        if (adjustment !== undefined) {
+            changes.push(`ปรับเงิน: ${existing?.adjustment?.toString() || "0"} → ${adjustment}`);
         }
 
         await prisma.auditLog.create({

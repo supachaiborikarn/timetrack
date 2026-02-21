@@ -36,11 +36,13 @@ interface DailyRecord {
     actualHours: number | null;
     lateMinutes: number | null;
     latePenalty: number;
+    isLatePenaltyOverridden: boolean;
     dailyWage: number;
     isWageOverridden: boolean;
     otHours: number;
     otAmount: number;
     isOTOverridden: boolean;
+    adjustment: number;
     note: string | null;
     total: number;
 }
@@ -63,11 +65,12 @@ interface EmployeePayrollData {
         totalWage: number;
         totalOT: number;
         totalLatePenalty: number;
+        totalAdjustment: number;
         grandTotal: number;
     };
 }
 
-type EditField = "wage" | "ot" | "checkIn" | "checkOut";
+type EditField = "wage" | "ot" | "checkIn" | "checkOut" | "latePenalty" | "adjustment";
 
 export default function EmployeePayrollDetailPage() {
     const { data: session, status } = useSession();
@@ -149,6 +152,7 @@ export default function EmployeePayrollDetailPage() {
             totalWage: updatedRecords.reduce((sum, d) => sum + d.dailyWage, 0),
             totalOT: updatedRecords.reduce((sum, d) => sum + d.otAmount, 0),
             totalLatePenalty: updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0),
+            totalAdjustment: updatedRecords.reduce((sum, d) => sum + d.adjustment, 0),
             grandTotal: updatedRecords.reduce((sum, d) => sum + d.total, 0),
         };
 
@@ -209,7 +213,7 @@ export default function EmployeePayrollDetailPage() {
                     }
                 }
             } else {
-                // Wage/OT override
+                // Wage/OT/latePenalty/adjustment override
                 const payload: Record<string, unknown> = {
                     userId: employeeId,
                     date,
@@ -218,8 +222,12 @@ export default function EmployeePayrollDetailPage() {
                 const numValue = parseFloat(editValue) || 0;
                 if (field === "wage") {
                     payload.overrideDailyWage = numValue;
-                } else {
+                } else if (field === "ot") {
                     payload.overrideOT = numValue;
+                } else if (field === "latePenalty") {
+                    payload.overrideLatePenalty = numValue;
+                } else if (field === "adjustment") {
+                    payload.adjustment = numValue;
                 }
 
                 const res = await fetch("/api/admin/payroll/employee-daily", {
@@ -229,24 +237,25 @@ export default function EmployeePayrollDetailPage() {
                 });
 
                 if (res.ok) {
-                    // Optimistic update for wage/OT
                     const record = data.dailyRecords.find(r => r.date === date);
                     if (record) {
+                        const updatedRecord = { ...record };
                         if (field === "wage") {
-                            const total = numValue + record.otAmount - record.latePenalty;
-                            updateLocalRecord(date, {
-                                dailyWage: numValue,
-                                isWageOverridden: true,
-                                total: Math.round(total * 100) / 100,
-                            });
-                        } else {
-                            const total = record.dailyWage + numValue - record.latePenalty;
-                            updateLocalRecord(date, {
-                                otAmount: numValue,
-                                isOTOverridden: true,
-                                total: Math.round(total * 100) / 100,
-                            });
+                            updatedRecord.dailyWage = numValue;
+                            updatedRecord.isWageOverridden = true;
+                        } else if (field === "ot") {
+                            updatedRecord.otAmount = numValue;
+                            updatedRecord.isOTOverridden = true;
+                        } else if (field === "latePenalty") {
+                            updatedRecord.latePenalty = numValue;
+                            updatedRecord.isLatePenaltyOverridden = true;
+                        } else if (field === "adjustment") {
+                            updatedRecord.adjustment = numValue;
                         }
+                        updatedRecord.total = Math.round(
+                            (updatedRecord.dailyWage + updatedRecord.otAmount - updatedRecord.latePenalty + updatedRecord.adjustment) * 100
+                        ) / 100;
+                        updateLocalRecord(date, updatedRecord);
                     }
                 }
             }
@@ -388,7 +397,7 @@ export default function EmployeePayrollDetailPage() {
 
                 {/* Summary Cards */}
                 {data && (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
                         <Card className="bg-slate-800/50 border-slate-700">
                             <CardContent className="py-4 text-center">
                                 <p className="text-2xl font-bold text-blue-400">{data.summary.workDays}</p>
@@ -417,6 +426,14 @@ export default function EmployeePayrollDetailPage() {
                                     -฿{formatCurrency(data.summary.totalLatePenalty)}
                                 </p>
                                 <p className="text-xs text-slate-400">หักสาย</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-slate-800/50 border-slate-700">
+                            <CardContent className="py-4 text-center">
+                                <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
+                                </p>
+                                <p className="text-xs text-slate-400">ปรับเงิน</p>
                             </CardContent>
                         </Card>
                         <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
@@ -451,7 +468,8 @@ export default function EmployeePayrollDetailPage() {
                                         <TableHead className="text-slate-300 text-center">OT (ชม.)</TableHead>
                                         <TableHead className="text-slate-300 text-center w-28">ค่าแรง/วัน</TableHead>
                                         <TableHead className="text-slate-300 text-center w-28">ค่า OT</TableHead>
-                                        <TableHead className="text-slate-300 text-right">หักสาย</TableHead>
+                                        <TableHead className="text-slate-300 text-center w-28">หักสาย</TableHead>
+                                        <TableHead className="text-slate-300 text-center w-28">ปรับเงิน</TableHead>
                                         <TableHead className="text-slate-300 text-right">รวม</TableHead>
                                         <TableHead className="text-slate-300 text-center w-12"></TableHead>
                                     </TableRow>
@@ -459,7 +477,7 @@ export default function EmployeePayrollDetailPage() {
                                 <TableBody>
                                     {data.dailyRecords.map((record) => {
                                         const isWeekend = ["เสาร์", "อาทิตย์"].includes(record.dayOfWeek);
-                                        const hasOverride = record.isWageOverridden || record.isOTOverridden;
+                                        const hasOverride = record.isWageOverridden || record.isOTOverridden || record.isLatePenaltyOverridden || record.adjustment !== 0;
                                         const isSaving = savingDate === record.date;
 
                                         return (
@@ -578,11 +596,61 @@ export default function EmployeePayrollDetailPage() {
                                                     )}
                                                 </TableCell>
 
-                                                <TableCell className="text-right text-red-400">
-                                                    {record.latePenalty > 0 ? `-${formatCurrency(record.latePenalty)}` : "-"}
+                                                {/* Late Penalty Cell - Editable */}
+                                                <TableCell className="text-center">
+                                                    {editingCell?.date === record.date && editingCell?.field === "latePenalty" ? (
+                                                        <Input
+                                                            type="number"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={handleSaveEdit}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                            className="w-24 bg-slate-700 border-red-500 text-white text-center"
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStartEdit(record.date, "latePenalty", record.latePenalty)}
+                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isLatePenaltyOverridden
+                                                                ? "text-amber-400 font-bold bg-amber-500/10"
+                                                                : "text-red-400"
+                                                                }`}
+                                                            disabled={isSaving}
+                                                        >
+                                                            {record.latePenalty > 0 ? `-${formatCurrency(record.latePenalty)}` : "-"}
+                                                        </button>
+                                                    )}
                                                 </TableCell>
+
+                                                {/* Adjustment Cell - Editable */}
+                                                <TableCell className="text-center">
+                                                    {editingCell?.date === record.date && editingCell?.field === "adjustment" ? (
+                                                        <Input
+                                                            type="number"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={handleSaveEdit}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                            className="w-24 bg-slate-700 border-amber-500 text-white text-center"
+                                                            placeholder="0"
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStartEdit(record.date, "adjustment", record.adjustment)}
+                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.adjustment > 0 ? "text-amber-400 font-bold bg-amber-500/10"
+                                                                    : record.adjustment < 0 ? "text-red-400 font-bold bg-red-500/10"
+                                                                        : "text-slate-500"
+                                                                }`}
+                                                            disabled={isSaving}
+                                                        >
+                                                            {record.adjustment !== 0 ? (record.adjustment > 0 ? `+${formatCurrency(record.adjustment)}` : formatCurrency(record.adjustment)) : "-"}
+                                                        </button>
+                                                    )}
+                                                </TableCell>
+
                                                 <TableCell className="text-right text-white font-bold">
-                                                    {record.total > 0 ? formatCurrency(record.total) : "-"}
+                                                    {record.total > 0 ? formatCurrency(record.total) : record.total < 0 ? formatCurrency(record.total) : "-"}
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     {hasOverride && (

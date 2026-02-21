@@ -578,15 +578,17 @@ model ProfileEditRequest {
 }
 
 model DailyPayrollOverride {
-  id                String   @id @default(cuid())
-  userId            String
-  date              DateTime
-  overrideDailyWage Decimal?
-  overrideOT        Decimal?
-  note              String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(cuid())
+  userId               String
+  date                 DateTime
+  overrideDailyWage    Decimal?
+  overrideOT           Decimal?
+  overrideLatePenalty   Decimal?
+  adjustment           Decimal? @default(0)
+  note                 String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
