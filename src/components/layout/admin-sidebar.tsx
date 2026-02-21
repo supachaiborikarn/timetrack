@@ -75,6 +75,12 @@ const navItems: NavItem[] = [
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
     },
     {
+        title: "ลงเวลาย้อนหลัง",
+        href: "/admin/attendance/backfill",
+        icon: CalendarDays,
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
+    },
+    {
         title: "ตารางกะ",
         href: "/admin/shifts",
         icon: Calendar,
