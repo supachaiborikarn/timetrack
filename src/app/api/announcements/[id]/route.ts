@@ -71,3 +71,116 @@ export async function GET(
         return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
     }
 }
+
+// PUT: Update an announcement
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+
+        // Check if announcement exists
+        const existing = await prisma.announcement.findUnique({
+            where: { id },
+            select: { authorId: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: "ไม่พบประกาศ" }, { status: 404 });
+        }
+
+        // Check permission: author or admin/HR/manager
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { role: true },
+        });
+
+        const isAuthor = existing.authorId === session.user.id;
+        const isPrivileged = ["ADMIN", "HR", "MANAGER"].includes(user?.role || "");
+
+        if (!isAuthor && !isPrivileged) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ไข" }, { status: 403 });
+        }
+
+        const { title, content, isPinned, targetDepartmentIds } = await request.json();
+
+        const updateData: Record<string, unknown> = {};
+        if (title !== undefined) updateData.title = title;
+        if (content !== undefined) updateData.content = content;
+
+        // Only privileged users can change pin/department targeting
+        if (isPrivileged) {
+            if (isPinned !== undefined) updateData.isPinned = isPinned;
+            if (targetDepartmentIds !== undefined) {
+                updateData.targetDepartmentIds =
+                    targetDepartmentIds && targetDepartmentIds.length > 0
+                        ? JSON.stringify(targetDepartmentIds)
+                        : null;
+            }
+        }
+
+        const updated = await prisma.announcement.update({
+            where: { id },
+            data: updateData,
+            include: {
+                author: {
+                    select: { name: true, nickName: true },
+                },
+            },
+        });
+
+        return NextResponse.json({ announcement: updated });
+    } catch (error) {
+        console.error("Error updating announcement:", error);
+        return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+    }
+}
+
+// DELETE: Delete an announcement
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+
+        const existing = await prisma.announcement.findUnique({
+            where: { id },
+            select: { authorId: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: "ไม่พบประกาศ" }, { status: 404 });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { role: true },
+        });
+
+        const isAuthor = existing.authorId === session.user.id;
+        const isPrivileged = ["ADMIN", "HR", "MANAGER"].includes(user?.role || "");
+
+        if (!isAuthor && !isPrivileged) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ลบ" }, { status: 403 });
+        }
+
+        await prisma.announcement.delete({ where: { id } });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Error deleting announcement:", error);
+        return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+    }
+}

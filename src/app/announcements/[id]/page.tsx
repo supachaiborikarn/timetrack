@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, ArrowLeft, Eye, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, Send, ArrowLeft, Eye, CheckCircle2, Clock, Pencil, Trash2, X, Save } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 
@@ -33,6 +34,7 @@ interface Announcement {
     id: string;
     title: string;
     content: string;
+    authorId: string;
     createdAt: string;
     totalReads: number;
     reads: ReadInfo[];
@@ -54,8 +56,19 @@ export default function AnnouncementDetailPage() {
     const [isPosting, setIsPosting] = useState(false);
     const [showReads, setShowReads] = useState(false);
 
+    // Edit state
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState("");
+    const [editContent, setEditContent] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     const isAdminOrManager = session?.user?.role &&
         ["ADMIN", "HR", "MANAGER"].includes(session.user.role as string);
+
+    const canEdit = post && session?.user?.id &&
+        (post.authorId === session.user.id || isAdminOrManager);
 
     const fetchPost = async () => {
         try {
@@ -91,6 +104,73 @@ export default function AnnouncementDetailPage() {
             markAsRead();
         }
     }, [params.id]);
+
+    const startEditing = () => {
+        if (!post) return;
+        setEditTitle(post.title === "ข้อความ" ? "" : post.title);
+        setEditContent(post.content);
+        setIsEditing(true);
+    };
+
+    const cancelEditing = () => {
+        setIsEditing(false);
+        setEditTitle("");
+        setEditContent("");
+    };
+
+    const handleSave = async () => {
+        if (!editContent.trim()) {
+            toast.error("กรุณากรอกเนื้อหา");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/announcements/${params.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: editTitle.trim() || "ข้อความ",
+                    content: editContent.trim(),
+                }),
+            });
+
+            if (res.ok) {
+                toast.success("แก้ไขเรียบร้อย");
+                setIsEditing(false);
+                fetchPost();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/announcements/${params.id}`, {
+                method: "DELETE",
+            });
+
+            if (res.ok) {
+                toast.success("ลบประกาศเรียบร้อย");
+                router.push("/announcements");
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
+    };
 
     const handleComment = async () => {
         if (!newComment.trim()) return;
@@ -131,12 +211,63 @@ export default function AnnouncementDetailPage() {
 
     return (
         <div className="min-h-screen bg-slate-50/50 pb-24">
-            <div className="p-4 border-b bg-white flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={() => router.push("/announcements")}>
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <h1 className="font-semibold">ประกาศ</h1>
+            <div className="p-4 border-b bg-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => router.push("/announcements")}>
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <h1 className="font-semibold">ประกาศ</h1>
+                </div>
+                {/* Edit/Delete buttons */}
+                {canEdit && !isEditing && (
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={startEditing}
+                            className="text-slate-500 hover:text-blue-600"
+                        >
+                            <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="text-slate-500 hover:text-red-600"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    </div>
+                )}
             </div>
+
+            {/* Delete confirmation */}
+            {showDeleteConfirm && (
+                <div className="bg-red-50 border-b border-red-200 p-4">
+                    <div className="max-w-xl mx-auto flex items-center justify-between">
+                        <p className="text-sm text-red-700 font-medium">ต้องการลบประกาศนี้?</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowDeleteConfirm(false)}
+                            >
+                                ยกเลิก
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="gap-1"
+                            >
+                                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                ลบ
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-xl mx-auto p-4 space-y-6">
                 {/* Main Post */}
@@ -157,13 +288,50 @@ export default function AnnouncementDetailPage() {
                                     {formatThaiDate(new Date(post.createdAt), "d MMM HH:mm")}
                                 </span>
                             </div>
-                            {post.title !== "ข้อความ" && (
+                            {!isEditing && post.title !== "ข้อความ" && (
                                 <h3 className="font-medium text-slate-800 text-lg">{post.title}</h3>
                             )}
                         </div>
                     </CardHeader>
-                    <CardContent className="pb-4 text-slate-700 whitespace-pre-wrap">
-                        {post.content}
+                    <CardContent className="pb-4">
+                        {isEditing ? (
+                            <div className="space-y-3">
+                                <Input
+                                    placeholder="หัวข้อ (ไม่บังคับ)"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="font-medium"
+                                />
+                                <Textarea
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    className="min-h-[120px] resize-none"
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={cancelEditing}
+                                        disabled={isSaving}
+                                        className="gap-1"
+                                    >
+                                        <X className="w-4 h-4" />
+                                        ยกเลิก
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSave}
+                                        disabled={!editContent.trim() || isSaving}
+                                        className="gap-1"
+                                    >
+                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        บันทึก
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-slate-700 whitespace-pre-wrap">{post.content}</p>
+                        )}
                     </CardContent>
                 </Card>
 
