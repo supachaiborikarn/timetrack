@@ -60,13 +60,11 @@ export async function GET(request: NextRequest) {
         const payrollData = employees.map((emp) => {
             const empAttendance = attendanceRecords.filter((a) => a.userId === emp.id);
 
-            // Daily rate from employee or default
+            // Daily rate from employee
             const dailyRate = Number(emp.dailyRate) || 0;
-            const hourlyRate = Number(emp.hourlyRate) || (dailyRate / normalHoursPerDay);
 
             let workDays = 0;
             let totalHours = 0;
-            let regularHours = 0;
             let latePenalty = 0;
 
             for (const record of empAttendance) {
@@ -75,9 +73,6 @@ export async function GET(request: NextRequest) {
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    // All hours count as regular — OT is manually added by HR
-                    regularHours += actualHours;
-
                     // Late penalty
                     if (record.latePenaltyAmount) {
                         latePenalty += Number(record.latePenaltyAmount);
@@ -85,9 +80,9 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            // Calculate pay
-            const regularPay = regularHours * hourlyRate;
-            const overtimePay = 0; // OT added manually by HR
+            // Calculate pay: daily rate × work days
+            const regularPay = workDays * dailyRate;
+            const overtimePay = 0; // OT/รายได้พิเศษ เพิ่มโดย HR
             const totalPay = regularPay + overtimePay - latePenalty;
 
             return {
@@ -97,12 +92,8 @@ export async function GET(request: NextRequest) {
                 station: emp.station?.name || "-",
                 department: emp.department?.name || "-",
                 dailyRate,
-                hourlyRate,
-                normalHoursPerDay,
                 workDays,
                 totalHours,
-                regularHours,
-                overtimeHours: 0,
                 regularPay,
                 overtimePay,
                 latePenalty,
@@ -119,8 +110,7 @@ export async function GET(request: NextRequest) {
         const summary = {
             totalEmployees: activePayroll.length,
             totalWorkDays: activePayroll.reduce((sum, p) => sum + p.workDays, 0),
-            totalRegularHours: activePayroll.reduce((sum, p) => sum + p.regularHours, 0),
-            totalOvertimeHours: 0,
+            totalHours: activePayroll.reduce((sum, p) => sum + p.totalHours, 0),
             totalRegularPay: activePayroll.reduce((sum, p) => sum + p.regularPay, 0),
             totalOvertimePay: activePayroll.reduce((sum, p) => sum + p.overtimePay, 0),
             totalLatePenalty: activePayroll.reduce((sum, p) => sum + p.latePenalty, 0),

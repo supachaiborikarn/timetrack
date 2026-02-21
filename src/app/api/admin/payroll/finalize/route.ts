@@ -59,13 +59,11 @@ export async function POST(request: NextRequest) {
         const records = [];
         for (const emp of employees) {
             const empAtt = attendance.filter(a => a.userId === emp.id);
-            const normalHours = 10.5;
-            const hourlyRate = Number(emp.hourlyRate) || (Number(emp.dailyRate) / normalHours);
+            const dailyRate = Number(emp.dailyRate) || 0;
 
             let workDays = 0;
             let totalHours = 0;
-            let regularPay = 0;
-            const overtimePay = 0; // OT added manually by HR
+            const overtimePay = 0; // รายได้พิเศษ เพิ่มโดย HR
             let latePenalty = 0;
 
             empAtt.forEach(att => {
@@ -74,11 +72,10 @@ export async function POST(request: NextRequest) {
                 const actual = att.actualHours ? Number(att.actualHours) : 0;
                 totalHours += actual;
 
-                // All hours count as regular — OT is manually added by HR
-                regularPay += actual * hourlyRate;
-
                 if (att.latePenaltyAmount) latePenalty += Number(att.latePenaltyAmount);
             });
+
+            const regularPay = workDays * dailyRate;
 
             const netPay = regularPay + overtimePay - latePenalty;
 

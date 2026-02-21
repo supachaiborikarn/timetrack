@@ -63,11 +63,9 @@ export async function GET(request: NextRequest) {
             const empAttendance = attendanceRecords.filter((a) => a.userId === emp.id);
 
             const dailyRate = Number(emp.dailyRate) || 0;
-            const hourlyRate = Number(emp.hourlyRate) || (dailyRate / normalHoursPerDay);
 
             let workDays = 0;
             let totalHours = 0;
-            let regularHours = 0;
             let latePenalty = 0;
 
             for (const record of empAttendance) {
@@ -76,16 +74,14 @@ export async function GET(request: NextRequest) {
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    regularHours += actualHours;
-
                     if (record.latePenaltyAmount) {
                         latePenalty += Number(record.latePenaltyAmount);
                     }
                 }
             }
 
-            const regularPay = regularHours * hourlyRate;
-            const overtimePay = 0; // OT added manually by HR
+            const regularPay = workDays * dailyRate;
+            const overtimePay = 0;
             const totalPay = regularPay + overtimePay - latePenalty;
 
             return {
@@ -94,11 +90,8 @@ export async function GET(request: NextRequest) {
                 station: emp.station?.name || "-",
                 department: emp.department?.name || "-",
                 dailyRate,
-                hourlyRate,
                 workDays,
                 totalHours,
-                regularHours,
-                overtimeHours: 0,
                 regularPay,
                 overtimePay,
                 latePenalty,
@@ -113,13 +106,10 @@ export async function GET(request: NextRequest) {
             "สถานี",
             "แผนก",
             "ค่าแรง/วัน",
-            "ค่าแรง/ชม.",
             "วันทำงาน",
             "ชม.รวม",
-            "ชม.ปกติ",
-            "ชม. OT",
-            "ค่าแรงปกติ",
-            "ค่า OT",
+            "ค่าแรง",
+            "รายได้พิเศษ",
             "หักสาย",
             "รวมสุทธิ",
         ];
@@ -130,11 +120,8 @@ export async function GET(request: NextRequest) {
             p.station,
             p.department,
             p.dailyRate.toFixed(2),
-            p.hourlyRate.toFixed(2),
             p.workDays,
             p.totalHours.toFixed(1),
-            p.regularHours.toFixed(1),
-            p.overtimeHours.toFixed(1),
             p.regularPay.toFixed(2),
             p.overtimePay.toFixed(2),
             p.latePenalty.toFixed(2),
@@ -150,20 +137,18 @@ export async function GET(request: NextRequest) {
         rows.push([]);
         rows.push(["สรุปรวม"]);
         rows.push(["จำนวนพนักงาน", payrollData.length.toString()]);
-        rows.push(["ชั่วโมงปกติต่อวัน (ตั้งค่า)", normalHoursPerDay.toFixed(1)]);
-        rows.push(["ค่าแรงปกติรวม", "", "", "", "", "", "", "", "", "", totalRegularPay.toFixed(2)]);
-        rows.push(["ค่า OT รวม", "", "", "", "", "", "", "", "", "", "", totalOTPay.toFixed(2)]);
-        rows.push(["หักสายรวม", "", "", "", "", "", "", "", "", "", "", "", totalLatePenalty.toFixed(2)]);
-        rows.push(["รวมสุทธิทั้งหมด", "", "", "", "", "", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
+        rows.push(["ค่าแรงรวม", "", "", "", "", "", "", totalRegularPay.toFixed(2)]);
+        rows.push(["รายได้พิเศษรวม", "", "", "", "", "", "", "", totalOTPay.toFixed(2)]);
+        rows.push(["หักสายรวม", "", "", "", "", "", "", "", "", totalLatePenalty.toFixed(2)]);
+        rows.push(["รวมสุทธิทั้งหมด", "", "", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
         ws["!cols"] = [
             { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 12 },
-            { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
-            { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 10 },
-            { wch: 10 }, { wch: 12 },
+            { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 12 },
+            { wch: 12 }, { wch: 10 }, { wch: 12 },
         ];
 
         const sheetName = `เงินเดือน ${startDate} ถึง ${endDate}`;
