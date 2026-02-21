@@ -87,10 +87,13 @@ export default function AnnouncementsPage() {
 
     useEffect(() => {
         fetchPosts();
+    }, []);
+
+    useEffect(() => {
         if (isAdminOrManager) {
             fetchDepartments();
         }
-    }, []);
+    }, [isAdminOrManager]);
 
     const handlePost = async () => {
         if (!newPostContent.trim()) return;
@@ -213,8 +216,8 @@ export default function AnnouncementsPage() {
                                                     key={dept.id}
                                                     onClick={() => toggleDepartment(dept.id)}
                                                     className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedDeptIds.includes(dept.id)
-                                                            ? "bg-blue-500 text-white"
-                                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                        ? "bg-blue-500 text-white"
+                                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                                         }`}
                                                 >
                                                     {dept.name}
