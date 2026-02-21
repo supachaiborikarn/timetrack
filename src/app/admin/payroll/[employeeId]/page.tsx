@@ -103,7 +103,7 @@ export default function EmployeePayrollDetailPage() {
                 startDate,
                 endDate,
             });
-            const res = await fetch(`/ api / admin / payroll / employee - daily ? ${params} `);
+            const res = await fetch(`/api/admin/payroll/employee-daily?${params}`);
             if (res.ok) {
                 const json = await res.json();
                 setData(json.data);
@@ -274,7 +274,7 @@ export default function EmployeePayrollDetailPage() {
         setSavingDate(date);
         try {
             const params = new URLSearchParams({ userId: employeeId, date });
-            await fetch(`/ api / admin / payroll / employee - daily ? ${params} `, {
+            await fetch(`/api/admin/payroll/employee-daily?${params}`, {
                 method: "DELETE",
             });
             await fetchData();
@@ -389,7 +389,7 @@ export default function EmployeePayrollDetailPage() {
                                     className="border-slate-600 text-slate-300 ml-auto"
                                     asChild
                                 >
-                                    <a href={`/ admin / employees ? edit = ${data.employee.id} `}>
+                                    <a href={`/admin/employees?edit=${data.employee.id}`}>
                                         แก้ไขข้อมูลพนักงาน
                                     </a>
                                 </Button>
