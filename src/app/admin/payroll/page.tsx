@@ -30,8 +30,8 @@ import {
     Users,
     Clock,
     DollarSign,
-    TrendingUp,
     Eye,
+    AlertTriangle,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
@@ -56,13 +56,8 @@ interface PayrollData {
         station: string;
         department: string;
         dailyRate: number;
-        normalHoursPerDay: number;
-        // Calculated
         workDays: number;
         totalHours: number;
-        regularHours: number;
-        overtimeHours: number;
-        // Amounts
         regularPay: number;
         overtimePay: number;
         latePenalty: number;
@@ -71,8 +66,7 @@ interface PayrollData {
     summary: {
         totalEmployees: number;
         totalWorkDays: number;
-        totalRegularHours: number;
-        totalOvertimeHours: number;
+        totalHours: number;
         totalRegularPay: number;
         totalOvertimePay: number;
         totalLatePenalty: number;
@@ -80,11 +74,24 @@ interface PayrollData {
     };
 }
 
+interface AbsenceOverlap {
+    date: string;
+    stationId: string;
+    stationName: string;
+    absentEmployees: {
+        id: string;
+        name: string;
+        nickName: string | null;
+        employeeId: string;
+    }[];
+}
+
 export default function PayrollPage() {
     const { data: session, status } = useSession();
     const [stations, setStations] = useState<Station[]>([]);
     const [payrollData, setPayrollData] = useState<PayrollData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [absenceOverlaps, setAbsenceOverlaps] = useState<AbsenceOverlap[]>([]);
 
     // Filters
     const now = getBangkokNow();
@@ -152,10 +159,18 @@ export default function PayrollPage() {
                 ...(departmentId !== "all" && { departmentId }),
             });
 
-            const res = await fetch(`/api/admin/payroll?${params}`);
-            if (res.ok) {
-                const data = await res.json();
+            const [payrollRes, overlapRes] = await Promise.all([
+                fetch(`/api/admin/payroll?${params}`),
+                fetch(`/api/admin/payroll/absence-overlaps?startDate=${startDate}&endDate=${endDate}${stationId !== "all" ? `&stationId=${stationId}` : ""}`),
+            ]);
+
+            if (payrollRes.ok) {
+                const data = await payrollRes.json();
                 setPayrollData(data);
+            }
+            if (overlapRes.ok) {
+                const data = await overlapRes.json();
+                setAbsenceOverlaps(data.overlaps || []);
             }
         } catch (error) {
             console.error("Failed to calculate payroll:", error);
@@ -238,7 +253,7 @@ export default function PayrollPage() {
                         </Button>
                         <div>
                             <h1 className="text-xl font-bold text-white">คำนวณเงินเดือน</h1>
-                            <p className="text-sm text-slate-400">คำนวณค่าแรง ชั่วโมงปกติ และ OT</p>
+                            <p className="text-sm text-slate-400">คำนวณค่าแรงรายวัน</p>
                         </div>
                     </div>
                     <Button
@@ -358,15 +373,15 @@ export default function PayrollPage() {
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
                                     <Clock className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-white">{payrollData.summary.totalRegularHours.toFixed(0)}</p>
-                                    <p className="text-xs text-slate-400">ชม.ปกติ</p>
+                                    <p className="text-2xl font-bold text-white">{(payrollData.summary.totalHours || 0).toFixed(0)}</p>
+                                    <p className="text-xs text-slate-400">ชม.รวม</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
+                            <Card className={`border-0 ${absenceOverlaps.length > 0 ? 'bg-gradient-to-br from-amber-600 to-orange-700' : 'bg-slate-800/50 border-slate-700'}`}>
                                 <CardContent className="py-4 text-center">
-                                    <TrendingUp className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-purple-400">{payrollData.summary.totalOvertimeHours.toFixed(1)}</p>
-                                    <p className="text-xs text-slate-400">ชม. OT</p>
+                                    <AlertTriangle className={`w-6 h-6 mx-auto mb-2 ${absenceOverlaps.length > 0 ? 'text-white' : 'text-slate-500'}`} />
+                                    <p className={`text-2xl font-bold ${absenceOverlaps.length > 0 ? 'text-white' : 'text-slate-500'}`}>{absenceOverlaps.length}</p>
+                                    <p className={`text-xs ${absenceOverlaps.length > 0 ? 'text-amber-200' : 'text-slate-400'}`}>วันหยุดซ้ำกัน</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
@@ -379,17 +394,11 @@ export default function PayrollPage() {
                         </div>
 
                         {/* Breakdown */}
-                        <div className="grid grid-cols-4 gap-4 mb-6">
+                        <div className="grid grid-cols-3 gap-4 mb-6">
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
                                     <p className="text-lg font-bold text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
-                                    <p className="text-xs text-slate-400">ค่าแรงปกติ</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-lg font-bold text-purple-400">฿{formatCurrency(payrollData.summary.totalOvertimePay)}</p>
-                                    <p className="text-xs text-slate-400">ค่า OT</p>
+                                    <p className="text-xs text-slate-400">ค่าแรง</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-slate-800/50 border-slate-700">
@@ -419,10 +428,8 @@ export default function PayrollPage() {
                                             <TableHead className="text-slate-300">ชื่อ</TableHead>
                                             <TableHead className="text-slate-300">แผนก</TableHead>
                                             <TableHead className="text-slate-300 text-center">วัน</TableHead>
-                                            <TableHead className="text-slate-300 text-center">ชม.ปกติ</TableHead>
-                                            <TableHead className="text-slate-300 text-center">OT</TableHead>
-                                            <TableHead className="text-slate-300 text-right">ค่าแรงปกติ</TableHead>
-                                            <TableHead className="text-slate-300 text-right">ค่า OT</TableHead>
+                                            <TableHead className="text-slate-300 text-center">ชม.รวม</TableHead>
+                                            <TableHead className="text-slate-300 text-right">ค่าแรง</TableHead>
                                             <TableHead className="text-slate-300 text-right">หักสาย</TableHead>
                                             <TableHead className="text-slate-300 text-center">เงินพิเศษ</TableHead>
                                             <TableHead className="text-slate-300 text-right">รวมสุทธิ</TableHead>
@@ -439,10 +446,8 @@ export default function PayrollPage() {
                                                     <TableCell className="text-white font-medium">{emp.name}</TableCell>
                                                     <TableCell className="text-slate-400">{emp.department}</TableCell>
                                                     <TableCell className="text-center text-white">{emp.workDays}</TableCell>
-                                                    <TableCell className="text-center text-blue-400">{emp.regularHours.toFixed(1)}</TableCell>
-                                                    <TableCell className="text-center text-purple-400">{emp.overtimeHours.toFixed(1)}</TableCell>
+                                                    <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
                                                     <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
-                                                    <TableCell className="text-right text-purple-400">฿{formatCurrency(emp.overtimePay)}</TableCell>
                                                     <TableCell className="text-right text-red-400">-฿{formatCurrency(emp.latePenalty)}</TableCell>
                                                     <TableCell className="text-center">
                                                         <Input
@@ -517,6 +522,55 @@ export default function PayrollPage() {
                                 </Table>
                             </div>
                         </Card>
+
+                        {/* Absence Overlaps */}
+                        {absenceOverlaps.length > 0 && (
+                            <Card className="bg-slate-800/50 border-amber-700/50 mt-6">
+                                <CardHeader>
+                                    <CardTitle className="text-lg text-amber-400 flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5" />
+                                        วันหยุดซ้ำกัน ({absenceOverlaps.length} วัน)
+                                    </CardTitle>
+                                    <p className="text-sm text-slate-400">วันที่มีพนักงาน 2 คนขึ้นไปหยุดพร้อมกันในสถานีเดียวกัน</p>
+                                </CardHeader>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="border-slate-700">
+                                                <TableHead className="text-slate-300">วันที่</TableHead>
+                                                <TableHead className="text-slate-300">สถานี</TableHead>
+                                                <TableHead className="text-slate-300">พนักงานที่หยุด</TableHead>
+                                                <TableHead className="text-slate-300 text-center">จำนวน</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {absenceOverlaps.map((overlap, idx) => (
+                                                <TableRow key={idx} className="border-slate-700">
+                                                    <TableCell className="text-white font-medium">
+                                                        {new Date(overlap.date).toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short" })}
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-400">{overlap.stationName}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {overlap.absentEmployees.map((emp) => (
+                                                                <Badge key={emp.id} variant="outline" className="border-amber-600 text-amber-400 text-xs">
+                                                                    {emp.nickName || emp.name}
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge className="bg-amber-600 text-white">
+                                                            {overlap.absentEmployees.length} คน
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </Card>
+                        )}
                     </>
                 )}
 
