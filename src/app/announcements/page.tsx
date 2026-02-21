@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, MessageSquare, Pin, Eye, Building2 } from "lucide-react";
+import { Loader2, Send, MessageSquare, Pin, Eye, Building2, Trash2 } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,7 @@ interface Announcement {
     targetDepartmentIds: string | null;
     createdAt: string;
     author: {
+        id: string;
         name: string;
         nickName: string | null;
         image: string | null;
@@ -125,6 +126,25 @@ export default function AnnouncementsPage() {
             toast.error("เกิดข้อผิดพลาด");
         } finally {
             setIsPosting(false);
+        }
+    };
+
+    const handleDelete = async (postId: string) => {
+        if (!confirm("คุณต้องการลบประกาศนี้ใช่หรือไม่?")) return;
+
+        try {
+            const res = await fetch(`/api/announcements/${postId}`, {
+                method: "DELETE",
+            });
+
+            if (res.ok) {
+                toast.success("ลบประกาศเรียบร้อยแล้ว");
+                fetchPosts();
+            } else {
+                toast.error("เกิดข้อผิดพลาดในการลบประกาศ");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการลบประกาศ");
         }
     };
 
@@ -268,9 +288,23 @@ export default function AnnouncementsPage() {
                                                     <p className="font-semibold text-slate-900">
                                                         {post.author.nickName || post.author.name}
                                                     </p>
-                                                    <span className="text-xs text-slate-500">
-                                                        {formatThaiDate(new Date(post.createdAt), "d MMM HH:mm")}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-slate-500">
+                                                            {formatThaiDate(new Date(post.createdAt), "d MMM HH:mm")}
+                                                        </span>
+                                                        {(isAdminOrManager || session?.user?.id === post.author.id) && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDelete(post.id);
+                                                                }}
+                                                                className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                                                                title="ลบประกาศ"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {/* Badges */}
                                                 <div className="flex flex-wrap gap-1.5">
