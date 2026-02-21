@@ -34,6 +34,7 @@ interface DailyRecord {
     checkInTime: string | null;
     checkOutTime: string | null;
     actualHours: number | null;
+    breakMinutes: number | null;
     lateMinutes: number | null;
     latePenalty: number;
     isLatePenaltyOverridden: boolean;
@@ -465,6 +466,7 @@ export default function EmployeePayrollDetailPage() {
                                         <TableHead className="text-slate-300 text-center">เข้า</TableHead>
                                         <TableHead className="text-slate-300 text-center">ออก</TableHead>
                                         <TableHead className="text-slate-300 text-center">ชม.</TableHead>
+                                        <TableHead className="text-slate-300 text-center">พัก</TableHead>
                                         <TableHead className="text-slate-300 text-center">OT (ชม.)</TableHead>
                                         <TableHead className="text-slate-300 text-center w-28">ค่าแรง/วัน</TableHead>
                                         <TableHead className="text-slate-300 text-center w-28">ค่า OT</TableHead>
@@ -539,6 +541,9 @@ export default function EmployeePayrollDetailPage() {
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-400">
                                                     {record.actualHours?.toFixed(1) || "-"}
+                                                </TableCell>
+                                                <TableCell className="text-center text-cyan-400">
+                                                    {record.breakMinutes != null ? `${record.breakMinutes}น.` : "-"}
                                                 </TableCell>
                                                 <TableCell className="text-center text-purple-400">
                                                     {record.otHours > 0 ? record.otHours.toFixed(1) : "-"}
@@ -639,8 +644,8 @@ export default function EmployeePayrollDetailPage() {
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "adjustment", record.adjustment)}
                                                             className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.adjustment > 0 ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                    : record.adjustment < 0 ? "text-red-400 font-bold bg-red-500/10"
-                                                                        : "text-slate-500"
+                                                                : record.adjustment < 0 ? "text-red-400 font-bold bg-red-500/10"
+                                                                    : "text-slate-500"
                                                                 }`}
                                                             disabled={isSaving}
                                                         >

@@ -10,6 +10,7 @@ interface DailyRecord {
     checkInTime: string | null;
     checkOutTime: string | null;
     actualHours: number | null;
+    breakMinutes: number | null;
     lateMinutes: number | null;
     latePenalty: number;
     isLatePenaltyOverridden: boolean;
@@ -146,6 +147,7 @@ export async function GET(request: NextRequest) {
                 checkInTime: attendance?.checkInTime?.toISOString() || null,
                 checkOutTime: attendance?.checkOutTime?.toISOString() || null,
                 actualHours,
+                breakMinutes: attendance?.breakDurationMin ?? null,
                 lateMinutes,
                 latePenalty: finalLatePenalty,
                 isLatePenaltyOverridden,
