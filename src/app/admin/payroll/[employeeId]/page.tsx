@@ -497,11 +497,10 @@ export default function EmployeePayrollDetailPage() {
                                                         {record.dayOfWeek}
                                                         {record.absentColleagues.length > 0 && (
                                                             <span
-                                                                title={`หยุดพร้อมกัน: ${record.absentColleagues.map(c => c.nickName || c.name).join(", ")} `}
-                                                                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full cursor-help"
+                                                                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full"
                                                             >
-                                                                <Users className="w-3 h-3" />
-                                                                {record.absentColleagues.length}
+                                                                <Users className="w-3 h-3 shrink-0" />
+                                                                {record.absentColleagues.map(c => c.nickName || c.name).join(", ")}
                                                             </span>
                                                         )}
                                                     </div>
