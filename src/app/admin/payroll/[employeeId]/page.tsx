@@ -24,6 +24,7 @@ import {
     RotateCcw,
     CheckCircle2,
     Edit2,
+    Users,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ interface DailyRecord {
     adjustment: number;
     note: string | null;
     total: number;
+    absentColleagues: { name: string; nickName: string | null }[];
 }
 
 interface EmployeePayrollData {
@@ -101,12 +103,12 @@ export default function EmployeePayrollDetailPage() {
                 startDate,
                 endDate,
             });
-            const res = await fetch(`/api/admin/payroll/employee-daily?${params}`);
+            const res = await fetch(`/ api / admin / payroll / employee - daily ? ${params} `);
             if (res.ok) {
                 const json = await res.json();
                 setData(json.data);
                 const workDays = json.data?.summary?.workDays || 0;
-                toast.success(`โหลดข้อมูลสำเร็จ (${workDays} วันทำงาน)`);
+                toast.success(`โหลดข้อมูลสำเร็จ(${workDays} วันทำงาน)`);
             } else {
                 toast.error("ไม่สามารถโหลดข้อมูลได้");
             }
@@ -126,7 +128,7 @@ export default function EmployeePayrollDetailPage() {
     const isoToTimeInput = (isoString: string | null): string => {
         if (!isoString) return "";
         const date = new Date(isoString);
-        return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+        return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")} `;
     };
 
     const handleStartEdit = (date: string, field: EditField, currentValue: number | string | null) => {
@@ -272,7 +274,7 @@ export default function EmployeePayrollDetailPage() {
         setSavingDate(date);
         try {
             const params = new URLSearchParams({ userId: employeeId, date });
-            await fetch(`/api/admin/payroll/employee-daily?${params}`, {
+            await fetch(`/ api / admin / payroll / employee - daily ? ${params} `, {
                 method: "DELETE",
             });
             await fetchData();
@@ -387,7 +389,7 @@ export default function EmployeePayrollDetailPage() {
                                     className="border-slate-600 text-slate-300 ml-auto"
                                     asChild
                                 >
-                                    <a href={`/admin/employees?edit=${data.employee.id}`}>
+                                    <a href={`/ admin / employees ? edit = ${data.employee.id} `}>
                                         แก้ไขข้อมูลพนักงาน
                                     </a>
                                 </Button>
@@ -431,7 +433,7 @@ export default function EmployeePayrollDetailPage() {
                         </Card>
                         <Card className="bg-slate-800/50 border-slate-700">
                             <CardContent className="py-4 text-center">
-                                <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                <p className={`text - 2xl font - bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'} `}>
                                     {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
                                 </p>
                                 <p className="text-xs text-slate-400">ปรับเงิน</p>
@@ -485,13 +487,24 @@ export default function EmployeePayrollDetailPage() {
                                         return (
                                             <TableRow
                                                 key={record.date}
-                                                className={`border-slate-700 ${isWeekend ? "bg-slate-800/30" : ""}`}
+                                                className={`border - slate - 700 ${isWeekend ? "bg-slate-800/30" : ""} `}
                                             >
                                                 <TableCell className="text-slate-400 font-mono text-sm">
                                                     {record.date.slice(5)}
                                                 </TableCell>
-                                                <TableCell className={`${isWeekend ? "text-red-400" : "text-slate-300"}`}>
-                                                    {record.dayOfWeek}
+                                                <TableCell className={`${isWeekend ? "text-red-400" : "text-slate-300"} `}>
+                                                    <div className="flex items-center gap-1">
+                                                        {record.dayOfWeek}
+                                                        {record.absentColleagues.length > 0 && (
+                                                            <span
+                                                                title={`หยุดพร้อมกัน: ${record.absentColleagues.map(c => c.nickName || c.name).join(", ")} `}
+                                                                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full cursor-help"
+                                                            >
+                                                                <Users className="w-3 h-3" />
+                                                                {record.absentColleagues.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 {/* Check-in Cell - Editable */}
                                                 <TableCell className="text-center">
@@ -543,7 +556,7 @@ export default function EmployeePayrollDetailPage() {
                                                     {record.actualHours?.toFixed(1) || "-"}
                                                 </TableCell>
                                                 <TableCell className="text-center text-cyan-400">
-                                                    {record.breakMinutes != null ? `${record.breakMinutes}น.` : "-"}
+                                                    {record.breakMinutes != null ? `${record.breakMinutes} น.` : "-"}
                                                 </TableCell>
                                                 <TableCell className="text-center text-purple-400">
                                                     {record.otHours > 0 ? record.otHours.toFixed(1) : "-"}
@@ -564,10 +577,10 @@ export default function EmployeePayrollDetailPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "wage", record.dailyWage)}
-                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isWageOverridden
+                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isWageOverridden
                                                                 ? "text-amber-400 font-bold bg-amber-500/10"
                                                                 : "text-green-400"
-                                                                }`}
+                                                                } `}
                                                             disabled={isSaving}
                                                         >
                                                             {record.dailyWage > 0 ? formatCurrency(record.dailyWage) : "-"}
@@ -590,10 +603,10 @@ export default function EmployeePayrollDetailPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "ot", record.otAmount)}
-                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isOTOverridden
+                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isOTOverridden
                                                                 ? "text-amber-400 font-bold bg-amber-500/10"
                                                                 : "text-purple-400"
-                                                                }`}
+                                                                } `}
                                                             disabled={isSaving}
                                                         >
                                                             {record.otAmount > 0 ? formatCurrency(record.otAmount) : "-"}
@@ -616,13 +629,13 @@ export default function EmployeePayrollDetailPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "latePenalty", record.latePenalty)}
-                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.isLatePenaltyOverridden
+                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isLatePenaltyOverridden
                                                                 ? "text-amber-400 font-bold bg-amber-500/10"
                                                                 : "text-red-400"
-                                                                }`}
+                                                                } `}
                                                             disabled={isSaving}
                                                         >
-                                                            {record.latePenalty > 0 ? `-${formatCurrency(record.latePenalty)}` : "-"}
+                                                            {record.latePenalty > 0 ? `- ${formatCurrency(record.latePenalty)} ` : "-"}
                                                         </button>
                                                     )}
                                                 </TableCell>
@@ -643,13 +656,13 @@ export default function EmployeePayrollDetailPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handleStartEdit(record.date, "adjustment", record.adjustment)}
-                                                            className={`px-2 py-1 rounded hover:bg-slate-700 w-full ${record.adjustment > 0 ? "text-amber-400 font-bold bg-amber-500/10"
+                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.adjustment > 0 ? "text-amber-400 font-bold bg-amber-500/10"
                                                                 : record.adjustment < 0 ? "text-red-400 font-bold bg-red-500/10"
                                                                     : "text-slate-500"
-                                                                }`}
+                                                                } `}
                                                             disabled={isSaving}
                                                         >
-                                                            {record.adjustment !== 0 ? (record.adjustment > 0 ? `+${formatCurrency(record.adjustment)}` : formatCurrency(record.adjustment)) : "-"}
+                                                            {record.adjustment !== 0 ? (record.adjustment > 0 ? `+ ${formatCurrency(record.adjustment)} ` : formatCurrency(record.adjustment)) : "-"}
                                                         </button>
                                                     )}
                                                 </TableCell>

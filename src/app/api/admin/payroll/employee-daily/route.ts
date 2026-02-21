@@ -22,6 +22,7 @@ interface DailyRecord {
     adjustment: number;
     note: string | null;
     total: number;
+    absentColleagues: { name: string; nickName: string | null }[];
 }
 
 // GET: Fetch employee's daily payroll data for a date range
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
                 dailyRate: true,
                 hourlyRate: true,
                 otRateMultiplier: true,
+                stationId: true,
                 station: { select: { name: true } },
                 department: { select: { name: true } },
             },
@@ -98,6 +100,47 @@ export async function GET(request: NextRequest) {
             attendances.map(a => [a.date.toISOString().split("T")[0], a])
         );
 
+        // Fetch station colleagues' attendance for absence overlap
+        let colleagueAttendanceMap = new Map<string, Set<string>>();
+        let colleagueNameMap = new Map<string, { name: string; nickName: string | null }>();
+        if (employee.stationId) {
+            const colleagues = await prisma.user.findMany({
+                where: {
+                    stationId: employee.stationId,
+                    id: { not: userId },
+                    isActive: true,
+                },
+                select: { id: true, name: true, nickName: true },
+            });
+
+            for (const c of colleagues) {
+                colleagueNameMap.set(c.id, { name: c.name, nickName: c.nickName });
+            }
+
+            // Get all attendance records for colleagues in this period
+            const colleagueAttendances = await prisma.attendance.findMany({
+                where: {
+                    userId: { in: colleagues.map(c => c.id) },
+                    date: {
+                        gte: new Date(startDate),
+                        lte: new Date(endDate),
+                    },
+                },
+                select: { userId: true, date: true },
+            });
+
+            // Build a map: dateKey -> Set of userIds who DID check in
+            for (const ca of colleagueAttendances) {
+                const dk = ca.date.toISOString().split("T")[0];
+                if (!colleagueAttendanceMap.has(dk)) {
+                    colleagueAttendanceMap.set(dk, new Set());
+                }
+                colleagueAttendanceMap.get(dk)!.add(ca.userId);
+            }
+        }
+
+        const allColleagueIds = Array.from(colleagueNameMap.keys());
+
         // Build daily records for every day in range
         const dailyRecords: DailyRecord[] = [];
         const start = startOfDay(new Date(startDate));
@@ -141,6 +184,18 @@ export async function GET(request: NextRequest) {
 
             const total = dailyWage + otAmount - finalLatePenalty + adjustment;
 
+            // Find absent colleagues on this day (only relevant if this employee is also absent)
+            const absentColleagues: { name: string; nickName: string | null }[] = [];
+            if (!attendance?.checkInTime && allColleagueIds.length > 0) {
+                const presentOnDate = colleagueAttendanceMap.get(dateKey) || new Set();
+                for (const cId of allColleagueIds) {
+                    if (!presentOnDate.has(cId)) {
+                        const info = colleagueNameMap.get(cId);
+                        if (info) absentColleagues.push(info);
+                    }
+                }
+            }
+
             dailyRecords.push({
                 date: dateKey,
                 dayOfWeek: dayNames[currentDate.getDay()],
@@ -159,6 +214,7 @@ export async function GET(request: NextRequest) {
                 adjustment: Math.round(adjustment * 100) / 100,
                 note: override?.note || null,
                 total: Math.round(total * 100) / 100,
+                absentColleagues,
             });
 
             currentDate = addDays(currentDate, 1);
