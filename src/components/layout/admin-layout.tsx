@@ -18,9 +18,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
     useEffect(() => {
         // Fetch pending approvals count
-        const fetchPendingCount = async () => {
+        const fetchPendingCount = async (light = false) => {
             try {
-                const res = await fetch("/api/admin/dashboard");
+                const url = light ? "/api/admin/dashboard?light=true" : "/api/admin/dashboard";
+                const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     setPendingCount(data.stats?.pendingApprovals || 0);
@@ -31,9 +32,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         };
 
         if (session?.user?.id) {
-            fetchPendingCount();
-            // Refresh every 60 seconds
-            const interval = setInterval(fetchPendingCount, 60000);
+            fetchPendingCount(false); // Full fetch on initial load
+            // Refresh every 5 minutes with light mode (counts only)
+            const interval = setInterval(() => fetchPendingCount(true), 300000);
             return () => clearInterval(interval);
         }
     }, [session?.user?.id]);

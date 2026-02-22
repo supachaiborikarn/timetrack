@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { subDays, format, startOfDayBangkok, getBangkokNow, addDays } from "@/lib/date-utils";
+import { subDays, format, startOfDayBangkok, getBangkokNow } from "@/lib/date-utils";
 
 export async function GET() {
     try {
@@ -10,100 +10,103 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const now = getBangkokNow();
         const today = startOfDayBangkok();
+        const thirtyDaysAgo = subDays(today, 30);
+        const sevenDaysAgo = subDays(today, 7);
 
-        // Get last 7 days for weekly chart
-        const weeklyData = [];
+        // === OPTIMIZED: 2 bulk queries instead of 47 individual queries ===
+
+        // 1. Fetch ALL attendance records for last 30 days in ONE query
+        const allAttendances = await prisma.attendance.findMany({
+            where: {
+                date: { gte: thirtyDaysAgo, lt: subDays(today, -1) },
+            },
+            select: {
+                date: true,
+                checkInTime: true,
+                lateMinutes: true,
+            },
+        });
+
+        // 2. Fetch shift assignment counts for last 7 days in ONE query
+        const shiftAssignments = await prisma.shiftAssignment.findMany({
+            where: {
+                date: { gte: sevenDaysAgo, lt: subDays(today, -1) },
+                isDayOff: false,
+            },
+            select: {
+                date: true,
+            },
+        });
+
+        // === Group attendance by date in JavaScript ===
+        const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const attendanceByDate = new Map<string, typeof allAttendances>();
+
+        for (const a of allAttendances) {
+            const d = new Date(a.date.getTime() + BANGKOK_OFFSET_MS);
+            const key = format(d, "yyyy-MM-dd");
+            if (!attendanceByDate.has(key)) attendanceByDate.set(key, []);
+            attendanceByDate.get(key)!.push(a);
+        }
+
+        // Group shift assignments by date
+        const shiftCountByDate = new Map<string, number>();
+        for (const sa of shiftAssignments) {
+            const d = new Date(sa.date.getTime() + BANGKOK_OFFSET_MS);
+            const key = format(d, "yyyy-MM-dd");
+            shiftCountByDate.set(key, (shiftCountByDate.get(key) || 0) + 1);
+        }
+
+        // === Build weekly data (last 7 days) ===
         const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"];
+        const weeklyData = [];
 
         for (let i = 6; i >= 0; i--) {
             const date = subDays(today, i);
-            const nextDay = subDays(today, i - 1);
+            const dateKey = format(date, "yyyy-MM-dd");
+            const dayAttendances = attendanceByDate.get(dateKey) || [];
+            const shiftsCount = shiftCountByDate.get(dateKey) || 0;
 
-            const attendances = await prisma.attendance.findMany({
-                where: {
-                    date: {
-                        gte: date,
-                        lt: nextDay,
-                    },
-                },
-            });
-
-            const shiftsCount = await prisma.shiftAssignment.count({
-                where: {
-                    date: {
-                        gte: date,
-                        lt: nextDay,
-                    },
-                    isDayOff: false,
-                },
-            });
-
-            const onTime = attendances.filter(a => a.checkInTime && (!a.lateMinutes || a.lateMinutes === 0)).length;
-            const late = attendances.filter(a => a.checkInTime && a.lateMinutes && a.lateMinutes > 0).length;
-            const absent = Math.max(0, shiftsCount - attendances.filter(a => a.checkInTime).length);
+            const onTime = dayAttendances.filter(a => a.checkInTime && (!a.lateMinutes || a.lateMinutes === 0)).length;
+            const late = dayAttendances.filter(a => a.checkInTime && a.lateMinutes && a.lateMinutes > 0).length;
+            const absent = Math.max(0, shiftsCount - dayAttendances.filter(a => a.checkInTime).length);
 
             weeklyData.push({
                 day: dayNames[date.getDay()],
-                date: format(date, "yyyy-MM-dd"),
+                date: dateKey,
                 onTime,
                 late,
                 absent,
             });
         }
 
-        // Get last 30 days for lateness trend
+        // === Build trend data (last 30 days) ===
         const trendData = [];
         for (let i = 29; i >= 0; i--) {
             const date = subDays(today, i);
-            const nextDay = subDays(today, i - 1);
+            const dateKey = format(date, "yyyy-MM-dd");
+            const dayAttendances = attendanceByDate.get(dateKey) || [];
 
-            const lateAttendances = await prisma.attendance.findMany({
-                where: {
-                    date: {
-                        gte: date,
-                        lt: nextDay,
-                    },
-                    lateMinutes: {
-                        gt: 0,
-                    },
-                },
-                select: {
-                    lateMinutes: true,
-                },
-            });
-
+            const lateAttendances = dayAttendances.filter(a => a.lateMinutes && a.lateMinutes > 0);
             const lateCount = lateAttendances.length;
             const avgLateMinutes = lateCount > 0
                 ? Math.round(lateAttendances.reduce((sum, a) => sum + (a.lateMinutes || 0), 0) / lateCount)
                 : 0;
 
             trendData.push({
-                date: format(date, "yyyy-MM-dd"),
+                date: dateKey,
                 lateCount,
                 avgLateMinutes,
             });
         }
 
-        // Summary stats
-        const totalEmployees = await prisma.user.count({
-            where: { isActive: true, role: "EMPLOYEE" },
-        });
-
-        const todayAttendance = await prisma.attendance.count({
-            where: {
-                date: today,
-                checkInTime: { not: null },
-            },
-        });
-
-        const todayLate = await prisma.attendance.count({
-            where: {
-                date: today,
-                lateMinutes: { gt: 0 },
-            },
-        });
+        // 3. Summary stats (2 simple count queries)
+        const [totalEmployees, todayAttendance, todayLate] = await Promise.all([
+            prisma.user.count({ where: { isActive: true, role: "EMPLOYEE" } }),
+            prisma.attendance.count({ where: { date: today, checkInTime: { not: null } } }),
+            prisma.attendance.count({ where: { date: today, lateMinutes: { gt: 0 } } }),
+        ]);
 
         const weekLateTotal = weeklyData.reduce((sum, d) => sum + d.late, 0);
         const weekAbsentTotal = weeklyData.reduce((sum, d) => sum + d.absent, 0);
@@ -124,3 +127,4 @@ export async function GET() {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
+

@@ -30,11 +30,12 @@ export default function AdminLayoutWrapper({
 
     useEffect(() => {
         // Fetch pending approvals count and user permissions
-        const fetchData = async () => {
+        const fetchData = async (light = false) => {
             try {
+                const dashboardUrl = light ? "/api/admin/dashboard?light=true" : "/api/admin/dashboard";
                 const [dashboardRes, permRes] = await Promise.all([
-                    fetch("/api/admin/dashboard"),
-                    fetch("/api/user/permissions"),
+                    fetch(dashboardUrl),
+                    light ? Promise.resolve(null) : fetch("/api/user/permissions"),
                 ]);
 
                 if (dashboardRes.ok) {
@@ -42,7 +43,7 @@ export default function AdminLayoutWrapper({
                     setPendingCount(data.stats?.pendingApprovals || 0);
                 }
 
-                if (permRes.ok) {
+                if (permRes && permRes.ok) {
                     const permData = await permRes.json();
                     setUserPermissions(permData.permissions || []);
                 }
@@ -54,9 +55,9 @@ export default function AdminLayoutWrapper({
         };
 
         if (session?.user?.id) {
-            fetchData();
-            // Refresh every 60 seconds
-            const interval = setInterval(fetchData, 60000);
+            fetchData(false); // Full fetch on initial load
+            // Refresh every 5 minutes with light mode (counts only)
+            const interval = setInterval(() => fetchData(true), 300000);
             return () => clearInterval(interval);
         } else {
             setPermissionsLoaded(true);

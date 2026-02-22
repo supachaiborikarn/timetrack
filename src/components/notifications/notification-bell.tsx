@@ -36,8 +36,8 @@ export function NotificationBell() {
     useEffect(() => {
         if (session?.user?.id) {
             fetchNotifications();
-            // Poll every 30 seconds
-            const interval = setInterval(fetchNotifications, 30000);
+            // Poll every 2 minutes (120s) to save Neon data transfer
+            const interval = setInterval(fetchNotifications, 120000);
             return () => clearInterval(interval);
         }
     }, [session?.user?.id]);

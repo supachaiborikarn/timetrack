@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        const { searchParams } = new URL(request.url);
+        const isLight = searchParams.get("light") === "true";
+
         const now = getBangkokNow();
         const today = startOfDayBangkok();
 
@@ -30,6 +33,71 @@ export async function GET(request: NextRequest) {
                 stationFilter = { stationId: user.stationId };
             }
         }
+
+        // === LIGHT MODE: Return only counts for polling (saves ~80% per request) ===
+        if (isLight) {
+            const [
+                totalEmployees,
+                todayAttendance,
+                pendingShiftSwaps,
+                pendingTimeCorrections,
+                pendingLeavesCount,
+                openShifts,
+                todayAssignmentsCount,
+            ] = await Promise.all([
+                prisma.user.count({
+                    where: { isActive: true, employeeStatus: "ACTIVE", role: "EMPLOYEE", ...stationFilter },
+                }),
+                prisma.attendance.count({
+                    where: {
+                        date: today,
+                        checkInTime: { not: null },
+                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
+                    },
+                }),
+                prisma.shiftSwap.count({ where: { status: "PENDING", targetAccepted: true } }),
+                prisma.timeCorrection.count({
+                    where: {
+                        status: "PENDING",
+                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
+                    },
+                }),
+                prisma.leave.count({
+                    where: {
+                        status: "PENDING",
+                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
+                    },
+                }),
+                prisma.shiftPool.count({ where: { status: "OPEN", date: { gte: today } } }),
+                prisma.shiftAssignment.count({
+                    where: {
+                        date: today,
+                        isDayOff: false,
+                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
+                    },
+                }),
+            ]);
+
+            const attendanceRate = todayAssignmentsCount > 0
+                ? Math.round((todayAttendance / todayAssignmentsCount) * 100)
+                : 0;
+
+            return NextResponse.json({
+                stats: {
+                    totalEmployees,
+                    todayAttendance,
+                    todayExpected: todayAssignmentsCount,
+                    attendanceRate,
+                    pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeavesCount,
+                    pendingShiftSwaps,
+                    pendingTimeCorrections,
+                    pendingLeaves: pendingLeavesCount,
+                    openShifts,
+                },
+            });
+        }
+
+        // === FULL MODE: Complete dashboard data (initial page load only) ===
 
         // Count stats in parallel
         const counts = await Promise.all([
