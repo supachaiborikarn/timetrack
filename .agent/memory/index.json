@@ -1,0 +1,184 @@
+{
+    "version": "1.0",
+    "project": "HRpayroll / timetrack",
+    "description": "Next.js HR & Payroll system for managing employee attendance, shifts, leaves, payslips, and wallet",
+    "last_updated": "2026-02-23",
+    "instructions": "READ THIS FILE FIRST before any topic file. Match keywords from user request to topic summaries. If matched, read TL;DR section of the topic file only. Read full topic file only if TL;DR is insufficient.",
+    "topics": [
+        {
+            "id": "project_overview",
+            "title": "Project Overview & Tech Stack",
+            "summary": "Next.js 14 App Router + TypeScript + Prisma + Neon (PostgreSQL) + NextAuth + Vercel deploy. Main app is timetrack in HRpayroll folder.",
+            "file": "topics/project_overview.md",
+            "tags": [
+                "nextjs",
+                "tech-stack",
+                "database",
+                "vercel",
+                "deploy",
+                "neon",
+                "prisma",
+                "nextauth"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "database_schema",
+            "title": "Database Schema & Models",
+            "summary": "Prisma schema with models: User, Employee, Attendance, Shift, ShiftAssignment, LeaveRequest, LeaveBalance, Payslip, WalletTransaction, Advance, Notification, Announcement, PerformanceReview.",
+            "file": "topics/database_schema.md",
+            "tags": [
+                "database",
+                "prisma",
+                "schema",
+                "models",
+                "postgresql",
+                "neon"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "attendance_system",
+            "title": "Attendance & Check-in System",
+            "summary": "QR-based check-in/out with GPS validation and device fingerprinting. API: /api/attendance/check-in, /check-out. Admin can view/edit all attendance. Retroactive backfill feature exists.",
+            "file": "topics/attendance_system.md",
+            "tags": [
+                "attendance",
+                "check-in",
+                "check-out",
+                "qr",
+                "gps",
+                "fingerprint",
+                "backfill"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "shift_schedule",
+            "title": "Shifts & Schedule Management",
+            "summary": "Shift types managed by admin. ShiftAssignment links employees to shifts. Schedule page shows calendar view + table view. Shift-pool for open shifts employees can claim. Shifts have open/closed status.",
+            "file": "topics/shift_schedule.md",
+            "tags": [
+                "shift",
+                "schedule",
+                "calendar",
+                "assignment",
+                "shift-pool",
+                "station"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "leave_requests",
+            "title": "Leave Requests & Balance",
+            "summary": "Employees submit leave requests. Admin approves/rejects. LeaveBalance tracks quota per type (sick, annual, etc). Absent feature shows who is missing at each station with overlap warnings.",
+            "file": "topics/leave_requests.md",
+            "tags": [
+                "leave",
+                "request",
+                "absent",
+                "balance",
+                "approve",
+                "reject",
+                "station",
+                "overlap"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "payroll_payslip",
+            "title": "Payroll & Payslip",
+            "summary": "Admin generates payslips for employees. Payslip includes base salary, deductions, advances. Employees can view their own payslips. Billing notes can be exported as Excel/CSV.",
+            "file": "topics/payroll_payslip.md",
+            "tags": [
+                "payroll",
+                "payslip",
+                "salary",
+                "deduction",
+                "billing",
+                "export",
+                "excel",
+                "csv"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "wallet_advances",
+            "title": "Wallet & Cash Advances",
+            "summary": "Employee wallet tracks balance. Advance system allows employees to request salary advances. Admin approves advances which deduct from wallet.",
+            "file": "topics/wallet_advances.md",
+            "tags": [
+                "wallet",
+                "advance",
+                "balance",
+                "transaction",
+                "deduction"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "auth_permissions",
+            "title": "Authentication & Role Permissions",
+            "summary": "NextAuth with credentials provider. Roles: ADMIN, EMPLOYEE. Permission system seeded via seed-permissions.ts. Admin dashboard at /admin. Employees see limited views. Debug tools exist (auth-debug, debug-auth.js).",
+            "file": "topics/auth_permissions.md",
+            "tags": [
+                "auth",
+                "nextauth",
+                "login",
+                "role",
+                "admin",
+                "employee",
+                "permission",
+                "session"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "admin_dashboard",
+            "title": "Admin Dashboard & Features",
+            "summary": "Admin dashboard shows stats: total employees, attendance today, pending requests. Features: manage employees, view all attendance, approve leaves/advances, manage shifts, send announcements, performance reviews.",
+            "file": "topics/admin_dashboard.md",
+            "tags": [
+                "admin",
+                "dashboard",
+                "stats",
+                "employee",
+                "management",
+                "announcement",
+                "performance"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "known_bugs_decisions",
+            "title": "Known Bugs, Past Decisions & Gotchas",
+            "summary": "Collection of bugs found and fixed, past design decisions, and gotchas to avoid repeating. Updated every time a bug is resolved or major decision is made.",
+            "file": "topics/known_bugs_decisions.md",
+            "tags": [
+                "bug",
+                "fix",
+                "decision",
+                "gotcha",
+                "history",
+                "debug"
+            ],
+            "last_updated": "2026-02-23"
+        },
+        {
+            "id": "neon_limits",
+            "title": "Neon DB Free Tier & Optimization",
+            "summary": "Neon free tier: 512MB storage, 5GB data transfer/month. Optimizations done: reduced polling frequency, consolidated API queries, enabled connection pooling. Watch for data transfer hotspots.",
+            "file": "topics/neon_limits.md",
+            "tags": [
+                "neon",
+                "database",
+                "limit",
+                "optimization",
+                "data-transfer",
+                "polling",
+                "connection-pool"
+            ],
+            "last_updated": "2026-02-23"
+        }
+    ]
+}
