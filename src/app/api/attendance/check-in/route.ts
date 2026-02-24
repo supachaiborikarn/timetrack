@@ -70,11 +70,9 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        // If QR method, validate QR code
-        if (method === "QR") {
-            if (!qrCode || qrCode !== user.station.qrCode) {
-                return ApiErrors.validation("QR Code ไม่ถูกต้อง");
-            }
+        // Always validate QR code - GPS + QR required
+        if (!qrCode || qrCode !== user.station.qrCode) {
+            return ApiErrors.validation("กรุณาสแกน QR Code เพื่อเช็คอิน");
         }
 
         // Check device fingerprint (optional strict mode)

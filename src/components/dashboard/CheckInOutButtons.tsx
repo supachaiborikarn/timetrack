@@ -31,14 +31,23 @@ export function CheckInOutButtons({
                     : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
                     }`}
                 disabled={hasCheckedIn || isChecking || !hasShift}
-                onClick={onCheckIn}
+                asChild={!hasCheckedIn && !isChecking && hasShift}
             >
-                {isChecking ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                {!hasCheckedIn && !isChecking && hasShift ? (
+                    <a href="/qr-scan">
+                        <LogIn className="w-5 h-5 mr-2" />
+                        {t("dashboard.checkIn")}
+                    </a>
                 ) : (
-                    <LogIn className="w-5 h-5 mr-2" />
+                    <span>
+                        {isChecking ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                            <LogIn className="w-5 h-5 mr-2" />
+                        )}
+                        {t("dashboard.checkIn")}
+                    </span>
                 )}
-                {t("dashboard.checkIn")}
             </Button>
             <Button
                 className={`h-16 text-lg font-semibold ${!hasCheckedIn || hasCheckedOut
