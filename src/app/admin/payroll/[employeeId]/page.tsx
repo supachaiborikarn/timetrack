@@ -99,6 +99,8 @@ export default function EmployeePayrollDetailPage() {
     const [savingDate, setSavingDate] = useState<string | null>(null);
     const [editingExpenses, setEditingExpenses] = useState(false);
     const [expensesValue, setExpensesValue] = useState("");
+    const [editingAdvance, setEditingAdvance] = useState(false);
+    const [advanceValue, setAdvanceValue] = useState("");
 
     const fetchData = useCallback(async () => {
         if (!employeeId) return;
@@ -500,10 +502,38 @@ export default function EmployeePayrollDetailPage() {
                                     <p className="text-xs text-slate-500">หักสาย</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
+                            <Card className="bg-slate-800/30 border-slate-700 cursor-pointer hover:border-slate-500 transition"
+                                onClick={() => { if (!editingAdvance) { setEditingAdvance(true); setAdvanceValue(String(data.summary.advanceDeduction || 0)); } }}>
                                 <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">{(data.summary.advanceDeduction || 0) > 0 ? `-฿${formatCurrency(data.summary.advanceDeduction)}` : '-'}</p>
-                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า</p>
+                                    {editingAdvance ? (
+                                        <Input
+                                            type="number"
+                                            value={advanceValue}
+                                            onChange={(e) => setAdvanceValue(e.target.value)}
+                                            onBlur={async () => {
+                                                setEditingAdvance(false);
+                                                const val = parseFloat(advanceValue) || 0;
+                                                const m = endDate.split("-")[1];
+                                                const y = endDate.split("-")[0];
+                                                await fetch("/api/admin/advances", {
+                                                    method: "PATCH",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ userId: employeeId, month: m, year: y, amount: val }),
+                                                });
+                                                toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                                fetchData();
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                            }}
+                                            className="w-24 mx-auto bg-slate-700 border-amber-500 text-white text-center text-sm"
+                                            autoFocus
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    ) : (
+                                        <p className="text-sm font-semibold text-red-300">{(data.summary.advanceDeduction || 0) > 0 ? `-฿${formatCurrency(data.summary.advanceDeduction)}` : '-'}</p>
+                                    )}
+                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า <Edit2 className="w-3 h-3 inline" /></p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-slate-800/30 border-slate-700 cursor-pointer hover:border-slate-500 transition"

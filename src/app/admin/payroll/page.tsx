@@ -521,7 +521,30 @@ export default function PayrollPage() {
                                                     <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
                                                     <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
                                                     <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
-                                                    <TableCell className="text-right text-red-400">{emp.advanceDeduction > 0 ? `-฿${formatCurrency(emp.advanceDeduction)}` : '-'}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="100"
+                                                            defaultValue={emp.advanceDeduction || ""}
+                                                            placeholder="0"
+                                                            onBlur={async (e) => {
+                                                                const val = parseFloat(e.target.value) || 0;
+                                                                if (val === (emp.advanceDeduction || 0)) return;
+                                                                const m = endDate.split("-")[1];
+                                                                const y = endDate.split("-")[0];
+                                                                await fetch("/api/admin/advances", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ userId: emp.id, month: m, year: y, amount: val }),
+                                                                });
+                                                                toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                                                calculatePayroll();
+                                                            }}
+                                                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                                            className="w-24 bg-slate-700 border-slate-600 text-red-400 text-center"
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="text-center">
                                                         <Input
                                                             type="number"

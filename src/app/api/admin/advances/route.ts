@@ -224,3 +224,80 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
+
+// PATCH - Update advance amount by userId + month/year (for payroll page inline edit)
+export async function PATCH(req: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const { userId, month, year, amount } = body;
+
+        if (!userId || !month || !year || amount === undefined) {
+            return NextResponse.json({ error: "userId, month, year, and amount are required" }, { status: 400 });
+        }
+
+        const newAmount = parseFloat(amount) || 0;
+
+        // Find existing advances for this user/period
+        const advances = await prisma.advance.findMany({
+            where: {
+                userId,
+                status: { in: ["APPROVED", "PAID"] },
+                month: parseInt(month),
+                year: parseInt(year),
+            },
+            orderBy: { createdAt: "asc" },
+        });
+
+        if (advances.length === 0 && newAmount > 0) {
+            // No advances exist — create one
+            await prisma.advance.create({
+                data: {
+                    userId,
+                    amount: newAmount,
+                    date: new Date(),
+                    month: parseInt(month),
+                    year: parseInt(year),
+                    status: "APPROVED",
+                    approvedBy: session.user.id,
+                    approvedAt: new Date(),
+                },
+            });
+        } else if (advances.length === 1) {
+            // Single advance — update its amount
+            await prisma.advance.update({
+                where: { id: advances[0].id },
+                data: { amount: newAmount },
+            });
+        } else if (advances.length > 1) {
+            // Multiple advances — set initial one to new total, zero out the rest
+            await prisma.advance.update({
+                where: { id: advances[0].id },
+                data: { amount: newAmount },
+            });
+            for (let i = 1; i < advances.length; i++) {
+                await prisma.advance.update({
+                    where: { id: advances[i].id },
+                    data: { amount: 0 },
+                });
+            }
+        } else if (newAmount === 0 && advances.length > 0) {
+            // Set all to 0
+            for (const adv of advances) {
+                await prisma.advance.update({
+                    where: { id: adv.id },
+                    data: { amount: 0 },
+                });
+            }
+        }
+
+        return NextResponse.json({ updated: true, amount: newAmount });
+    } catch (error) {
+        console.error("Error patching advance:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
