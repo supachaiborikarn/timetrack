@@ -24,6 +24,7 @@ model User {
   hourlyRate                 Decimal                @default(0)
   dailyRate                  Decimal                @default(0)
   baseSalary                 Decimal                @default(0)
+  otherExpenses              Decimal                @default(0)
   otRateMultiplier           Decimal                @default(1.5)
   isActive                   Boolean                @default(true)
   employeeStatus             EmployeeStatus         @default(ACTIVE)

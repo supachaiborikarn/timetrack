@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get("endDate");
         const stationId = searchParams.get("stationId");
         const departmentId = searchParams.get("departmentId");
-        const normalHoursPerDay = parseFloat(searchParams.get("normalHoursPerDay") || "10.5");
 
         if (!startDate || !endDate) {
             return NextResponse.json(
@@ -22,6 +21,18 @@ export async function GET(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // Get social security config from SystemConfig
+        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
+        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
+        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
+        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
+
+        // Determine month/year from the date range for advance matching
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const advanceMonth = start.getMonth() + 1;
+        const advanceYear = start.getFullYear();
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {
@@ -46,15 +57,33 @@ export async function GET(request: NextRequest) {
         });
 
         // Get attendance in range for all employees
+        const employeeIds = employees.map((e) => e.id);
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
-                userId: { in: employees.map((e) => e.id) },
+                userId: { in: employeeIds },
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: start,
+                    lte: end,
                 },
             },
         });
+
+        // Get approved/paid advances for matching month/year
+        const advances = await prisma.advance.findMany({
+            where: {
+                userId: { in: employeeIds },
+                status: { in: ["APPROVED", "PAID"] },
+                month: advanceMonth,
+                year: advanceYear,
+            },
+        });
+
+        // Group advances by userId
+        const advancesByUser: Record<string, number> = {};
+        for (const adv of advances) {
+            if (!advancesByUser[adv.userId]) advancesByUser[adv.userId] = 0;
+            advancesByUser[adv.userId] += Number(adv.amount);
+        }
 
         // Calculate payroll for each employee
         const payrollData = employees.map((emp) => {
@@ -80,10 +109,22 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            // Calculate pay: daily rate × work days
+            // Calculate pay
             const regularPay = workDays * dailyRate;
             const overtimePay = 0; // OT/รายได้พิเศษ เพิ่มโดย HR
-            const totalPay = regularPay + overtimePay - latePenalty;
+
+            // Deductions
+            const advanceDeduction = advancesByUser[emp.id] || 0;
+            const otherExpenses = Number(emp.otherExpenses) || 0;
+
+            // Social security: rate × actual gross pay, capped at max
+            const grossPay = regularPay + overtimePay - latePenalty;
+            const socialSecurity = emp.isSocialSecurityRegistered
+                ? Math.min(grossPay * ssoRate, ssoMax)
+                : 0;
+
+            const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
+            const totalPay = regularPay + overtimePay - totalDeductions;
 
             return {
                 id: emp.id,
@@ -98,6 +139,10 @@ export async function GET(request: NextRequest) {
                 regularPay,
                 overtimePay,
                 latePenalty,
+                advanceDeduction,
+                otherExpenses,
+                socialSecurity,
+                totalDeductions,
                 totalPay,
                 bankName: emp.bankName,
                 bankAccountNumber: emp.bankAccountNumber,
@@ -115,7 +160,13 @@ export async function GET(request: NextRequest) {
             totalRegularPay: activePayroll.reduce((sum, p) => sum + p.regularPay, 0),
             totalOvertimePay: activePayroll.reduce((sum, p) => sum + p.overtimePay, 0),
             totalLatePenalty: activePayroll.reduce((sum, p) => sum + p.latePenalty, 0),
+            totalAdvanceDeduction: activePayroll.reduce((sum, p) => sum + p.advanceDeduction, 0),
+            totalOtherExpenses: activePayroll.reduce((sum, p) => sum + p.otherExpenses, 0),
+            totalSocialSecurity: activePayroll.reduce((sum, p) => sum + p.socialSecurity, 0),
+            totalDeductions: activePayroll.reduce((sum, p) => sum + p.totalDeductions, 0),
             grandTotal: activePayroll.reduce((sum, p) => sum + p.totalPay, 0),
+            ssoRate,
+            ssoMax,
         };
 
         return NextResponse.json({

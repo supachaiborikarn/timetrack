@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { format } from "@/lib/date-utils";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {
@@ -16,7 +15,6 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get("endDate");
         const stationId = searchParams.get("stationId");
         const departmentId = searchParams.get("departmentId");
-        const normalHoursPerDay = parseFloat(searchParams.get("normalHoursPerDay") || "10.5");
 
         if (!startDate || !endDate) {
             return NextResponse.json(
@@ -24,6 +22,17 @@ export async function GET(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // Get SSO config
+        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
+        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
+        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
+        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const advanceMonth = start.getMonth() + 1;
+        const advanceYear = start.getFullYear();
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {
@@ -48,15 +57,32 @@ export async function GET(request: NextRequest) {
         });
 
         // Get attendance in range
+        const employeeIds = employees.map((e) => e.id);
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
-                userId: { in: employees.map((e) => e.id) },
+                userId: { in: employeeIds },
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: start,
+                    lte: end,
                 },
             },
         });
+
+        // Get approved/paid advances
+        const advances = await prisma.advance.findMany({
+            where: {
+                userId: { in: employeeIds },
+                status: { in: ["APPROVED", "PAID"] },
+                month: advanceMonth,
+                year: advanceYear,
+            },
+        });
+
+        const advancesByUser: Record<string, number> = {};
+        for (const adv of advances) {
+            if (!advancesByUser[adv.userId]) advancesByUser[adv.userId] = 0;
+            advancesByUser[adv.userId] += Number(adv.amount);
+        }
 
         // Calculate payroll per employee
         const payrollData = employees.map((emp) => {
@@ -82,7 +108,14 @@ export async function GET(request: NextRequest) {
 
             const regularPay = workDays * dailyRate;
             const overtimePay = 0;
-            const totalPay = regularPay + overtimePay - latePenalty;
+            const advanceDeduction = advancesByUser[emp.id] || 0;
+            const otherExpenses = Number(emp.otherExpenses) || 0;
+            const grossPay = regularPay + overtimePay - latePenalty;
+            const socialSecurity = emp.isSocialSecurityRegistered
+                ? Math.min(grossPay * ssoRate, ssoMax)
+                : 0;
+            const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
+            const totalPay = regularPay + overtimePay - totalDeductions;
 
             return {
                 employeeId: emp.employeeId,
@@ -95,6 +128,10 @@ export async function GET(request: NextRequest) {
                 regularPay,
                 overtimePay,
                 latePenalty,
+                advanceDeduction,
+                otherExpenses,
+                socialSecurity,
+                totalDeductions,
                 totalPay,
             };
         }).filter((p) => p.workDays > 0);
@@ -111,6 +148,10 @@ export async function GET(request: NextRequest) {
             "ค่าแรง",
             "รายได้พิเศษ",
             "หักสาย",
+            "หักเบิกล่วงหน้า",
+            "ค่าใช้จ่ายอื่นๆ",
+            "หักประกันสังคม",
+            "รวมหัก",
             "รวมสุทธิ",
         ];
 
@@ -125,6 +166,10 @@ export async function GET(request: NextRequest) {
             p.regularPay.toFixed(2),
             p.overtimePay.toFixed(2),
             p.latePenalty.toFixed(2),
+            p.advanceDeduction.toFixed(2),
+            p.otherExpenses.toFixed(2),
+            p.socialSecurity.toFixed(2),
+            p.totalDeductions.toFixed(2),
             p.totalPay.toFixed(2),
         ]);
 
@@ -132,6 +177,10 @@ export async function GET(request: NextRequest) {
         const totalRegularPay = payrollData.reduce((sum, p) => sum + p.regularPay, 0);
         const totalOTPay = payrollData.reduce((sum, p) => sum + p.overtimePay, 0);
         const totalLatePenalty = payrollData.reduce((sum, p) => sum + p.latePenalty, 0);
+        const totalAdvance = payrollData.reduce((sum, p) => sum + p.advanceDeduction, 0);
+        const totalOtherExp = payrollData.reduce((sum, p) => sum + p.otherExpenses, 0);
+        const totalSSO = payrollData.reduce((sum, p) => sum + p.socialSecurity, 0);
+        const totalDeductions = payrollData.reduce((sum, p) => sum + p.totalDeductions, 0);
         const grandTotal = payrollData.reduce((sum, p) => sum + p.totalPay, 0);
 
         rows.push([]);
@@ -140,7 +189,13 @@ export async function GET(request: NextRequest) {
         rows.push(["ค่าแรงรวม", "", "", "", "", "", "", totalRegularPay.toFixed(2)]);
         rows.push(["รายได้พิเศษรวม", "", "", "", "", "", "", "", totalOTPay.toFixed(2)]);
         rows.push(["หักสายรวม", "", "", "", "", "", "", "", "", totalLatePenalty.toFixed(2)]);
-        rows.push(["รวมสุทธิทั้งหมด", "", "", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
+        rows.push(["หักเบิกล่วงหน้ารวม", "", "", "", "", "", "", "", "", "", totalAdvance.toFixed(2)]);
+        rows.push(["ค่าใช้จ่ายอื่นๆรวม", "", "", "", "", "", "", "", "", "", "", totalOtherExp.toFixed(2)]);
+        rows.push(["หักประกันสังคมรวม", "", "", "", "", "", "", "", "", "", "", "", totalSSO.toFixed(2)]);
+        rows.push(["รวมหักทั้งหมด", "", "", "", "", "", "", "", "", "", "", "", "", totalDeductions.toFixed(2)]);
+        rows.push(["รวมสุทธิทั้งหมด", "", "", "", "", "", "", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
+        rows.push([]);
+        rows.push([`ประกันสังคม: ${(ssoRate * 100).toFixed(0)}% สูงสุด ${ssoMax.toLocaleString()} บาท/เดือน`]);
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -148,7 +203,8 @@ export async function GET(request: NextRequest) {
         ws["!cols"] = [
             { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 12 },
             { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 12 },
-            { wch: 12 }, { wch: 10 }, { wch: 12 },
+            { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 16 },
+            { wch: 14 }, { wch: 10 }, { wch: 12 },
         ];
 
         const sheetName = `เงินเดือน ${startDate} ถึง ${endDate}`;

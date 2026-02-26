@@ -24,34 +24,45 @@ import {
 import {
     Download,
     Loader2,
-    Users,
-    DollarSign,
     PieChart,
     Building2,
-    Briefcase
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 
+interface PayrollEmployee {
+    id: string;
+    name: string;
+    employeeId: string;
+    station: string;
+    department: string;
+    workDays: number;
+    totalPay: number;
+    regularPay: number;
+    overtimePay: number;
+    latePenalty: number;
+    advanceDeduction: number;
+    otherExpenses: number;
+    socialSecurity: number;
+    totalDeductions: number;
+}
+
+interface PayrollSummary {
+    totalEmployees: number;
+    totalRegularPay: number;
+    totalOvertimePay: number;
+    totalLatePenalty: number;
+    totalAdvanceDeduction: number;
+    totalOtherExpenses: number;
+    totalSocialSecurity: number;
+    totalDeductions: number;
+    grandTotal: number;
+    ssoRate: number;
+    ssoMax: number;
+}
+
 interface PayrollSummaryData {
-    employees: Array<{
-        id: string;
-        name: string;
-        employeeId: string;
-        station: string;
-        department: string;
-        workDays: number;
-        totalPay: number;
-        regularPay: number;
-        overtimePay: number;
-        latePenalty: number;
-    }>;
-    summary: {
-        totalEmployees: number;
-        totalRegularPay: number;
-        totalOvertimePay: number;
-        totalLatePenalty: number;
-        grandTotal: number;
-    };
+    employees: PayrollEmployee[];
+    summary: PayrollSummary;
 }
 
 export default function PayrollReportPage() {
@@ -90,7 +101,6 @@ export default function PayrollReportPage() {
                 endDate,
                 ...(stationId !== "all" && { stationId }),
             });
-            // Reusing the calculation API but focusing on results
             const res = await fetch(`/api/admin/payroll?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -114,6 +124,11 @@ export default function PayrollReportPage() {
         } else {
             alert("PDF Export for full report coming soon");
         }
+    };
+
+    const fmtMoney = (val: number) => {
+        if (val === 0) return "-";
+        return val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     };
 
     if (status === "loading") return <div className="p-8 text-center">Loading...</div>;
@@ -200,14 +215,8 @@ export default function PayrollReportPage() {
             {/* Content */}
             {reportData ? (
                 <>
-                    {/* KPI Cards */}
+                    {/* KPI Cards - Row 1: Income */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">ยอดจ่ายสุทธิ</p>
-                                <p className="text-2xl font-bold text-green-600">฿{reportData.summary.grandTotal.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
                         <Card>
                             <CardContent className="py-4 text-center">
                                 <p className="text-sm text-muted-foreground mb-1">ค่าแรงปกติ</p>
@@ -222,11 +231,56 @@ export default function PayrollReportPage() {
                         </Card>
                         <Card>
                             <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">พนักงาน</p>
-                                <p className="text-xl font-bold text-foreground">{reportData.summary.totalEmployees}</p>
+                                <p className="text-sm text-muted-foreground mb-1">รวมหักทั้งหมด</p>
+                                <p className="text-xl font-bold text-red-500">-฿{reportData.summary.totalDeductions.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-green-200 dark:border-green-800">
+                            <CardContent className="py-4 text-center">
+                                <p className="text-sm text-muted-foreground mb-1">ยอดจ่ายสุทธิ</p>
+                                <p className="text-2xl font-bold text-green-600">฿{reportData.summary.grandTotal.toLocaleString()}</p>
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* KPI Cards - Row 2: Deduction breakdown */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">หักสาย</p>
+                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalLatePenalty.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">หักเบิกล่วงหน้า</p>
+                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalAdvanceDeduction.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">ค่าใช้จ่ายอื่นๆ</p>
+                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalOtherExpenses.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">ประกันสังคม</p>
+                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalSocialSecurity.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">พนักงาน</p>
+                                <p className="text-sm font-semibold text-foreground">{reportData.summary.totalEmployees} คน</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* SSO Info */}
+                    <p className="text-xs text-muted-foreground">
+                        * ประกันสังคม: {(reportData.summary.ssoRate * 100).toFixed(0)}% ของค่าแรงจริง สูงสุด {reportData.summary.ssoMax.toLocaleString()} บาท/เดือน
+                    </p>
 
                     {/* Table */}
                     <Card>
@@ -239,8 +293,12 @@ export default function PayrollReportPage() {
                                         <TableHead>แผนก</TableHead>
                                         <TableHead className="text-right">ค่าแรงปกติ</TableHead>
                                         <TableHead className="text-right">OT</TableHead>
-                                        <TableHead className="text-right">หักสาย</TableHead>
-                                        <TableHead className="text-right font-bold">สุทธิ</TableHead>
+                                        <TableHead className="text-right text-red-400">หักสาย</TableHead>
+                                        <TableHead className="text-right text-red-400">หักเบิกล่วงหน้า</TableHead>
+                                        <TableHead className="text-right text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
+                                        <TableHead className="text-right text-red-400">ประกันสังคม</TableHead>
+                                        <TableHead className="text-right text-red-500 font-semibold">รวมหัก</TableHead>
+                                        <TableHead className="text-right font-bold text-green-600">สุทธิ</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -251,10 +309,14 @@ export default function PayrollReportPage() {
                                                 <div className="text-xs text-muted-foreground">{emp.employeeId}</div>
                                             </TableCell>
                                             <TableCell>{emp.department}</TableCell>
-                                            <TableCell className="text-right text-blue-600">{emp.regularPay.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right text-purple-600">{emp.overtimePay.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right text-red-500">-{emp.latePenalty.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold text-green-600">{emp.totalPay.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right text-blue-600">{fmtMoney(emp.regularPay)}</TableCell>
+                                            <TableCell className="text-right text-purple-600">{fmtMoney(emp.overtimePay)}</TableCell>
+                                            <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-${fmtMoney(emp.latePenalty)}` : '-'}</TableCell>
+                                            <TableCell className="text-right text-red-400">{emp.advanceDeduction > 0 ? `-${fmtMoney(emp.advanceDeduction)}` : '-'}</TableCell>
+                                            <TableCell className="text-right text-red-400">{emp.otherExpenses > 0 ? `-${fmtMoney(emp.otherExpenses)}` : '-'}</TableCell>
+                                            <TableCell className="text-right text-red-400">{emp.socialSecurity > 0 ? `-${fmtMoney(emp.socialSecurity)}` : '-'}</TableCell>
+                                            <TableCell className="text-right text-red-500 font-semibold">{emp.totalDeductions > 0 ? `-${fmtMoney(emp.totalDeductions)}` : '-'}</TableCell>
+                                            <TableCell className="text-right font-bold text-green-600">{fmtMoney(emp.totalPay)}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
