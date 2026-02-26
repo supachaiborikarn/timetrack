@@ -32,9 +32,11 @@ import {
     DollarSign,
     Eye,
     AlertTriangle,
+    CheckCircle2,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
+import { toast } from "sonner";
 
 interface Department {
     id: string;
@@ -520,7 +522,28 @@ export default function PayrollPage() {
                                                     <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
                                                     <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
                                                     <TableCell className="text-right text-red-400">{emp.advanceDeduction > 0 ? `-฿${formatCurrency(emp.advanceDeduction)}` : '-'}</TableCell>
-                                                    <TableCell className="text-right text-red-400">{emp.otherExpenses > 0 ? `-฿${formatCurrency(emp.otherExpenses)}` : '-'}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="100"
+                                                            defaultValue={emp.otherExpenses || ""}
+                                                            placeholder="0"
+                                                            onBlur={async (e) => {
+                                                                const val = parseFloat(e.target.value) || 0;
+                                                                if (val === (emp.otherExpenses || 0)) return;
+                                                                await fetch("/api/admin/payroll/employee-daily", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ userId: emp.id, otherExpenses: val }),
+                                                                });
+                                                                toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                                                calculatePayroll();
+                                                            }}
+                                                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                                            className="w-24 bg-slate-700 border-slate-600 text-red-400 text-center"
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="text-right text-red-400">{emp.socialSecurity > 0 ? `-฿${formatCurrency(emp.socialSecurity)}` : '-'}</TableCell>
                                                     <TableCell className="text-center">
                                                         <Input
@@ -587,6 +610,26 @@ export default function PayrollPage() {
                                                                 }}
                                                             >
                                                                 <Download className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-amber-400 hover:text-amber-300 hover:bg-slate-700"
+                                                                title="ปิดงวดคนนี้"
+                                                                onClick={async () => {
+                                                                    if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${emp.name}?`)) return;
+                                                                    try {
+                                                                        const res = await fetch("/api/admin/payroll/finalize", {
+                                                                            method: "POST",
+                                                                            headers: { "Content-Type": "application/json" },
+                                                                            body: JSON.stringify({ startDate, endDate, userId: emp.id }),
+                                                                        });
+                                                                        if (res.ok) toast.success(`ปิดงวด ${emp.name} เรียบร้อย ✅`);
+                                                                        else toast.error("เกิดข้อผิดพลาด");
+                                                                    } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
+                                                                }}
+                                                            >
+                                                                <CheckCircle2 className="w-4 h-4" />
                                                             </Button>
                                                         </div>
                                                     </TableCell>
