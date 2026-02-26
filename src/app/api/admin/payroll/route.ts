@@ -3,6 +3,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function toBangkokDateKey(d: Date): string {
+    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
+    return bkk.toISOString().split("T")[0];
+}
+
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
@@ -29,13 +36,14 @@ export async function GET(request: NextRequest) {
         const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
         const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
 
-        // Determine month/year from the date range for advance matching
         // Use Bangkok midnight to match how dates are stored in DB
         const start = parseDateStringToBangkokMidnight(startDate);
         const endMidnight = parseDateStringToBangkokMidnight(endDate);
         const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1); // end of day
-        const advanceMonth = parseInt(startDate.split("-")[1]);
-        const advanceYear = parseInt(startDate.split("-")[0]);
+
+        // For advance matching: use endDate month (payroll period 26 Jan - 25 Feb = February salary)
+        const advanceMonth = parseInt(endDate.split("-")[1]);
+        const advanceYear = parseInt(endDate.split("-")[0]);
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {
@@ -95,12 +103,19 @@ export async function GET(request: NextRequest) {
             // Daily rate from employee
             const dailyRate = Number(emp.dailyRate) || 0;
 
+            // Deduplicate attendance by Bangkok date key
+            // Some records have duplicate dates stored as both 00:00Z and 17:00Z
+            const seenDates = new Set<string>();
             let workDays = 0;
             let totalHours = 0;
             let latePenalty = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
+                    const dateKey = toBangkokDateKey(record.date);
+                    if (seenDates.has(dateKey)) continue; // skip duplicate
+                    seenDates.add(dateKey);
+
                     workDays++;
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;

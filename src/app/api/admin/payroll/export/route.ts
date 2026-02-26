@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 import * as XLSX from "xlsx";
 
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function toBangkokDateKey(d: Date): string {
+    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
+    return bkk.toISOString().split("T")[0];
+}
+
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
@@ -33,8 +40,9 @@ export async function GET(request: NextRequest) {
         const start = parseDateStringToBangkokMidnight(startDate);
         const endMidnight = parseDateStringToBangkokMidnight(endDate);
         const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
-        const advanceMonth = parseInt(startDate.split("-")[1]);
-        const advanceYear = parseInt(startDate.split("-")[0]);
+        // Use endDate month for advance matching (26 Jan - 25 Feb = February salary)
+        const advanceMonth = parseInt(endDate.split("-")[1]);
+        const advanceYear = parseInt(endDate.split("-")[0]);
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {
@@ -92,12 +100,18 @@ export async function GET(request: NextRequest) {
 
             const dailyRate = Number(emp.dailyRate) || 0;
 
+            // Deduplicate attendance by Bangkok date key
+            const seenDates = new Set<string>();
             let workDays = 0;
             let totalHours = 0;
             let latePenalty = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
+                    const dateKey = toBangkokDateKey(record.date);
+                    if (seenDates.has(dateKey)) continue;
+                    seenDates.add(dateKey);
+
                     workDays++;
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
