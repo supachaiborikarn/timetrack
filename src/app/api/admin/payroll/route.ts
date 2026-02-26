@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 
 export async function GET(request: NextRequest) {
     try {
@@ -29,10 +30,12 @@ export async function GET(request: NextRequest) {
         const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
 
         // Determine month/year from the date range for advance matching
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const advanceMonth = start.getMonth() + 1;
-        const advanceYear = start.getFullYear();
+        // Use Bangkok midnight to match how dates are stored in DB
+        const start = parseDateStringToBangkokMidnight(startDate);
+        const endMidnight = parseDateStringToBangkokMidnight(endDate);
+        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1); // end of day
+        const advanceMonth = parseInt(startDate.split("-")[1]);
+        const advanceYear = parseInt(startDate.split("-")[0]);
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {

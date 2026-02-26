@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {
@@ -29,10 +30,11 @@ export async function GET(request: NextRequest) {
         const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
         const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const advanceMonth = start.getMonth() + 1;
-        const advanceYear = start.getFullYear();
+        const start = parseDateStringToBangkokMidnight(startDate);
+        const endMidnight = parseDateStringToBangkokMidnight(endDate);
+        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
+        const advanceMonth = parseInt(startDate.split("-")[1]);
+        const advanceYear = parseInt(startDate.split("-")[0]);
 
         // Get all employees
         const employeeWhere: Record<string, unknown> = {

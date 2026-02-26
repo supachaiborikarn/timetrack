@@ -62,6 +62,10 @@ interface PayrollData {
         regularPay: number;
         overtimePay: number;
         latePenalty: number;
+        advanceDeduction: number;
+        otherExpenses: number;
+        socialSecurity: number;
+        totalDeductions: number;
         totalPay: number;
     }>;
     summary: {
@@ -71,6 +75,10 @@ interface PayrollData {
         totalRegularPay: number;
         totalOvertimePay: number;
         totalLatePenalty: number;
+        totalAdvanceDeduction: number;
+        totalOtherExpenses: number;
+        totalSocialSecurity: number;
+        totalDeductions: number;
         grandTotal: number;
     };
 }
@@ -394,8 +402,8 @@ export default function PayrollPage() {
                             </Card>
                         </div>
 
-                        {/* Breakdown */}
-                        <div className="grid grid-cols-3 gap-4 mb-6">
+                        {/* Breakdown - Income */}
+                        <div className="grid grid-cols-3 gap-4 mb-4">
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
                                     <p className="text-lg font-bold text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
@@ -410,8 +418,36 @@ export default function PayrollPage() {
                             </Card>
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
-                                    <p className="text-lg font-bold text-red-400">-฿{formatCurrency(payrollData.summary.totalLatePenalty)}</p>
-                                    <p className="text-xs text-slate-400">หักสาย</p>
+                                    <p className="text-lg font-bold text-red-400">-฿{formatCurrency(payrollData.summary.totalDeductions)}</p>
+                                    <p className="text-xs text-slate-400">รวมหักทั้งหมด</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Breakdown - Deductions */}
+                        <div className="grid grid-cols-4 gap-4 mb-6">
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalLatePenalty)}</p>
+                                    <p className="text-xs text-slate-500">หักสาย</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalAdvanceDeduction)}</p>
+                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalOtherExpenses)}</p>
+                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalSocialSecurity)}</p>
+                                    <p className="text-xs text-slate-500">ประกันสังคม</p>
                                 </CardContent>
                             </Card>
                         </div>
@@ -431,7 +467,10 @@ export default function PayrollPage() {
                                             <TableHead className="text-slate-300 text-center">วัน</TableHead>
                                             <TableHead className="text-slate-300 text-center">ชม.รวม</TableHead>
                                             <TableHead className="text-slate-300 text-right">ค่าแรง</TableHead>
-                                            <TableHead className="text-slate-300 text-right">หักสาย</TableHead>
+                                            <TableHead className="text-slate-300 text-right text-red-400">หักสาย</TableHead>
+                                            <TableHead className="text-slate-300 text-right text-red-400">เบิกล่วงหน้า</TableHead>
+                                            <TableHead className="text-slate-300 text-right text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
+                                            <TableHead className="text-slate-300 text-right text-red-400">ประกันสังคม</TableHead>
                                             <TableHead className="text-slate-300 text-center">เงินพิเศษ</TableHead>
                                             <TableHead className="text-slate-300 text-right">รวมสุทธิ</TableHead>
                                             <TableHead className="text-slate-300 text-center w-20"></TableHead>
@@ -451,7 +490,10 @@ export default function PayrollPage() {
                                                     <TableCell className="text-center text-white">{emp.workDays}</TableCell>
                                                     <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
                                                     <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
-                                                    <TableCell className="text-right text-red-400">-฿{formatCurrency(emp.latePenalty)}</TableCell>
+                                                    <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
+                                                    <TableCell className="text-right text-red-400">{emp.advanceDeduction > 0 ? `-฿${formatCurrency(emp.advanceDeduction)}` : '-'}</TableCell>
+                                                    <TableCell className="text-right text-red-400">{emp.otherExpenses > 0 ? `-฿${formatCurrency(emp.otherExpenses)}` : '-'}</TableCell>
+                                                    <TableCell className="text-right text-red-400">{emp.socialSecurity > 0 ? `-฿${formatCurrency(emp.socialSecurity)}` : '-'}</TableCell>
                                                     <TableCell className="text-center">
                                                         <Input
                                                             type="number"
@@ -502,8 +544,8 @@ export default function PayrollPage() {
                                                                         basePay: emp.regularPay,
                                                                         overtimePay: emp.overtimePay,
                                                                         latePenalty: emp.latePenalty,
-                                                                        advanceDeduct: 0,
-                                                                        otherDeduct: 0,
+                                                                        advanceDeduct: emp.advanceDeduction,
+                                                                        otherDeduct: emp.otherExpenses + emp.socialSecurity,
                                                                         netPay: totalPay,
                                                                         bonus: bonus
                                                                     };
