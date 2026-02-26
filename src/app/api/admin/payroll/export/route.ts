@@ -128,9 +128,15 @@ export async function GET(request: NextRequest) {
 
                     const override = overrideMap.get(`${emp.id}:${dateKey}`);
 
-                    workDays++;
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
+
+                    // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
+                    let dayFactor = 0;
+                    if (actualHours >= 10) dayFactor = 1;
+                    else if (actualHours >= 5.5) dayFactor = 0.5;
+
+                    workDays += dayFactor;
 
                     if (override?.overrideLatePenalty != null) {
                         latePenalty += Number(override.overrideLatePenalty);

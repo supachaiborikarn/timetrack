@@ -191,11 +191,16 @@ export async function GET(request: NextRequest) {
             // OT is not auto-calculated — HR adds manually via override
             const otHours = 0;
 
-            // Get wage (override or default)
+            // Get wage (override or default with half-day rule)
             const isWageOverridden = override?.overrideDailyWage != null;
-            const dailyWage = isWageOverridden
-                ? Number(override!.overrideDailyWage)
-                : (attendance?.checkInTime ? dailyRate : 0);
+            let dailyWage = 0;
+            if (isWageOverridden) {
+                dailyWage = Number(override!.overrideDailyWage);
+            } else if (attendance?.checkInTime && actualHours != null) {
+                // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
+                if (actualHours >= 10) dailyWage = dailyRate;
+                else if (actualHours >= 5.5) dailyWage = dailyRate * 0.5;
+            }
 
             // Get OT amount (override or calculated)
             const isOTOverridden = override?.overrideOT != null;
