@@ -2,7 +2,20 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
-import { startOfDay, endOfDay, addDays } from "@/lib/date-utils";
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function toBangkokDateKey(d: Date): string {
+    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
+    return bkk.toISOString().split("T")[0];
+}
+
+function addDaysBKK(dateStr: string, days: number): string {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + days));
+    return dt.toISOString().split("T")[0];
+}
 
 interface DailyRecord {
     date: string;
@@ -53,6 +66,8 @@ export async function GET(request: NextRequest) {
                 dailyRate: true,
                 hourlyRate: true,
                 otRateMultiplier: true,
+                otherExpenses: true,
+                isSocialSecurityRegistered: true,
                 stationId: true,
                 departmentId: true,
                 station: { select: { name: true } },
@@ -68,13 +83,17 @@ export async function GET(request: NextRequest) {
         const hourlyRate = Number(employee.hourlyRate) || (dailyRate / normalHoursPerDay);
         const otMultiplier = Number(employee.otRateMultiplier) || 1.5;
 
-        // Get attendance records
+        // Get attendance records - use Bangkok midnight for date range
+        const start = parseDateStringToBangkokMidnight(startDate);
+        const endMidnight = parseDateStringToBangkokMidnight(endDate);
+        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
+
         const attendances = await prisma.attendance.findMany({
             where: {
                 userId,
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: start,
+                    lte: end,
                 },
             },
             orderBy: { date: "asc" },
@@ -85,21 +104,25 @@ export async function GET(request: NextRequest) {
             where: {
                 userId,
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: start,
+                    lte: end,
                 },
             },
         });
 
-        // Create a map for quick override lookup
+        // Create maps using Bangkok date key (not UTC)
         const overrideMap = new Map(
-            overrides.map(o => [o.date.toISOString().split("T")[0], o])
+            overrides.map(o => [toBangkokDateKey(o.date), o])
         );
 
-        // Create a map for attendance lookup
-        const attendanceMap = new Map(
-            attendances.map(a => [a.date.toISOString().split("T")[0], a])
-        );
+        // For attendance, deduplicate by Bangkok date key (keep first)
+        const attendanceMap = new Map<string, typeof attendances[0]>();
+        for (const a of attendances) {
+            const dk = toBangkokDateKey(a.date);
+            if (!attendanceMap.has(dk)) {
+                attendanceMap.set(dk, a);
+            }
+        }
 
         // Fetch station colleagues' attendance for absence overlap
         let colleagueAttendanceMap = new Map<string, Set<string>>();
@@ -127,8 +150,8 @@ export async function GET(request: NextRequest) {
                 where: {
                     userId: { in: colleagues.map(c => c.id) },
                     date: {
-                        gte: new Date(startDate),
-                        lte: new Date(endDate),
+                        gte: start,
+                        lte: end,
                     },
                 },
                 select: { userId: true, date: true },
@@ -136,7 +159,7 @@ export async function GET(request: NextRequest) {
 
             // Build a map: dateKey -> Set of userIds who DID check in
             for (const ca of colleagueAttendances) {
-                const dk = ca.date.toISOString().split("T")[0];
+                const dk = toBangkokDateKey(ca.date);
                 if (!colleagueAttendanceMap.has(dk)) {
                     colleagueAttendanceMap.set(dk, new Set());
                 }
@@ -146,17 +169,19 @@ export async function GET(request: NextRequest) {
 
         const allColleagueIds = Array.from(colleagueNameMap.keys());
 
-        // Build daily records for every day in range
+        // Build daily records for every day in range using Bangkok calendar
         const dailyRecords: DailyRecord[] = [];
-        const start = startOfDay(new Date(startDate));
-        const end = endOfDay(new Date(endDate));
         const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"];
 
-        let currentDate = start;
-        while (currentDate <= end) {
-            const dateKey = currentDate.toISOString().split("T")[0];
+        let currentDateStr = startDate; // "YYYY-MM-DD"
+        while (currentDateStr <= endDate) {
+            const dateKey = currentDateStr;
             const attendance = attendanceMap.get(dateKey);
             const override = overrideMap.get(dateKey);
+
+            // Get day of week from the date string
+            const [y, m, d] = currentDateStr.split("-").map(Number);
+            const dayOfWeekDate = new Date(Date.UTC(y, m - 1, d));
 
             // Calculate actual hours and OT
             const actualHours = attendance?.actualHours ? Number(attendance.actualHours) : null;
@@ -203,7 +228,7 @@ export async function GET(request: NextRequest) {
 
             dailyRecords.push({
                 date: dateKey,
-                dayOfWeek: dayNames[currentDate.getDay()],
+                dayOfWeek: dayNames[dayOfWeekDate.getUTCDay()],
                 checkInTime: attendance?.checkInTime?.toISOString() || null,
                 checkOutTime: attendance?.checkOutTime?.toISOString() || null,
                 actualHours,
@@ -222,18 +247,54 @@ export async function GET(request: NextRequest) {
                 absentColleagues,
             });
 
-            currentDate = addDays(currentDate, 1);
+            currentDateStr = addDaysBKK(currentDateStr, 1);
         }
+
+        // Get advance deduction
+        const advanceMonth = parseInt(endDate.split("-")[1]);
+        const advanceYear = parseInt(endDate.split("-")[0]);
+        const advances = await prisma.advance.findMany({
+            where: {
+                userId,
+                status: { in: ["APPROVED", "PAID"] },
+                month: advanceMonth,
+                year: advanceYear,
+            },
+        });
+        const advanceDeduction = advances.reduce((sum, a) => sum + Number(a.amount), 0);
+
+        // Get other expenses and social security
+        const otherExpenses = Number(employee.otherExpenses) || 0;
+
+        // Social security from SystemConfig
+        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
+        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
+        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
+        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
+
+        const totalWage = dailyRecords.reduce((sum, d) => sum + d.dailyWage, 0);
+        const totalOT = dailyRecords.reduce((sum, d) => sum + d.otAmount, 0);
+        const totalLatePenalty = dailyRecords.reduce((sum, d) => sum + d.latePenalty, 0);
+        const totalAdjustment = dailyRecords.reduce((sum, d) => sum + d.adjustment, 0);
+        const grossPay = totalWage + totalOT - totalLatePenalty;
+        const socialSecurity = employee.isSocialSecurityRegistered
+            ? Math.min(grossPay * ssoRate, ssoMax)
+            : 0;
+        const totalDeductions = totalLatePenalty + advanceDeduction + otherExpenses + socialSecurity;
 
         // Calculate summary
         const summary = {
             totalDays: dailyRecords.length,
             workDays: dailyRecords.filter(d => d.checkInTime).length,
-            totalWage: dailyRecords.reduce((sum, d) => sum + d.dailyWage, 0),
-            totalOT: dailyRecords.reduce((sum, d) => sum + d.otAmount, 0),
-            totalLatePenalty: dailyRecords.reduce((sum, d) => sum + d.latePenalty, 0),
-            totalAdjustment: dailyRecords.reduce((sum, d) => sum + d.adjustment, 0),
-            grandTotal: dailyRecords.reduce((sum, d) => sum + d.total, 0),
+            totalWage,
+            totalOT,
+            totalLatePenalty,
+            totalAdjustment,
+            advanceDeduction,
+            otherExpenses,
+            socialSecurity,
+            totalDeductions,
+            grandTotal: totalWage + totalOT - totalDeductions + totalAdjustment,
         };
 
         return successResponse({

@@ -69,6 +69,10 @@ interface EmployeePayrollData {
         totalOT: number;
         totalLatePenalty: number;
         totalAdjustment: number;
+        advanceDeduction: number;
+        otherExpenses: number;
+        socialSecurity: number;
+        totalDeductions: number;
         grandTotal: number;
     };
 }
@@ -148,15 +152,23 @@ export default function EmployeePayrollDetailPage() {
             record.date === date ? { ...record, ...updates } : record
         );
 
-        // Recalculate summary
+        // Recalculate summary (keep deductions from API)
+        const totalWage = updatedRecords.reduce((sum, d) => sum + d.dailyWage, 0);
+        const totalOT = updatedRecords.reduce((sum, d) => sum + d.otAmount, 0);
+        const totalLatePenalty = updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0);
+        const totalAdjustment = updatedRecords.reduce((sum, d) => sum + d.adjustment, 0);
+        const totalDeductions = totalLatePenalty + (data.summary.advanceDeduction || 0) + (data.summary.otherExpenses || 0) + (data.summary.socialSecurity || 0);
+
         const summary = {
+            ...data.summary,
             totalDays: updatedRecords.length,
             workDays: updatedRecords.filter(d => d.checkInTime).length,
-            totalWage: updatedRecords.reduce((sum, d) => sum + d.dailyWage, 0),
-            totalOT: updatedRecords.reduce((sum, d) => sum + d.otAmount, 0),
-            totalLatePenalty: updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0),
-            totalAdjustment: updatedRecords.reduce((sum, d) => sum + d.adjustment, 0),
-            grandTotal: updatedRecords.reduce((sum, d) => sum + d.total, 0),
+            totalWage,
+            totalOT,
+            totalLatePenalty,
+            totalAdjustment,
+            totalDeductions,
+            grandTotal: totalWage + totalOT - totalDeductions + totalAdjustment,
         };
 
         setData({ ...data, dailyRecords: updatedRecords, summary });
@@ -400,54 +412,84 @@ export default function EmployeePayrollDetailPage() {
 
                 {/* Summary Cards */}
                 {data && (
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-                        <Card className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-blue-400">{data.summary.workDays}</p>
-                                <p className="text-xs text-slate-400">วันทำงาน</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-green-400">
-                                    ฿{formatCurrency(data.summary.totalWage)}
-                                </p>
-                                <p className="text-xs text-slate-400">ค่าแรงรวม</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-purple-400">
-                                    ฿{formatCurrency(data.summary.totalOT)}
-                                </p>
-                                <p className="text-xs text-slate-400">OT รวม</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-red-400">
-                                    -฿{formatCurrency(data.summary.totalLatePenalty)}
-                                </p>
-                                <p className="text-xs text-slate-400">หักสาย</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4 text-center">
-                                <p className={`text - 2xl font - bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'} `}>
-                                    {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
-                                </p>
-                                <p className="text-xs text-slate-400">ปรับเงิน</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-white">
-                                    ฿{formatCurrency(data.summary.grandTotal)}
-                                </p>
-                                <p className="text-xs text-green-200">รวมสุทธิ</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <>
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-2xl font-bold text-blue-400">{data.summary.workDays}</p>
+                                    <p className="text-xs text-slate-400">วันทำงาน</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-2xl font-bold text-green-400">
+                                        ฿{formatCurrency(data.summary.totalWage)}
+                                    </p>
+                                    <p className="text-xs text-slate-400">ค่าแรงรวม</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-2xl font-bold text-purple-400">
+                                        ฿{formatCurrency(data.summary.totalOT)}
+                                    </p>
+                                    <p className="text-xs text-slate-400">OT รวม</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-2xl font-bold text-red-400">
+                                        -฿{formatCurrency(data.summary.totalDeductions)}
+                                    </p>
+                                    <p className="text-xs text-slate-400">รวมหัก</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/50 border-slate-700">
+                                <CardContent className="py-4 text-center">
+                                    <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                        {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
+                                    </p>
+                                    <p className="text-xs text-slate-400">ปรับเงิน</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
+                                <CardContent className="py-4 text-center">
+                                    <p className="text-2xl font-bold text-white">
+                                        ฿{formatCurrency(data.summary.grandTotal)}
+                                    </p>
+                                    <p className="text-xs text-green-200">รวมสุทธิ</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Deduction Breakdown */}
+                        <div className="grid grid-cols-4 gap-4 mb-6">
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
+                                    <p className="text-xs text-slate-500">หักสาย</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">{(data.summary.advanceDeduction || 0) > 0 ? `-฿${formatCurrency(data.summary.advanceDeduction)}` : '-'}</p>
+                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">{(data.summary.otherExpenses || 0) > 0 ? `-฿${formatCurrency(data.summary.otherExpenses)}` : '-'}</p>
+                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-800/30 border-slate-700">
+                                <CardContent className="py-3 text-center">
+                                    <p className="text-sm font-semibold text-red-300">{(data.summary.socialSecurity || 0) > 0 ? `-฿${formatCurrency(data.summary.socialSecurity)}` : '-'}</p>
+                                    <p className="text-xs text-slate-500">ประกันสังคม</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </>
                 )}
 
                 {/* Daily Table */}
