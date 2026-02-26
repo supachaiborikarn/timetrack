@@ -421,6 +421,7 @@ model PayrollRecord {
   latePenalty   Decimal       @default(0)
   advanceDeduct Decimal       @default(0)
   otherDeduct   Decimal       @default(0)
+  socialSecurity Decimal      @default(0)
   netPay        Decimal
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

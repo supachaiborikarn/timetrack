@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
                     latePenalty: true,
                     advanceDeduct: true,
                     otherDeduct: true,
+                    socialSecurity: true,
                     netPay: true,
                     createdAt: true,
                     period: {

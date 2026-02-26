@@ -20,9 +20,18 @@ interface Payslip {
     basePay: number;
     overtimePay: number;
     latePenalty: number;
+    advanceDeduct: number;
+    otherDeduct: number;
+    socialSecurity: number;
     netPay: number;
     createdAt: string;
-    user: any; // Included for PDF generator
+    user: {
+        name: string;
+        employeeId: string;
+        department: { name: string } | null;
+        bankName: string | null;
+        bankAccountNumber: string | null;
+    };
 }
 
 export default function EmployeeDocumentsPage() {
@@ -38,27 +47,10 @@ export default function EmployeeDocumentsPage() {
 
     const fetchPayslips = async () => {
         try {
-            const res = await fetch("/api/payslip"); // Existing API
+            const res = await fetch("/api/payslip");
             if (res.ok) {
                 const data = await res.json();
-                // Map data to include user details for PDF
-                const enriched = data.payslips.map((p: any) => ({
-                    ...p,
-                    user: {
-                        name: session?.user?.name,
-                        employeeId: session?.user?.employeeId, // Careful, session might not have this
-                        department: { name: "Employee" }, // Placeholder if not in session
-                        bankName: (session?.user as any)?.bankName,
-                        bankAccountNumber: (session?.user as any)?.bankAccountNumber,
-                    }
-                }));
-                // Wait, session.user might not have all details.
-                // The API /api/payslip should ideally return user details if needed for PDF, or we use a fresh fetch.
-                // Looking at api/payslip/route.ts, it DOES NOT return user info.
-                // We might need to fetch user profile or update API.
-                // For now, let's trust the session or upgrade the API.
-
-                setPayslips(enriched);
+                setPayslips(data.payslips || []);
             }
         } catch (error) {
             console.error("Failed to fetch payslips", error);
@@ -66,6 +58,36 @@ export default function EmployeeDocumentsPage() {
             setIsLoading(false);
         }
     };
+
+    const handleDownloadPDF = (slip: Payslip) => {
+        const payslipObj = {
+            user: {
+                name: slip.user.name,
+                employeeId: slip.user.employeeId,
+                department: slip.user.department,
+                bankName: slip.user.bankName,
+                bankAccountNumber: slip.user.bankAccountNumber,
+            },
+            period: {
+                startDate: slip.period.startDate,
+                endDate: slip.period.endDate,
+                name: slip.period.name,
+            },
+            createdAt: slip.createdAt,
+            basePay: slip.basePay,
+            overtimePay: slip.overtimePay,
+            latePenalty: slip.latePenalty,
+            advanceDeduct: slip.advanceDeduct,
+            otherDeduct: slip.otherDeduct,
+            socialSecurity: slip.socialSecurity,
+            netPay: slip.netPay,
+            bonus: 0,
+        };
+        generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+    };
+
+    const formatCurrency = (val: number) =>
+        Number(val).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
     if (status === "loading") return <div className="p-8 text-center">Loading...</div>;
     if (!session) redirect("/login");
@@ -98,13 +120,13 @@ export default function EmployeeDocumentsPage() {
                                     <TableHead className="text-right">รายได้รวม</TableHead>
                                     <TableHead className="text-right">รายการหัก</TableHead>
                                     <TableHead className="text-right font-bold">สุทธิ</TableHead>
-                                    <TableHead className="text-center">ตาวน์โหลด</TableHead>
+                                    <TableHead className="text-center">ดาวน์โหลด</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {payslips.map((slip) => {
                                     const earnings = Number(slip.basePay) + Number(slip.overtimePay);
-                                    const deductions = Number(slip.latePenalty);
+                                    const deductions = Number(slip.latePenalty) + Number(slip.advanceDeduct) + Number(slip.otherDeduct) + Number(slip.socialSecurity);
                                     return (
                                         <TableRow key={slip.id}>
                                             <TableCell>
@@ -117,14 +139,14 @@ export default function EmployeeDocumentsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>{formatThaiDate(new Date(slip.createdAt), "d MMM yyyy")}</TableCell>
-                                            <TableCell className="text-right text-blue-600">{earnings.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right text-red-500">{deductions.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold text-green-600">{Number(slip.netPay).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right text-blue-600">฿{formatCurrency(earnings)}</TableCell>
+                                            <TableCell className="text-right text-red-500">-฿{formatCurrency(deductions)}</TableCell>
+                                            <TableCell className="text-right font-bold text-green-600">฿{formatCurrency(Number(slip.netPay))}</TableCell>
                                             <TableCell className="text-center">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => generatePayslipPDF(slip, { name: "TimeTrack Co., Ltd." })}
+                                                    onClick={() => handleDownloadPDF(slip)}
                                                 >
                                                     <Download className="w-4 h-4 text-blue-600" />
                                                 </Button>
