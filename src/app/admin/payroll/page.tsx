@@ -265,15 +265,43 @@ export default function PayrollPage() {
                             <p className="text-sm text-slate-400">คำนวณค่าแรงรายวัน</p>
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        className="border-slate-600 text-slate-300"
-                        onClick={handleExport}
-                        disabled={!payrollData}
-                    >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Excel
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            className="border-slate-600 text-slate-300"
+                            onClick={handleExport}
+                            disabled={!payrollData}
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export Excel
+                        </Button>
+                        <Button
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            disabled={!payrollData}
+                            onClick={async () => {
+                                if (!confirm("ยืนยันการปิดงวดบัญชี? ข้อมูลจะถูกบันทึกสำหรับพนักงานทุกคน")) return;
+                                try {
+                                    const res = await fetch("/api/admin/payroll/finalize", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            startDate,
+                                            endDate,
+                                            stationId: stationId === "all" ? undefined : stationId,
+                                            departmentId: departmentId === "all" ? undefined : departmentId,
+                                        }),
+                                    });
+                                    if (res.ok) alert("ปิดงวดบัญชีเรียบร้อย ✅");
+                                    else alert("เกิดข้อผิดพลาด");
+                                } catch {
+                                    alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                                }
+                            }}
+                        >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            ปิดงวดบัญชี
+                        </Button>
+                    </div>
                 </div>
             </header>
 
