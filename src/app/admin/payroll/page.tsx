@@ -596,7 +596,8 @@ export default function PayrollPage() {
                                                                         overtimePay: emp.overtimePay,
                                                                         latePenalty: emp.latePenalty,
                                                                         advanceDeduct: emp.advanceDeduction,
-                                                                        otherDeduct: emp.otherExpenses + emp.socialSecurity,
+                                                                        otherDeduct: emp.otherExpenses,
+                                                                        socialSecurity: emp.socialSecurity,
                                                                         netPay: totalPay,
                                                                         bonus: bonus
                                                                     };

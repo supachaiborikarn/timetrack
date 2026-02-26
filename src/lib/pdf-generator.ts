@@ -51,7 +51,7 @@ export const generatePayslipPDF = (payslip: any, companyInfo: any) => {
         ["หักเบิกล่วงหน้า", Number(payslip.advanceDeduct).toLocaleString("th-TH", { minimumFractionDigits: 2 })],
         ["หักอื่นๆ", Number(payslip.otherDeduct).toLocaleString("th-TH", { minimumFractionDigits: 2 })],
         ["ภาษี", "0.00"],
-        ["ประกันสังคม", "0.00"],
+        ["ประกันสังคม", Number(payslip.socialSecurity || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })],
     ];
 
     // Pad arrays to match length
@@ -63,7 +63,7 @@ export const generatePayslipPDF = (payslip: any, companyInfo: any) => {
 
     // Calc totals
     totalEarnings = Number(payslip.basePay) + Number(payslip.overtimePay);
-    totalDeductions = Number(payslip.latePenalty) + Number(payslip.advanceDeduct) + Number(payslip.otherDeduct);
+    totalDeductions = Number(payslip.latePenalty) + Number(payslip.advanceDeduct) + Number(payslip.otherDeduct) + Number(payslip.socialSecurity || 0);
 
     for (let i = 0; i < maxLength; i++) {
         const earn = earnings[i] || ["", ""];
