@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { startDate, endDate, stationId } = body;
+        const { startDate, endDate, stationId, userId } = body;
 
         if (!startDate || !endDate) {
             return NextResponse.json({ error: "Dates required" }, { status: 400 });
@@ -33,14 +33,19 @@ export async function POST(request: NextRequest) {
                     name: periodName,
                     startDate: new Date(startDate),
                     endDate: new Date(endDate),
-                    payDate: new Date(), // Default to today/now
+                    payDate: new Date(),
                 }
             });
         }
 
-        // 2. Fetch Employees
+        // 2. Fetch Employees — single user or batch
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const employeeWhere: any = { isActive: true, role: "EMPLOYEE" };
-        if (stationId && stationId !== "all") employeeWhere.stationId = stationId;
+        if (userId) {
+            employeeWhere.id = userId;
+        } else if (stationId && stationId !== "all") {
+            employeeWhere.stationId = stationId;
+        }
 
         const employees = await prisma.user.findMany({
             where: employeeWhere,

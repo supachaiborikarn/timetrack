@@ -366,6 +366,34 @@ export default function EmployeePayrollDetailPage() {
                             <Calendar className="w-4 h-4 mr-2" />
                             โหลด
                         </Button>
+                        <Button
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            disabled={!data}
+                            onClick={async () => {
+                                if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${data?.employee.name}?`)) return;
+                                try {
+                                    const res = await fetch("/api/admin/payroll/finalize", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            startDate,
+                                            endDate,
+                                            userId: employeeId,
+                                        }),
+                                    });
+                                    if (res.ok) {
+                                        toast.success("ปิดงวดบัญชีเรียบร้อย ✅");
+                                    } else {
+                                        toast.error("เกิดข้อผิดพลาด");
+                                    }
+                                } catch {
+                                    toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                                }
+                            }}
+                        >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            ปิดงวดคนนี้
+                        </Button>
                     </div>
                 </div>
             </header>
