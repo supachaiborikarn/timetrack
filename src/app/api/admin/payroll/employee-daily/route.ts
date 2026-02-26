@@ -479,3 +479,30 @@ export async function DELETE(request: NextRequest) {
         return ApiErrors.internal();
     }
 }
+
+// PATCH: Update employee's otherExpenses
+export async function PATCH(request: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
+            return ApiErrors.unauthorized();
+        }
+
+        const body = await request.json();
+        const { userId, otherExpenses } = body;
+
+        if (!userId || otherExpenses === undefined) {
+            return ApiErrors.validation("userId and otherExpenses are required");
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { otherExpenses: parseFloat(otherExpenses) || 0 },
+        });
+
+        return successResponse({ updated: true, otherExpenses: parseFloat(otherExpenses) || 0 });
+    } catch (error) {
+        console.error("Error updating otherExpenses:", error);
+        return ApiErrors.internal();
+    }
+}

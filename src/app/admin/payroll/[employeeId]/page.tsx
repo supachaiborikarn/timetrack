@@ -97,6 +97,8 @@ export default function EmployeePayrollDetailPage() {
     const [editingCell, setEditingCell] = useState<{ date: string; field: EditField } | null>(null);
     const [editValue, setEditValue] = useState("");
     const [savingDate, setSavingDate] = useState<string | null>(null);
+    const [editingExpenses, setEditingExpenses] = useState(false);
+    const [expensesValue, setExpensesValue] = useState("");
 
     const fetchData = useCallback(async () => {
         if (!employeeId) return;
@@ -504,10 +506,36 @@ export default function EmployeePayrollDetailPage() {
                                     <p className="text-xs text-slate-500">หักเบิกล่วงหน้า</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
+                            <Card className="bg-slate-800/30 border-slate-700 cursor-pointer hover:border-slate-500 transition"
+                                onClick={() => { if (!editingExpenses) { setEditingExpenses(true); setExpensesValue(String(data.summary.otherExpenses || 0)); } }}>
                                 <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">{(data.summary.otherExpenses || 0) > 0 ? `-฿${formatCurrency(data.summary.otherExpenses)}` : '-'}</p>
-                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ</p>
+                                    {editingExpenses ? (
+                                        <Input
+                                            type="number"
+                                            value={expensesValue}
+                                            onChange={(e) => setExpensesValue(e.target.value)}
+                                            onBlur={async () => {
+                                                setEditingExpenses(false);
+                                                const val = parseFloat(expensesValue) || 0;
+                                                await fetch("/api/admin/payroll/employee-daily", {
+                                                    method: "PATCH",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ userId: employeeId, otherExpenses: val }),
+                                                });
+                                                toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                                fetchData();
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                            }}
+                                            className="w-24 mx-auto bg-slate-700 border-amber-500 text-white text-center text-sm"
+                                            autoFocus
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    ) : (
+                                        <p className="text-sm font-semibold text-red-300">{(data.summary.otherExpenses || 0) > 0 ? `-฿${formatCurrency(data.summary.otherExpenses)}` : '-'}</p>
+                                    )}
+                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ <Edit2 className="w-3 h-3 inline" /></p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-slate-800/30 border-slate-700">
