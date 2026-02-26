@@ -79,6 +79,24 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        // Get all daily payroll overrides for the date range
+        const overrides = await prisma.dailyPayrollOverride.findMany({
+            where: {
+                userId: { in: employeeIds },
+                date: {
+                    gte: start,
+                    lte: end,
+                },
+            },
+        });
+
+        // Map overrides by "userId:dateKey"
+        const overrideMap = new Map<string, typeof overrides[0]>();
+        for (const o of overrides) {
+            const dk = toBangkokDateKey(o.date);
+            overrideMap.set(`${o.userId}:${dk}`, o);
+        }
+
         // Get approved/paid advances for matching month/year
         const advances = await prisma.advance.findMany({
             where: {
@@ -109,6 +127,8 @@ export async function GET(request: NextRequest) {
             let workDays = 0;
             let totalHours = 0;
             let latePenalty = 0;
+            let totalOTAmount = 0;
+            let totalAdjustment = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
@@ -116,20 +136,34 @@ export async function GET(request: NextRequest) {
                     if (seenDates.has(dateKey)) continue; // skip duplicate
                     seenDates.add(dateKey);
 
+                    const override = overrideMap.get(`${emp.id}:${dateKey}`);
+
                     workDays++;
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    // Late penalty
-                    if (record.latePenaltyAmount) {
+                    // Late penalty (override or auto)
+                    if (override?.overrideLatePenalty != null) {
+                        latePenalty += Number(override.overrideLatePenalty);
+                    } else if (record.latePenaltyAmount) {
                         latePenalty += Number(record.latePenaltyAmount);
+                    }
+
+                    // OT (from override only — HR adds manually)
+                    if (override?.overrideOT != null) {
+                        totalOTAmount += Number(override.overrideOT);
+                    }
+
+                    // Adjustment
+                    if (override?.adjustment) {
+                        totalAdjustment += Number(override.adjustment);
                     }
                 }
             }
 
             // Calculate pay
             const regularPay = workDays * dailyRate;
-            const overtimePay = 0; // OT/รายได้พิเศษ เพิ่มโดย HR
+            const overtimePay = totalOTAmount;
 
             // Deductions
             const advanceDeduction = advancesByUser[emp.id] || 0;
@@ -142,7 +176,7 @@ export async function GET(request: NextRequest) {
                 : 0;
 
             const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
-            const totalPay = regularPay + overtimePay - totalDeductions;
+            const totalPay = regularPay + overtimePay - totalDeductions + totalAdjustment;
 
             return {
                 id: emp.id,
@@ -161,6 +195,7 @@ export async function GET(request: NextRequest) {
                 otherExpenses,
                 socialSecurity,
                 totalDeductions,
+                adjustment: totalAdjustment,
                 totalPay,
                 bankName: emp.bankName,
                 bankAccountNumber: emp.bankAccountNumber,

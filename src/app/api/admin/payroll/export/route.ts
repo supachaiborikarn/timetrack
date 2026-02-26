@@ -78,6 +78,18 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        // Get all daily payroll overrides
+        const overrides = await prisma.dailyPayrollOverride.findMany({
+            where: {
+                userId: { in: employeeIds },
+                date: { gte: start, lte: end },
+            },
+        });
+        const overrideMap = new Map<string, typeof overrides[0]>();
+        for (const o of overrides) {
+            overrideMap.set(`${o.userId}:${toBangkokDateKey(o.date)}`, o);
+        }
+
         // Get approved/paid advances
         const advances = await prisma.advance.findMany({
             where: {
@@ -105,6 +117,8 @@ export async function GET(request: NextRequest) {
             let workDays = 0;
             let totalHours = 0;
             let latePenalty = 0;
+            let totalOTAmount = 0;
+            let totalAdjustment = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
@@ -112,18 +126,30 @@ export async function GET(request: NextRequest) {
                     if (seenDates.has(dateKey)) continue;
                     seenDates.add(dateKey);
 
+                    const override = overrideMap.get(`${emp.id}:${dateKey}`);
+
                     workDays++;
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    if (record.latePenaltyAmount) {
+                    if (override?.overrideLatePenalty != null) {
+                        latePenalty += Number(override.overrideLatePenalty);
+                    } else if (record.latePenaltyAmount) {
                         latePenalty += Number(record.latePenaltyAmount);
+                    }
+
+                    if (override?.overrideOT != null) {
+                        totalOTAmount += Number(override.overrideOT);
+                    }
+
+                    if (override?.adjustment) {
+                        totalAdjustment += Number(override.adjustment);
                     }
                 }
             }
 
             const regularPay = workDays * dailyRate;
-            const overtimePay = 0;
+            const overtimePay = totalOTAmount;
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
             const grossPay = regularPay + overtimePay - latePenalty;
@@ -131,7 +157,7 @@ export async function GET(request: NextRequest) {
                 ? Math.min(grossPay * ssoRate, ssoMax)
                 : 0;
             const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
-            const totalPay = regularPay + overtimePay - totalDeductions;
+            const totalPay = regularPay + overtimePay - totalDeductions + totalAdjustment;
 
             return {
                 employeeId: emp.employeeId,
