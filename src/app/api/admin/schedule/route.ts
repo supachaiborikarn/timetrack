@@ -23,9 +23,12 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        const daysInMonth = new Date(year, month, 0).getDate();
         const startDateStr = `${year}-${month.toString().padStart(2, "0")}-01`;
         const startDate = parseDateStringToBangkokMidnight(startDateStr);
-        const endDate = endOfMonth(startDate);
+
+        const endDateStr = `${year}-${month.toString().padStart(2, "0")}-${daysInMonth}`;
+        const endDate = parseDateStringToBangkokMidnight(endDateStr);
 
         // Get all employees of the station
         const employees = await prisma.user.findMany({
@@ -54,12 +57,15 @@ export async function GET(request: NextRequest) {
             const empAssignments = assignments.filter((a) => a.userId === emp.id);
             const schedule: Record<string, { shiftId: string; shiftCode: string; isDayOff: boolean } | null> = {};
 
-            let currentDate = startDate;
-            while (currentDate <= endDate) {
-                const dateKey = format(currentDate, "yyyy-MM-dd");
-                const assignment = empAssignments.find(
-                    (a) => format(a.date, "yyyy-MM-dd") === dateKey
-                );
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+
+                // Find matching assignment by creating a key from the assignment's database date
+                const assignment = empAssignments.find((a) => {
+                    const bkk = new Date(a.date.getTime() + 7 * 60 * 60 * 1000);
+                    const aKey = `${bkk.getUTCFullYear()}-${(bkk.getUTCMonth() + 1).toString().padStart(2, "0")}-${bkk.getUTCDate().toString().padStart(2, "0")}`;
+                    return aKey === dateKey;
+                });
 
                 schedule[dateKey] = assignment
                     ? {
@@ -68,8 +74,6 @@ export async function GET(request: NextRequest) {
                         isDayOff: assignment.isDayOff,
                     }
                     : null;
-
-                currentDate = addDays(currentDate, 1);
             }
 
             return {
@@ -88,9 +92,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             month,
             year,
-            startDate: format(startDate, "yyyy-MM-dd"),
-            endDate: format(endDate, "yyyy-MM-dd"),
-            daysInMonth: getDate(endDate),
+            startDate: startDateStr,
+            endDate: endDateStr,
+            daysInMonth: daysInMonth,
             shifts: shifts.map((s) => ({
                 id: s.id,
                 code: s.code,
