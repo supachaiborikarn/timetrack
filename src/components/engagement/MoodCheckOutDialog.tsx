@@ -30,25 +30,28 @@ export function MoodCheckOutDialog({ isOpen, onClose, onConfirm, isLoading }: Mo
                 </DialogHeader>
                 <div className="flex justify-center gap-4 py-4">
                     <button
-                        onClick={() => setMood("HAPPY")}
-                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 ${mood === "HAPPY" ? "bg-green-100 ring-2 ring-green-500 scale-105" : "hover:bg-slate-100"}`}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setMood("HAPPY"); }}
+                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 cursor-pointer ${mood === "HAPPY" ? "bg-green-100 ring-2 ring-green-500 scale-105" : "hover:bg-slate-100"}`}
                     >
-                        <Smile className={`w-12 h-12 mb-2 ${mood === "HAPPY" ? "text-green-600" : "text-slate-400"}`} />
-                        <span className="text-xs font-medium text-slate-700">แฮปปี้</span>
+                        <Smile className={`w-12 h-12 mb-2 pointer-events-none ${mood === "HAPPY" ? "text-green-600" : "text-slate-400"}`} />
+                        <span className="text-xs font-medium text-slate-700 pointer-events-none">แฮปปี้</span>
                     </button>
                     <button
-                        onClick={() => setMood("NEUTRAL")}
-                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 ${mood === "NEUTRAL" ? "bg-yellow-100 ring-2 ring-yellow-500 scale-105" : "hover:bg-slate-100"}`}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setMood("NEUTRAL"); }}
+                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 cursor-pointer ${mood === "NEUTRAL" ? "bg-yellow-100 ring-2 ring-yellow-500 scale-105" : "hover:bg-slate-100"}`}
                     >
-                        <Meh className={`w-12 h-12 mb-2 ${mood === "NEUTRAL" ? "text-yellow-600" : "text-slate-400"}`} />
-                        <span className="text-xs font-medium text-slate-700">เฉยๆ</span>
+                        <Meh className={`w-12 h-12 mb-2 pointer-events-none ${mood === "NEUTRAL" ? "text-yellow-600" : "text-slate-400"}`} />
+                        <span className="text-xs font-medium text-slate-700 pointer-events-none">เฉยๆ</span>
                     </button>
                     <button
-                        onClick={() => setMood("SAD")}
-                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 ${mood === "SAD" ? "bg-red-100 ring-2 ring-red-500 scale-105" : "hover:bg-slate-100"}`}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setMood("SAD"); }}
+                        className={`flex flex-col items-center p-4 rounded-xl transition-all w-24 cursor-pointer ${mood === "SAD" ? "bg-red-100 ring-2 ring-red-500 scale-105" : "hover:bg-slate-100"}`}
                     >
-                        <Frown className={`w-12 h-12 mb-2 ${mood === "SAD" ? "text-red-600" : "text-slate-400"}`} />
-                        <span className="text-xs font-medium text-slate-700">เหนื่อย/ท้อ</span>
+                        <Frown className={`w-12 h-12 mb-2 pointer-events-none ${mood === "SAD" ? "text-red-600" : "text-slate-400"}`} />
+                        <span className="text-xs font-medium text-slate-700 pointer-events-none">เหนื่อย/ท้อ</span>
                     </button>
                 </div>
 

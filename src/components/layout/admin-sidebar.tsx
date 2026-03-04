@@ -33,6 +33,7 @@ import {
     TrendingUp,
     MessageSquare,
     Timer,
+    Smile,
 } from "lucide-react";
 
 interface NavItem {
@@ -166,6 +167,12 @@ const navItems: NavItem[] = [
         title: "One-on-One",
         href: "/admin/engagement/one-on-one",
         icon: MessageSquare,
+        roles: ["ADMIN", "HR", "MANAGER"],
+    },
+    {
+        title: "ความสุขพนักงาน",
+        href: "/admin/engagement/happiness",
+        icon: Smile,
         roles: ["ADMIN", "HR", "MANAGER"],
     },
 ];
