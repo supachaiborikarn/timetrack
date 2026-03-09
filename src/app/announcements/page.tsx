@@ -129,6 +129,25 @@ export default function AnnouncementsPage() {
         }
     };
 
+    const handleTogglePin = async (postId: string, currentPinned: boolean) => {
+        try {
+            const res = await fetch(`/api/announcements/${postId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isPinned: !currentPinned }),
+            });
+
+            if (res.ok) {
+                toast.success(currentPinned ? "ยกเลิกปักหมุดแล้ว" : "ปักหมุดแล้ว");
+                fetchPosts();
+            } else {
+                toast.error("เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        }
+    };
+
     const handleDelete = async (postId: string) => {
         if (!confirm("คุณต้องการลบประกาศนี้ใช่หรือไม่?")) return;
 
@@ -292,6 +311,21 @@ export default function AnnouncementsPage() {
                                                         <span className="text-xs text-slate-500">
                                                             {formatThaiDate(new Date(post.createdAt), "d MMM HH:mm")}
                                                         </span>
+                                                        {isAdminOrManager && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleTogglePin(post.id, post.isPinned);
+                                                                }}
+                                                                className={`transition-colors p-1 rounded-full ${post.isPinned
+                                                                    ? "text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                                                                    : "text-slate-400 hover:text-orange-500 hover:bg-orange-50"
+                                                                    }`}
+                                                                title={post.isPinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}
+                                                            >
+                                                                <Pin className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                         {(isAdminOrManager || session?.user?.id === post.author.id) && (
                                                             <button
                                                                 onClick={(e) => {
