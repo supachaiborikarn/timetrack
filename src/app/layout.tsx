@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/lib/language-context";
+import { PushNotificationProvider } from "@/components/push-notification-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,6 +51,7 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <LanguageProvider>
+              <PushNotificationProvider />
               {children}
               <Toaster position="top-center" richColors />
             </LanguageProvider>
