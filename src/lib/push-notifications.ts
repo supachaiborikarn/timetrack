@@ -44,11 +44,17 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     }
 
     try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
+        // Register the service worker
+        await navigator.serviceWorker.register('/sw.js', {
             scope: '/',
         });
-        console.log('Service Worker registered:', registration.scope);
-        return registration;
+        
+        // IMPORTANT: Wait for the service worker to be fully active/ready
+        // Fixes error: "Subscribing for push requires an active service worker"
+        const readyRegistration = await navigator.serviceWorker.ready;
+        
+        console.log('Service Worker is active and ready:', readyRegistration.scope);
+        return readyRegistration;
     } catch (error) {
         console.error('Service Worker registration failed:', error);
         return null;
@@ -62,8 +68,7 @@ export async function subscribeToPush(
     registration: ServiceWorkerRegistration
 ): Promise<PushSubscription | null> {
     if (!VAPID_PUBLIC_KEY) {
-        console.warn('VAPID public key not configured');
-        return null;
+        throw new Error('VAPID_PUBLIC_KEY is missing in env (NEXT_PUBLIC_VAPID_PUBLIC_KEY)');
     }
 
     try {
@@ -85,17 +90,22 @@ export async function subscribeToPush(
         });
 
         // Send subscription to server
-        await fetch('/api/notifications/subscribe', {
+        const response = await fetch('/api/notifications/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(subscription),
         });
+        
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(`Server API Failed (${response.status}): ${JSON.stringify(errData)}`);
+        }
 
         console.log('Push subscription created');
         return subscription;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to subscribe to push:', error);
-        return null;
+        throw new Error(`Subscribe Failed: ${error.message}`);
     }
 }
 
@@ -130,23 +140,30 @@ export async function unsubscribeFromPush(
 /**
  * Initialize push notifications
  */
-export async function initializePushNotifications(): Promise<boolean> {
+export async function initializePushNotifications(): Promise<{success: boolean, error?: string}> {
     if (!isPushSupported()) {
         console.warn('Push notifications not supported');
-        return false;
+        return { success: false, error: 'เบราว์เซอร์ไม่รองรับ Push Notifications' };
     }
 
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') {
         console.warn('Notification permission not granted');
-        return false;
+        return { success: false, error: 'กรุณาอนุญาตการแจ้งเตือนในตั้งค่าเบราว์เซอร์' };
     }
 
     const registration = await registerServiceWorker();
     if (!registration) {
-        return false;
+        return { success: false, error: 'ไม่สามารถลงทะเบียน Service Worker ได้' };
     }
 
-    const subscription = await subscribeToPush(registration);
-    return !!subscription;
+    try {
+        const subscription = await subscribeToPush(registration);
+        if (!subscription) {
+            return { success: false, error: 'ไม่สามารถสร้าง Subscription (1)' };
+        }
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Unknown error' };
+    }
 }

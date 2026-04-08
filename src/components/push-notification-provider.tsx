@@ -39,11 +39,11 @@ export function PushNotificationProvider() {
                         action: {
                             label: "เปิดใช้งาน",
                             onClick: async () => {
-                                const success = await initializePushNotifications();
-                                if (success) {
+                                const result = await initializePushNotifications();
+                                if (result.success) {
                                     toast.success("เปิดรับการแจ้งเตือนสำเร็จ");
                                 } else {
-                                    toast.error("ไม่สามารถเปิดการแจ้งเตือนได้");
+                                    toast.error(`เกิดข้อผิดพลาด: ${result.error}`);
                                 }
                             },
                         },
@@ -51,11 +51,14 @@ export function PushNotificationProvider() {
                     });
                 } else if (permission === 'granted') {
                     // Already granted, silently make sure service worker and subscription are active
-                    // This handles cases where they allowed on this device but subscription record hasn't been created
-                    await initializePushNotifications();
+                    const result = await initializePushNotifications();
+                    if (!result.success) {
+                        toast.error(`ระบบการแจ้งเตือนมีปัญหา: ${result.error}`);
+                    }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Push init error:", error);
+                toast.error(`Push init error: ${error.message}`);
             } finally {
                 setIsChecking(false);
             }
