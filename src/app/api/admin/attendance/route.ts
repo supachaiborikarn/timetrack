@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         const records = await prisma.attendance.findMany({
             where,
             include: {
+                checkInStation: { select: { name: true } },
                 user: {
                     include: {
                         station: { select: { name: true } },
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
                 id: r.id,
                 date: r.date.toISOString(),
                 checkInTime: r.checkInTime?.toISOString() || null,
+                checkInStation: r.checkInStation?.name || null,
                 checkOutTime: r.checkOutTime?.toISOString() || null,
                 lateMinutes: r.lateMinutes,
                 actualHours: r.actualHours ? Number(r.actualHours) : null,

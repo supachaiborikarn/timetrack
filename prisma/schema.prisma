@@ -257,6 +257,7 @@ model Station {
   shifts              Shift[]
   registeredEmployees User[]       @relation("RegisteredStation")
   employees           User[]       @relation("WorkStation")
+  attendances         Attendance[] @relation("AttendanceCheckInStation")
 
   @@index([code])
 }
@@ -348,6 +349,8 @@ model Attendance {
   checkInLng         Decimal?
   checkInDeviceId    String?
   checkInMethod      String?
+  checkInStationId   String?
+  checkInStation     Station?         @relation("AttendanceCheckInStation", fields: [checkInStationId], references: [id])
   checkOutTime       DateTime?
   checkOutLat        Decimal?
   checkOutLng        Decimal?

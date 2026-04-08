@@ -84,6 +84,7 @@ interface AttendanceRecord {
         department: string;
         station: string;
     };
+    checkInStation: string | null;
 }
 
 export default function AttendanceReviewPage() {
@@ -848,7 +849,14 @@ export default function AttendanceReviewPage() {
                                             </TableCell>
                                             <TableCell className="hidden md:table-cell">
                                                 <div>
-                                                    <p className="text-sm font-medium">{record.user.station}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-medium">{record.user.station}</p>
+                                                        {record.checkInStation && record.checkInStation !== record.user.station && (
+                                                            <Badge variant="outline" className="text-[10px] h-5 bg-amber-50 text-amber-600 border-amber-200">
+                                                                (เข้าที่: {record.checkInStation})
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-xs text-muted-foreground">{record.user.department}</p>
                                                 </div>
                                             </TableCell>

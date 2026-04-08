@@ -37,42 +37,63 @@ export async function POST(request: NextRequest) {
         }
 
         if (!user.station) {
-            return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
+            return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่ในระบบสถานี");
         }
 
-        // Validate GPS location
-        const distance = calculateDistance(
-            { latitude, longitude },
-            {
-                latitude: Number(user.station.latitude),
-                longitude: Number(user.station.longitude)
+        // CROSS-STATION CHECK-IN: Find closest station among ALL active stations
+        const activeStations = await prisma.station.findMany({
+            where: { isActive: true },
+        });
+
+        let closestStation = null;
+        let minDistance = Infinity;
+
+        for (const station of activeStations) {
+            const distance = calculateDistance(
+                { latitude, longitude },
+                {
+                    latitude: Number(station.latitude),
+                    longitude: Number(station.longitude)
+                }
+            );
+
+            if (distance <= station.radius && distance < minDistance) {
+                minDistance = distance;
+                closestStation = station;
             }
-        );
+        }
 
-        const isWithinRadius = distance <= user.station.radius;
+        if (!closestStation) {
+            // Check distance to OWN station to display helpful error message
+            const ownDistance = calculateDistance(
+                { latitude, longitude },
+                {
+                    latitude: Number(user.station.latitude),
+                    longitude: Number(user.station.longitude)
+                }
+            );
 
-        if (!isWithinRadius) {
             // Log the failure
             await prisma.auditLog.create({
                 data: {
                     action: "CHECK_IN_FAILED",
                     entity: "Attendance",
                     userId: session.user.id,
-                    details: `Location invalid. Distance: ${Math.round(distance)}m, Allowed: ${user.station.radius}m. Lat/Lng: ${latitude},${longitude}`,
+                    details: `Location invalid for any station. Nearest was own: ${Math.round(ownDistance)}m (Allowed: ${user.station.radius}m). Lat/Lng: ${latitude},${longitude}`,
                 }
             });
 
             return NextResponse.json({
-                error: `คุณอยู่นอกพื้นที่ (${Math.round(distance)} เมตร / ${user.station.radius} เมตร)`,
+                error: `คุณอยู่นอกพื้นที่ของทุกสาขา (ปั๊มต้นสังกัดห่าง ${Math.round(ownDistance)} เมตร)`,
                 errorCode: "INVALID_LOCATION",
-                distance,
+                distance: ownDistance,
                 allowedRadius: user.station.radius
             }, { status: 400 });
         }
 
-        // Always validate QR code - GPS + QR required
-        if (!qrCode || qrCode !== user.station.qrCode) {
-            return ApiErrors.validation("กรุณาสแกน QR Code เพื่อเช็คอิน");
+        // Always validate QR code with the station they are ACTUALLY checking in at
+        if (!qrCode || qrCode !== closestStation.qrCode) {
+            return ApiErrors.validation(`กรุณาสแกน QR Code ของสาขา ${closestStation.name} เพื่อเช็คอิน`);
         }
 
         // Check device fingerprint (optional strict mode)
@@ -233,6 +254,7 @@ export async function POST(request: NextRequest) {
                 checkInLng: longitude,
                 checkInDeviceId: deviceId,
                 checkInMethod: method,
+                checkInStationId: closestStation.id,
                 lateMinutes,
                 latePenaltyAmount,
                 status: "PENDING",
@@ -243,6 +265,7 @@ export async function POST(request: NextRequest) {
                 checkInLng: longitude,
                 checkInDeviceId: deviceId,
                 checkInMethod: method,
+                checkInStationId: closestStation.id,
                 lateMinutes,
                 latePenaltyAmount,
             },
