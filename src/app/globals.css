@@ -47,75 +47,77 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* Light Mode - Clean Professional Theme */
+/* Light Mode - Notion Theme */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.01 260);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.95 0.02 260);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.546 0.245 262.881);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.6 0.2 142);
-  --chart-3: oklch(0.7 0.15 50);
-  --chart-4: oklch(0.65 0.2 310);
-  --chart-5: oklch(0.55 0.2 200);
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.95 0.02 260);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-ring: oklch(0.546 0.245 262.881);
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: rgba(0, 0, 0, 0.95);
+  --card: #ffffff;
+  --card-foreground: rgba(0, 0, 0, 0.95);
+  --popover: #ffffff;
+  --popover-foreground: rgba(0, 0, 0, 0.95);
+  --primary: #0075de;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(0, 0, 0, 0.05); /* Warm gray bg */
+  --secondary-foreground: rgba(0, 0, 0, 0.95);
+  --muted: #f6f5f4; /* Warm white */
+  --muted-foreground: #615d59; /* Warm Gray 500 */
+  --accent: rgba(0, 0, 0, 0.05);
+  --accent-foreground: rgba(0, 0, 0, 0.95);
+  --destructive: #dd5b00; /* Notion orange/danger */
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: rgba(0, 0, 0, 0.1); /* Whisper border for inputs */
+  --ring: #097fe8; /* Focus Blue */
+  --chart-1: #0075de;
+  --chart-2: #2a9d99;
+  --chart-3: #dd5b00;
+  --chart-4: #ff64c8;
+  --chart-5: #1aae39;
+  --sidebar: #f6f5f4;
+  --sidebar-foreground: rgba(0, 0, 0, 0.95);
+  --sidebar-primary: #0075de;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(0, 0, 0, 0.05);
+  --sidebar-accent-foreground: rgba(0, 0, 0, 0.95);
+  --sidebar-border: rgba(0, 0, 0, 0.1);
+  --sidebar-ring: #097fe8;
 }
 
-/* Dark Mode - Modern Slate Theme */
+/* Dark Mode - Notion Dark Theme */
 .dark {
-  --background: oklch(0.13 0.02 260);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.18 0.02 260);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.18 0.02 260);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.62 0.22 262.881);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.25 0.02 260);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.25 0.02 260);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.28 0.03 260);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(0.28 0.02 260);
-  --input: oklch(0.25 0.02 260);
-  --ring: oklch(0.62 0.22 262.881);
-  --chart-1: oklch(0.62 0.22 262.881);
-  --chart-2: oklch(0.65 0.18 142);
-  --chart-3: oklch(0.75 0.15 50);
-  --chart-4: oklch(0.7 0.18 310);
-  --chart-5: oklch(0.6 0.18 200);
-  --sidebar: oklch(0.15 0.02 260);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.62 0.22 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.25 0.02 260);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.28 0.02 260);
-  --sidebar-ring: oklch(0.62 0.22 262.881);
+  --background: #191919;
+  --foreground: rgba(255, 255, 255, 0.9);
+  --card: #202020;
+  --card-foreground: rgba(255, 255, 255, 0.9);
+  --popover: #202020;
+  --popover-foreground: rgba(255, 255, 255, 0.9);
+  --primary: #0075de; 
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.05);
+  --secondary-foreground: rgba(255, 255, 255, 0.9);
+  --muted: #31302e; /* Warm Dark */
+  --muted-foreground: #a39e98; /* Warm Gray 300 */
+  --accent: rgba(255, 255, 255, 0.05);
+  --accent-foreground: rgba(255, 255, 255, 0.9);
+  --destructive: #dd5b00;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #097fe8;
+  --chart-1: #0075de;
+  --chart-2: #2a9d99;
+  --chart-3: #dd5b00;
+  --chart-4: #ff64c8;
+  --chart-5: #1aae39;
+  --sidebar: #202020;
+  --sidebar-foreground: rgba(255, 255, 255, 0.9);
+  --sidebar-primary: #0075de;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.05);
+  --sidebar-accent-foreground: rgba(255, 255, 255, 0.9);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #097fe8;
 }
 
 @layer base {
