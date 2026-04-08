@@ -112,18 +112,53 @@ export async function POST(request: NextRequest) {
                 include: { shift: true },
             });
             const isNightShift = activeShift?.shift?.isNightShift ?? false;
-            const autoCloseThreshold = isNightShift ? 26 : 14;
-            const autoCloseHours = isNightShift ? 24 : 12;
+
+            // For night shifts: threshold 26h, auto-close at 24h after check-in
+            // For regular shifts: threshold 16h (12h shift + 4h buffer), auto-close at shift endTime
+            const autoCloseThreshold = isNightShift ? 26 : 16;
+
+            // Calculate auto-close time from actual shift endTime if available
+            let autoCheckOutTime: Date;
+            let autoCloseHours: number;
+
+            if (activeShift?.shift) {
+                const shift = activeShift.shift;
+                if (isNightShift) {
+                    // Night shift: cap at 24h after check-in
+                    autoCloseHours = 24;
+                    autoCheckOutTime = new Date(new Date(activeAttendance.checkInTime!).getTime() + 24 * 60 * 60 * 1000);
+                } else {
+                    // Regular shift: use actual shift end time on the same day as check-in
+                    const checkInDate = new Date(activeAttendance.checkInTime!);
+                    const [endHour, endMin] = shift.endTime.split(":").map(Number);
+                    // Convert checkInDate to Bangkok date for constructing endTime
+                    const bkkCheckInOffset = checkInDate.getTime() + 7 * 60 * 60 * 1000;
+                    const bkkDate = new Date(bkkCheckInOffset);
+                    const bkkYear = bkkDate.getUTCFullYear();
+                    const bkkMonth = bkkDate.getUTCMonth();
+                    const bkkDay = bkkDate.getUTCDate();
+                    // Build shift end as Bangkok time then convert to UTC
+                    const shiftEndBKK = new Date(Date.UTC(bkkYear, bkkMonth, bkkDay, endHour, endMin, 0) - 7 * 60 * 60 * 1000);
+                    // If shift end is before check-in (shouldn't happen for non-night), add 1 day
+                    autoCheckOutTime = shiftEndBKK > new Date(activeAttendance.checkInTime!)
+                        ? shiftEndBKK
+                        : new Date(shiftEndBKK.getTime() + 24 * 60 * 60 * 1000);
+                    autoCloseHours = (autoCheckOutTime.getTime() - new Date(activeAttendance.checkInTime!).getTime()) / (1000 * 60 * 60);
+                }
+            } else {
+                // No shift assignment found – use safe default (16h after check-in)
+                autoCloseHours = 16;
+                autoCheckOutTime = new Date(new Date(activeAttendance.checkInTime!).getTime() + 16 * 60 * 60 * 1000);
+            }
 
             if (hoursSinceCheckIn >= autoCloseThreshold) {
-                // Auto-close: set checkout to checkIn + max shift hours
-                const autoCheckOut = new Date(new Date(activeAttendance.checkInTime!).getTime() + autoCloseHours * 60 * 60 * 1000);
+                // Auto-close: set checkout to calculated shift end time
                 await prisma.attendance.update({
                     where: { id: activeAttendance.id },
                     data: {
-                        checkOutTime: autoCheckOut,
-                        actualHours: autoCloseHours,
-                        note: `ระบบปิดอัตโนมัติ (ไม่ได้เช็คเอาต์เกิน ${autoCloseThreshold} ชม.) ${activeAttendance.note || ""}`.trim(),
+                        checkOutTime: autoCheckOutTime,
+                        actualHours: Math.max(0, autoCloseHours),
+                        note: `ระบบปิดเวลาออกอัตโนมัติ (ไม่ได้เช็คเอาต์เกิน ${autoCloseThreshold} ชม.) ${activeAttendance.note || ""}`.trim(),
                     },
                 });
             } else {
