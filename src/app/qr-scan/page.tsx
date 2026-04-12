@@ -16,6 +16,8 @@ export default function QRScanPage() {
     const [isScanning, setIsScanning] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanResult, setScanResult] = useState<string | null>(null);
+    const [scanAction, setScanAction] = useState<"checkin" | "break_end" | "transfer">("checkin");
+    const [scanDetail, setScanDetail] = useState("");
     const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -84,6 +86,8 @@ export default function QRScanPage() {
                 const data = await res.json();
 
                 if (res.ok) {
+                    setScanAction("break_end");
+                    setScanDetail(data.penaltyAmount > 0 ? `โดนหัก ฿${data.penaltyAmount}` : `พัก ${data.durationMin} นาที`);
                     setScanResult(decodedText);
                     if (data.penaltyAmount > 0) {
                         toast.warning("จบพักเบรก - กลับมาสาย!", {
@@ -116,6 +120,8 @@ export default function QRScanPage() {
                 const data = await res.json();
 
                 if (res.ok) {
+                    setScanAction("checkin");
+                    setScanDetail(`เวลา ${formatTime(new Date())}`);
                     setScanResult(decodedText);
                     toast.success("เช็คอินสำเร็จ!", {
                         description: `เวลา ${formatTime(new Date())}`,
@@ -140,15 +146,38 @@ export default function QRScanPage() {
                     }
                 }
             } else {
-                // Checked in, but NOT on break -> Maybe they want to start break? or Check out?
-                // The QR Scan page currently only supports Check-in and End-break.
-                // We should inform them instead of trying to check-in again.
-                toast.warning("คุณเช็คอินไปแล้ว", {
-                    description: "หากต้องการพักเบรก กรุณากดปุ่มพักเบรกในหน้าหลัก",
+                // Checked in, NOT on break → attempt station transfer
+                const res = await fetch("/api/attendance/station-transfer", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        qrCode: decodedText,
+                    }),
                 });
-                // Optional: Provide a way to Check Out if that's what they intended? 
-                // But for now, just stopping the error is safer.
-                setError("คุณเช็คอินไปแล้ววันนี้");
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    setScanAction("transfer");
+                    setScanDetail(`${data.data?.from} → ${data.data?.to}`);
+                    setScanResult(decodedText);
+                    toast.success("ย้ายสาขาสำเร็จ!", {
+                        description: `${data.data?.from} → ${data.data?.to}`,
+                    });
+                } else {
+                    if (data.errorCode === "SAME_STATION") {
+                        toast.info("คุณอยู่ที่สาขานี้อยู่แล้ว", {
+                            description: "หากต้องการพักเบรก กรุณากดปุ่มพักเบรกในหน้าหลัก",
+                        });
+                    } else {
+                        toast.error("ย้ายสาขาไม่สำเร็จ", {
+                            description: data.error || "กรุณาลองใหม่",
+                        });
+                    }
+                    setError(data.error || "ย้ายสาขาไม่สำเร็จ");
+                }
             }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้";
@@ -246,11 +275,38 @@ export default function QRScanPage() {
                 {scanResult ? (
                     <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
                         <CardContent className="py-8 text-center">
-                            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6 ring-4 ring-green-500/10">
-                                <CheckCircle className="w-10 h-10 text-green-400" />
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ${
+                                scanAction === "transfer"
+                                    ? "bg-purple-500/20 ring-purple-500/10"
+                                    : scanAction === "break_end"
+                                    ? "bg-orange-500/20 ring-orange-500/10"
+                                    : "bg-green-500/20 ring-green-500/10"
+                            }`}>
+                                <CheckCircle className={`w-10 h-10 ${
+                                    scanAction === "transfer" ? "text-purple-400"
+                                    : scanAction === "break_end" ? "text-orange-400"
+                                    : "text-green-400"
+                                }`} />
                             </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">เช็คอินสำเร็จ!</h2>
-                            <p className="text-slate-400 mb-8">บันทึกเวลาเข้างานเรียบร้อยแล้ว</p>
+                            <h2 className="text-2xl font-bold text-white mb-2">
+                                {scanAction === "transfer" ? "ย้ายสาขาสำเร็จ!"
+                                 : scanAction === "break_end" ? "จบพักเบรกแล้ว!"
+                                 : "เช็คอินสำเร็จ!"}
+                            </h2>
+                            <p className="text-slate-400 mb-2">
+                                {scanAction === "transfer" ? "บันทึกการย้ายสาขาเรียบร้อยแล้ว"
+                                 : scanAction === "break_end" ? "บันทึกเวลากลับจากพักเรียบร้อยแล้ว"
+                                 : "บันทึกเวลาเข้างานเรียบร้อยแล้ว"}
+                            </p>
+                            {scanDetail && (
+                                <p className={`text-sm font-medium mb-6 ${
+                                    scanAction === "transfer" ? "text-purple-400"
+                                    : scanAction === "break_end" ? "text-orange-400"
+                                    : "text-green-400"
+                                }`}>
+                                    {scanDetail}
+                                </p>
+                            )}
                             <Button asChild className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20">
                                 <a href="/">กลับหน้าหลัก</a>
                             </Button>

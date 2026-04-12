@@ -27,7 +27,7 @@ export function BreakButtons({
         <div className="grid grid-cols-2 gap-3">
             <Button
                 variant="outline"
-                className={`h-12 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white ${!hasCheckedIn || hasCheckedOut || isOnBreak || hasTakenBreak ? "opacity-50 cursor-not-allowed" : ""
+                className={`h-12 border-border text-foreground hover:bg-accent hover:text-accent-foreground font-semibold ${!hasCheckedIn || hasCheckedOut || isOnBreak || hasTakenBreak ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                 disabled={!hasCheckedIn || hasCheckedOut || isOnBreak || hasTakenBreak || isChecking}
                 onClick={onStartBreak}
@@ -37,7 +37,7 @@ export function BreakButtons({
             </Button>
             <Button
                 variant="outline"
-                className={`h-12 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white ${!isOnBreak ? "opacity-50 cursor-not-allowed" : "bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/30"
+                className={`h-12 font-semibold border-border text-foreground hover:bg-accent hover:text-accent-foreground ${!isOnBreak ? "opacity-50 cursor-not-allowed" : "bg-primary/10 text-primary border-primary/40 hover:bg-primary/20"
                     }`}
                 disabled={!isOnBreak}
                 asChild={isOnBreak}

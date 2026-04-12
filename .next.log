@@ -181,3 +181,6 @@
  GET /api/admin/dashboard?light=true 200 in 160ms (compile: 3ms, render: 157ms)
 ✓ Compiled in 57ms
  GET /api/admin/dashboard?light=true 200 in 456ms (compile: 4ms, render: 452ms)
+ GET /api/admin/dashboard?light=true 200 in 482ms (compile: 4ms, render: 478ms)
+ GET /api/admin/dashboard?light=true 200 in 160ms (compile: 4ms, render: 156ms)
+[?25h

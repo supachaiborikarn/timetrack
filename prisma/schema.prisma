@@ -65,6 +65,7 @@ model User {
   swapRequestsSent           ShiftSwap[]            @relation("SwapRequester")
   swapRequestsReceived       ShiftSwap[]            @relation("SwapTarget")
   specialIncomes             SpecialIncome[]
+  stationTransfers           StationTransfer[]
   timeCorrections            TimeCorrection[]
   department                 Department?            @relation(fields: [departmentId], references: [id])
   registeredStation          Station?               @relation("RegisteredStation", fields: [registeredStationId], references: [id])
@@ -258,6 +259,9 @@ model Station {
   registeredEmployees User[]       @relation("RegisteredStation")
   employees           User[]       @relation("WorkStation")
   attendances         Attendance[] @relation("AttendanceCheckInStation")
+  checkOutAttendances Attendance[] @relation("AttendanceCheckOutStation")
+  transfersFrom       StationTransfer[] @relation("TransferFrom")
+  transfersTo         StationTransfer[] @relation("TransferTo")
 
   @@index([code])
 }
@@ -356,6 +360,8 @@ model Attendance {
   checkOutLng        Decimal?
   checkOutDeviceId   String?
   checkOutMethod     String?
+  checkOutStationId  String?
+  checkOutStation    Station?         @relation("AttendanceCheckOutStation", fields: [checkOutStationId], references: [id])
   status             AttendanceStatus @default(PENDING)
   actualHours        Decimal?
   overtimeHours      Decimal?
@@ -373,6 +379,7 @@ model Attendance {
   breakStartTime     DateTime?
   approver           User?            @relation("AttendanceApprover", fields: [approvedBy], references: [id])
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transfers          StationTransfer[]
 
   @@unique([userId, date])
   @@index([date])
@@ -741,4 +748,26 @@ model OneOnOneLog {
   
   @@index([userId])
   @@index([supervisorId])
+}
+
+// Station Transfer — บันทึกการย้ายสาขาระหว่างวัน
+model StationTransfer {
+  id              String      @id @default(cuid())
+  userId          String
+  attendanceId    String?
+  fromStationId   String
+  toStationId     String
+  transferTime    DateTime
+  reason          String?
+  method          String      @default("MANAGER") // MANAGER | SELF_QR
+  createdBy       String
+  createdAt       DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance      Attendance? @relation(fields: [attendanceId], references: [id])
+  fromStation     Station     @relation("TransferFrom", fields: [fromStationId], references: [id])
+  toStation       Station     @relation("TransferTo", fields: [toStationId], references: [id])
+
+  @@index([userId, transferTime])
+  @@index([attendanceId])
 }

@@ -11,16 +11,16 @@ interface BreakStatusAlertProps {
 
 export function BreakStatusAlert({ breakStartTime }: BreakStatusAlertProps) {
     return (
-        <Card className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 animate-pulse">
+        <Card className="bg-primary text-primary-foreground border-none shadow-md animate-pulse">
             <CardContent className="py-4">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                            <Timer className="w-6 h-6 text-white" />
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-primary-foreground/15 flex items-center justify-center shrink-0">
+                            <Timer className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-white text-lg">กำลังพักเบรก</h3>
-                            <p className="text-orange-100 text-sm">
+                            <h3 className="font-extrabold text-lg leading-tight">กำลังพักเบรก</h3>
+                            <p className="text-sm opacity-80">
                                 เริ่มพัก: {breakStartTime
                                     ? formatTime(new Date(breakStartTime))
                                     : "-"}
@@ -29,7 +29,7 @@ export function BreakStatusAlert({ breakStartTime }: BreakStatusAlertProps) {
                     </div>
                     <Button
                         asChild
-                        className="bg-white text-orange-600 hover:bg-orange-50 font-semibold shadow-lg"
+                        className="bg-background text-foreground hover:bg-background/90 font-bold shadow-md border-none"
                     >
                         <a href="/qr-scan">
                             <QrCode className="w-4 h-4 mr-2" />

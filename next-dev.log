@@ -1,0 +1,23 @@
+
+> timetrack@0.1.0 dev
+> next dev -p 3002
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.0.229:3002
+- Environments: .env
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 733ms
+ GET /admin 200 in 554ms (compile: 309ms, proxy.ts: 56ms, render: 188ms)
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3002%2Fmanifest.json 200 in 80ms (compile: 25ms, proxy.ts: 3ms, render: 52ms)
+ GET /api/auth/session 200 in 612ms (compile: 595ms, render: 17ms)
+ GET /api/auth/session 200 in 8ms (compile: 3ms, render: 5ms)
+ GET /api/user/permissions 200 in 626ms (compile: 21ms, render: 605ms)
+ POST /api/notifications/subscribe 200 in 746ms (compile: 23ms, render: 723ms)
+ GET /api/admin/analytics 200 in 1150ms (compile: 60ms, render: 1090ms)
+ GET /api/admin/dashboard 200 in 1258ms (compile: 43ms, render: 1215ms)
+ GET /api/admin/analytics 200 in 428ms (compile: 2ms, render: 426ms)
+ GET /api/admin/dashboard 200 in 561ms (compile: 3ms, render: 557ms)
+ GET /api/admin/dashboard 200 in 530ms (compile: 3ms, render: 527ms)

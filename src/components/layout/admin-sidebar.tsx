@@ -34,6 +34,7 @@ import {
     MessageSquare,
     Timer,
     Smile,
+    ArrowLeftRight,
 } from "lucide-react";
 
 interface NavItem {
@@ -87,6 +88,12 @@ const navItems: NavItem[] = [
         icon: Calendar,
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
         requiredPermissions: ["shift.view", "shift.edit"],
+    },
+    {
+        title: "ย้ายสาขา",
+        href: "/admin/station-transfer",
+        icon: ArrowLeftRight,
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
     },
     {
         title: "ประเภทกะ",

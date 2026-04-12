@@ -9,7 +9,7 @@ import {
     calculateWorkHours,
     subDays
 } from "@/lib/date-utils";
-import { isWithinGeofence } from "@/lib/geo";
+import { isWithinGeofence, calculateDistance } from "@/lib/geo";
 
 export async function POST(request: NextRequest) {
     try {
@@ -35,19 +35,42 @@ export async function POST(request: NextRequest) {
             return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
         }
 
-        // Validate GPS location
-        const isWithinRadius = isWithinGeofence(
-            { latitude, longitude },
-            {
-                latitude: Number(user.station.latitude),
-                longitude: Number(user.station.longitude)
-            },
-            user.station.radius
-        );
+        // CROSS-STATION CHECK-OUT: Validate GPS location against ANY active station
+        const activeStations = await prisma.station.findMany({
+            where: { isActive: true },
+        });
 
-        if (!isWithinRadius) {
+        let isValidLocation = false;
+        let ownDistance = Infinity;
+        let checkOutStation: typeof activeStations[0] | null = null;
+        let minDistance = Infinity;
+
+        for (const station of activeStations) {
+            const distance = calculateDistance(
+                { latitude, longitude },
+                {
+                    latitude: Number(station.latitude),
+                    longitude: Number(station.longitude)
+                }
+            );
+
+            // Keep track of distance to own station for better error message
+            if (station.id === user.station.id) {
+                ownDistance = distance;
+            }
+
+            if (distance <= station.radius) {
+                isValidLocation = true;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    checkOutStation = station;
+                }
+            }
+        }
+
+        if (!isValidLocation) {
             return errorResponse(
-                "คุณไม่ได้อยู่ในพื้นที่ของสถานี กรุณาเข้าไปในพื้นที่ก่อนเช็คเอาต์",
+                `คุณไม่ได้อยู่ในพื้นที่ของสถานีใดเลย (ปั๊มต้นสังกัดห่าง ${ownDistance === Infinity ? 'N/A' : Math.round(ownDistance)} เมตร)`,
                 400,
                 "INVALID_LOCATION"
             );
@@ -140,6 +163,7 @@ export async function POST(request: NextRequest) {
                 checkOutLng: longitude,
                 checkOutDeviceId: deviceId,
                 checkOutMethod: method,
+                checkOutStationId: checkOutStation?.id || null,
                 actualHours: finalTotalHours,
                 overtimeHours: finalOvertimeHours,
             },

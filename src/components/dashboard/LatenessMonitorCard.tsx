@@ -47,40 +47,40 @@ export function LatenessMonitorCard({
     }
 
     return (
-        <Card className="bg-[#2a2420] border-orange-900/20">
+        <Card className="bg-card border-border/50 shadow-sm">
             <CardContent className="py-4">
                 <div className="flex items-center gap-2 mb-3">
-                    <Clock className="w-5 h-5 text-[#F09410]" />
-                    <h3 className="font-medium text-[#F0D0C7]">สถานะการมาทำงาน</h3>
+                    <Clock className="w-5 h-5 text-primary" />
+                    <h3 className="font-bold text-foreground">สถานะการมาทำงาน</h3>
                 </div>
 
                 <div className="space-y-3">
                     {/* Late Status */}
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1412]">
+                    <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                         <div className="flex items-center gap-3">
                             {isLate ? (
-                                <AlertTriangle className="w-5 h-5 text-red-400" />
+                                <AlertTriangle className="w-5 h-5 text-destructive" />
                             ) : (
-                                <CheckCircle className="w-5 h-5 text-green-400" />
+                                <CheckCircle className="w-5 h-5 text-emerald-500" />
                             )}
                             <div>
-                                <p className="text-sm font-medium text-[#F0D0C7]">
+                                <p className="text-sm font-bold text-foreground">
                                     {isLate ? "มาสาย" : t("dashboard.onTime")}
                                 </p>
                                 {isLate && (
-                                    <p className="text-xs text-stone-500">
+                                    <p className="text-xs text-muted-foreground">
                                         สาย {lateMinutes} {t("dashboard.minutes")}
                                     </p>
                                 )}
                             </div>
                         </div>
                         {isLate && latePenaltyAmount > 0 && (
-                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                            <Badge className="bg-destructive/15 text-destructive border-none font-bold">
                                 -฿{latePenaltyAmount}
                             </Badge>
                         )}
                         {!isLate && lateMinutes !== null && (
-                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-none font-bold">
                                 ตรงเวลา
                             </Badge>
                         )}
@@ -88,18 +88,18 @@ export function LatenessMonitorCard({
 
                     {/* Break Status */}
                     {(isOnBreak || breakDurationMin !== null) && (
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-[#1a1412]">
+                        <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                             <div className="flex items-center gap-3">
                                 {hasBreakPenalty || isBreakExceeding ? (
-                                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                                    <AlertTriangle className="w-5 h-5 text-amber-500" />
                                 ) : (
-                                    <Coffee className="w-5 h-5 text-blue-400" />
+                                    <Coffee className="w-5 h-5 text-primary" />
                                 )}
                                 <div>
-                                    <p className="text-sm font-medium text-[#F0D0C7]">
+                                    <p className="text-sm font-bold text-foreground">
                                         {isOnBreak ? "กำลังพัก" : t("dashboard.breakDone")}
                                     </p>
-                                    <p className="text-xs text-stone-500">
+                                    <p className="text-xs text-muted-foreground">
                                         {isOnBreak
                                             ? `${currentBreakMinutes}/${allowedBreakMinutes} นาที`
                                             : breakDurationMin
@@ -107,7 +107,7 @@ export function LatenessMonitorCard({
                                                 : null
                                         }
                                         {(breakExcessMinutes > 0 || isBreakExceeding) && (
-                                            <span className="text-amber-400 ml-1">
+                                            <span className="text-amber-500 ml-1">
                                                 (เกิน {isOnBreak ? currentBreakMinutes - allowedBreakMinutes : breakExcessMinutes} นาที)
                                             </span>
                                         )}
@@ -115,17 +115,17 @@ export function LatenessMonitorCard({
                                 </div>
                             </div>
                             {hasBreakPenalty && (
-                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-none font-bold">
                                     -฿{breakPenaltyAmount}
                                 </Badge>
                             )}
                             {isBreakExceeding && !hasBreakPenalty && (
-                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse">
+                                <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-none font-bold animate-pulse">
                                     พักเกินเวลา!
                                 </Badge>
                             )}
                             {!hasBreakPenalty && !isBreakExceeding && breakDurationMin !== null && (
-                                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                                <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-none font-bold">
                                     {t("dashboard.normal")}
                                 </Badge>
                             )}

@@ -10,27 +10,27 @@ export function QuickActionCards() {
     return (
         <div className="grid grid-cols-2 gap-3">
             <a href="/qr-scan">
-                <Card className="bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 transition cursor-pointer group">
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#F09410]/10 group-hover:bg-[#F09410]/20 flex items-center justify-center transition-colors">
-                            <QrCode className="w-5 h-5 text-[#F09410]" />
+                <Card className="bg-card border-border/60 hover:bg-accent/40 hover:border-primary/40 transition cursor-pointer group shadow-sm">
+                    <CardContent className="py-4 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
+                            <QrCode className="w-6 h-6 text-primary" />
                         </div>
-                        <div className="text-sm">
-                            <p className="font-medium text-[#F0D0C7] group-hover:text-[#F09410] transition-colors">{t("menu.qrCode")}</p>
-                            <p className="text-xs text-stone-500">{t("menu.scanQR")}</p>
+                        <div className="flex flex-col">
+                            <p className="font-bold text-foreground group-hover:text-primary transition-colors leading-tight mb-1">{t("menu.qrCode")}</p>
+                            <p className="text-xs text-muted-foreground leading-tight">{t("menu.scanQR")}</p>
                         </div>
                     </CardContent>
                 </Card>
             </a>
             <a href="/requests/time-correction">
-                <Card className="bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-amber-500/50 transition cursor-pointer group">
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 flex items-center justify-center transition-colors">
-                            <FileEdit className="w-5 h-5 text-amber-500" />
+                <Card className="bg-card border-border/60 hover:bg-accent/40 hover:border-blue-500/40 transition cursor-pointer group shadow-sm">
+                    <CardContent className="py-4 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center transition-colors shrink-0">
+                            <FileEdit className="w-6 h-6 text-blue-500" />
                         </div>
-                        <div className="text-sm">
-                            <p className="font-medium text-[#F0D0C7] group-hover:text-amber-500 transition-colors">{t("menu.timeEdit")}</p>
-                            <p className="text-xs text-stone-500">{t("menu.requestEdit")}</p>
+                        <div className="flex flex-col">
+                            <p className="font-bold text-foreground group-hover:text-blue-500 transition-colors leading-tight mb-1">{t("menu.timeEdit")}</p>
+                            <p className="text-xs text-muted-foreground leading-tight">{t("menu.requestEdit")}</p>
                         </div>
                     </CardContent>
                 </Card>
