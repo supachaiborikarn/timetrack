@@ -334,6 +334,30 @@ export function AdminHomeView() {
                     </p>
                 </div>
 
+                {/* Manual Check In Button Card */}
+                <Link href="/admin/attendance?manual=true" className="block relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[28px] p-5 shadow-lg shadow-blue-500/20 active:scale-95 transition-transform border border-blue-400/30">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner overflow-hidden relative">
+                                <Plus className="w-6 h-6 text-white" />
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/20 pointer-events-none" />
+                            </div>
+                            <div>
+                                <p className="text-[18px] font-black text-white leading-tight mb-0.5 mt-0.5">เช็คอินแทน</p>
+                                <p className="text-[12px] font-medium text-blue-100 opacity-90 leading-tight">
+                                    ลงเวลาแทนพนักงานที่ไม่มีมือถือ
+                                </p>
+                            </div>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </div>
+                </Link>
+
                 {/* In / Out Buttons */}
                 <div className="grid grid-cols-2 gap-3">
                     <button className="bg-white dark:bg-zinc-800 rounded-2xl p-3 flex items-center justify-center gap-2 shadow-sm border border-gray-100 dark:border-zinc-700 active:scale-95 transition-transform" onClick={() => setIsPresentDialogOpen(true)}>

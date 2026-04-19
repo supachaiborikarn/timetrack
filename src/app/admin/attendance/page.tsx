@@ -124,6 +124,15 @@ export default function AttendanceReviewPage() {
 
     useEffect(() => {
         fetchStations();
+        if (typeof window !== "undefined") {
+            const sp = new URLSearchParams(window.location.search);
+            if (sp.get("manual") === "true") {
+                setIsManualOpen(true);
+                fetchUsers();
+                // Remove param from URL without refreshing
+                window.history.replaceState({}, "", "/admin/attendance");
+            }
+        }
     }, []);
 
     useEffect(() => {

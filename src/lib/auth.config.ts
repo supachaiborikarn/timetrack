@@ -16,11 +16,11 @@ export const authConfig = {
                 token.role = user.role;
                 token.stationId = user.stationId;
                 token.employeeId = user.employeeId;
-                token.v = 2; // Bump version to force re-login after role changes
+                token.v = 3; // Bump version to force re-login again
             }
 
-            // บังคับ re-login ถ้า token version ไม่ตรง (เช่น หลังแก้ role)
-            if (token.v !== 2) {
+            // บังคับ re-login ถ้า token version ไม่ตรง (เช่น หลังแก้ role หรือบังคับ logout)
+            if (token.v !== 3) {
                 return {}; // ล้าง token ทิ้ง → redirect ไปหน้า login
             }
 
