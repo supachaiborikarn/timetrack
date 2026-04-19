@@ -31,14 +31,28 @@ export async function GET(request: NextRequest) {
         const monthEnd   = endOfMonth(calDate);
         const yearStart  = startOfYear(now);
         const yearEnd    = endOfYear(now);
-        const thisMonthStart = startOfMonth(now);
-        const thisMonthEnd   = endOfMonth(now);
 
-        // 1. Attendance records for this month (daysWorked, lateCount, earlyOutCount)
+        // Fetch current user early to get department info for frontyard logic
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { 
+                departmentId: true,
+                department: {
+                    select: { isFrontYard: true }
+                }
+            },
+        });
+
+        const isFrontYard = currentUser?.department?.isFrontYard || false;
+        
+        const { getPayrollPeriod } = require("@/lib/date-utils");
+        const { startDate: payrollStart, endDate: payrollEnd } = getPayrollPeriod(calDate, isFrontYard);
+
+        // 1. Attendance records for this payroll period (daysWorked, lateCount, earlyOutCount)
         const thisMonthAttendance = await prisma.attendance.findMany({
             where: {
                 userId,
-                date: { gte: thisMonthStart, lte: thisMonthEnd },
+                date: { gte: payrollStart, lte: payrollEnd },
             },
             select: {
                 date: true,
@@ -85,12 +99,12 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // 4. Advance summary this month
+        // 4. Advance summary this month (match payroll period year/month visually)
         const advances = await prisma.advance.findMany({
             where: {
                 userId,
-                month: now.getMonth() + 1,
-                year: now.getFullYear(),
+                month: calDate.getMonth() + 1,
+                year: calDate.getFullYear(),
             },
             select: { amount: true, status: true },
         });
@@ -101,11 +115,6 @@ export async function GET(request: NextRequest) {
             .reduce((s, a) => s + Number(a.amount), 0);
 
         // 5. Announcements (latest 5, with read tracking)
-        const currentUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { departmentId: true },
-        });
-
         const announcements = await prisma.announcement.findMany({
             where: { isActive: true },
             include: {
