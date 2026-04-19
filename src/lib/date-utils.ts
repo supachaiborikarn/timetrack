@@ -120,12 +120,18 @@ export function calculateWorkHours(
  * @returns Minutes late (0 if on time or early)
  */
 export function calculateLateMinutes(checkIn: Date, shiftStart: string): number {
+    // TEMPORARILY DISABLED: User requested to turn off late calculations
+    // because shifts are not yet properly configured this month.
+    return 0;
+
+    /* Original logic:
     const [hours, minutes] = shiftStart.split(":").map(Number);
     const scheduledStart = new Date(checkIn);
     scheduledStart.setHours(hours, minutes, 0, 0);
 
     const lateMinutes = differenceInMinutes(checkIn, scheduledStart);
     return Math.max(0, lateMinutes);
+    */
 }
 
 /**
@@ -133,10 +139,15 @@ export function calculateLateMinutes(checkIn: Date, shiftStart: string): number 
  * Rule: Late > 5 minutes = 50 baht per hour
  */
 export function calculateLatePenalty(lateMinutes: number): number {
+    // TEMPORARILY DISABLED
+    return 0;
+
+    /* Original logic:
     if (lateMinutes <= 5) return 0;
 
     const lateHours = Math.ceil(lateMinutes / 60);
     return lateHours * 50;
+    */
 }
 
 /**
