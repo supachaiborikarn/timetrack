@@ -22,7 +22,7 @@ import {
   Menu, CalendarDays, Trophy, TrendingUp,
   Megaphone, CalendarCheck, Wallet,
   ChevronRight, ChevronLeft, Sun, Moon,
-  BellRing, Globe, LogOut,
+  BellRing, Globe, LogOut, Coffee,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -154,6 +154,8 @@ export function EmployeeDashboardView() {
   const [earlyOutCount, setEarlyOutCount] = useState(0);
   const [leaveCount, setLeaveCount]       = useState(0);
   const [permissionCount, setPermissionCount] = useState(0);
+  const [breakMinutesToday, setBreakMinutesToday] = useState(0);
+  const [performanceScore, setPerformanceScore] = useState(100);
   const [calendarDays, setCalendarDays]   = useState<CalendarDay[]>([]);
   const [dataLoading, setDataLoading]     = useState(true);
 
@@ -177,6 +179,8 @@ export function EmployeeDashboardView() {
         setEarlyOutCount(data.earlyOutCount ?? 0);
         setLeaveCount(data.leaveCount ?? 0);
         setPermissionCount(data.permissionCount ?? 0);
+        setBreakMinutesToday(data.breakMinutesToday ?? 0);
+        setPerformanceScore(data.performanceScore ?? 100);
         setLeaveBalance(data.leaveBalance ?? null);
         setAdvanceSummary(data.advanceSummary ?? { totalAmount: 0, pendingAmount: 0 });
         setAnnouncements(data.announcements ?? []);
@@ -346,20 +350,22 @@ export function EmployeeDashboardView() {
           </p>
         </div>
 
-        {/* Rank & Score */}
+        {/* Break Time & Score */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-zinc-800 rounded-[22px] p-3.5 shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700 flex items-center gap-3">
-            <Trophy className="w-7 h-7 text-[#facc15] shrink-0" />
+          <div className="bg-white dark:bg-zinc-800 rounded-[22px] p-3.5 shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700 flex items-center gap-3 active:scale-[0.98] transition-transform">
+            <Coffee className="w-7 h-7 text-[#facc15] shrink-0" />
             <div>
-              <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 leading-tight">{T.rank}</p>
-              <p className="text-sm font-black text-red-500 leading-tight mt-0.5">#23</p>
+              <p className="text-[9px] border-b border-gray-100 dark:border-zinc-700 pb-0.5 font-bold text-gray-400 dark:text-gray-500 leading-tight">เวลาพักวันนี้</p>
+              <p className="text-sm font-black text-amber-600 dark:text-amber-500 leading-tight mt-1">{breakMinutesToday} <span className="text-gray-400 text-[11px] font-normal">นาที</span></p>
             </div>
           </div>
-          <div className="bg-white dark:bg-zinc-800 rounded-[22px] p-3.5 shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700 flex items-center gap-3">
+          <div className="bg-white dark:bg-zinc-800 rounded-[22px] p-3.5 shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700 flex items-center gap-3 active:scale-[0.98] transition-transform">
             <TrendingUp className="w-7 h-7 text-[#facc15] shrink-0" />
             <div>
-              <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 leading-tight">{T.score}</p>
-              <p className="text-sm font-black text-emerald-500 leading-tight mt-0.5">83.9 <span className="text-gray-400 text-[11px]">/ 100</span></p>
+              <p className="text-[9px] border-b border-gray-100 dark:border-zinc-700 pb-0.5 font-bold text-gray-400 dark:text-gray-500 leading-tight">{T.score}</p>
+              <p className={`text-sm font-black leading-tight mt-1 ${performanceScore >= 90 ? 'text-emerald-500' : performanceScore >= 70 ? 'text-amber-500' : 'text-red-500'}`}>
+                {performanceScore} <span className="text-gray-400 text-[11px] font-normal">/ 100</span>
+              </p>
             </div>
           </div>
         </div>
