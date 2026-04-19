@@ -285,7 +285,9 @@ export function AdminHomeView() {
                                 สวัสดี, {session.user.name}
                             </h1>
                             <p className="text-[12px] font-bold text-black/60 mt-0.5">
-                                แดชบอร์ดผู้ดูแลระบบ
+                                {session.user.role === "CASHIER" ? "แดชบอร์ดเสมียน" :
+                                 session.user.role === "MANAGER" ? "แดชบอร์ดผู้จัดการ" :
+                                 "แดชบอร์ดผู้ดูแลระบบ"}
                             </p>
                         </div>
                         <div className="flex items-center gap-1.5">
