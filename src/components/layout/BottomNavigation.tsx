@@ -41,7 +41,7 @@ export function BottomNavigation() {
           <button 
             className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-background focus:outline-none hover:scale-105 transition-transform"
             onClick={() => {
-              const isAdmin = ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session?.user?.role || "");
+              const isAdmin = ["ADMIN", "HR", "MANAGER"].includes(session?.user?.role || "");
               if (isAdmin) {
                 if (pathname === '/') {
                   document.dispatchEvent(new CustomEvent('open-present-modal'));
