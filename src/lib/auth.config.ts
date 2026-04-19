@@ -16,12 +16,12 @@ export const authConfig = {
                 token.role = user.role;
                 token.stationId = user.stationId;
                 token.employeeId = user.employeeId;
-                token.v = 1; // Add simple version flag
+                token.v = 2; // Bump version to force re-login after role changes
             }
 
-            // บังคับให้พนักงาน (รวมพนักงานบ่อ) ที่ยังไม่ได้ล็อกอินใหม่ตั้งแต่ที่เราอัปเดตระบบ ต้องล็อกอินใหม่
-            if (token.role === 'EMPLOYEE' && token.v !== 1) {
-                return {}; // ล้าง token ทิ้ง
+            // บังคับ re-login ถ้า token version ไม่ตรง (เช่น หลังแก้ role)
+            if (token.v !== 2) {
+                return {}; // ล้าง token ทิ้ง → redirect ไปหน้า login
             }
 
             return token;
