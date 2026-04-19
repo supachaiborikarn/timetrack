@@ -355,7 +355,7 @@ export function EmployeeDashboardView() {
           <div className="bg-white dark:bg-zinc-800 rounded-[22px] p-3.5 shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700 flex items-center gap-3 active:scale-[0.98] transition-transform">
             <Coffee className="w-7 h-7 text-[#facc15] shrink-0" />
             <div>
-              <p className="text-[9px] border-b border-gray-100 dark:border-zinc-700 pb-0.5 font-bold text-gray-400 dark:text-gray-500 leading-tight">เวลาพักวันนี้</p>
+              <p className="text-[9px] border-b border-gray-100 dark:border-zinc-700 pb-0.5 font-bold text-gray-400 dark:text-gray-500 leading-tight">ใช้เวลาพักไปแล้ว</p>
               <p className="text-sm font-black text-amber-600 dark:text-amber-500 leading-tight mt-1">{breakMinutesToday} <span className="text-gray-400 text-[11px] font-normal">นาที</span></p>
             </div>
           </div>
