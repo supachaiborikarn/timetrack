@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/lib/language-context";
 import { PushNotificationProvider } from "@/components/push-notification-provider";
+import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
 const inter = Inter({
@@ -52,7 +53,9 @@ export default async function RootLayout({
           >
             <LanguageProvider>
               <PushNotificationProvider />
-              {children}
+              <AppShell>
+                {children}
+              </AppShell>
               <Toaster position="top-center" richColors />
             </LanguageProvider>
           </ThemeProvider>

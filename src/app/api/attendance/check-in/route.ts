@@ -11,6 +11,7 @@ import {
     subDays
 } from "@/lib/date-utils";
 import { calculateDistance } from "@/lib/geo";
+import { getTimeTrackSettings } from "@/lib/server/system-settings";
 
 export async function POST(request: NextRequest) {
     try {
@@ -96,15 +97,14 @@ export async function POST(request: NextRequest) {
             return ApiErrors.validation(`กรุณาสแกน QR Code ของสาขา ${closestStation.name} เพื่อเช็คอิน`);
         }
 
-        // Check device fingerprint (optional strict mode)
-        // if (user.deviceId && user.deviceId !== deviceId) {
-        //   return NextResponse.json(
-        //     { error: "กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้" },
-        //     { status: 400 }
-        //   );
-        // }
+        // Check device fingerprint (strict mode enabled to prevent buddy punching)
+        if (user.deviceId && user.deviceId !== deviceId) {
+          return ApiErrors.validation("กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้เท่านั้น (ห้ามเช็คอินแทนกัน)");
+        }
 
         const localNow = getBangkokNow();
+        const runtimeSettings = await getTimeTrackSettings();
+        const configuredAutoCheckOutHours = Math.max(runtimeSettings.autoCheckOutHours, 1);
 
         // Use true UTC for database storage to prevent double-shifting on display
         const utcNow = new Date();
@@ -136,7 +136,9 @@ export async function POST(request: NextRequest) {
 
             // For night shifts: threshold 26h, auto-close at 24h after check-in
             // For regular shifts: threshold 16h (12h shift + 4h buffer), auto-close at shift endTime
-            const autoCloseThreshold = isNightShift ? 26 : 16;
+            const autoCloseThreshold = isNightShift
+                ? Math.max(configuredAutoCheckOutHours, 24) + 2
+                : configuredAutoCheckOutHours + 4;
 
             // Calculate auto-close time from actual shift endTime if available
             let autoCheckOutTime: Date;
@@ -167,9 +169,11 @@ export async function POST(request: NextRequest) {
                     autoCloseHours = (autoCheckOutTime.getTime() - new Date(activeAttendance.checkInTime!).getTime()) / (1000 * 60 * 60);
                 }
             } else {
-                // No shift assignment found – use safe default (16h after check-in)
-                autoCloseHours = 16;
-                autoCheckOutTime = new Date(new Date(activeAttendance.checkInTime!).getTime() + 16 * 60 * 60 * 1000);
+                // No shift assignment found – use admin-configured fallback
+                autoCloseHours = configuredAutoCheckOutHours;
+                autoCheckOutTime = new Date(
+                    new Date(activeAttendance.checkInTime!).getTime() + configuredAutoCheckOutHours * 60 * 60 * 1000,
+                );
             }
 
             if (hoursSinceCheckIn >= autoCloseThreshold) {
@@ -235,6 +239,9 @@ export async function POST(request: NextRequest) {
         if (shiftAssignment) {
             // Use local time for shift comparison
             lateMinutes = calculateLateMinutes(localNow, shiftAssignment.shift.startTime);
+            if (lateMinutes <= runtimeSettings.lateThresholdMinutes) {
+                lateMinutes = 0;
+            }
             latePenaltyAmount = calculateLatePenalty(lateMinutes);
         }
 

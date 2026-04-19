@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
     Dialog,
     DialogContent,
@@ -21,7 +19,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    Loader2,
     Plus,
     Trash2,
     FileText,
@@ -30,6 +27,7 @@ import {
     Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 
 interface Shift {
     id: string;
@@ -91,30 +89,31 @@ export function ShiftTemplateManager({
     shifts,
     onApplyTemplate,
 }: ShiftTemplateManagerProps) {
-    const [templates, setTemplates] = useState<Template[]>([]);
+    const [templates, setTemplates] = useLocalStorageState<Template[]>(
+        STORAGE_KEY,
+        [],
+        (rawValue) => {
+            if (!rawValue) {
+                return [];
+            }
+
+            try {
+                return JSON.parse(rawValue) as Template[];
+            } catch {
+                console.error("Failed to parse templates");
+                return [];
+            }
+        },
+        (value) => JSON.stringify(value),
+    );
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [newTemplateName, setNewTemplateName] = useState("");
     const [newPattern, setNewPattern] = useState<WeekPattern>(defaultPattern);
 
-    // Load templates from localStorage
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    setTemplates(JSON.parse(saved));
-                } catch {
-                    console.error("Failed to parse templates");
-                }
-            }
-        }
-    }, [open]);
-
     // Save templates to localStorage
     const saveTemplates = (newTemplates: Template[]) => {
         setTemplates(newTemplates);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newTemplates));
     };
 
     const getShiftColor = (code: string) => {
@@ -265,7 +264,7 @@ export function ShiftTemplateManager({
                         <div className="text-center py-8 text-muted-foreground">
                             <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
                             <p>ยังไม่มี Template</p>
-                            <p className="text-sm">กดปุ่ม "สร้าง Template" เพื่อเริ่มต้น</p>
+                            <p className="text-sm">กดปุ่ม &quot;สร้าง Template&quot; เพื่อเริ่มต้น</p>
                         </div>
                     )}
 

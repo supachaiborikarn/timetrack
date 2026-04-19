@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -33,16 +33,7 @@ export function NotificationBell() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchNotifications();
-            // Poll every 2 minutes (120s) to save Neon data transfer
-            const interval = setInterval(fetchNotifications, 120000);
-            return () => clearInterval(interval);
-        }
-    }, [session?.user?.id]);
-
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         try {
             const res = await fetch("/api/notifications?limit=5");
             if (res.ok) {
@@ -53,7 +44,21 @@ export function NotificationBell() {
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            const initialTimeout = setTimeout(() => {
+                void fetchNotifications();
+            }, 0);
+            // Poll every 2 minutes (120s) to save Neon data transfer
+            const interval = setInterval(fetchNotifications, 120000);
+            return () => {
+                clearTimeout(initialTimeout);
+                clearInterval(interval);
+            };
+        }
+    }, [fetchNotifications, session?.user?.id]);
 
     const markAsRead = async (ids?: string[]) => {
         try {
@@ -62,7 +67,7 @@ export function NotificationBell() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(ids ? { ids } : { all: true }),
             });
-            fetchNotifications();
+            void fetchNotifications();
         } catch (error) {
             console.error("Failed to mark as read:", error);
         }

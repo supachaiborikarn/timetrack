@@ -12,11 +12,10 @@ import {
     Clock,
     Loader2,
     Calendar,
-    CheckCircle,
-    XCircle,
-    AlertCircle
+    Menu
 } from "lucide-react";
 import { formatThaiDate, formatTime, startOfMonth, endOfMonth, subMonths, addMonths } from "@/lib/date-utils";
+import { CurvedHeader } from "@/components/layout/CurvedHeader";
 
 interface AttendanceRecord {
     id: string;
@@ -69,8 +68,8 @@ export default function HistoryPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -81,15 +80,15 @@ export default function HistoryPage() {
 
     const getStatusBadge = (record: AttendanceRecord) => {
         if (record.status === "APPROVED") {
-            return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">อนุมัติ</Badge>;
+            return <Badge className="bg-green-100 text-green-700 border-green-200">อนุมัติ</Badge>;
         }
         if (record.status === "ABSENT") {
-            return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">ขาด</Badge>;
+            return <Badge className="bg-red-100 text-red-700 border-red-200">ขาด</Badge>;
         }
         if (record.status === "LEAVE") {
-            return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">ลา</Badge>;
+            return <Badge className="bg-amber-100 text-amber-700 border-amber-200">ลา</Badge>;
         }
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">รอตรวจสอบ</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">รอตรวจสอบ</Badge>;
     };
 
     // Calculate summary
@@ -102,138 +101,140 @@ export default function HistoryPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <a href="/">
-                        <ChevronLeft className="w-5 h-5" />
-                    </a>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">ประวัติการลงเวลา</h1>
-                    <p className="text-sm text-slate-400">{session.user.name}</p>
-                </div>
-            </div>
-
-            {/* Month Navigation */}
-            <Card className="bg-slate-800/50 border-slate-700 mb-6">
-                <CardContent className="py-3">
-                    <div className="flex items-center justify-between">
-                        <Button variant="ghost" size="icon" onClick={goToPreviousMonth}>
-                            <ChevronLeft className="w-5 h-5 text-slate-400" />
-                        </Button>
-                        <div className="text-center">
-                            <p className="text-white font-medium flex items-center gap-2 justify-center">
-                                <Calendar className="w-4 h-4" />
-                                {formatThaiDate(currentMonth, "MMMM yyyy")}
-                            </p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={goToNextMonth}>
-                            <ChevronRight className="w-5 h-5 text-slate-400" />
-                        </Button>
+        <div className="min-h-screen bg-background pb-24">
+            {/* Curved Header */}
+            <CurvedHeader>
+                <div className="flex items-center gap-3 pt-4 mb-2 shadow-none">
+                    <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-black/10 rounded-full" asChild>
+                        <a href="/">
+                            <ChevronLeft className="w-6 h-6" />
+                        </a>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-primary-foreground">ประวัติลงเวลา</h1>
+                        <p className="text-sm text-primary-foreground/80">{session.user.name}</p>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
 
-            {/* Summary */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-3 text-center">
-                        <p className="text-2xl font-bold text-green-400">{summary.presentDays}</p>
-                        <p className="text-xs text-slate-400">วันทำงาน</p>
-                    </CardContent>
-                </Card>
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-3 text-center">
-                        <p className="text-2xl font-bold text-blue-400">{summary.totalHours.toFixed(1)}</p>
-                        <p className="text-xs text-slate-400">ชั่วโมง</p>
-                    </CardContent>
-                </Card>
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-3 text-center">
-                        <p className="text-2xl font-bold text-orange-400">{summary.lateDays}</p>
-                        <p className="text-xs text-slate-400">วันสาย</p>
-                    </CardContent>
-                </Card>
-            </div>
+                <div className="flex items-center justify-between mt-6 bg-white/20 backdrop-blur-md rounded-2xl p-2 border border-white/30 text-primary-foreground">
+                    <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="hover:bg-black/10 rounded-xl text-primary-foreground">
+                        <ChevronLeft className="w-5 h-5" />
+                    </Button>
+                    <div className="text-center">
+                        <p className="font-bold flex items-center gap-2 justify-center drop-shadow-sm">
+                            <Calendar className="w-4 h-4" />
+                            {formatThaiDate(currentMonth, "MMMM yyyy")}
+                        </p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={goToNextMonth} className="hover:bg-black/10 rounded-xl text-primary-foreground">
+                        <ChevronRight className="w-5 h-5" />
+                    </Button>
+                </div>
+            </CurvedHeader>
 
-            {/* Records */}
+            <div className="px-4 -mt-6 relative z-10">
+                {/* Summary */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="bg-card rounded-2xl border border-border shadow-sm p-4 text-center transform hover:-translate-y-1 transition-transform">
+                        <p className="text-2xl font-black text-[#34D399]">{summary.presentDays}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">วันทำงาน</p>
+                    </div>
+                    <div className="bg-card rounded-2xl border border-border shadow-sm p-4 text-center transform hover:-translate-y-1 transition-transform">
+                        <p className="text-2xl font-black text-primary">{summary.totalHours.toFixed(1)}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">ชั่วโมง</p>
+                    </div>
+                    <div className="bg-card rounded-2xl border border-border shadow-sm p-4 text-center transform hover:-translate-y-1 transition-transform">
+                        <p className="text-2xl font-black text-orange-500">{summary.lateDays}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">วันสาย</p>
+                    </div>
+                </div>
+
+                {/* Records */}
             {isLoading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <div className="flex justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
             ) : records.length === 0 ? (
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-8 text-center">
-                        <Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-400">ไม่มีข้อมูลการลงเวลาในเดือนนี้</p>
-                    </CardContent>
-                </Card>
+                <div className="bg-card rounded-3xl border border-border shadow-sm p-12 text-center mt-4">
+                    <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground font-medium">ไม่มีข้อมูลการลงเวลาในเดือนนี้</p>
+                </div>
             ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {records.map((record) => (
-                        <Card key={record.id} className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-slate-700 flex flex-col items-center justify-center">
-                                            <span className="text-xs text-slate-400">
-                                                {formatThaiDate(new Date(record.date), "EEE")}
-                                            </span>
-                                            <span className="text-sm font-bold text-white">
-                                                {formatThaiDate(new Date(record.date), "d")}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white">
-                                                {formatThaiDate(new Date(record.date), "d MMMM yyyy")}
-                                            </p>
-                                        </div>
+                        <div key={record.id} className="bg-card rounded-3xl p-5 shadow-sm border border-border">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-muted flex flex-col items-center justify-center">
+                                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                                            {formatThaiDate(new Date(record.date), "EEE")}
+                                        </span>
+                                        <span className="text-lg font-black text-foreground leading-tight">
+                                            {formatThaiDate(new Date(record.date), "d")}
+                                        </span>
                                     </div>
-                                    {getStatusBadge(record)}
-                                </div>
-
-                                <div className="flex justify-between items-center text-sm border-t border-slate-700 pt-3">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                                            <span className="text-slate-400">เข้า:</span>
-                                            <span className="text-white font-medium">
-                                                {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "--:--"}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-orange-500" />
-                                            <span className="text-slate-400">ออก:</span>
-                                            <span className="text-white font-medium">
-                                                {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "--:--"}
-                                            </span>
-                                        </div>
+                                    <div>
+                                        <p className="font-bold text-foreground">
+                                            {formatThaiDate(new Date(record.date), "d MMMM yyyy")}
+                                        </p>
                                     </div>
-
-                                    {(record.lateMinutes || 0) > 0 && (
-                                        <Badge variant="destructive" className="text-xs">
-                                            สาย {record.lateMinutes} นาที
-                                        </Badge>
-                                    )}
                                 </div>
+                                {getStatusBadge(record)}
+                            </div>
 
-                                {record.actualHours && (
-                                    <p className="text-xs text-slate-500 mt-2">
-                                        รวม {record.actualHours.toFixed(1)} ชม.
-                                        {record.latePenaltyAmount > 0 && (
-                                            <span className="text-red-400 ml-2">
-                                                (หัก ฿{record.latePenaltyAmount})
+                            <div className="flex justify-between items-center bg-muted/50 rounded-2xl p-4">
+                                <div className="flex flex-col gap-2 w-full">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-[#34D399]" />
+                                            <span className="text-xs text-muted-foreground font-bold">เข้างาน</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-foreground">
+                                            {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "--:--"}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="h-px w-full bg-border" />
+
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                                            <span className="text-xs text-muted-foreground font-bold">ออกงาน</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-foreground">
+                                            {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "--:--"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {((record.lateMinutes || 0) > 0 || record.actualHours) && (
+                                <div className="flex items-center justify-between mt-4 px-2">
+                                    {record.actualHours ? (
+                                        <p className="text-xs font-bold text-muted-foreground">
+                                            รวม {record.actualHours.toFixed(1)} ชม.
+                                        </p>
+                                    ) : <div/>}
+                                    
+                                    <div className="flex items-center gap-2">
+                                        {(record.lateMinutes || 0) > 0 && (
+                                            <span className="text-xs font-bold text-orange-500">
+                                                สาย {record.lateMinutes} นาที
                                             </span>
                                         )}
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
+                                        {record.latePenaltyAmount > 0 && (
+                                            <span className="text-xs font-bold text-red-500">
+                                                (ปรับ -฿{record.latePenaltyAmount})
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     ))}
                 </div>
             )}
+            </div>
         </div>
     );
 }

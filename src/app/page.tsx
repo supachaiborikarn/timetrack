@@ -1,204 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { toast } from "sonner";
-import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, User } from "lucide-react";
-import { useAttendance } from "@/hooks/useAttendance";
-import {
-  ClockCard,
-  BreakStatusAlert,
-  ShiftInfoCard,
-  AttendanceStatusCard,
-  CheckInOutButtons,
-  BreakButtons,
-  QuickActionCards,
-  MenuList,
-  OfflineIndicator,
-  LatenessMonitorCard,
-  AnnouncementBanner,
-} from "@/components/dashboard";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
+import { useSession } from "next-auth/react";
+import { Loader2 } from "lucide-react";
+import { EmployeeDashboardView } from "@/components/dashboard/views/EmployeeDashboardView";
+import { AdminHomeView } from "@/components/dashboard/views/AdminHomeView";
 
-export default function EmployeeDashboard() {
-  const { data: session, status } = useSession();
+export default function Home() {
+    const { data: session, status } = useSession();
 
-  const {
-    currentTime,
-    todayData,
-    isLoading,
-    isChecking,
-    hasCheckedIn,
-    hasCheckedOut,
-    isOnBreak,
-    hasTakenBreak,
-    handleCheckIn,
-    handleCheckOut,
-    handleStartBreak,
-  } = useAttendance(session?.user?.id);
+    const isAdminOrManager = ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session?.user?.role || "");
 
-  const [isMoodDialogOpen, setIsMoodDialogOpen] = useState(false);
-  const [isSubmittingMood, setIsSubmittingMood] = useState(false);
-
-  const onCheckOutClick = () => {
-    setIsMoodDialogOpen(true);
-  };
-
-  const handleMoodSubmit = async (mood: string, note: string) => {
-    setIsSubmittingMood(true);
-    try {
-      // 1. Submit Mood
-      const moodRes = await fetch("/api/engagement/happiness", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, note }),
-      });
-
-      if (!moodRes.ok) {
-        console.error("Failed to submit mood log");
-        // We continue to checkout anyway
-      }
-
-      // 2. Proceed to Check Out
-      await handleCheckOut();
-      setIsMoodDialogOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("เกิดข้อผิดพลาดในการบันทึกความรู้สึก");
-      // Try to checkout even if mood fails? Yes.
-      await handleCheckOut();
-      setIsMoodDialogOpen(false);
-    } finally {
-      setIsSubmittingMood(false);
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
     }
-  };
 
-  if (status === "loading" || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+    if (status === "authenticated" && isAdminOrManager) {
+        return <AdminHomeView />;
+    }
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  return (
-
-    <div className="min-h-screen bg-[#1a1412] pb-24">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-[#241705] to-[#3a2510] border-b border-orange-900/20 px-4 py-4 shadow-lg shadow-black/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/profile" className="flex items-center gap-3 hover:opacity-80 transition group">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F09410] to-[#BC430D] p-[2px] shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all">
-                <div className="w-full h-full rounded-full bg-[#241705] flex items-center justify-center">
-                  <User className="w-5 h-5 text-[#F09410]" />
-                </div>
-              </div>
-              <div>
-                <h1 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FEEAF0] to-[#F0D0C7] text-lg">
-                  {todayData?.user?.name || session.user.name}
-                </h1>
-                <p className="text-xs text-slate-400">
-                  {todayData?.user?.station || "ไม่ระบุสถานี"} • {todayData?.user?.department || "ไม่ระบุแผนก"}
-                </p>
-              </div>
-            </a>
-          </div>
-          <div className="flex gap-2 items-center">
-            <ThemeToggle />
-            <LanguageSwitcher />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-400"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="p-4 space-y-4">
-        {/* Real-time Clock */}
-        <ClockCard currentTime={currentTime} />
-
-        {/* Pinned Announcements Banner */}
-        <AnnouncementBanner />
-
-        {/* Break Status Alert */}
-        {isOnBreak && (
-          <BreakStatusAlert breakStartTime={todayData?.attendance?.breakStartTime || null} />
-        )}
-
-        {/* Today's and Tomorrow's Shift Info */}
-        <ShiftInfoCard
-          shift={todayData?.shift || null}
-          tomorrowShift={todayData?.tomorrowShift || null}
-          hourlyRate={todayData?.user?.hourlyRate || 0}
-        />
-
-        {/* Lateness & Break Monitor */}
-        <LatenessMonitorCard
-          lateMinutes={todayData?.attendance?.lateMinutes ?? null}
-          latePenaltyAmount={todayData?.attendance?.latePenaltyAmount || 0}
-          breakDurationMin={todayData?.attendance?.breakDurationMin ?? null}
-          breakPenaltyAmount={todayData?.attendance?.breakPenaltyAmount ?? null}
-          allowedBreakMinutes={todayData?.shift?.breakMinutes || 90}
-          isOnBreak={isOnBreak}
-          breakStartTime={todayData?.attendance?.breakStartTime || null}
-        />
-
-        {/* Attendance Status */}
-        <AttendanceStatusCard
-          attendance={todayData?.attendance || null}
-          shift={todayData?.shift}
-        />
-
-        {/* Check-in/out Buttons */}
-        <CheckInOutButtons
-          hasCheckedIn={hasCheckedIn}
-          hasCheckedOut={hasCheckedOut}
-          hasShift={!!todayData?.shift}
-          isChecking={isChecking}
-          onCheckIn={handleCheckIn}
-          onCheckOut={onCheckOutClick}
-        />
-
-        {/* Break Buttons */}
-        <BreakButtons
-          hasCheckedIn={hasCheckedIn}
-          hasCheckedOut={hasCheckedOut}
-          isOnBreak={isOnBreak}
-          hasTakenBreak={hasTakenBreak}
-          isChecking={isChecking}
-          onStartBreak={handleStartBreak}
-        />
-
-        {/* Quick Actions */}
-        <QuickActionCards />
-
-        {/* Menu List */}
-        <MenuList userRole={session?.user?.role} />
-      </main>
-
-      {/* Offline Indicator */}
-      <OfflineIndicator />
-
-      <MoodCheckOutDialog
-        isOpen={isMoodDialogOpen}
-        onClose={() => setIsMoodDialogOpen(false)}
-        onConfirm={handleMoodSubmit}
-        isLoading={isSubmittingMood || isChecking} // isChecking comes from useAttendance
-      />
-    </div>
-  );
+    return <EmployeeDashboardView />;
 }

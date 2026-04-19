@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
+import { canAccessAdminNavItem, type AdminAccessItem } from "@/lib/admin-access";
 import {
     LayoutDashboard,
     Users,
@@ -35,52 +36,35 @@ import {
     Timer,
     Smile,
     ArrowLeftRight,
+    BarChart3,
+    UserRoundSearch,
+    BriefcaseBusiness,
+    ShieldCheck,
 } from "lucide-react";
 
-interface NavItem {
+interface NavItem extends AdminAccessItem {
     title: string;
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: number;
-    roles?: string[];
-    requiredPermissions?: string[];
+    icon: ComponentType<{ className?: string }>;
 }
 
 const navItems: NavItem[] = [
-    {
-        title: "แดชบอร์ด",
-        href: "/admin",
-        icon: LayoutDashboard,
-    },
-    {
-        title: "จัดการพนักงาน",
-        href: "/admin/employees",
-        icon: Users,
-        roles: ["ADMIN", "HR"],
-    },
-    {
-        title: "สถานี",
-        href: "/admin/stations",
-        icon: Building2,
-        roles: ["ADMIN", "HR"],
-    },
-    {
-        title: "แผนก",
-        href: "/admin/departments",
-        icon: FolderKanban,
-        roles: ["ADMIN", "HR"],
-    },
+    { title: "แดชบอร์ด", href: "/admin", icon: LayoutDashboard },
+    { title: "จัดการพนักงาน", href: "/admin/employees", icon: Users, roles: ["ADMIN", "HR"] },
+    { title: "สถานี", href: "/admin/stations", icon: Building2, roles: ["ADMIN", "HR"] },
+    { title: "แผนก", href: "/admin/departments", icon: FolderKanban, roles: ["ADMIN", "HR"] },
     {
         title: "ลงเวลาทำงาน",
         href: "/admin/attendance",
         icon: Clock,
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
+        requiredPermissions: ["attendance.view"],
     },
     {
         title: "ลงเวลาย้อนหลัง",
         href: "/admin/attendance/backfill",
         icon: CalendarDays,
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
+        requiredPermissions: ["attendance.view"],
     },
     {
         title: "ตารางกะ",
@@ -95,93 +79,75 @@ const navItems: NavItem[] = [
         icon: ArrowLeftRight,
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
     },
-    {
-        title: "ประเภทกะ",
-        href: "/admin/shift-types",
-        icon: Clock,
-        roles: ["ADMIN", "HR"],
-    },
+    { title: "ประเภทกะ", href: "/admin/shift-types", icon: Clock, roles: ["ADMIN", "HR"] },
     {
         title: "อนุมัติคำขอ",
         href: "/admin/approvals",
         icon: ClipboardCheck,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["request.approve", "attendance.approve"],
+    },
+    {
+        title: "คำร้องทั่วไป",
+        href: "/admin/requests",
+        icon: FileText,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["request.view"],
     },
     {
         title: "Shift Pool",
         href: "/admin/shift-pool",
         icon: Shuffle,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["request.view", "shift.view"],
     },
     {
         title: "Availability",
         href: "/admin/availability",
         icon: CalendarDays,
-    },
-    {
-        title: "เงินเดือน",
-        href: "/admin/payroll",
-        icon: Wallet,
-        roles: ["ADMIN", "HR"],
-    },
-    {
-        title: "รายได้พิเศษ",
-        href: "/admin/special-income",
-        icon: TrendingUp,
         roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["shift.view"],
     },
-    {
-        title: "เบิกค่าแรง",
-        href: "/admin/advances",
-        icon: Banknote,
-        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
-    },
+    { title: "เงินเดือน", href: "/admin/payroll", icon: Wallet, roles: ["ADMIN", "HR"] },
+    { title: "รายได้พิเศษ", href: "/admin/special-income", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "เบิกค่าแรง", href: "/admin/advances", icon: Banknote, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
     {
         title: "รายงาน",
         href: "/admin/reports",
         icon: FileText,
         roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["report.view", "report.export"],
     },
     {
         title: "สรุปเวลาพัก",
         href: "/admin/reports/break-summary",
         icon: Timer,
         roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["report.view", "report.export"],
     },
     {
-        title: "QR Codes",
-        href: "/admin/qr-codes",
-        icon: QrCode,
-        roles: ["ADMIN", "HR"],
+        title: "Analytics",
+        href: "/admin/analytics",
+        icon: BarChart3,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["report.view"],
     },
-    {
-        title: "ตั้งค่า",
-        href: "/admin/settings",
-        icon: Settings,
-        roles: ["ADMIN"],
-    },
+    { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "Overtime", href: "/admin/overtime", icon: BriefcaseBusiness, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "Profile Requests", href: "/admin/profile-requests", icon: UserRoundSearch, roles: ["ADMIN", "HR"] },
+    { title: "QR Codes", href: "/admin/qr-codes", icon: QrCode, roles: ["ADMIN", "HR"] },
+    { title: "ตั้งค่า", href: "/admin/settings", icon: Settings, roles: ["ADMIN"] },
     {
         title: "จัดการสิทธิ์",
         href: "/admin/permissions",
         icon: Shield,
         roles: ["ADMIN"],
+        requiredPermissions: ["permission.manage"],
     },
-    {
-        title: "Audit Log",
-        href: "/admin/audit-logs",
-        icon: FileText,
-        roles: ["ADMIN"],
-    },
-    {
-        title: "One-on-One",
-        href: "/admin/engagement/one-on-one",
-        icon: MessageSquare,
-        roles: ["ADMIN", "HR", "MANAGER"],
-    },
-    {
-        title: "ความสุขพนักงาน",
-        href: "/admin/engagement/happiness",
-        icon: Smile,
-        roles: ["ADMIN", "HR", "MANAGER"],
-    },
+    { title: "Audit Log", href: "/admin/audit-logs", icon: FileText, roles: ["ADMIN"] },
+    { title: "Security", href: "/admin/security", icon: ShieldCheck, roles: ["ADMIN"] },
+    { title: "One-on-One", href: "/admin/engagement/one-on-one", icon: MessageSquare, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "ความสุขพนักงาน", href: "/admin/engagement/happiness", icon: Smile, roles: ["ADMIN", "HR", "MANAGER"] },
 ];
 
 interface AdminSidebarProps {
@@ -189,42 +155,34 @@ interface AdminSidebarProps {
     userPermissions?: string[];
 }
 
-export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSidebarProps) {
-    const pathname = usePathname();
-    const { data: session } = useSession();
-    const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isMobileOpen, setIsMobileOpen] = useState(false);
+interface SidebarContentProps extends AdminSidebarProps {
+    isCollapsed: boolean;
+    pathname: string;
+    userRole: string;
+    userName?: string | null;
+    onCollapseToggle: () => void;
+    onNavigate: () => void;
+}
 
-    const userRole = session?.user?.role || "EMPLOYEE";
+function SidebarContent({
+    pendingCount = 0,
+    userPermissions = [],
+    isCollapsed,
+    pathname,
+    userRole,
+    userName,
+    onCollapseToggle,
+    onNavigate,
+}: SidebarContentProps) {
+    const filteredNavItems = navItems.filter((item) =>
+        canAccessAdminNavItem(item, userRole, userPermissions),
+    );
 
-    // Filter nav items based on roles OR permissions
-    const filteredNavItems = navItems.filter((item) => {
-        // If no roles specified, check permissions
-        if (!item.roles) {
-            // For items without role restriction, check if user has any required permission
-            if (item.requiredPermissions) {
-                return item.requiredPermissions.some((perm: string) => userPermissions.includes(perm));
-            }
-            // Items available to all (like dashboard)
-            return true;
-        }
-        // User has the required role
-        if (item.roles.includes(userRole)) {
-            return true;
-        }
-        // User doesn't have role but may have permission
-        if (item.requiredPermissions) {
-            return item.requiredPermissions.some((perm: string) => userPermissions.includes(perm));
-        }
-        return false;
-    });
-
-    const NavContent = () => (
+    return (
         <div className="flex flex-col h-full">
-            {/* Logo */}
             <div className={cn(
                 "flex items-center gap-3 px-4 py-5 border-b border-border",
-                isCollapsed && "justify-center px-2"
+                isCollapsed && "justify-center px-2",
             )}>
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
                     <Clock className="w-5 h-5 text-white" />
@@ -237,7 +195,6 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                 )}
             </div>
 
-            {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-4 px-2">
                 <ul className="space-y-1">
                     {filteredNavItems.map((item) => {
@@ -251,12 +208,12 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                                 <Link
                                     href={item.href}
                                     className={cn(
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
+                                        "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
                                         "hover:bg-accent hover:text-accent-foreground",
                                         isActive && "bg-primary/10 text-primary font-medium",
-                                        isCollapsed && "justify-center px-2"
+                                        isCollapsed && "justify-center px-2",
                                     )}
-                                    onClick={() => setIsMobileOpen(false)}
+                                    onClick={onNavigate}
                                 >
                                     <Icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-primary")} />
                                     {!isCollapsed && (
@@ -279,21 +236,20 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                 </ul>
             </nav>
 
-            {/* User Section */}
             <div className={cn(
                 "border-t border-border p-4",
-                isCollapsed && "p-2"
+                isCollapsed && "p-2",
             )}>
-                {!isCollapsed && session?.user && (
+                {!isCollapsed && (
                     <div className="flex items-center gap-3 mb-3 px-2">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
                             <span className="text-white font-medium text-sm">
-                                {session.user.name?.charAt(0) || "U"}
+                                {userName?.charAt(0) || "U"}
                             </span>
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">
-                                {session.user.name}
+                                {userName || "Unknown User"}
                             </p>
                             <p className="text-xs text-muted-foreground">{userRole}</p>
                         </div>
@@ -308,7 +264,7 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                         size={isCollapsed ? "icon" : "sm"}
                         className={cn(
                             "text-muted-foreground hover:text-foreground",
-                            !isCollapsed && "w-full justify-start"
+                            !isCollapsed && "w-full justify-start",
                         )}
                         onClick={() => signOut({ callbackUrl: "/" })}
                     >
@@ -318,13 +274,12 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                 </div>
             </div>
 
-            {/* Collapse Toggle - Desktop only */}
             <div className="hidden lg:block border-t border-border p-2">
                 <Button
                     variant="ghost"
                     size="sm"
                     className="w-full justify-center text-muted-foreground"
-                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    onClick={onCollapseToggle}
                 >
                     {isCollapsed ? (
                         <ChevronRight className="w-4 h-4" />
@@ -338,10 +293,23 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
             </div>
         </div>
     );
+}
+
+export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSidebarProps) {
+    const pathname = usePathname();
+    const { data: session } = useSession();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    const userRole = session?.user?.role || "EMPLOYEE";
+    const userName = session?.user?.name;
+
+    const handleNavigate = () => {
+        setIsMobileOpen(false);
+    };
 
     return (
         <>
-            {/* Mobile Header */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
@@ -360,7 +328,7 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setIsMobileOpen(!isMobileOpen)}
+                        onClick={() => setIsMobileOpen((previous) => !previous)}
                     >
                         {isMobileOpen ? (
                             <X className="w-5 h-5" />
@@ -371,7 +339,6 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                 </div>
             </div>
 
-            {/* Mobile Overlay */}
             {isMobileOpen && (
                 <div
                     className="lg:hidden fixed inset-0 z-40 bg-black/50"
@@ -379,24 +346,40 @@ export function AdminSidebar({ pendingCount = 0, userPermissions = [] }: AdminSi
                 />
             )}
 
-            {/* Mobile Sidebar */}
             <aside
                 className={cn(
                     "lg:hidden fixed top-14 right-0 bottom-0 z-40 w-72 bg-background border-l border-border transform transition-transform duration-200",
-                    isMobileOpen ? "translate-x-0" : "translate-x-full"
+                    isMobileOpen ? "translate-x-0" : "translate-x-full",
                 )}
             >
-                <NavContent />
+                <SidebarContent
+                    pendingCount={pendingCount}
+                    userPermissions={userPermissions}
+                    isCollapsed={false}
+                    pathname={pathname}
+                    userRole={userRole}
+                    userName={userName}
+                    onCollapseToggle={() => setIsCollapsed((previous) => !previous)}
+                    onNavigate={handleNavigate}
+                />
             </aside>
 
-            {/* Desktop Sidebar */}
             <aside
                 className={cn(
                     "hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-40 bg-background border-r border-border transition-all duration-200",
-                    isCollapsed ? "w-16" : "w-64"
+                    isCollapsed ? "w-16" : "w-64",
                 )}
             >
-                <NavContent />
+                <SidebarContent
+                    pendingCount={pendingCount}
+                    userPermissions={userPermissions}
+                    isCollapsed={isCollapsed}
+                    pathname={pathname}
+                    userRole={userRole}
+                    userName={userName}
+                    onCollapseToggle={() => setIsCollapsed((previous) => !previous)}
+                    onNavigate={handleNavigate}
+                />
             </aside>
         </>
     );

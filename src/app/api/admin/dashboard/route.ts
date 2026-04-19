@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Only admin/hr/manager can access
-        if (!["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+        // Only admin roles can access
+        if (!["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -211,7 +211,16 @@ export async function GET(request: NextRequest) {
                         ? { stationId: stationFilter.stationId }
                         : undefined,
                 },
-                select: { userId: true }
+                select: { 
+                    userId: true,
+                    user: {
+                        select: {
+                            name: true,
+                            nickName: true,
+                            station: { select: { name: true } }
+                        }
+                    }
+                }
             }),
 
             // Fetch Leaves for today to check context
@@ -300,6 +309,14 @@ export async function GET(request: NextRequest) {
                 overlaps: overlaps // List of other absent names in same station
             };
         });
+
+        // 5. Build Present Employees Map
+        const presentEmployees = todayAttendanceList.map(a => ({
+            id: a.userId,
+            name: a.user?.name || "Unknown",
+            nickName: a.user?.nickName || null,
+            station: a.user?.station?.name || "Unknown"
+        }));
 
         // Get recent pending requests (limited)
         const recentRequests = await prisma.shiftSwap.findMany({
@@ -449,6 +466,7 @@ export async function GET(request: NextRequest) {
                 pendingLeaves: pendingLeavesCount,
                 openShifts,
                 absentEmployees, // Add filtered list here
+                presentEmployees, // Add present list here
             },
             recent: {
                 requests: topRequests,

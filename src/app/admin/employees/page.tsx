@@ -59,6 +59,7 @@ import {
     Shield,
     SlidersHorizontal,
     ArrowUpDown,
+    Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -180,6 +181,23 @@ export default function EmployeesPage() {
             toast.error("เกิดข้อผิดพลาด");
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleResetDevice = async (emp: Employee) => {
+        if (!confirm(`คุณต้องการปลดล็อกอุปกรณ์ของ ${emp.name} ใช่หรือไม่?`)) return;
+        try {
+            const res = await fetch(`/api/admin/employees/${emp.id}/reset-device`, {
+                method: "POST",
+            });
+            if (res.ok) {
+                toast.success(`ปลดล็อกอุปกรณ์ของ ${emp.name} สำเร็จ`);
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการปลดล็อกอุปกรณ์");
         }
     };
 
@@ -712,8 +730,9 @@ export default function EmployeesPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(emp)}><Pencil className="w-4 h-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(emp)}><Trash2 className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-500" onClick={() => handleResetDevice(emp)} title="ปลดล็อกอุปกรณ์"><Smartphone className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(emp)} title="แก้ไข"><Pencil className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(emp)} title="ลบ"><Trash2 className="w-4 h-4" /></Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

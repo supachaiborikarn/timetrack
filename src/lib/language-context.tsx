@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext } from "react";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import thTranslations from "@/messages/th.json";
 import enTranslations from "@/messages/en.json";
 import myTranslations from "@/messages/my.json";
@@ -22,23 +23,28 @@ const translations: Record<Language, TranslationRecord> = {
     my: myTranslations,
 };
 
+const VALID_LANGUAGES = new Set<Language>(["th", "en", "my"]);
+
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = useState<Language>("th");
-    const [mounted, setMounted] = useState(false);
+    const [language, setLanguageState] = useLocalStorageState<Language>(
+        "language",
+        "th",
+        (rawValue) => {
+            if (rawValue && VALID_LANGUAGES.has(rawValue as Language)) {
+                return rawValue as Language;
+            }
 
-    useEffect(() => {
-        setMounted(true);
-        const savedLang = localStorage.getItem("language") as Language;
-        if (savedLang && ["th", "en", "my"].includes(savedLang)) {
-            setLanguageState(savedLang);
-        }
-    }, []);
+            return "th";
+        },
+        (value) => value,
+    );
 
     const setLanguage = (lang: Language) => {
-        setLanguageState(lang);
-        localStorage.setItem("language", lang);
+        if (VALID_LANGUAGES.has(lang)) {
+            setLanguageState(lang);
+        }
     };
 
     const t = (key: string): string => {

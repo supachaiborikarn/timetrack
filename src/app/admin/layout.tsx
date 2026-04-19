@@ -1,21 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { redirect, usePathname } from "next/navigation";
+import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-
-// Roles that always have admin access
-const ADMIN_ROLES = ["ADMIN", "HR", "MANAGER", "CASHIER"];
-
-// Permissions that grant access to specific admin pages
-const PERMISSION_PAGE_MAP: Record<string, string[]> = {
-    "/admin/shifts": ["shift.view", "shift.edit"],
-    "/admin/attendance": ["attendance.view"],
-    "/admin/approvals": ["request.approve", "attendance.approve"],
-};
+import { isAdminRole } from "@/lib/admin-access";
 
 export default function AdminLayoutWrapper({
     children,
@@ -23,48 +14,59 @@ export default function AdminLayoutWrapper({
     children: React.ReactNode;
 }) {
     const { data: session, status } = useSession();
-    const pathname = usePathname();
     const [pendingCount, setPendingCount] = useState(0);
     const [userPermissions, setUserPermissions] = useState<string[]>([]);
-    const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
     useEffect(() => {
-        // Fetch pending approvals count and user permissions
-        const fetchData = async (light = false) => {
-            try {
-                const dashboardUrl = light ? "/api/admin/dashboard?light=true" : "/api/admin/dashboard";
-                const [dashboardRes, permRes] = await Promise.all([
-                    fetch(dashboardUrl),
-                    light ? Promise.resolve(null) : fetch("/api/user/permissions"),
-                ]);
+        if (!session?.user?.id) {
+            return;
+        }
 
+        let isActive = true;
+
+        const fetchPendingCount = async () => {
+            try {
+                const dashboardRes = await fetch("/api/admin/dashboard?light=true");
                 if (dashboardRes.ok) {
                     const data = await dashboardRes.json();
-                    setPendingCount(data.stats?.pendingApprovals || 0);
-                }
-
-                if (permRes && permRes.ok) {
-                    const permData = await permRes.json();
-                    setUserPermissions(permData.permissions || []);
+                    if (isActive) {
+                        setPendingCount(data.stats?.pendingApprovals || 0);
+                    }
                 }
             } catch (error) {
-                console.error("Failed to fetch data:", error);
-            } finally {
-                setPermissionsLoaded(true);
+                console.error("Failed to fetch pending approvals:", error);
             }
         };
 
-        if (session?.user?.id) {
-            fetchData(false); // Full fetch on initial load
-            // Refresh every 5 minutes with light mode (counts only)
-            const interval = setInterval(() => fetchData(true), 300000);
-            return () => clearInterval(interval);
-        } else {
-            setPermissionsLoaded(true);
-        }
+        const fetchPermissions = async () => {
+            try {
+                const permRes = await fetch("/api/user/permissions");
+                if (permRes.ok) {
+                    const permData = await permRes.json();
+                    if (isActive) {
+                        setUserPermissions(permData.permissions || []);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch permissions:", error);
+            }
+        };
+
+        // Sidebar metadata should load in the background so admin pages never block on it.
+        void fetchPendingCount();
+        void fetchPermissions();
+
+        const interval = setInterval(() => {
+            void fetchPendingCount();
+        }, 300000);
+
+        return () => {
+            isActive = false;
+            clearInterval(interval);
+        };
     }, [session?.user?.id]);
 
-    if (status === "loading" || !permissionsLoaded) {
+    if (status === "loading") {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -74,26 +76,7 @@ export default function AdminLayoutWrapper({
 
     const userRole = session?.user?.role || "EMPLOYEE";
 
-    // Check if user has access
-    const hasAdminRole = ADMIN_ROLES.includes(userRole);
-
-    // For EMPLOYEE role, check if they have permissions for the current page
-    let hasPermissionAccess = false;
-    if (!hasAdminRole && userRole === "EMPLOYEE") {
-        // Check if current path matches any permission-gated pages
-        for (const [pagePath, requiredPerms] of Object.entries(PERMISSION_PAGE_MAP)) {
-            if (pathname.startsWith(pagePath)) {
-                hasPermissionAccess = requiredPerms.some(perm => userPermissions.includes(perm));
-                break;
-            }
-        }
-        // Also allow access to main /admin page if they have any admin permissions
-        if (pathname === "/admin" && userPermissions.length > 0) {
-            hasPermissionAccess = true;
-        }
-    }
-
-    if (!session || !session.user || (!hasAdminRole && !hasPermissionAccess)) {
+    if (!session || !session.user || !isAdminRole(userRole)) {
         redirect("/");
     }
 
@@ -116,4 +99,3 @@ export default function AdminLayoutWrapper({
         </div>
     );
 }
-

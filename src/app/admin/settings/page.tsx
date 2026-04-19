@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
     Loader2,
-    Settings,
     Clock,
     MapPin,
     Bell,
@@ -18,46 +17,81 @@ import {
     Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+    DEFAULT_TIME_TRACK_SETTINGS,
+    normalizeTimeTrackSettings,
+    type TimeTrackSettings,
+} from "@/lib/system-settings";
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
+    const [settings, setSettings] = useState<TimeTrackSettings>(DEFAULT_TIME_TRACK_SETTINGS);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Settings state
-    const [settings, setSettings] = useState({
-        // Attendance
-        lateThresholdMinutes: 15,
-        earlyCheckInMinutes: 30,
-        autoCheckOutHours: 12,
+    const loadSettings = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch("/api/admin/settings");
+            if (!response.ok) {
+                throw new Error("ไม่สามารถโหลดการตั้งค่าได้");
+            }
 
-        // GPS
-        geoFenceEnabled: true,
-        geoFenceRadius: 100,
+            const data = await response.json();
+            setSettings(normalizeTimeTrackSettings(data.settings ?? {}));
+        } catch (error) {
+            console.error("Failed to load settings:", error);
+            toast.error("โหลดการตั้งค่าไม่สำเร็จ");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
-        // Notifications
-        enablePushNotifications: true,
-        enableEmailNotifications: false,
-        notifyManagerOnLate: true,
+    useEffect(() => {
+        if (session?.user?.id && session.user.role === "ADMIN") {
+            void loadSettings();
+        }
+    }, [loadSettings, session?.user?.id, session?.user?.role]);
 
-        // Security
-        requirePhotoOnCheckIn: false,
-        require2FA: false,
-    });
+    const updateNumberSetting = (key: keyof TimeTrackSettings, value: string) => {
+        setSettings((previous) => normalizeTimeTrackSettings({
+            ...previous,
+            [key]: Number(value),
+        }));
+    };
+
+    const updateBooleanSetting = (key: keyof TimeTrackSettings, value: boolean) => {
+        setSettings((previous) => ({
+            ...previous,
+            [key]: value,
+        }));
+    };
 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // TODO: Implement settings API
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const response = await fetch("/api/admin/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(settings),
+            });
+
+            if (!response.ok) {
+                throw new Error("บันทึกไม่สำเร็จ");
+            }
+
+            const data = await response.json();
+            setSettings(normalizeTimeTrackSettings(data.settings ?? settings));
             toast.success("บันทึกการตั้งค่าแล้ว");
-        } catch {
-            toast.error("เกิดข้อผิดพลาด");
+        } catch (error) {
+            console.error("Failed to save settings:", error);
+            toast.error("เกิดข้อผิดพลาดขณะบันทึก");
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (status === "loading") {
+    if (status === "loading" || (session?.user?.role === "ADMIN" && isLoading)) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -65,19 +99,18 @@ export default function SettingsPage() {
         );
     }
 
-    if (!session || !["ADMIN"].includes(session.user.role)) {
+    if (!session || session.user.role !== "ADMIN") {
         redirect("/");
     }
 
     return (
         <div className="space-y-6 max-w-3xl">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">ตั้งค่า</h1>
-                    <p className="text-muted-foreground">ตั้งค่าระบบ TimeTrack</p>
+                    <p className="text-muted-foreground">ปรับเกณฑ์การลงเวลา การแจ้งเตือน และความปลอดภัยของระบบ</p>
                 </div>
-                <Button onClick={handleSave} disabled={isSaving}>
+                <Button onClick={handleSave} disabled={isSaving || isLoading}>
                     {isSaving ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
@@ -87,7 +120,6 @@ export default function SettingsPage() {
                 </Button>
             </div>
 
-            {/* Attendance Settings */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -95,84 +127,72 @@ export default function SettingsPage() {
                         การลงเวลา
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>ถือว่าสายหลัง (นาที)</Label>
-                            <Input
-                                type="number"
-                                value={settings.lateThresholdMinutes}
-                                onChange={(e) =>
-                                    setSettings({ ...settings, lateThresholdMinutes: parseInt(e.target.value) || 0 })
-                                }
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>เข้างานก่อนได้ (นาที)</Label>
-                            <Input
-                                type="number"
-                                value={settings.earlyCheckInMinutes}
-                                onChange={(e) =>
-                                    setSettings({ ...settings, earlyCheckInMinutes: parseInt(e.target.value) || 0 })
-                                }
-                            />
-                        </div>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="late-threshold">ถือว่าสายหลัง (นาที)</Label>
+                        <Input
+                            id="late-threshold"
+                            type="number"
+                            min={0}
+                            value={settings.lateThresholdMinutes}
+                            onChange={(event) => updateNumberSetting("lateThresholdMinutes", event.target.value)}
+                        />
                     </div>
                     <div className="space-y-2">
-                        <Label>Auto Check-out หลัง (ชั่วโมง)</Label>
+                        <Label htmlFor="early-check-in">เข้างานก่อนได้ (นาที)</Label>
                         <Input
+                            id="early-check-in"
                             type="number"
-                            value={settings.autoCheckOutHours}
-                            onChange={(e) =>
-                                setSettings({ ...settings, autoCheckOutHours: parseInt(e.target.value) || 0 })
-                            }
-                            className="max-w-[200px]"
+                            min={0}
+                            value={settings.earlyCheckInMinutes}
+                            onChange={(event) => updateNumberSetting("earlyCheckInMinutes", event.target.value)}
                         />
-                        <p className="text-xs text-muted-foreground">
-                            ถ้าพนักงานลืม check-out ระบบจะ check-out อัตโนมัติ
-                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="auto-check-out">Auto check-out หลังทำงานเกิน (ชั่วโมง)</Label>
+                        <Input
+                            id="auto-check-out"
+                            type="number"
+                            min={1}
+                            value={settings.autoCheckOutHours}
+                            onChange={(event) => updateNumberSetting("autoCheckOutHours", event.target.value)}
+                        />
                     </div>
                 </CardContent>
             </Card>
 
-            {/* GPS Settings */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                        <MapPin className="w-5 h-5 text-green-500" />
-                        ตำแหน่ง GPS
+                        <MapPin className="w-5 h-5 text-emerald-500" />
+                        GPS และพื้นที่ลงเวลา
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="font-medium">เปิดใช้ Geo-fence</p>
-                            <p className="text-sm text-muted-foreground">
-                                ต้องอยู่ในรัศมีที่กำหนดถึงจะลงเวลาได้
-                            </p>
+                            <p className="font-medium">เปิดใช้ Geo Fence</p>
+                            <p className="text-sm text-muted-foreground">บังคับตรวจสอบตำแหน่งก่อนเช็คอินและเช็คเอาต์</p>
                         </div>
                         <Switch
                             checked={settings.geoFenceEnabled}
-                            onCheckedChange={(checked) => setSettings({ ...settings, geoFenceEnabled: checked })}
+                            onCheckedChange={(checked) => updateBooleanSetting("geoFenceEnabled", checked)}
                         />
                     </div>
-                    {settings.geoFenceEnabled && (
-                        <div className="space-y-2">
-                            <Label>รัศมี (เมตร)</Label>
-                            <Input
-                                type="number"
-                                value={settings.geoFenceRadius}
-                                onChange={(e) =>
-                                    setSettings({ ...settings, geoFenceRadius: parseInt(e.target.value) || 0 })
-                                }
-                                className="max-w-[200px]"
-                            />
-                        </div>
-                    )}
+                    <div className="space-y-2">
+                        <Label htmlFor="geo-radius">รัศมีตรวจสอบ (เมตร)</Label>
+                        <Input
+                            id="geo-radius"
+                            type="number"
+                            min={0}
+                            value={settings.geoFenceRadius}
+                            onChange={(event) => updateNumberSetting("geoFenceRadius", event.target.value)}
+                            disabled={!settings.geoFenceEnabled}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
-            {/* Notification Settings */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -181,44 +201,39 @@ export default function SettingsPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <p className="font-medium">Push Notifications</p>
-                            <p className="text-sm text-muted-foreground">แจ้งเตือนผ่านแอป</p>
+                            <p className="text-sm text-muted-foreground">ส่งแจ้งเตือนผ่านแอป</p>
                         </div>
                         <Switch
                             checked={settings.enablePushNotifications}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enablePushNotifications: checked })
-                            }
+                            onCheckedChange={(checked) => updateBooleanSetting("enablePushNotifications", checked)}
                         />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <p className="font-medium">Email Notifications</p>
-                            <p className="text-sm text-muted-foreground">แจ้งเตือนทางอีเมล</p>
+                            <p className="text-sm text-muted-foreground">ส่งแจ้งเตือนผ่านอีเมล</p>
                         </div>
                         <Switch
                             checked={settings.enableEmailNotifications}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enableEmailNotifications: checked })
-                            }
+                            onCheckedChange={(checked) => updateBooleanSetting("enableEmailNotifications", checked)}
                         />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <p className="font-medium">แจ้งหัวหน้าเมื่อพนักงานมาสาย</p>
-                            <p className="text-sm text-muted-foreground">ส่งแจ้งเตือนให้ผู้จัดการ</p>
+                            <p className="text-sm text-muted-foreground">ใช้กับ flow monitor/notification ภายในระบบ</p>
                         </div>
                         <Switch
                             checked={settings.notifyManagerOnLate}
-                            onCheckedChange={(checked) => setSettings({ ...settings, notifyManagerOnLate: checked })}
+                            onCheckedChange={(checked) => updateBooleanSetting("notifyManagerOnLate", checked)}
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Security Settings */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -227,26 +242,24 @@ export default function SettingsPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <p className="font-medium">ถ่ายรูปเมื่อลงเวลา</p>
-                            <p className="text-sm text-muted-foreground">บันทึกภาพเพื่อยืนยันตัวตน</p>
+                            <p className="text-sm text-muted-foreground">เก็บค่าไว้พร้อมสำหรับ flow ยืนยันตัวตน</p>
                         </div>
                         <Switch
                             checked={settings.requirePhotoOnCheckIn}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, requirePhotoOnCheckIn: checked })
-                            }
+                            onCheckedChange={(checked) => updateBooleanSetting("requirePhotoOnCheckIn", checked)}
                         />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <p className="font-medium">Two-Factor Authentication</p>
-                            <p className="text-sm text-muted-foreground">บังคับใช้ 2FA สำหรับ Admin</p>
+                            <p className="text-sm text-muted-foreground">ใช้กับการบังคับ 2FA สำหรับผู้ดูแลระบบ</p>
                         </div>
                         <Switch
                             checked={settings.require2FA}
-                            onCheckedChange={(checked) => setSettings({ ...settings, require2FA: checked })}
+                            onCheckedChange={(checked) => updateBooleanSetting("require2FA", checked)}
                         />
                     </div>
                 </CardContent>

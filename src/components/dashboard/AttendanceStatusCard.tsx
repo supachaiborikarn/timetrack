@@ -36,10 +36,10 @@ export function AttendanceStatusCard({ attendance, shift }: AttendanceStatusCard
     const hasTakenBreak = !!attendance?.breakEndTime;
 
     return (
-        <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="py-4">
+        <div className="bg-card rounded-3xl p-5 shadow-sm border border-border mb-4">
+            <div className="py-2">
                 <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-slate-400">{t("dashboard.attendanceStatus")}</span>
+                    <span className="text-sm font-bold text-foreground">สถานะลงเวลาวันนี้</span>
                     {attendance?.lateMinutes ? (
                         <Badge variant="destructive" className="text-xs">
                             <AlertCircle className="w-3 h-3 mr-1" />
@@ -54,34 +54,34 @@ export function AttendanceStatusCard({ attendance, shift }: AttendanceStatusCard
 
                 {/* Break Status */}
                 {isOnBreak && (
-                    <div className="mb-4 p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg flex items-center justify-between">
+                    <div className="mb-5 p-3 bg-orange-100 border border-orange-200 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Timer className="w-5 h-5 text-orange-400" />
-                            <span className="text-orange-200">{t("dashboard.onBreak")}</span>
+                            <Timer className="w-5 h-5 text-orange-600" />
+                            <span className="text-orange-800 font-bold">กำลังพักเบรก</span>
                         </div>
-                        <span className="text-orange-400 font-mono">
+                        <span className="text-orange-600 font-bold">
                             {attendance?.breakStartTime ? formatTime(new Date(attendance.breakStartTime)) : ""}
                         </span>
                     </div>
                 )}
 
                 {hasTakenBreak && (
-                    <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg flex items-center justify-between">
-                        <span className="text-green-200 text-sm">{t("dashboard.breakDone")} {attendance?.breakDurationMin} {t("dashboard.minutes")}</span>
+                    <div className="mb-5 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
+                        <span className="text-green-800 text-sm font-medium">พักแล้ว {attendance?.breakDurationMin} นาที</span>
                         {attendance?.breakPenaltyAmount && attendance.breakPenaltyAmount > 0 ? (
-                            <Badge variant="destructive">{t("dashboard.penaltyDeducted")} -฿{attendance.breakPenaltyAmount}</Badge>
+                            <Badge variant="destructive" className="rounded-full px-3">หัก -฿{attendance.breakPenaltyAmount}</Badge>
                         ) : (
-                            <Badge className="bg-green-500/20 text-green-400">{t("dashboard.normal")}</Badge>
+                            <Badge className="bg-green-100 text-green-700 hover:bg-green-100 rounded-full border-none">ปกติ</Badge>
                         )}
                     </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${hasCheckedIn ? "bg-green-500" : "bg-slate-600"}`} />
+                        <div className={`w-3 h-3 rounded-full ${hasCheckedIn ? "bg-green-500" : "bg-border"}`} />
                         <div>
-                            <p className="text-xs text-slate-400">{t("dashboard.clockIn")}</p>
-                            <p className="text-lg font-semibold text-white">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("dashboard.clockIn")}</p>
+                            <p className="text-lg font-bold text-foreground">
                                 {attendance?.checkInTime
                                     ? formatTime(new Date(attendance.checkInTime))
                                     : "--:--"}
@@ -89,14 +89,14 @@ export function AttendanceStatusCard({ attendance, shift }: AttendanceStatusCard
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${hasCheckedOut ? "bg-orange-500" : "bg-slate-600"}`} />
+                        <div className={`w-3 h-3 rounded-full ${hasCheckedOut ? "bg-orange-500" : "bg-border"}`} />
                         <div>
-                            <p className="text-xs text-slate-400">{t("dashboard.clockOut")}</p>
-                            <p className="text-lg font-semibold text-white">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("dashboard.clockOut")}</p>
+                            <p className="text-lg font-bold text-foreground">
                                 {attendance?.checkOutTime
                                     ? formatTime(new Date(attendance.checkOutTime))
                                     : shift?.endTime
-                                        ? <span className="text-yellow-400 text-base">
+                                        ? <span className="text-primary text-base">
                                             {shift.endTime} ({shift.name})
                                         </span>
                                         : "--:--"}
@@ -104,7 +104,7 @@ export function AttendanceStatusCard({ attendance, shift }: AttendanceStatusCard
                         </div>
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

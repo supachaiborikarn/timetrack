@@ -5,11 +5,10 @@ import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import {
     startOfDayBangkok,
     getBangkokNow,
-    getBangkokHour,
     calculateWorkHours,
-    subDays
 } from "@/lib/date-utils";
-import { isWithinGeofence, calculateDistance } from "@/lib/geo";
+import { calculateDistance } from "@/lib/geo";
+import { getTimeTrackSettings } from "@/lib/server/system-settings";
 
 export async function POST(request: NextRequest) {
     try {
@@ -33,6 +32,11 @@ export async function POST(request: NextRequest) {
 
         if (!user || !user.station) {
             return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
+        }
+
+        // Check device fingerprint (strict mode enabled to prevent buddy punching)
+        if (user.deviceId && user.deviceId !== deviceId) {
+            return ApiErrors.validation("กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้เท่านั้น (ห้ามเช็คเอาต์แทนกัน)");
         }
 
         // CROSS-STATION CHECK-OUT: Validate GPS location against ANY active station
@@ -79,11 +83,13 @@ export async function POST(request: NextRequest) {
         const localNow = getBangkokNow();
         const fullUtcNow = new Date(); // True UTC
         const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
+        const runtimeSettings = await getTimeTrackSettings();
+        const configuredAutoCheckOutHours = Math.max(runtimeSettings.autoCheckOutHours, 8);
 
         // CRITICAL FIX: Find ANY active attendance (not checked out) regardless of date
         // This ensures check-out works even if the date boundary was crossed weirdly
         // or if it's a night shift from yesterday.
-        let attendance = await prisma.attendance.findFirst({
+        const attendance = await prisma.attendance.findFirst({
             where: {
                 userId: session.user.id,
                 checkOutTime: null,
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
             orderBy: { checkInTime: "desc" },
         });
 
-        let attendanceDate = attendance ? attendance.date : today;
+        const attendanceDate = attendance ? attendance.date : today;
 
         if (!attendance || !attendance.checkInTime) {
             return errorResponse(
@@ -138,12 +144,12 @@ export async function POST(request: NextRequest) {
         let finalOvertimeHours = 0;
         let finalCheckOutTime = fullUtcNow; // Default to now
 
-        if (durationHours > 24) {
-            // Cap at 12 hours
-            finalTotalHours = 12;
-            finalOvertimeHours = Math.max(0, 12 - (8)); // Assuming 8h regular
-            // Retroactively set checkout time to 12h after checkin
-            finalCheckOutTime = new Date(attendance.checkInTime.getTime() + 12 * 60 * 60 * 1000);
+        if (durationHours > configuredAutoCheckOutHours * 2) {
+            finalTotalHours = configuredAutoCheckOutHours;
+            finalOvertimeHours = Math.max(0, configuredAutoCheckOutHours - 8);
+            finalCheckOutTime = new Date(
+                attendance.checkInTime.getTime() + configuredAutoCheckOutHours * 60 * 60 * 1000,
+            );
         } else {
             const { totalHours, overtimeHours } = calculateWorkHours(
                 attendance.checkInTime,
@@ -158,7 +164,7 @@ export async function POST(request: NextRequest) {
         const updatedAttendance = await prisma.attendance.update({
             where: { id: attendance.id },
             data: {
-                checkOutTime: fullUtcNow, // Always save true UTC from now on
+                checkOutTime: finalCheckOutTime,
                 checkOutLat: latitude,
                 checkOutLng: longitude,
                 checkOutDeviceId: deviceId,

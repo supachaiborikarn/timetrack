@@ -2,52 +2,27 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-    Loader2,
-    User,
-    Phone,
-    Mail,
-    Building2,
-    Briefcase,
-    Key,
-    Lock,
-    Save,
-    Eye,
-    EyeOff,
-    Wallet,
-    Shield,
-    DollarSign,
-    AlertTriangle,
-    MapPin,
-    Calendar,
-    Contact,
-    Check,
-    X,
-    Edit2,
-    Clock,
-    FileText,
-    CreditCard,
-    Fingerprint
+    Loader2, User, Phone, Mail, Building2, Briefcase,
+    Key, Lock, Eye, EyeOff, Wallet, DollarSign,
+    MapPin, Calendar, Contact, Check, X,
+    Clock, FileText, CreditCard, Fingerprint,
+    ChevronLeft, Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { PasskeyButton } from "@/components/auth/PasskeyButton";
 import { useLanguage } from "@/lib/language-context";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface Profile {
     id: string;
     employeeId: string;
@@ -58,26 +33,20 @@ interface Profile {
     role: string;
     station: { id: string; name: string; code: string } | null;
     department: { id: string; name: string; code: string } | null;
-    // Wage info
     hourlyRate: number;
     dailyRate: number | null;
     baseSalary: number | null;
-    // Bank info
     bankAccountNumber: string | null;
     bankName: string | null;
-    // Personal info
     address: string | null;
     birthDate: string | null;
     gender: string | null;
     citizenId: string | null;
-    // Emergency contact
     emergencyContactName: string | null;
     emergencyContactPhone: string | null;
     emergencyContactRelation: string | null;
-    // Employment info
     startDate: string | null;
     employeeStatus: string;
-
     createdAt: string;
 }
 
@@ -98,136 +67,87 @@ const roleLabels: Record<string, string> = {
     EMPLOYEE: "พนักงาน",
 };
 
-// Reusable Editable Field Component
+// ─── EditableField Component ──────────────────────────────────────────────────
 interface EditableFieldProps {
     label: string;
     value: string | null | undefined;
     fieldName: string;
     icon: any;
-    isEditable?: boolean;
     pendingRequest?: EditRequest;
     onRequestEdit: (fieldName: string, newValue: string) => Promise<void>;
     placeholder?: string;
 }
 
 const EditableField = ({
-    label,
-    value,
-    fieldName,
-    icon: Icon,
-    isEditable = true,
-    pendingRequest,
-    onRequestEdit,
-    placeholder = "-"
+    label, value, fieldName, icon: Icon,
+    pendingRequest, onRequestEdit, placeholder = "-",
 }: EditableFieldProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [tempValue, setTempValue] = useState(value || "");
     const [isSaving, setIsSaving] = useState(false);
     const { t } = useLanguage();
 
-    useEffect(() => {
-        setTempValue(value || "");
-    }, [value]);
+    useEffect(() => { setTempValue(value || ""); }, [value]);
 
     const handleSave = async () => {
-        if (!tempValue.trim() && !value) return; // Don't save empty if it was empty
-        if (tempValue === value) {
-            setIsEditing(false);
-            return;
-        }
-
+        if (tempValue === value) { setIsEditing(false); return; }
         setIsSaving(true);
         try {
             await onRequestEdit(fieldName, tempValue);
             setIsEditing(false);
-        } catch (error) {
-            console.error("Save failed", error);
-        } finally {
-            setIsSaving(false);
-        }
+        } catch { /* handled by parent */ } finally { setIsSaving(false); }
     };
 
     return (
-        <div className="flex flex-col space-y-2 p-3 rounded-lg border border-orange-900/10 bg-[#1a1412] shadow-sm">
-            <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-orange-500/10">
-                        <Icon className="w-4 h-4 text-[#F09410]" />
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="p-2.5 rounded-xl bg-primary/10 shrink-0 mt-0.5">
+                        <Icon className="w-4 h-4 text-primary" />
                     </div>
-                    <div>
-                        <p className="text-xs text-stone-500 font-medium">{label}</p>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">{label}</p>
                         {!isEditing ? (
-                            <p className="text-sm font-medium mt-0.5 text-[#F0D0C7]">{value || placeholder}</p>
+                            <p className="text-sm font-bold text-foreground break-words">{value || placeholder}</p>
                         ) : (
-                            <div className="mt-1">
-                                <Input
-                                    value={tempValue}
-                                    onChange={(e) => setTempValue(e.target.value)}
-                                    className="h-8 text-sm bg-[#2a2420] border-orange-900/30 text-[#F0D0C7] focus-visible:ring-orange-500"
-                                    placeholder={placeholder}
-                                    autoFocus
-                                />
-                            </div>
+                            <Input
+                                value={tempValue}
+                                onChange={(e) => setTempValue(e.target.value)}
+                                className="h-9 text-sm rounded-xl"
+                                autoFocus
+                            />
                         )}
                     </div>
                 </div>
 
-                {/* Actions */}
-                {isEditable && (
-                    <div className="flex items-center gap-1">
-                        {pendingRequest ? (
-                            <div className="flex flex-col items-end">
-                                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] whitespace-nowrap">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {t("profile.pendingApproval")}
-                                </Badge>
-                                <span className="text-[10px] text-stone-500 mt-1">
-                                    {t("profile.changeTo")}: {pendingRequest.newValue}
-                                </span>
-                            </div>
-                        ) : isEditing ? (
-                            <div className="flex items-center gap-1">
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/30"
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                >
-                                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                </Button>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-950/30"
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        setTempValue(value || "");
-                                    }}
-                                    disabled={isSaving}
-                                >
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-stone-500 hover:text-[#F09410] hover:bg-orange-500/10"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Edit2 className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1 shrink-0">
+                    {pendingRequest ? (
+                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px]">
+                            <Clock className="w-3 h-3 mr-1" /> รอการอนุมัติ
+                        </Badge>
+                    ) : isEditing ? (
+                        <>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-500" onClick={handleSave} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                             </Button>
-                        )}
-                    </div>
-                )}
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => { setIsEditing(false); setTempValue(value || ""); }} disabled={isSaving}>
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </>
+                    ) : (
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-full" onClick={() => setIsEditing(true)}>
+                            <Edit2 className="w-4 h-4" />
+                        </Button>
+                    )}
+                </div>
             </div>
         </div>
     );
 };
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { data: session, status } = useSession();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [requests, setRequests] = useState<EditRequest[]>([]);
@@ -235,7 +155,7 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [payslips, setPayslips] = useState<any[]>([]);
 
-    // Password change state
+    // Password
     const [showPasswordSection, setShowPasswordSection] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -243,636 +163,302 @@ export default function ProfilePage() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
 
-    // PIN change state
+    // PIN
     const [showPinSection, setShowPinSection] = useState(false);
     const [newPin, setNewPin] = useState("");
     const [confirmPin, setConfirmPin] = useState("");
 
     const fetchProfile = async () => {
-        try {
-            const res = await fetch("/api/profile");
-            if (res.ok) {
-                const data = await res.json();
-                setProfile(data.profile);
-            }
-        } catch (error) {
-            console.error("Failed to fetch profile:", error);
-        }
+        const res = await fetch("/api/profile");
+        if (res.ok) { const d = await res.json(); setProfile(d.profile); }
     };
-
     const fetchRequests = async () => {
-        try {
-            const res = await fetch("/api/profile/edit-request");
-            if (res.ok) {
-                const data = await res.json();
-                setRequests(data.requests || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch requests:", error);
-        }
+        const res = await fetch("/api/profile/edit-request");
+        if (res.ok) { const d = await res.json(); setRequests(d.requests || []); }
     };
-
     const fetchPayslips = async () => {
-        try {
-            const res = await fetch("/api/payslip");
-            if (res.ok) {
-                const data = await res.json();
-                setPayslips(data.payslips || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch payslips:", error);
-        }
-    };
-
-    const initialize = async () => {
-        setIsLoading(true);
-        await Promise.all([fetchProfile(), fetchRequests(), fetchPayslips()]);
-        setIsLoading(false);
+        const res = await fetch("/api/payslip");
+        if (res.ok) { const d = await res.json(); setPayslips(d.payslips || []); }
     };
 
     useEffect(() => {
         if (session?.user?.id) {
-            initialize();
+            setIsLoading(true);
+            Promise.all([fetchProfile(), fetchRequests(), fetchPayslips()]).finally(() => setIsLoading(false));
         }
     }, [session?.user?.id]);
 
     const handleRequestEdit = async (fieldName: string, newValue: string) => {
-        try {
-            const res = await fetch("/api/profile/edit-request", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fieldName, newValue }),
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                toast.success(data.message || "ส่งคำขอแก้ไขเรียบร้อย");
-                fetchRequests(); // Refresh requests
-            } else {
-                toast.error(data.error || "เกิดข้อผิดพลาด");
-            }
-        } catch {
-            toast.error("เกิดข้อผิดพลาดในการส่งคำขอ");
-        }
+        const res = await fetch("/api/profile/edit-request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fieldName, newValue }),
+        });
+        const data = await res.json();
+        if (res.ok) { toast.success(data.message || "ส่งคำขอแก้ไขเรียบร้อย"); fetchRequests(); }
+        else { toast.error(data.error || "เกิดข้อผิดพลาด"); }
     };
 
     const handleChangePassword = async () => {
-        if (newPassword !== confirmPassword) {
-            toast.error("รหัสผ่านไม่ตรงกัน");
-            return;
-        }
-
-        if (newPassword.length < 4) {
-            toast.error("รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร");
-            return;
-        }
-
+        if (newPassword !== confirmPassword) { toast.error("รหัสผ่านไม่ตรงกัน"); return; }
+        if (newPassword.length < 4) { toast.error("รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร"); return; }
         setIsSaving(true);
         try {
-            const res = await fetch("/api/profile", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ currentPassword, newPassword }),
-            });
-
-            if (res.ok) {
-                toast.success("เปลี่ยนรหัสผ่านเรียบร้อย");
-                setShowPasswordSection(false);
-                setCurrentPassword("");
-                setNewPassword("");
-                setConfirmPassword("");
-            } else {
-                const data = await res.json();
-                toast.error(data.error || "เกิดข้อผิดพลาด");
-            }
-        } catch {
-            toast.error("เกิดข้อผิดพลาด");
-        } finally {
-            setIsSaving(false);
-        }
+            const res = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
+            if (res.ok) { toast.success("เปลี่ยนรหัสผ่านเรียบร้อย"); setShowPasswordSection(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }
+            else { const d = await res.json(); toast.error(d.error || "เกิดข้อผิดพลาด"); }
+        } catch { toast.error("เกิดข้อผิดพลาด"); } finally { setIsSaving(false); }
     };
 
     const handleChangePin = async () => {
-        if (newPin !== confirmPin) {
-            toast.error("PIN ไม่ตรงกัน");
-            return;
-        }
-
-        if (!/^\d{4,6}$/.test(newPin)) {
-            toast.error("PIN ต้องเป็นตัวเลข 4-6 หลัก");
-            return;
-        }
-
+        if (newPin !== confirmPin) { toast.error("PIN ไม่ตรงกัน"); return; }
+        if (!/^\d{4,6}$/.test(newPin)) { toast.error("PIN ต้องเป็นตัวเลข 4-6 หลัก"); return; }
         setIsSaving(true);
         try {
-            const res = await fetch("/api/profile", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ newPin }),
-            });
-
-            if (res.ok) {
-                toast.success("เปลี่ยน PIN เรียบร้อย");
-                setShowPinSection(false);
-                setNewPin("");
-                setConfirmPin("");
-            } else {
-                const data = await res.json();
-                toast.error(data.error || "เกิดข้อผิดพลาด");
-            }
-        } catch {
-            toast.error("เกิดข้อผิดพลาด");
-        } finally {
-            setIsSaving(false);
-        }
+            const res = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPin }) });
+            if (res.ok) { toast.success("เปลี่ยน PIN เรียบร้อย"); setShowPinSection(false); setNewPin(""); setConfirmPin(""); }
+            else { const d = await res.json(); toast.error(d.error || "เกิดข้อผิดพลาด"); }
+        } catch { toast.error("เกิดข้อผิดพลาด"); } finally { setIsSaving(false); }
     };
 
-    // Helper to get pending request for a field
-    const getPendingRequest = (fieldName: string) => {
-        return requests.find(r => r.fieldName === fieldName && r.status === "PENDING");
-    };
+    const getPendingRequest = (fieldName: string) =>
+        requests.find(r => r.fieldName === fieldName && r.status === "PENDING");
 
-    // Format currency
-    const formatMoney = (amount: number | null | undefined) => {
-        if (!amount) return "-";
-        return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2 }).format(amount);
-    };
+    const formatMoney = (n: number) => new Intl.NumberFormat("th-TH").format(n);
 
     if (status === "loading" || isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
+        return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
     }
-
-    if (!session) {
-        redirect("/login");
-    }
+    if (!session) { redirect("/login"); }
 
     return (
+        <div className="min-h-screen bg-background pb-28">
+            {/* Header bar */}
+            <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border px-5 pt-6 pb-3 flex items-center justify-between">
+                <Button variant="ghost" size="icon" className="-ml-2" asChild>
+                    <a href="/"><ChevronLeft className="w-6 h-6" /></a>
+                </Button>
+                <h1 className="text-base font-black text-foreground">โปรไฟล์ส่วนตัว</h1>
+                <div className="w-9" />
+            </div>
 
-        <div className="min-h-screen bg-[#1a1412] p-4 pb-24">
-            <div className="max-w-lg mx-auto space-y-6">
-                {/* Header Profile */}
-                <div className="text-center pt-8 pb-4">
-                    <div className="relative inline-block">
-                        <div className="relative w-28 h-28 mx-auto rounded-full p-[3px] bg-gradient-to-br from-[#F09410] to-[#BC430D] shadow-xl shadow-orange-900/20">
-                            <div className="w-full h-full rounded-full bg-[#2a2420] flex items-center justify-center text-4xl font-bold text-[#F09410] ring-4 ring-[#1a1412]">
-                                {profile?.nickName?.charAt(0) || profile?.name?.charAt(0) || "?"}
+            <div className="px-4 max-w-lg mx-auto pt-4 space-y-4">
+                {/* ── Profile summary card ── */}
+                <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
+                                <User className="w-9 h-9 text-primary opacity-60" />
+                            </div>
+                            <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background">
+                                <Edit2 className="w-3 h-3 text-primary-foreground" />
                             </div>
                         </div>
-                        <div className="absolute bottom-1 right-1 p-2 bg-[#2a2420] rounded-full ring-4 ring-[#1a1412]">
-                            <Edit2 className="w-4 h-4 text-[#F09410]" />
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-xl font-black text-foreground">{profile?.name || "-"}</h2>
+                            <p className="text-sm text-muted-foreground">{profile?.employeeId || "-"}</p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                <span className="text-[11px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-md">
+                                    {roleLabels[profile?.role || ""] || profile?.role || "-"}
+                                </span>
+                                {profile?.station && (
+                                    <span className="text-[11px] font-bold px-2 py-0.5 bg-muted text-muted-foreground rounded-md">
+                                        {profile.station.name}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
-
-                    <div className="mt-4 space-y-1">
-                        <h1 className="text-2xl font-bold text-[#F0D0C7]">
-                            {profile?.nickName ? `${profile.nickName}` : profile?.name}
-                        </h1>
-                        <p className="text-stone-400 font-medium">{profile?.name}</p>
-                        <div className="flex items-center justify-center gap-2 mt-3">
-                            <Badge variant="outline" className="bg-[#2a2420] text-[#F0D0C7] border-orange-900/30">{profile?.employeeId}</Badge>
-                            <Badge className="bg-gradient-to-r from-[#F09410] to-[#BC430D] text-white border-0 shadow-lg shadow-orange-900/20">
-                                {profile?.role ? t(`role.${profile.role.toLowerCase()}`) : "-"}
-                            </Badge>
-                        </div>
+                    {/* 3-col stats */}
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                        {[
+                            { label: "ตำแหน่ง", value: roleLabels[profile?.role || ""] || "-" },
+                            { label: "แผนก",    value: profile?.department?.name || "-" },
+                            { label: "อายุงาน", value: profile?.startDate ? `${Math.floor((Date.now() - new Date(profile.startDate).getTime()) / (1000*60*60*24*30))} เดือน` : "-" },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="bg-muted/60 rounded-2xl p-3 text-center">
+                                <p className="text-xs font-black text-foreground leading-tight line-clamp-2">{value}</p>
+                                <p className="text-[9px] font-bold text-primary mt-1 uppercase tracking-wide">{label}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* Tabs */}
+                {/* ── Tabs ── */}
                 <Tabs defaultValue="personal" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5 p-1 bg-[#2a2420] border border-orange-900/20 rounded-xl">
-                        <TabsTrigger value="personal" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.personal")}</TabsTrigger>
-                        <TabsTrigger value="contact" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.contact")}</TabsTrigger>
-                        <TabsTrigger value="financial" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.financial")}</TabsTrigger>
-                        <TabsTrigger value="social" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.insurance")}</TabsTrigger>
-                        <TabsTrigger value="security" className="text-xs px-1 data-[state=active]:bg-[#F09410] data-[state=active]:text-white text-stone-400">{t("profile.tabs.security")}</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-4 p-1 bg-muted rounded-2xl">
+                        <TabsTrigger value="personal"  className="text-[10px] rounded-xl font-bold">ข้อมูล</TabsTrigger>
+                        <TabsTrigger value="contact"   className="text-[10px] rounded-xl font-bold">ติดต่อ</TabsTrigger>
+                        <TabsTrigger value="financial" className="text-[10px] rounded-xl font-bold">การเงิน</TabsTrigger>
+                        <TabsTrigger value="security"  className="text-[10px] rounded-xl font-bold">ความปลอดภัย</TabsTrigger>
                     </TabsList>
 
-                    {/* Personal Info */}
-                    <TabsContent value="personal" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
-                                    <User className="w-5 h-5 text-[#F09410]" />
-                                    {t("profile.generalInfo")}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <EditableField
-                                    label={t("profile.nickname")}
-                                    value={profile?.nickName}
-                                    fieldName="nickName"
-                                    icon={User}
-                                    pendingRequest={getPendingRequest("nickName")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                    <div className="flex items-center gap-3">
-                                        <Building2 className="w-5 h-5 text-stone-500" />
-                                        <div>
-                                            <p className="text-xs text-stone-500">{t("profile.station")}</p>
-                                            <p className="font-medium text-[#F0D0C7]">{profile?.station?.name || "-"}</p>
-                                        </div>
-                                    </div>
+                    {/* Personal */}
+                    <TabsContent value="personal" className="space-y-3 mt-4">
+                        <EditableField label={t("profile.nickname")} value={profile?.nickName} fieldName="nickName" icon={User} pendingRequest={getPendingRequest("nickName")} onRequestEdit={handleRequestEdit} />
+                        {([
+                            { label: t("profile.station"),    value: profile?.station?.name,    icon: Building2 },
+                            { label: t("profile.department"), value: profile?.department?.name,  icon: Briefcase  },
+                            { label: t("profile.citizenId"),  value: profile?.citizenId,          icon: FileText   },
+                            { label: t("profile.birthDate"),  value: profile?.birthDate  ? formatThaiDate(new Date(profile.birthDate),  "d MMMM yyyy") : null, icon: Calendar },
+                            { label: t("profile.startDate"),  value: profile?.startDate  ? formatThaiDate(new Date(profile.startDate),  "d MMMM yyyy") : null, icon: Clock    },
+                        ] as const).map(({ label, value, icon: Icon }) => (
+                            <div key={label} className="p-4 rounded-2xl border border-border bg-card shadow-sm flex items-center gap-4">
+                                <div className="p-2.5 rounded-xl bg-muted shrink-0"><Icon className="w-4 h-4 text-foreground" /></div>
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{label}</p>
+                                    <p className="text-sm font-bold text-foreground mt-0.5">{value || "-"}</p>
                                 </div>
-                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                    <div className="flex items-center gap-3">
-                                        <Briefcase className="w-5 h-5 text-stone-500" />
-                                        <div>
-                                            <p className="text-xs text-stone-500">{t("profile.department")}</p>
-                                            <p className="font-medium text-[#F0D0C7]">{profile?.department?.name || "-"}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                    <div className="flex items-center gap-3">
-                                        <FileText className="w-5 h-5 text-stone-500" />
-                                        <div>
-                                            <p className="text-xs text-stone-500">{t("profile.citizenId")}</p>
-                                            <p className="font-medium text-[#F0D0C7]">{profile?.citizenId || "-"}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                    <div className="flex items-center gap-3">
-                                        <Calendar className="w-5 h-5 text-stone-500" />
-                                        <div>
-                                            <p className="text-xs text-stone-500">{t("profile.birthDate")}</p>
-                                            <p className="font-medium text-[#F0D0C7]">
-                                                {profile?.birthDate ? formatThaiDate(new Date(profile.birthDate), "d MMMM yyyy") : "-"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                    <div className="flex items-center gap-3">
-                                        <Clock className="w-5 h-5 text-stone-500" />
-                                        <div>
-                                            <p className="text-xs text-stone-500">{t("profile.startDate")}</p>
-                                            <p className="font-medium text-[#F0D0C7]">
-                                                {profile?.startDate ? formatThaiDate(new Date(profile.startDate), "d MMMM yyyy") : "-"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        ))}
                     </TabsContent>
 
-                    {/* Contact Info */}
-                    <TabsContent value="contact" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
-                                    <Contact className="w-5 h-5 text-[#F09410]" />
-                                    {t("profile.contact")}
-                                </CardTitle>
-                                <CardDescription className="text-stone-500">{t("profile.editByRequest")}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <EditableField
-                                    label={t("profile.phone")}
-                                    value={profile?.phone}
-                                    fieldName="phone"
-                                    icon={Phone}
-                                    pendingRequest={getPendingRequest("phone")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                                <EditableField
-                                    label={t("profile.email")}
-                                    value={profile?.email}
-                                    fieldName="email"
-                                    icon={Mail}
-                                    pendingRequest={getPendingRequest("email")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                                <EditableField
-                                    label={t("profile.address")}
-                                    value={profile?.address}
-                                    fieldName="address"
-                                    icon={MapPin}
-                                    pendingRequest={getPendingRequest("address")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                            </CardContent>
-                        </Card>
+                    {/* Contact */}
+                    <TabsContent value="contact" className="space-y-3 mt-4">
+                        <EditableField label={t("profile.phone")}   value={profile?.phone}   fieldName="phone"   icon={Phone}  pendingRequest={getPendingRequest("phone")}   onRequestEdit={handleRequestEdit} />
+                        <EditableField label={t("profile.email")}   value={profile?.email}   fieldName="email"   icon={Mail}   pendingRequest={getPendingRequest("email")}   onRequestEdit={handleRequestEdit} />
+                        <EditableField label={t("profile.address")} value={profile?.address} fieldName="address" icon={MapPin} pendingRequest={getPendingRequest("address")} onRequestEdit={handleRequestEdit} />
+                        <p className="text-xs font-black text-muted-foreground uppercase tracking-wider pt-2 ml-1">ผู้ติดต่อฉุกเฉิน</p>
+                        <EditableField label={t("profile.emergencyName")}     value={profile?.emergencyContactName}     fieldName="emergencyContactName"     icon={User}    pendingRequest={getPendingRequest("emergencyContactName")}     onRequestEdit={handleRequestEdit} />
+                        <EditableField label={t("profile.emergencyRelation")} value={profile?.emergencyContactRelation} fieldName="emergencyContactRelation" icon={Contact} pendingRequest={getPendingRequest("emergencyContactRelation")} onRequestEdit={handleRequestEdit} />
+                        <EditableField label={t("profile.emergencyPhone")}    value={profile?.emergencyContactPhone}    fieldName="emergencyContactPhone"    icon={Phone}   pendingRequest={getPendingRequest("emergencyContactPhone")}    onRequestEdit={handleRequestEdit} />
                     </TabsContent>
 
-                    {/* Financial Info */}
-                    <TabsContent value="financial" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-orange-900/20 bg-[#2a2420] shadow-xl shadow-black/10">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2 text-[#F0D0C7]">
-                                    <DollarSign className="w-5 h-5 text-[#F09410]" />
-                                    {t("profile.financial")}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {profile?.dailyRate && Number(profile.dailyRate) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/30 border border-emerald-900/30">
-                                        <span className="text-emerald-400/80 text-sm">{t("profile.dailyWage")}</span>
-                                        <span className="font-bold text-emerald-400">฿{formatMoney(Number(profile.dailyRate))}</span>
-                                    </div>
-                                )}
-                                {profile?.baseSalary && Number(profile.baseSalary) > 0 && (
-                                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-950/30 border border-blue-900/30">
-                                        <span className="text-blue-400/80 text-sm">{t("profile.salary")}</span>
-                                        <span className="font-bold text-blue-400">฿{formatMoney(Number(profile.baseSalary))}</span>
-                                    </div>
-                                )}
-
-                                <div className="mt-4 pt-4 border-t border-orange-900/20">
-                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
-                                        <Wallet className="w-4 h-4 text-[#F09410]" /> {t("profile.bankAccount")}
-                                    </h3>
-                                    <div className="space-y-3">
-                                        <EditableField
-                                            label={t("profile.bankName")}
-                                            value={profile?.bankName}
-                                            fieldName="bankName"
-                                            icon={Building2}
-                                            pendingRequest={getPendingRequest("bankName")}
-                                            onRequestEdit={handleRequestEdit}
-                                        />
-                                        <EditableField
-                                            label={t("profile.accountNumber")}
-                                            value={profile?.bankAccountNumber}
-                                            fieldName="bankAccountNumber"
-                                            icon={CreditCard}
-                                            pendingRequest={getPendingRequest("bankAccountNumber")}
-                                            onRequestEdit={handleRequestEdit}
-                                        />
-                                    </div>
+                    {/* Financial */}
+                    <TabsContent value="financial" className="space-y-3 mt-4">
+                        {profile?.dailyRate && Number(profile.dailyRate) > 0 && (
+                            <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-emerald-500/20 rounded-xl"><DollarSign className="w-4 h-4 text-emerald-500" /></div>
+                                    <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">{t("profile.dailyWage")}</span>
                                 </div>
-
-                                <div className="mt-4 pt-4 border-t border-orange-900/20">
-                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#F0D0C7]">
-                                        <FileText className="w-4 h-4 text-[#F09410]" /> {t("profile.payHistory")}
-                                    </h3>
-                                    {payslips.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {payslips.map((slip) => (
-                                                <div key={slip.id} className="flex items-center justify-between p-3 rounded-lg border border-orange-900/10 bg-[#1a1412]">
-                                                    <div>
-                                                        <p className="font-medium text-[#F0D0C7]">{slip.period?.name || "ไม่ระบุรอบ"}</p>
-                                                        <p className="text-xs text-stone-500">
-                                                            สุทธิ: <span className="text-emerald-400 font-bold">฿{formatMoney(Number(slip.netPay))}</span>
-                                                        </p>
-                                                    </div>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        disabled
-                                                        className="h-8 text-xs text-stone-500 border-stone-800 bg-stone-900/50"
-                                                    >
-                                                        <FileText className="w-3 h-3 mr-1" />
-                                                        PDF เร็วๆ นี้
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-6 text-stone-500 text-sm border-2 border-dashed border-orange-900/20 rounded-lg bg-[#1a1412]">
-                                            {t("profile.noPayHistory")}
-                                        </div>
-                                    )}
+                                <span className="font-black text-xl text-emerald-600 dark:text-emerald-400">฿{formatMoney(Number(profile.dailyRate))}</span>
+                            </div>
+                        )}
+                        {profile?.baseSalary && Number(profile.baseSalary) > 0 && (
+                            <div className="flex items-center justify-between p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500/20 rounded-xl"><DollarSign className="w-4 h-4 text-blue-500" /></div>
+                                    <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{t("profile.salary")}</span>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* Social Security & Emergency */}
-                    <TabsContent value="social" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
-                        <Card className="border-none shadow-md">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Shield className="w-5 h-5 text-indigo-600" />
-                                    {t("profile.emergency")}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <EditableField
-                                    label={t("profile.emergencyName")}
-                                    value={profile?.emergencyContactName}
-                                    fieldName="emergencyContactName"
-                                    icon={User}
-                                    pendingRequest={getPendingRequest("emergencyContactName")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                                <EditableField
-                                    label={t("profile.emergencyRelation")}
-                                    value={profile?.emergencyContactRelation}
-                                    fieldName="emergencyContactRelation"
-                                    icon={Contact}
-                                    pendingRequest={getPendingRequest("emergencyContactRelation")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                                <EditableField
-                                    label={t("profile.emergencyPhone")}
-                                    value={profile?.emergencyContactPhone}
-                                    fieldName="emergencyContactPhone"
-                                    icon={Phone}
-                                    pendingRequest={getPendingRequest("emergencyContactPhone")}
-                                    onRequestEdit={handleRequestEdit}
-                                />
-                            </CardContent>
-                        </Card>
+                                <span className="font-black text-xl text-blue-600 dark:text-blue-400">฿{formatMoney(Number(profile.baseSalary))}</span>
+                            </div>
+                        )}
+                        <p className="text-xs font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1 pt-2">
+                            <Wallet className="w-3 h-3" /> {t("profile.bankAccount")}
+                        </p>
+                        <EditableField label={t("profile.bankName")}      value={profile?.bankName}          fieldName="bankName"          icon={Building2} pendingRequest={getPendingRequest("bankName")}          onRequestEdit={handleRequestEdit} />
+                        <EditableField label={t("profile.accountNumber")} value={profile?.bankAccountNumber} fieldName="bankAccountNumber" icon={CreditCard} pendingRequest={getPendingRequest("bankAccountNumber")} onRequestEdit={handleRequestEdit} />
+                        {payslips.length > 0 && (
+                            <>
+                                <p className="text-xs font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1 pt-2">
+                                    <FileText className="w-3 h-3" /> {t("profile.payHistory")}
+                                </p>
+                                {payslips.map((slip) => (
+                                    <div key={slip.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                        <div>
+                                            <p className="font-bold text-foreground text-sm">{slip.period?.name || "ไม่ระบุรอบ"}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">สุทธิ: <span className="text-emerald-500 font-black">฿{formatMoney(Number(slip.netPay))}</span></p>
+                                        </div>
+                                        <FileText className="w-4 h-4 text-muted-foreground" />
+                                    </div>
+                                ))}
+                            </>
+                        )}
                     </TabsContent>
 
                     {/* Security */}
-                    <TabsContent value="security" className="space-y-4 mt-4 animate-in fade-in-50 slide-in-from-bottom-2">
+                    <TabsContent value="security" className="space-y-4 mt-4">
                         {/* Change Password */}
-                        <Card className="border-none shadow-md">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Lock className="w-5 h-5 text-indigo-600" />
-                                    {t("profile.password")}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {!showPasswordSection ? (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowPasswordSection(true)}
-                                        className="w-full justify-between"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <Key className="w-4 h-4" />
-                                            {t("profile.changePassword")}
-                                        </span>
-                                        <Edit2 className="w-3 h-3 opacity-50" />
-                                    </Button>
-                                ) : (
-                                    <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
-                                        <div className="space-y-2">
-                                            <Label>{t("profile.currentPassword")}</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    type={showCurrentPassword ? "text" : "password"}
-                                                    value={currentPassword}
-                                                    onChange={(e) => setCurrentPassword(e.target.value)}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                                >
-                                                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>{t("profile.newPassword")}</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    type={showNewPassword ? "text" : "password"}
-                                                    value={newPassword}
-                                                    onChange={(e) => setNewPassword(e.target.value)}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                                                    onClick={() => setShowNewPassword(!showNewPassword)}
-                                                >
-                                                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>{t("profile.confirmPassword")}</Label>
-                                            <Input
-                                                type="password"
-                                                value={confirmPassword}
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setShowPasswordSection(false);
-                                                    setCurrentPassword("");
-                                                    setNewPassword("");
-                                                    setConfirmPassword("");
-                                                }}
-                                                className="flex-1"
-                                            >
-                                                {t("profile.cancel")}
-                                            </Button>
-                                            <Button
-                                                onClick={handleChangePassword}
-                                                disabled={isSaving || !currentPassword || !newPassword}
-                                                className="flex-1"
-                                            >
-                                                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                                {t("profile.save")}
-                                            </Button>
+                        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 bg-primary/10 rounded-xl"><Lock className="w-4 h-4 text-primary" /></div>
+                                <h3 className="text-sm font-black text-foreground">เปลี่ยนรหัสผ่าน</h3>
+                            </div>
+                            {!showPasswordSection ? (
+                                <Button variant="outline" onClick={() => setShowPasswordSection(true)} className="w-full h-11 rounded-xl font-bold justify-between">
+                                    <span className="flex items-center gap-2"><Key className="w-4 h-4" /> {t("profile.changePassword")}</span>
+                                    <Edit2 className="w-3.5 h-3.5 opacity-40" />
+                                </Button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("profile.currentPassword")}</Label>
+                                        <div className="relative">
+                                            <Input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="h-11 rounded-xl pr-10" />
+                                            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                                                {showCurrentPassword ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
+                                            </button>
                                         </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Biometric Auth */}
-                        <Card className="border-none shadow-md">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Fingerprint className="w-5 h-5 text-indigo-600" />
-                                    {t("profile.biometric")}
-                                </CardTitle>
-                                <CardDescription>{t("profile.biometricDesc")}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <PasskeyButton />
-                            </CardContent>
-                        </Card>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("profile.newPassword")}</Label>
+                                        <div className="relative">
+                                            <Input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-11 rounded-xl pr-10" />
+                                            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setShowNewPassword(!showNewPassword)}>
+                                                {showNewPassword ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("profile.confirmPassword")}</Label>
+                                        <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-11 rounded-xl" />
+                                    </div>
+                                    <div className="flex gap-2 pt-1">
+                                        <Button variant="outline" onClick={() => { setShowPasswordSection(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 h-11 rounded-xl font-bold">{t("profile.cancel")}</Button>
+                                        <Button onClick={handleChangePassword} disabled={isSaving || !currentPassword || !newPassword} className="flex-1 h-11 rounded-xl font-bold">
+                                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{t("profile.save")}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Change PIN */}
-                        <Card className="border-none shadow-md">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Key className="w-5 h-5 text-indigo-600" />
-                                    {t("profile.pin")}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {!showPinSection ? (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowPinSection(true)}
-                                        className="w-full justify-between"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <Key className="w-4 h-4" />
-                                            {t("profile.changePin")}
-                                        </span>
-                                        <Edit2 className="w-3 h-3 opacity-50" />
-                                    </Button>
-                                ) : (
-                                    <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-slate-50 rounded-lg border">
-                                        <div className="space-y-2">
-                                            <Label>{t("profile.newPin")}</Label>
-                                            <Input
-                                                type="password"
-                                                inputMode="numeric"
-                                                maxLength={6}
-                                                value={newPin}
-                                                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                                                placeholder="••••"
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>{t("profile.confirmPin")}</Label>
-                                            <Input
-                                                type="password"
-                                                inputMode="numeric"
-                                                maxLength={6}
-                                                value={confirmPin}
-                                                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                                                placeholder="••••"
-                                            />
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setShowPinSection(false);
-                                                    setNewPin("");
-                                                    setConfirmPin("");
-                                                }}
-                                                className="flex-1"
-                                            >
-                                                {t("profile.cancel")}
-                                            </Button>
-                                            <Button
-                                                onClick={handleChangePin}
-                                                disabled={isSaving || !newPin}
-                                                className="flex-1"
-                                            >
-                                                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                                {t("profile.save")}
-                                            </Button>
-                                        </div>
+                        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 bg-primary/10 rounded-xl"><Key className="w-4 h-4 text-primary" /></div>
+                                <h3 className="text-sm font-black text-foreground">เปลี่ยน PIN</h3>
+                            </div>
+                            {!showPinSection ? (
+                                <Button variant="outline" onClick={() => setShowPinSection(true)} className="w-full h-11 rounded-xl font-bold justify-between">
+                                    <span className="flex items-center gap-2"><Key className="w-4 h-4" /> {t("profile.changePin")}</span>
+                                    <Edit2 className="w-3.5 h-3.5 opacity-40" />
+                                </Button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("profile.newPin")}</Label>
+                                        <Input type="password" inputMode="numeric" maxLength={6} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="••••" className="h-11 rounded-xl tracking-[0.5em] text-center font-black text-lg" />
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("profile.confirmPin")}</Label>
+                                        <Input type="password" inputMode="numeric" maxLength={6} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))} placeholder="••••" className="h-11 rounded-xl tracking-[0.5em] text-center font-black text-lg" />
+                                    </div>
+                                    <div className="flex gap-2 pt-1">
+                                        <Button variant="outline" onClick={() => { setShowPinSection(false); setNewPin(""); setConfirmPin(""); }} className="flex-1 h-11 rounded-xl font-bold">{t("profile.cancel")}</Button>
+                                        <Button onClick={handleChangePin} disabled={isSaving || !newPin || !confirmPin} className="flex-1 h-11 rounded-xl font-bold">
+                                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{t("profile.save")}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Biometric */}
+                        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 bg-primary/10 rounded-xl"><Fingerprint className="w-4 h-4 text-primary" /></div>
+                                <div>
+                                    <h3 className="text-sm font-black text-foreground">{t("profile.biometric")}</h3>
+                                    <p className="text-[11px] text-muted-foreground">{t("profile.biometricDesc")}</p>
+                                </div>
+                            </div>
+                            <PasskeyButton />
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
-        </div >
+        </div>
     );
 }
