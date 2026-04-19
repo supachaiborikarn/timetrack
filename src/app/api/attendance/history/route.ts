@@ -18,12 +18,18 @@ export async function GET(request: NextRequest) {
             return ApiErrors.validation("startDate and endDate are required");
         }
 
+        // Dates in DB are stored as Bangkok midnight in UTC (e.g. 2026-04-19 BKK = 2026-04-18T17:00:00Z)
+        // Frontend sends YYYY-MM-DD strings in Bangkok local time
+        // We need to convert to UTC range that covers the Bangkok dates
+        const start = new Date(startDate + "T00:00:00+07:00"); // Start of day in Bangkok
+        const end = new Date(endDate + "T23:59:59+07:00");     // End of day in Bangkok
+
         const records = await prisma.attendance.findMany({
             where: {
                 userId: session.user.id,
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: start,
+                    lte: end,
                 },
             },
             orderBy: {
@@ -38,9 +44,13 @@ export async function GET(request: NextRequest) {
                 checkInTime: r.checkInTime?.toISOString() || null,
                 checkOutTime: r.checkOutTime?.toISOString() || null,
                 status: r.status,
-                lateMinutes: r.lateMinutes,
+                lateMinutes: r.lateMinutes || 0,
                 actualHours: r.actualHours ? Number(r.actualHours) : null,
-                latePenaltyAmount: Number(r.latePenaltyAmount),
+                overtimeHours: r.overtimeHours ? Number(r.overtimeHours) : null,
+                latePenaltyAmount: Number(r.latePenaltyAmount || 0),
+                breakDurationMin: r.breakDurationMin || null,
+                breakPenaltyAmount: Number(r.breakPenaltyAmount || 0),
+                note: r.note || null,
             })),
         });
     } catch (error) {

@@ -48,8 +48,9 @@ export default function HistoryPage() {
 
             const res = await fetch(`/api/attendance/history?startDate=${startDate}&endDate=${endDate}`);
             if (res.ok) {
-                const data = await res.json();
-                setRecords(data.records || []);
+                const json = await res.json();
+                // API wraps response as { success, data: { records } }
+                setRecords(json.data?.records || json.records || []);
             }
         } catch (error) {
             console.error("Failed to fetch history:", error);
