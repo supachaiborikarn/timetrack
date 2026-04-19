@@ -7,7 +7,6 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { AttendanceCalendar } from "@/components/dashboard";
-import { AnnouncementBanner } from "@/components/dashboard/AnnouncementBanner";
 import { RightMenuDrawer } from "@/components/layout/RightMenuDrawer";
 import {
     Dialog,
@@ -31,8 +30,16 @@ import {
     MessageCircle,
     Shuffle,
     Menu,
+    Megaphone,
+    Plus,
+    Pencil,
+    Trash2,
+    Pin,
+    Send,
+    X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface AbsentEmployee {
     id: string;
@@ -63,6 +70,17 @@ interface DashboardStats {
     presentEmployees: any[];
 }
 
+interface AnnouncementItem {
+    id: string;
+    title: string;
+    content: string;
+    isPinned: boolean;
+    isActive: boolean;
+    createdAt: string;
+    readCount: number;
+    author: { name: string; nickName: string | null };
+}
+
 export function AdminHomeView() {
     const { data: session, status } = useSession();
     const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -72,6 +90,15 @@ export function AdminHomeView() {
     const [isPresentDialogOpen, setIsPresentDialogOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
+
+    // Announcement management state
+    const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+    const [isAnnouncementFormOpen, setIsAnnouncementFormOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementItem | null>(null);
+    const [annTitle, setAnnTitle] = useState("");
+    const [annContent, setAnnContent] = useState("");
+    const [annIsPinned, setAnnIsPinned] = useState(false);
+    const [annSubmitting, setAnnSubmitting] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -108,6 +135,88 @@ export function AdminHomeView() {
             console.error("Failed to fetch dashboard data:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchAnnouncements = async () => {
+        try {
+            const res = await fetch("/api/announcements?limit=10");
+            if (res.ok) {
+                const data = await res.json();
+                setAnnouncements(data.announcements || []);
+            }
+        } catch (e) {
+            console.error("Failed to fetch announcements:", e);
+        }
+    };
+
+    useEffect(() => {
+        if (session?.user?.id) fetchAnnouncements();
+    }, [session?.user?.id]);
+
+    const openCreateForm = () => {
+        setEditingAnnouncement(null);
+        setAnnTitle("");
+        setAnnContent("");
+        setAnnIsPinned(false);
+        setIsAnnouncementFormOpen(true);
+    };
+
+    const openEditForm = (ann: AnnouncementItem) => {
+        setEditingAnnouncement(ann);
+        setAnnTitle(ann.title === "ข้อความ" ? "" : ann.title);
+        setAnnContent(ann.content);
+        setAnnIsPinned(ann.isPinned);
+        setIsAnnouncementFormOpen(true);
+    };
+
+    const handleSubmitAnnouncement = async () => {
+        if (!annContent.trim()) {
+            toast.error("กรุณากรอกข้อความ");
+            return;
+        }
+        setAnnSubmitting(true);
+        try {
+            const url = editingAnnouncement
+                ? `/api/announcements/${editingAnnouncement.id}`
+                : "/api/announcements";
+            const method = editingAnnouncement ? "PUT" : "POST";
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: annTitle.trim() || "ข้อความ",
+                    content: annContent.trim(),
+                    isPinned: annIsPinned,
+                }),
+            });
+            if (res.ok) {
+                toast.success(editingAnnouncement ? "แก้ไขประกาศสำเร็จ" : "สร้างประกาศสำเร็จ");
+                setIsAnnouncementFormOpen(false);
+                fetchAnnouncements();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setAnnSubmitting(false);
+        }
+    };
+
+    const handleDeleteAnnouncement = async (id: string) => {
+        if (!confirm("ต้องการลบประกาศนี้หรือไม่?")) return;
+        try {
+            const res = await fetch(`/api/announcements/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                toast.success("ลบประกาศสำเร็จ");
+                fetchAnnouncements();
+            } else {
+                toast.error("ลบไม่สำเร็จ");
+            }
+        } catch {
+            toast.error("เกิดข้อผิดพลาด");
         }
     };
 
@@ -296,8 +405,128 @@ export function AdminHomeView() {
                     />
                 </div>
 
-                {/* Announcements */}
-                <AnnouncementBanner />
+                {/* Announcements Management */}
+                <div className="bg-white dark:bg-zinc-800 rounded-[28px] p-5 shadow-[0_2px_14px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-zinc-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                                <Megaphone className="w-4 h-4 text-white" />
+                            </div>
+                            <h3 className="text-[14px] font-black text-gray-800 dark:text-gray-200">จัดการประกาศ</h3>
+                        </div>
+                        <button
+                            onClick={openCreateForm}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#fbbf24] text-black text-[11px] font-bold active:scale-95 transition-transform"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                            สร้างประกาศ
+                        </button>
+                    </div>
+
+                    {/* Create / Edit Form */}
+                    {isAnnouncementFormOpen && (
+                        <div className="mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                                    {editingAnnouncement ? "✏️ แก้ไขประกาศ" : "📢 สร้างประกาศใหม่"}
+                                </p>
+                                <button onClick={() => setIsAnnouncementFormOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="หัวข้อ (ไม่บังคับ)"
+                                value={annTitle}
+                                onChange={(e) => setAnnTitle(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-white dark:bg-zinc-800 text-sm text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300 mb-2"
+                            />
+                            <textarea
+                                placeholder="พิมพ์ข้อความประกาศ..."
+                                rows={3}
+                                value={annContent}
+                                onChange={(e) => setAnnContent(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-white dark:bg-zinc-800 text-sm text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
+                            />
+                            <div className="flex items-center justify-between mt-3">
+                                <button
+                                    onClick={() => setAnnIsPinned(!annIsPinned)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
+                                        annIsPinned
+                                            ? "bg-amber-500 text-white"
+                                            : "bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-gray-400"
+                                    }`}
+                                >
+                                    <Pin className="w-3 h-3" />
+                                    {annIsPinned ? "ปักหมุดอยู่" : "ปักหมุด"}
+                                </button>
+                                <button
+                                    onClick={handleSubmitAnnouncement}
+                                    disabled={annSubmitting || !annContent.trim()}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#fbbf24] text-black text-[12px] font-bold active:scale-95 transition-transform disabled:opacity-50"
+                                >
+                                    {annSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                    {editingAnnouncement ? "บันทึก" : "ส่งประกาศ"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Announcements List */}
+                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto">
+                        {announcements.length === 0 ? (
+                            <p className="text-center text-gray-400 text-xs py-6">ยังไม่มีประกาศ</p>
+                        ) : (
+                            announcements.map((ann) => (
+                                <div
+                                    key={ann.id}
+                                    className="p-3 rounded-2xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 hover:bg-gray-100 dark:hover:bg-zinc-700/50 transition-colors"
+                                >
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                {ann.isPinned && (
+                                                    <span className="text-[9px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">📌 ปักหมุด</span>
+                                                )}
+                                                {ann.title !== "ข้อความ" && (
+                                                    <span className="text-[12px] font-bold text-gray-800 dark:text-gray-200 truncate">{ann.title}</span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 whitespace-pre-wrap leading-relaxed">{ann.content}</p>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <span className="text-[9px] text-gray-400">
+                                                    {format(new Date(ann.createdAt), "d MMM HH:mm", { locale: th })}
+                                                </span>
+                                                <span className="text-[9px] text-gray-400">
+                                                    โดย {ann.author.nickName || ann.author.name}
+                                                </span>
+                                                <span className="text-[9px] text-gray-400">
+                                                    👁 {ann.readCount}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                                onClick={() => openEditForm(ann)}
+                                                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-600 transition-colors"
+                                                title="แก้ไข"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteAnnouncement(ann.id)}
+                                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
+                                                title="ลบ"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
 
                 {/* Calendar */}
                 <div className="mt-4">
