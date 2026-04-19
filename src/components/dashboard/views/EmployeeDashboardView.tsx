@@ -584,6 +584,9 @@ export function EmployeeDashboardView() {
         onCheckOut={onCheckOutClick}
         onStartBreak={handleStartBreak}
         hasShift={!!todayData?.shift}
+        shiftTime={todayData?.shift ? `${todayData.shift.startTime} - ${todayData.shift.endTime}` : undefined}
+        checkInTime={todayData?.attendance?.checkInTime}
+        checkOutTime={todayData?.attendance?.checkOutTime}
       />
     </div>
   );

@@ -16,6 +16,8 @@ interface ClockInModalProps {
   onStartBreak: () => void;
   hasShift: boolean;
   shiftTime?: string;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
 }
 
 export function ClockInModal({
@@ -29,6 +31,8 @@ export function ClockInModal({
   onStartBreak,
   hasShift,
   shiftTime,
+  checkInTime,
+  checkOutTime,
 }: ClockInModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -69,7 +73,7 @@ export function ClockInModal({
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-black dark:text-white text-[15px] leading-tight">
-              {hasCheckedIn ? `เข้างาน — ${format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาเข้างาน"}
+              {hasCheckedIn ? `เข้างาน — ${checkInTime ? format(new Date(checkInTime), "HH:mm น.", { locale: th }) : format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาเข้างาน"}
             </h3>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
               เวลากะทำงาน -  {hasCheckedIn ? "✔ เรียบร้อย" : `- ${shiftLabel}`}
@@ -136,7 +140,7 @@ export function ClockInModal({
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-black dark:text-white text-[15px] leading-tight">
-              {hasCheckedOut ? `ออกงาน — ${format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาออกงาน"}
+              {hasCheckedOut ? `ออกงาน — ${checkOutTime ? format(new Date(checkOutTime), "HH:mm น.", { locale: th }) : format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาออกงาน"}
             </h3>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
               เวลากะทำงาน -  {hasCheckedOut ? "✔ เรียบร้อย" : `- ${shiftLabel}`}
