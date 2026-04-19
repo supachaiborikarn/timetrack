@@ -318,51 +318,71 @@ export async function GET(request: NextRequest) {
             station: a.user?.station?.name || "Unknown"
         }));
 
-        // Get recent pending requests (limited)
-        const recentRequests = await prisma.shiftSwap.findMany({
-            where: {
-                status: "PENDING",
-            },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            include: {
-                requester: { select: { name: true, employeeId: true } },
-                target: { select: { name: true, employeeId: true } },
-            },
-        });
-
-        const recentLeaves = await prisma.leave.findMany({
-            where: {
-                status: "PENDING",
-                user: stationFilter.stationId
-                    ? { stationId: stationFilter.stationId }
-                    : undefined,
-            },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            include: {
-                user: { select: { name: true, employeeId: true } },
-            },
-        });
-
-        const recentTimeCorrections = await prisma.timeCorrection.findMany({
-            where: {
-                status: "PENDING",
-                user: stationFilter.stationId
-                    ? { stationId: stationFilter.stationId }
-                    : undefined,
-            },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            include: {
-                user: { select: { name: true, employeeId: true } },
-            },
-        });
-
         // Calculate attendance percentage
         const attendanceRate = todayAssignmentsCount > 0
             ? Math.round((todayAttendance / todayAssignmentsCount) * 100)
             : 0;
+
+        // Monthly attendance date range
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        monthStart.setHours(monthStart.getHours() - 7); // Adjust for Bangkok TZ
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        monthEnd.setHours(monthEnd.getHours() - 7);
+
+        // ============================================================
+        // PARALLEL: Run all remaining queries simultaneously
+        // ============================================================
+        const [recentRequests, recentLeaves, recentTimeCorrections, monthlyRecords] = await Promise.all([
+            prisma.shiftSwap.findMany({
+                where: { status: "PENDING" },
+                orderBy: { createdAt: "desc" },
+                take: 5,
+                include: {
+                    requester: { select: { name: true, employeeId: true } },
+                    target: { select: { name: true, employeeId: true } },
+                },
+            }),
+            prisma.leave.findMany({
+                where: {
+                    status: "PENDING",
+                    user: stationFilter.stationId
+                        ? { stationId: stationFilter.stationId }
+                        : undefined,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 5,
+                include: {
+                    user: { select: { name: true, employeeId: true } },
+                },
+            }),
+            prisma.timeCorrection.findMany({
+                where: {
+                    status: "PENDING",
+                    user: stationFilter.stationId
+                        ? { stationId: stationFilter.stationId }
+                        : undefined,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 5,
+                include: {
+                    user: { select: { name: true, employeeId: true } },
+                },
+            }),
+            prisma.attendance.findMany({
+                where: {
+                    date: { gte: monthStart, lte: monthEnd },
+                    user: stationFilter.stationId
+                        ? { stationId: stationFilter.stationId }
+                        : { isActive: true, role: "EMPLOYEE" },
+                },
+                select: {
+                    date: true,
+                    status: true,
+                    lateMinutes: true,
+                    checkInTime: true,
+                },
+            }),
+        ]);
 
         // Combine all requests into a unified format for dashboard display
         const allRequests: Array<{
@@ -373,7 +393,6 @@ export async function GET(request: NextRequest) {
             createdAt: string;
         }> = [];
 
-        // Add shift swaps
         recentRequests.forEach((swap: any) => {
             allRequests.push({
                 id: swap.id,
@@ -384,7 +403,6 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        // Add leaves
         recentLeaves.forEach((leave: any) => {
             allRequests.push({
                 id: leave.id,
@@ -395,7 +413,6 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        // Add time corrections
         recentTimeCorrections.forEach((tc: any) => {
             allRequests.push({
                 id: tc.id,
@@ -406,35 +423,12 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        // Sort by createdAt descending and take top 5
         allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         const topRequests = allRequests.slice(0, 5);
 
-        // Monthly attendance summary for calendar widget
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        monthStart.setHours(monthStart.getHours() - 7); // Adjust for Bangkok TZ
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        monthEnd.setHours(monthEnd.getHours() - 7);
-
-        const monthlyRecords = await prisma.attendance.findMany({
-            where: {
-                date: { gte: monthStart, lte: monthEnd },
-                user: stationFilter.stationId
-                    ? { stationId: stationFilter.stationId }
-                    : { isActive: true, role: "EMPLOYEE" },
-            },
-            select: {
-                date: true,
-                status: true,
-                lateMinutes: true,
-                checkInTime: true,
-            },
-        });
-
-        // Aggregate by day
+        // Aggregate monthly records by day
         const dailyMap = new Map<string, { onTime: number; late: number; absent: number }>();
         monthlyRecords.forEach((rec) => {
-            // Convert date to Bangkok date string
             const d = new Date(rec.date.getTime() + 7 * 60 * 60 * 1000);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
             if (!dailyMap.has(key)) {
@@ -454,7 +448,7 @@ export async function GET(request: NextRequest) {
             .map(([date, counts]) => ({ date, ...counts }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             stats: {
                 totalEmployees,
                 todayAttendance,
@@ -465,8 +459,8 @@ export async function GET(request: NextRequest) {
                 pendingTimeCorrections,
                 pendingLeaves: pendingLeavesCount,
                 openShifts,
-                absentEmployees, // Add filtered list here
-                presentEmployees, // Add present list here
+                absentEmployees,
+                presentEmployees,
             },
             recent: {
                 requests: topRequests,
@@ -476,6 +470,10 @@ export async function GET(request: NextRequest) {
             },
             monthlyAttendance,
         });
+
+        // Cache for 30s, serve stale for 60s while revalidating
+        response.headers.set("Cache-Control", "private, s-maxage=30, stale-while-revalidate=60");
+        return response;
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

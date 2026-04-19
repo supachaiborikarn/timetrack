@@ -24,18 +24,29 @@ export async function GET(request: NextRequest) {
         const start = new Date(startDate + "T00:00:00+07:00"); // Start of day in Bangkok
         const end = new Date(endDate + "T23:59:59+07:00");     // End of day in Bangkok
 
-        const records = await prisma.attendance.findMany({
-            where: {
-                userId: session.user.id,
-                date: {
-                    gte: start,
-                    lte: end,
+        // Fetch records + user department info in parallel
+        const [records, userInfo] = await Promise.all([
+            prisma.attendance.findMany({
+                where: {
+                    userId: session.user.id,
+                    date: {
+                        gte: start,
+                        lte: end,
+                    },
                 },
-            },
-            orderBy: {
-                date: "desc",
-            },
-        });
+                orderBy: {
+                    date: "desc",
+                },
+            }),
+            prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: {
+                    department: {
+                        select: { isFrontYard: true },
+                    },
+                },
+            }),
+        ]);
 
         return successResponse({
             records: records.map((r) => ({
@@ -52,6 +63,7 @@ export async function GET(request: NextRequest) {
                 breakPenaltyAmount: Number(r.breakPenaltyAmount || 0),
                 note: r.note || null,
             })),
+            isFrontYard: userInfo?.department?.isFrontYard || false,
         });
     } catch (error) {
         console.error("Error fetching attendance history:", error);

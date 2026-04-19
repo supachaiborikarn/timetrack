@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
     Calendar,
     Menu
 } from "lucide-react";
-import { formatThaiDate, formatTime, startOfMonth, endOfMonth, subMonths, addMonths } from "@/lib/date-utils";
+import { formatThaiDate, formatTime, startOfMonth, endOfMonth, subMonths, addMonths, setDate, startOfDay, endOfDay, format } from "@/lib/date-utils";
 import { CurvedHeader } from "@/components/layout/CurvedHeader";
 
 interface AttendanceRecord {
@@ -28,36 +28,93 @@ interface AttendanceRecord {
     latePenaltyAmount: number;
 }
 
+/**
+ * Calculate payroll period dates for a given month.
+ * - Frontyard: 26th prev month → 25th current month
+ * - Other: 1st → end of month
+ */
+function getHistoryPeriod(referenceMonth: Date, isFrontYard: boolean) {
+    if (isFrontYard) {
+        const prevMonth = subMonths(referenceMonth, 1);
+        const startDate = startOfDay(setDate(prevMonth, 26));
+        const endDate = endOfDay(setDate(referenceMonth, 25));
+        return { startDate, endDate };
+    } else {
+        return {
+            startDate: startOfMonth(referenceMonth),
+            endDate: endOfMonth(referenceMonth),
+        };
+    }
+}
+
+/**
+ * Format period label for display.
+ * - Frontyard: "26 มี.ค. - 25 เม.ย. 2569"
+ * - Other: "เมษายน 2569"
+ */
+function getPeriodLabel(referenceMonth: Date, isFrontYard: boolean): string {
+    if (isFrontYard) {
+        const { startDate, endDate } = getHistoryPeriod(referenceMonth, true);
+        return `${formatThaiDate(startDate, "d MMM")} - ${formatThaiDate(endDate, "d MMM yyyy")}`;
+    }
+    return formatThaiDate(referenceMonth, "MMMM yyyy");
+}
+
 export default function HistoryPage() {
     const { data: session, status } = useSession();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isFrontYard, setIsFrontYard] = useState<boolean | null>(null);
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchHistory();
-        }
-    }, [session?.user?.id, currentMonth]);
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async (month: Date, frontyard: boolean | null) => {
         setIsLoading(true);
         try {
-            const startDate = startOfMonth(currentMonth).toISOString().split("T")[0];
-            const endDate = endOfMonth(currentMonth).toISOString().split("T")[0];
+            // Use detected frontyard status, default to normal period on first load
+            const useFrontYard = frontyard ?? false;
+            const { startDate: periodStart, endDate: periodEnd } = getHistoryPeriod(month, useFrontYard);
 
-            const res = await fetch(`/api/attendance/history?startDate=${startDate}&endDate=${endDate}`);
+            const startStr = format(periodStart, "yyyy-MM-dd");
+            const endStr = format(periodEnd, "yyyy-MM-dd");
+
+            const res = await fetch(`/api/attendance/history?startDate=${startStr}&endDate=${endStr}`);
             if (res.ok) {
                 const json = await res.json();
-                // API wraps response as { success, data: { records } }
-                setRecords(json.data?.records || json.records || []);
+                const fetchedRecords = json.data?.records || json.records || [];
+                setRecords(fetchedRecords);
+
+                // On first fetch, detect frontyard and re-fetch if needed
+                const apiFrontYard = json.data?.isFrontYard ?? false;
+                if (frontyard === null && apiFrontYard !== useFrontYard) {
+                    setIsFrontYard(apiFrontYard);
+                    // Re-fetch with correct date range
+                    const corrected = getHistoryPeriod(month, apiFrontYard);
+                    const correctedStart = format(corrected.startDate, "yyyy-MM-dd");
+                    const correctedEnd = format(corrected.endDate, "yyyy-MM-dd");
+                    const res2 = await fetch(`/api/attendance/history?startDate=${correctedStart}&endDate=${correctedEnd}`);
+                    if (res2.ok) {
+                        const json2 = await res2.json();
+                        setRecords(json2.data?.records || json2.records || []);
+                    }
+                } else if (frontyard === null) {
+                    setIsFrontYard(apiFrontYard);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch history:", error);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            fetchHistory(currentMonth, isFrontYard);
+        }
+    }, [session?.user?.id, currentMonth, fetchHistory]);
+
+    // Don't re-fetch when isFrontYard changes from null to a value
+    // because fetchHistory already handles the initial detection
 
     const goToPreviousMonth = () => {
         setCurrentMonth(subMonths(currentMonth, 1));
@@ -101,6 +158,9 @@ export default function HistoryPage() {
         totalPenalty: records.reduce((sum, r) => sum + r.latePenaltyAmount, 0),
     };
 
+    // Period label for the header
+    const periodLabel = getPeriodLabel(currentMonth, isFrontYard ?? false);
+
     return (
         <div className="min-h-screen bg-background pb-24">
             {/* Curved Header */}
@@ -124,8 +184,13 @@ export default function HistoryPage() {
                     <div className="text-center">
                         <p className="font-bold flex items-center gap-2 justify-center drop-shadow-sm">
                             <Calendar className="w-4 h-4" />
-                            {formatThaiDate(currentMonth, "MMMM yyyy")}
+                            {periodLabel}
                         </p>
+                        {isFrontYard && (
+                            <p className="text-[10px] text-primary-foreground/60 font-medium mt-0.5">
+                                รอบเงินเดือนหน้าลาน
+                            </p>
+                        )}
                     </div>
                     <Button variant="ghost" size="icon" onClick={goToNextMonth} className="hover:bg-black/10 rounded-xl text-primary-foreground">
                         <ChevronRight className="w-5 h-5" />
@@ -158,7 +223,7 @@ export default function HistoryPage() {
             ) : records.length === 0 ? (
                 <div className="bg-card rounded-3xl border border-border shadow-sm p-12 text-center mt-4">
                     <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">ไม่มีข้อมูลการลงเวลาในเดือนนี้</p>
+                    <p className="text-muted-foreground font-medium">ไม่มีข้อมูลการลงเวลาในรอบนี้</p>
                 </div>
             ) : (
                 <div className="space-y-4">

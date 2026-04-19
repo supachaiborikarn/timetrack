@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
 
 /**
  * GET /api/employee/dashboard
- * Returns all data needed for the employee dashboard in a single request:
- *  - daysWorked, lateCount, earlyOutCount (this month)
- *  - leaveCount (approved leaves this year)
- *  - permissionCount (approved OTHER leaves this year, used as "permission")
- *  - advanceSummary (total & pending amounts this month)
- *  - announcements (latest 5)
- *  - calendar attendance data for the requested month
+ * Returns all data needed for the employee dashboard in a single request.
+ * OPTIMIZED: All independent queries run in parallel via Promise.all()
  */
 export async function GET(request: NextRequest) {
     try {
@@ -45,36 +41,136 @@ export async function GET(request: NextRequest) {
 
         const isFrontYard = currentUser?.department?.isFrontYard || false;
         
-        const { getPayrollPeriod, startOfDayBangkok } = require("@/lib/date-utils");
         const { startDate: payrollStart, endDate: payrollEnd } = getPayrollPeriod(calDate, isFrontYard);
         const todayBangkok = startOfDayBangkok(now);
+        const periodEndUpToToday = new Date(Math.min(payrollEnd.getTime(), todayBangkok.getTime()));
+        const currentYear = now.getFullYear();
 
-        // 1. Attendance records for this payroll period (daysWorked, lateCount, earlyOutCount)
-        const thisMonthAttendance = await prisma.attendance.findMany({
-            where: {
-                userId,
-                date: { gte: payrollStart, lte: payrollEnd },
-            },
-            select: {
-                date: true,
-                checkInTime: true,
-                checkOutTime: true,
-                status: true,
-                lateMinutes: true,
-                earlyLeaveMinutes: true,
-            },
-        });
+        // ============================================================
+        // PARALLEL BATCH: Run all independent queries simultaneously
+        // ============================================================
+        const [
+            thisMonthAttendance,
+            todayAttendance,
+            expectedDays,
+            approvedLeavesInPeriod,
+            leaves,
+            leaveBalance,
+            advances,
+            announcements,
+            calAttendance,
+        ] = await Promise.all([
+            // 1. Attendance records for this payroll period
+            prisma.attendance.findMany({
+                where: {
+                    userId,
+                    date: { gte: payrollStart, lte: payrollEnd },
+                },
+                select: {
+                    date: true,
+                    checkInTime: true,
+                    checkOutTime: true,
+                    status: true,
+                    lateMinutes: true,
+                    earlyLeaveMinutes: true,
+                },
+            }),
 
-        const daysWorked   = thisMonthAttendance.filter(r => r.checkInTime).length;
-        const lateCount    = thisMonthAttendance.filter(r => (r.lateMinutes || 0) > 0).length;
+            // 2. Today's attendance (break info)
+            prisma.attendance.findFirst({
+                where: { userId, date: todayBangkok },
+                select: { breakStartTime: true, breakEndTime: true, breakDurationMin: true },
+            }),
+
+            // 3. Expected shift days count
+            prisma.shiftAssignment.count({
+                where: {
+                    userId,
+                    isDayOff: false,
+                    date: { gte: payrollStart, lte: periodEndUpToToday },
+                },
+            }),
+
+            // 4. Approved leaves in period
+            prisma.leave.findMany({
+                where: {
+                    userId,
+                    status: "APPROVED",
+                    startDate: { lte: periodEndUpToToday },
+                    endDate: { gte: payrollStart },
+                },
+            }),
+
+            // 5. Leave counts this year
+            prisma.leave.findMany({
+                where: {
+                    userId,
+                    status: "APPROVED",
+                    startDate: { gte: yearStart, lte: yearEnd },
+                },
+                select: { type: true },
+            }),
+
+            // 6. Leave balance
+            prisma.leaveBalance.findUnique({
+                where: { userId_year: { userId, year: currentYear } },
+            }),
+
+            // 7. Advance summary this month
+            prisma.advance.findMany({
+                where: {
+                    userId,
+                    month: calDate.getMonth() + 1,
+                    year: calDate.getFullYear(),
+                },
+                select: { amount: true, status: true },
+            }),
+
+            // 8. Announcements (latest 5, with read tracking)
+            prisma.announcement.findMany({
+                where: { isActive: true },
+                include: {
+                    author: { select: { id: true, name: true, nickName: true } },
+                    _count: { select: { comments: true, reads: true } },
+                    reads: {
+                        where: { userId },
+                        select: { id: true },
+                        take: 1,
+                    },
+                },
+                orderBy: [
+                    { isPinned: "desc" },
+                    { createdAt: "desc" },
+                ],
+                take: 5,
+            }),
+
+            // 9. Calendar attendance data for requested month
+            prisma.attendance.findMany({
+                where: {
+                    userId,
+                    date: { gte: monthStart, lte: monthEnd },
+                },
+                select: {
+                    date: true,
+                    checkInTime: true,
+                    checkOutTime: true,
+                    status: true,
+                    lateMinutes: true,
+                },
+            }),
+        ]);
+
+        // ============================================================
+        // Post-processing (CPU-only, no DB)
+        // ============================================================
+
+        // Attendance stats
+        const daysWorked    = thisMonthAttendance.filter(r => r.checkInTime).length;
+        const lateCount     = thisMonthAttendance.filter(r => (r.lateMinutes || 0) > 0).length;
         const earlyOutCount = thisMonthAttendance.filter(r => (r.earlyLeaveMinutes || 0) > 0).length;
 
-        // 1.5 Break time and Performance System
-        const todayAttendance = await prisma.attendance.findFirst({
-            where: { userId, date: todayBangkok },
-            select: { breakStartTime: true, breakEndTime: true, breakDurationMin: true }
-        });
-
+        // Break time
         let breakMinutesToday = 0;
         if (todayAttendance) {
             if (todayAttendance.breakDurationMin) {
@@ -85,25 +181,7 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        const periodEndUpToToday = new Date(Math.min(payrollEnd.getTime(), todayBangkok.getTime()));
-        
-        const expectedDays = await prisma.shiftAssignment.count({
-            where: {
-                userId,
-                isDayOff: false,
-                date: { gte: payrollStart, lte: periodEndUpToToday }
-            }
-        });
-
-        const approvedLeavesInPeriod = await prisma.leave.findMany({
-            where: {
-                userId,
-                status: "APPROVED",
-                startDate: { lte: periodEndUpToToday },
-                endDate: { gte: payrollStart }
-            }
-        });
-        
+        // Performance score
         let approvedLeaveDays = 0;
         approvedLeavesInPeriod.forEach(l => {
             const lStart = l.startDate < payrollStart ? payrollStart : l.startDate;
@@ -117,27 +195,14 @@ export async function GET(request: NextRequest) {
         const absentDays = Math.max(0, expectedDays - approvedLeaveDays - daysWorked);
         const performanceScore = Math.max(0, 100 - (lateCount * 2) - (earlyOutCount * 2) - (absentDays * 5));
 
-        // 2. Leave counts this year
-        const leaves = await prisma.leave.findMany({
-            where: {
-                userId,
-                status: "APPROVED",
-                startDate: { gte: yearStart, lte: yearEnd },
-            },
-            select: { type: true },
-        });
-
+        // Leave counts
         const leaveCount      = leaves.filter(l => l.type !== "OTHER").length;
         const permissionCount = leaves.filter(l => l.type === "OTHER").length;
 
-        // 3. Leave balance
-        const currentYear = now.getFullYear();
-        let leaveBalance = await prisma.leaveBalance.findUnique({
-            where: { userId_year: { userId, year: currentYear } },
-        });
-
-        if (!leaveBalance) {
-            leaveBalance = await prisma.leaveBalance.create({
+        // Leave balance - create if not exists
+        let finalLeaveBalance = leaveBalance;
+        if (!finalLeaveBalance) {
+            finalLeaveBalance = await prisma.leaveBalance.create({
                 data: {
                     userId,
                     year: currentYear,
@@ -148,41 +213,13 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // 4. Advance summary this month (match payroll period year/month visually)
-        const advances = await prisma.advance.findMany({
-            where: {
-                userId,
-                month: calDate.getMonth() + 1,
-                year: calDate.getFullYear(),
-            },
-            select: { amount: true, status: true },
-        });
-
+        // Advance summary
         const advanceTotalAmount   = advances.reduce((s, a) => s + Number(a.amount), 0);
         const advancePendingAmount = advances
             .filter(a => a.status === "PENDING")
             .reduce((s, a) => s + Number(a.amount), 0);
 
-        // 5. Announcements (latest 5, with read tracking)
-        const announcements = await prisma.announcement.findMany({
-            where: { isActive: true },
-            include: {
-                author: { select: { id: true, name: true, nickName: true } },
-                _count: { select: { comments: true, reads: true } },
-                reads: {
-                    where: { userId },
-                    select: { id: true },
-                    take: 1,
-                },
-            },
-            orderBy: [
-                { isPinned: "desc" },
-                { createdAt: "desc" },
-            ],
-            take: 5,
-        });
-
-        // Filter by department targeting
+        // Announcements - filter by department targeting
         const filteredAnnouncements = announcements
             .filter(a => {
                 if (!a.targetDepartmentIds) return true;
@@ -207,21 +244,7 @@ export async function GET(request: NextRequest) {
                 reads: a.reads,
             }));
 
-        // 6. Calendar attendance data for the requested month
-        const calAttendance = await prisma.attendance.findMany({
-            where: {
-                userId,
-                date: { gte: monthStart, lte: monthEnd },
-            },
-            select: {
-                date: true,
-                checkInTime: true,
-                checkOutTime: true,
-                status: true,
-                lateMinutes: true,
-            },
-        });
-
+        // Calendar days
         const calendarDays = calAttendance.map(r => ({
             date: r.date.toISOString(),
             checkedIn: !!r.checkInTime,
@@ -230,7 +253,7 @@ export async function GET(request: NextRequest) {
             status: r.status,
         }));
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             daysWorked,
             lateCount,
             earlyOutCount,
@@ -239,12 +262,12 @@ export async function GET(request: NextRequest) {
             leaveCount,
             permissionCount,
             leaveBalance: {
-                sickLeave: leaveBalance.sickLeave,
-                usedSick: leaveBalance.usedSick,
-                annualLeave: leaveBalance.annualLeave,
-                usedAnnual: leaveBalance.usedAnnual,
-                personalLeave: leaveBalance.personalLeave,
-                usedPersonal: leaveBalance.usedPersonal,
+                sickLeave: finalLeaveBalance.sickLeave,
+                usedSick: finalLeaveBalance.usedSick,
+                annualLeave: finalLeaveBalance.annualLeave,
+                usedAnnual: finalLeaveBalance.usedAnnual,
+                personalLeave: finalLeaveBalance.personalLeave,
+                usedPersonal: finalLeaveBalance.usedPersonal,
             },
             advanceSummary: {
                 totalAmount: advanceTotalAmount,
@@ -253,6 +276,10 @@ export async function GET(request: NextRequest) {
             announcements: filteredAnnouncements,
             calendarDays,
         });
+
+        // Cache for 30s, serve stale for 60s while revalidating
+        response.headers.set("Cache-Control", "private, s-maxage=30, stale-while-revalidate=60");
+        return response;
     } catch (error) {
         console.error("Employee dashboard error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
