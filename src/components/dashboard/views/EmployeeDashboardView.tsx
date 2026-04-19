@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { toast } from "sonner";
 import { redirect } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -208,24 +207,50 @@ export function EmployeeDashboardView() {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
-  const onCheckOutClick = () => setIsMoodDialogOpen(true);
+  const onCheckOutClick = () => {
+    window.requestAnimationFrame(() => {
+      setIsMoodDialogOpen(true);
+    });
+  };
+
+  const logCheckOutMood = async (mood: string, note: string) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 3000);
+
+    try {
+      const response = await fetch("/api/engagement/happiness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood, note }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        console.error("Failed to save checkout mood:", await response.text());
+      }
+    } catch (error) {
+      console.error("Mood log request failed:", error);
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
 
   const handleMoodSubmit = async (mood: string, note: string) => {
     setIsSubmittingMood(true);
     try {
-      await fetch("/api/engagement/happiness", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, note }),
-      });
-      await handleCheckOut();
-    } catch {
-      toast.error("เกิดข้อผิดพลาด");
-      await handleCheckOut();
+      await logCheckOutMood(mood, note);
+    } catch (error) {
+      console.error("Clock-out after mood submission failed:", error);
     } finally {
       setIsSubmittingMood(false);
       setIsMoodDialogOpen(false);
+      router.push("/qr-scan?action=checkout");
     }
+  };
+
+  const handleSkipMood = () => {
+    setIsMoodDialogOpen(false);
+    router.push("/qr-scan?action=checkout");
   };
 
   if (status === "loading" || isLoading) {
@@ -518,7 +543,7 @@ export function EmployeeDashboardView() {
         isOpen={isMoodDialogOpen}
         onClose={() => setIsMoodDialogOpen(false)}
         onConfirm={handleMoodSubmit}
-        isLoading={isSubmittingMood || isChecking}
+        isLoading={isSubmittingMood}
       />
       <RightMenuDrawer
         isOpen={isMenuOpen}

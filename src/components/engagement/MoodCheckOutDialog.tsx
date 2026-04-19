@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,22 +9,36 @@ interface MoodCheckOutDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (mood: string, note: string) => Promise<void>;
+    onSkip?: () => Promise<void>;
     isLoading?: boolean;
 }
 
-export function MoodCheckOutDialog({ isOpen, onClose, onConfirm, isLoading }: MoodCheckOutDialogProps) {
+export function MoodCheckOutDialog({
+    isOpen,
+    onClose,
+    onConfirm,
+    onSkip,
+    isLoading,
+}: MoodCheckOutDialogProps) {
     const [mood, setMood] = useState<string | null>(null);
     const [note, setNote] = useState("");
 
+    useEffect(() => {
+        if (!isOpen) {
+            setMood(null);
+            setNote("");
+        }
+    }, [isOpen]);
+
     const handleSubmit = () => {
         if (mood) {
-            onConfirm(mood, note);
+            void onConfirm(mood, note);
         }
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md z-[130]">
                 <DialogHeader>
                     <DialogTitle className="text-center text-xl">วันนี้งานเป็นยังไงบ้างครับ?</DialogTitle>
                 </DialogHeader>
@@ -70,6 +84,16 @@ export function MoodCheckOutDialog({ isOpen, onClose, onConfirm, isLoading }: Mo
                     <Button variant="outline" onClick={onClose} disabled={isLoading} className="w-full sm:w-auto">
                         ยกเลิก
                     </Button>
+                    {onSkip ? (
+                        <Button
+                            variant="secondary"
+                            onClick={() => void onSkip()}
+                            disabled={isLoading}
+                            className="w-full sm:w-auto"
+                        >
+                            ข้ามและลงเวลาออก
+                        </Button>
+                    ) : null}
                     <Button
                         onClick={handleSubmit}
                         disabled={!mood || isLoading}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -10,13 +10,16 @@ import { toast } from "sonner";
 import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
 import { formatTime } from "@/lib/date-utils";
 import { Html5Qrcode } from "html5-qrcode";
+import { Suspense } from "react";
 
-export default function QRScanPage() {
+function QRScanPageInner() {
     const { data: session, status } = useSession();
+    const searchParams = useSearchParams();
+    const actionFromUrl = searchParams.get("action"); // "checkout" | null
     const [isScanning, setIsScanning] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanResult, setScanResult] = useState<string | null>(null);
-    const [scanAction, setScanAction] = useState<"checkin" | "break_end" | "transfer">("checkin");
+    const [scanAction, setScanAction] = useState<"checkin" | "checkout" | "break_end" | "transfer">("checkin");
     const [scanDetail, setScanDetail] = useState("");
     const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -65,11 +68,43 @@ export default function QRScanPage() {
             const attendance = todayData?.data?.attendance;
             const isOnBreak = attendance?.breakStartTime && !attendance?.breakEndTime;
             const isCheckedIn = !!attendance?.checkInTime;
+            const hasCheckedOut = !!attendance?.checkOutTime;
 
-            console.log("[QR-SCAN] isOnBreak:", isOnBreak, "isCheckedIn:", isCheckedIn);
+            console.log("[QR-SCAN] isOnBreak:", isOnBreak, "isCheckedIn:", isCheckedIn, "actionFromUrl:", actionFromUrl);
             console.log("[QR-SCAN] breakStartTime:", attendance?.breakStartTime, "breakEndTime:", attendance?.breakEndTime);
 
-            if (isOnBreak) {
+            // ── CHECKOUT FLOW (from ?action=checkout) ──
+            if (actionFromUrl === "checkout" && isCheckedIn && !hasCheckedOut) {
+                const res = await fetch("/api/attendance/check-out", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        deviceId,
+                        method: "QR",
+                        qrCode: decodedText,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    setScanAction("checkout");
+                    setScanDetail(`ทำงาน ${data.data?.totalHours?.toFixed(1) ?? '-'} ชม.`);
+                    setScanResult(decodedText);
+                    toast.success("เช็คเอาต์สำเร็จ!", {
+                        description: `ทำงาน ${data.data?.totalHours?.toFixed(1) ?? '-'} ชั่วโมง`,
+                    });
+                } else {
+                    toast.error("เช็คเอาต์ไม่สำเร็จ", {
+                        description: data.error || "กรุณาลองใหม่",
+                    });
+                    setError(data.error || "เช็คเอาต์ไม่สำเร็จ");
+                }
+            }
+            // ── BREAK END FLOW ──
+            else if (isOnBreak) {
                 // Employee is on break - call break-end API
                 const res = await fetch("/api/attendance/break-end", {
                     method: "POST",
@@ -103,7 +138,9 @@ export default function QRScanPage() {
                         description: data.error || "กรุณาลองใหม่",
                     });
                 }
-            } else if (!isCheckedIn) {
+            }
+            // ── CHECK-IN FLOW ──
+            else if (!isCheckedIn) {
                 // Normal check-in flow (Only if NOT checked in)
                 const res = await fetch("/api/attendance/check-in", {
                     method: "POST",
@@ -145,7 +182,9 @@ export default function QRScanPage() {
                         setError(data.error || "เช็คอินไม่สำเร็จ");
                     }
                 }
-            } else {
+            }
+            // ── STATION TRANSFER FLOW ──
+            else {
                 // Checked in, NOT on break → attempt station transfer
                 const res = await fetch("/api/attendance/station-transfer", {
                     method: "POST",
@@ -267,7 +306,9 @@ export default function QRScanPage() {
                 </Button>
                 <div>
                     <h1 className="text-xl font-bold text-white">สแกน QR Code</h1>
-                    <p className="text-sm text-slate-400">เช็คอินด้วยการสแกน QR</p>
+                    <p className="text-sm text-slate-400">
+                        {actionFromUrl === "checkout" ? "เช็คเอาต์ด้วยการสแกน QR" : "เช็คอินด้วยการสแกน QR"}
+                    </p>
                 </div>
             </div>
 
@@ -278,29 +319,35 @@ export default function QRScanPage() {
                             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ${
                                 scanAction === "transfer"
                                     ? "bg-purple-500/20 ring-purple-500/10"
+                                    : scanAction === "checkout"
+                                    ? "bg-red-500/20 ring-red-500/10"
                                     : scanAction === "break_end"
                                     ? "bg-orange-500/20 ring-orange-500/10"
                                     : "bg-green-500/20 ring-green-500/10"
                             }`}>
                                 <CheckCircle className={`w-10 h-10 ${
                                     scanAction === "transfer" ? "text-purple-400"
+                                    : scanAction === "checkout" ? "text-red-400"
                                     : scanAction === "break_end" ? "text-orange-400"
                                     : "text-green-400"
                                 }`} />
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2">
                                 {scanAction === "transfer" ? "ย้ายสาขาสำเร็จ!"
+                                 : scanAction === "checkout" ? "เช็คเอาต์สำเร็จ!"
                                  : scanAction === "break_end" ? "จบพักเบรกแล้ว!"
                                  : "เช็คอินสำเร็จ!"}
                             </h2>
                             <p className="text-slate-400 mb-2">
                                 {scanAction === "transfer" ? "บันทึกการย้ายสาขาเรียบร้อยแล้ว"
+                                 : scanAction === "checkout" ? "บันทึกเวลาออกงานเรียบร้อยแล้ว"
                                  : scanAction === "break_end" ? "บันทึกเวลากลับจากพักเรียบร้อยแล้ว"
                                  : "บันทึกเวลาเข้างานเรียบร้อยแล้ว"}
                             </p>
                             {scanDetail && (
                                 <p className={`text-sm font-medium mb-6 ${
                                     scanAction === "transfer" ? "text-purple-400"
+                                    : scanAction === "checkout" ? "text-red-400"
                                     : scanAction === "break_end" ? "text-orange-400"
                                     : "text-green-400"
                                 }`}>
@@ -416,5 +463,17 @@ export default function QRScanPage() {
                    We can customize more if needed. */
             `}</style>
         </div>
+    );
+}
+
+export default function QRScanPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-900">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        }>
+            <QRScanPageInner />
+        </Suspense>
     );
 }

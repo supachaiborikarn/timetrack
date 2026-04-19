@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { latitude, longitude, deviceId, method } = body;
+        const { latitude, longitude, deviceId, method, qrCode } = body;
 
         if (!latitude || !longitude) {
             return ApiErrors.validation("กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง");
@@ -72,12 +72,19 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        if (!isValidLocation) {
+        if (!isValidLocation || !checkOutStation) {
             return errorResponse(
                 `คุณไม่ได้อยู่ในพื้นที่ของสถานีใดเลย (ปั๊มต้นสังกัดห่าง ${ownDistance === Infinity ? 'N/A' : Math.round(ownDistance)} เมตร)`,
                 400,
                 "INVALID_LOCATION"
             );
+        }
+
+        // Validate QR code against the station they are checking out at
+        if (method === "QR") {
+            if (!qrCode || qrCode !== checkOutStation.qrCode) {
+                return ApiErrors.validation(`กรุณาสแกน QR Code ของสาขา ${checkOutStation.name} เพื่อเช็คเอาต์`);
+            }
         }
 
         const localNow = getBangkokNow();
