@@ -8,7 +8,7 @@ import { AdminHomeView } from "@/components/dashboard/views/AdminHomeView";
 export default function Home() {
     const { data: session, status } = useSession();
 
-    const isAdminOrManager = ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session?.user?.role || "");
+    const isAdminOrManager = ["ADMIN", "HR", "MANAGER"].includes(session?.user?.role || "");
 
     if (status === "loading") {
         return (

@@ -21,7 +21,7 @@ import {
   Menu, CalendarDays, Trophy, TrendingUp,
   Megaphone, CalendarCheck, Wallet,
   ChevronRight, ChevronLeft, Sun, Moon,
-  BellRing, Globe, LogOut, Coffee,
+  BellRing, Globe, LogOut, Coffee, Plus,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -374,6 +374,30 @@ export function EmployeeDashboardView() {
             {T.today}, {format(currentTime || new Date(), lang === "th" ? "d MMM - HH:mm น." : "MMM d - hh:mm a", { locale: lang === "th" ? th : enUS })}
           </p>
         </div>
+
+        {/* CASHIER Extra Check-in Card */}
+        {session?.user?.role === "CASHIER" && (
+          <Link href="/admin/attendance?manual=true" className="block relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[24px] p-5 shadow-lg shadow-blue-500/20 active:scale-95 transition-transform border border-blue-400/30">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner overflow-hidden relative">
+                        <Plus className="w-6 h-6 text-white" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/20 pointer-events-none" />
+                    </div>
+                    <div>
+                        <p className="text-[18px] font-black text-white leading-tight mb-0.5 mt-0.5">เช็คอินแทน</p>
+                        <p className="text-[11px] font-medium text-blue-100 opacity-90 leading-tight">
+                            ลงเวลาแทนพนักงานที่ไม่มีมือถือ
+                        </p>
+                    </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                    <ChevronRight className="w-4 h-4 text-white" />
+                </div>
+            </div>
+          </Link>
+        )}
 
         {/* Break Time & Score */}
         <div className="grid grid-cols-2 gap-3">
