@@ -69,10 +69,10 @@ export function ClockInModal({
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-black dark:text-white text-[15px] leading-tight">
-              {hasCheckedIn ? `Clock In — ${format(currentTime, "hh:mm a")}` : "Clock In Time"}
+              {hasCheckedIn ? `เข้างาน — ${format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาเข้างาน"}
             </h3>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Shift Time -  {hasCheckedIn ? "✔ Done" : `- ${shiftLabel}`}
+              เวลากะทำงาน -  {hasCheckedIn ? "✔ เรียบร้อย" : `- ${shiftLabel}`}
             </p>
           </div>
           {hasCheckedIn && (
@@ -136,10 +136,10 @@ export function ClockInModal({
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-black dark:text-white text-[15px] leading-tight">
-              {hasCheckedOut ? `Clock Out — ${format(currentTime, "hh:mm a")}` : "Clock Out Time"}
+              {hasCheckedOut ? `ออกงาน — ${format(currentTime, "HH:mm น.", { locale: th })}` : "เวลาออกงาน"}
             </h3>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Shift Time -  {hasCheckedOut ? "✔ Done" : `- ${shiftLabel}`}
+              เวลากะทำงาน -  {hasCheckedOut ? "✔ เรียบร้อย" : `- ${shiftLabel}`}
             </p>
           </div>
           {hasCheckedOut && (
@@ -168,8 +168,8 @@ export function ClockInModal({
                   <LogIn className="w-5 h-5" />
                 </div>
                 <div className="text-left">
-                  <span className="block leading-tight text-base font-black">Clock In</span>
-                  <span className="text-xs font-bold opacity-70">{format(currentTime, "hh:mm a")}</span>
+                  <span className="block leading-tight text-base font-black">เช็คอิน (เข้างาน)</span>
+                  <span className="text-xs font-bold opacity-70">{format(currentTime, "HH:mm น.", { locale: th })}</span>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 opacity-60" />
@@ -190,8 +190,8 @@ export function ClockInModal({
                   {isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogOut className="w-5 h-5" />}
                 </div>
                 <div className="text-left">
-                  <span className="block leading-tight text-base font-black">Clock Out</span>
-                  <span className="text-xs font-bold opacity-70">{format(currentTime, "hh:mm a")}</span>
+                  <span className="block leading-tight text-base font-black">เช็คเอาต์ (เลิกงาน)</span>
+                  <span className="text-xs font-bold opacity-70">{format(currentTime, "HH:mm น.", { locale: th })}</span>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 opacity-60" />
