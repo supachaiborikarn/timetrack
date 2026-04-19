@@ -176,9 +176,12 @@ export function ClockInModal({
             </a>
           )}
 
-          {hasCheckedIn && !hasCheckedOut && (
+        {hasCheckedIn && !hasCheckedOut && (
             <button
-              onClick={onCheckOut}
+              onClick={() => {
+                setIsOpen(false);
+                onCheckOut();
+              }}
               disabled={isChecking}
               className="w-full bg-[#fbbf24] text-black font-bold text-lg py-5 rounded-2xl shadow-xl shadow-yellow-500/25 flex items-center justify-between px-6 active:scale-[0.98] transition-transform"
             >
