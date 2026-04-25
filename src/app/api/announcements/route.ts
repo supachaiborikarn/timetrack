@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyAnnouncement } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
     try {
@@ -104,6 +105,11 @@ export async function POST(request: NextRequest) {
             canPin = ["ADMIN", "HR", "MANAGER"].includes(user?.role || "");
         }
 
+        const normalizedTargetDepartmentIds =
+            canPin && Array.isArray(targetDepartmentIds) && targetDepartmentIds.length > 0
+                ? targetDepartmentIds
+                : [];
+
         const announcement = await prisma.announcement.create({
             data: {
                 title: title || "ข้อความ",
@@ -111,8 +117,8 @@ export async function POST(request: NextRequest) {
                 authorId: session.user.id,
                 isPinned: canPin ? (isPinned || false) : false,
                 targetDepartmentIds:
-                    canPin && targetDepartmentIds && targetDepartmentIds.length > 0
-                        ? JSON.stringify(targetDepartmentIds)
+                    normalizedTargetDepartmentIds.length > 0
+                        ? JSON.stringify(normalizedTargetDepartmentIds)
                         : null,
             },
             include: {
@@ -121,6 +127,24 @@ export async function POST(request: NextRequest) {
                 },
             },
         });
+
+        const recipients = await prisma.user.findMany({
+            where: {
+                isActive: true,
+                employeeStatus: "ACTIVE",
+                role: "EMPLOYEE",
+                ...(normalizedTargetDepartmentIds.length > 0
+                    ? { departmentId: { in: normalizedTargetDepartmentIds } }
+                    : {}),
+            },
+            select: { id: true },
+        });
+
+        await notifyAnnouncement(
+            recipients.map((user) => user.id),
+            announcement.title,
+            announcement.id,
+        );
 
         return NextResponse.json({
             announcement: {

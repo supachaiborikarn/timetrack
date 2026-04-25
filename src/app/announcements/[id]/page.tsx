@@ -60,6 +60,7 @@ export default function AnnouncementDetailPage() {
     const [newComment, setNewComment] = useState("");
     const [isPosting, setIsPosting] = useState(false);
     const [showReads, setShowReads] = useState(false);
+    const [isAcknowledging, setIsAcknowledging] = useState(false);
 
     // Edit state
     const [isEditing, setIsEditing] = useState(false);
@@ -74,9 +75,13 @@ export default function AnnouncementDetailPage() {
     const rawAnnouncementId = params.id;
     const announcementId = Array.isArray(rawAnnouncementId) ? rawAnnouncementId[0] : rawAnnouncementId;
     const shouldOpenEdit = searchParams.get("edit") === "true";
+    const shouldHighlightAck = searchParams.get("ack") === "true";
 
     const canEdit = Boolean(post && session?.user?.id &&
         (post.authorId === session.user.id || isAdminOrManager));
+    const hasAcknowledged = Boolean(
+        post?.reads?.some((reader) => reader.userId === session?.user?.id),
+    );
 
     const fetchPost = useCallback(async () => {
         if (!announcementId) return;
@@ -98,24 +103,35 @@ export default function AnnouncementDetailPage() {
         }
     }, [announcementId, router]);
 
-    const markAsRead = useCallback(async () => {
+    const handleAcknowledge = async () => {
         if (!announcementId) return;
 
+        setIsAcknowledging(true);
         try {
-            await fetch(`/api/announcements/${announcementId}/read`, {
+            const res = await fetch(`/api/announcements/${announcementId}/read`, {
                 method: "POST",
             });
+            if (res.ok) {
+                toast.success("ลงชื่อรับทราบแล้ว");
+                await fetchPost();
+                if (shouldHighlightAck) {
+                    router.replace(`/announcements/${announcementId}`);
+                }
+            } else {
+                toast.error("ไม่สามารถลงชื่อรับทราบได้");
+            }
         } catch {
-            // Silently fail
+            toast.error("เกิดข้อผิดพลาด");
+        } finally {
+            setIsAcknowledging(false);
         }
-    }, [announcementId]);
+    };
 
     useEffect(() => {
         if (announcementId) {
             fetchPost();
-            markAsRead();
         }
-    }, [announcementId, fetchPost, markAsRead]);
+    }, [announcementId, fetchPost]);
 
     const startEditing = () => {
         if (!post) return;
@@ -367,6 +383,48 @@ export default function AnnouncementDetailPage() {
                     </CardContent>
                 </Card>
 
+                <Card
+                    className={`shadow-sm border bg-white ${
+                        shouldHighlightAck && !hasAcknowledged
+                            ? "border-amber-300 ring-2 ring-amber-200"
+                            : "border-slate-100"
+                    }`}
+                >
+                    <CardContent className="py-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <div className={`mt-0.5 rounded-full p-2 ${
+                                    hasAcknowledged ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                                }`}>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {hasAcknowledged ? "ลงชื่อรับทราบแล้ว" : "รอลงชื่อรับทราบ"}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        หลังอ่านหนังสือเตือน/ประกาศนี้ กรุณากดรับทราบและตอบกลับในช่องความคิดเห็นด้านล่าง
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant={hasAcknowledged ? "secondary" : "default"}
+                                onClick={handleAcknowledge}
+                                disabled={hasAcknowledged || isAcknowledging}
+                                className="gap-1 shrink-0"
+                            >
+                                {isAcknowledging ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                )}
+                                {hasAcknowledged ? "รับทราบแล้ว" : "ลงชื่อรับทราบ"}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Read Status - visible to admin/manager */}
                 {isAdminOrManager && (
                     <Card className="shadow-sm">
@@ -418,7 +476,7 @@ export default function AnnouncementDetailPage() {
                 <Card className="shadow-sm">
                     <CardContent className="pt-4 space-y-3">
                         <Textarea
-                            placeholder="แสดงความคิดเห็น..."
+                            placeholder="ตอบกลับหรือแจ้งรับทราบเพิ่มเติม..."
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             className="min-h-[80px] resize-none"

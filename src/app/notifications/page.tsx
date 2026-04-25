@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -77,6 +77,29 @@ export default function NotificationsPage() {
         }
     };
 
+    const openNotification = async (notification: Notification) => {
+        try {
+            if (!notification.isRead) {
+                await fetch("/api/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids: [notification.id] }),
+                });
+                setNotifications((current) =>
+                    current.map((item) =>
+                        item.id === notification.id ? { ...item, isRead: true } : item,
+                    ),
+                );
+            }
+        } catch (error) {
+            console.error("Failed to mark notification as read:", error);
+        }
+
+        if (notification.link) {
+            window.location.href = notification.link;
+        }
+    };
+
     const getTypeIcon = (type: string) => {
         switch (type) {
             case "SWAP_REQUEST": return "🔄";
@@ -118,9 +141,9 @@ export default function NotificationsPage() {
                 <div className="flex items-center justify-between pt-4 pb-2 shadow-none">
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-black/10 rounded-full" asChild>
-                            <a href="/">
+                            <Link href="/">
                                 <ChevronLeft className="w-6 h-6" />
-                            </a>
+                            </Link>
                         </Button>
                         <div>
                             <h1 className="text-2xl font-bold text-primary-foreground flex items-center gap-2">
@@ -164,11 +187,7 @@ export default function NotificationsPage() {
                                         ? "bg-primary/5 border-primary/20"
                                         : "bg-card border-border"
                                     }`}
-                                onClick={() => {
-                                    if (notification.link) {
-                                        window.location.href = notification.link;
-                                    }
-                                }}
+                                onClick={() => void openNotification(notification)}
                             >
                                 <div className="flex items-start gap-4">
                                     <div className={`p-3 rounded-2xl flex-shrink-0 ${!notification.isRead ? 'bg-primary/10' : 'bg-muted'}`}>

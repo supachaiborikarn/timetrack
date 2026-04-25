@@ -106,12 +106,16 @@ export async function notifyAnnouncement(
     announcementTitle: string,
     announcementId: string
 ) {
+    if (userIds.length === 0) {
+        return null;
+    }
+
     return createNotifications(
         userIds,
         "ANNOUNCEMENT",
-        "ประกาศใหม่",
-        announcementTitle,
-        `/announcements/${announcementId}`
+        "ประกาศใหม่ - กรุณารับทราบ",
+        `${announcementTitle} กรุณาเปิดอ่าน ลงชื่อรับทราบ และตอบกลับในประกาศ`,
+        `/announcements/${announcementId}?ack=true`
     );
 }
 

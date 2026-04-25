@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Megaphone, ChevronRight, Eye, X } from "lucide-react";
@@ -23,7 +23,6 @@ export function AnnouncementBanner() {
     const [announcements, setAnnouncements] = useState<PinnedAnnouncement[]>([]);
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
-    const markedReadRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         fetchPinnedAnnouncements();
@@ -35,29 +34,11 @@ export function AnnouncementBanner() {
             if (res.ok) {
                 const data = await res.json();
                 setAnnouncements(data.announcements || []);
-
-                // Auto-mark unread ones as read
-                for (const a of data.announcements || []) {
-                    if (!a.isRead && !markedReadRef.current.has(a.id)) {
-                        markedReadRef.current.add(a.id);
-                        markAsRead(a.id);
-                    }
-                }
             }
         } catch (error) {
             console.error("Failed to fetch pinned announcements:", error);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const markAsRead = async (announcementId: string) => {
-        try {
-            await fetch(`/api/announcements/${announcementId}/read`, {
-                method: "POST",
-            });
-        } catch {
-            // Silently fail - not critical
         }
     };
 
