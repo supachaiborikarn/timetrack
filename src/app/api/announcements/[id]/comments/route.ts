@@ -38,12 +38,21 @@ export async function POST(
             },
             include: {
                 author: {
-                    select: { name: true, nickName: true }
+                    select: { id: true, name: true, nickName: true, photoUrl: true }
                 }
             }
         });
 
-        return NextResponse.json({ success: true, comment });
+        return NextResponse.json({
+            success: true,
+            comment: {
+                ...comment,
+                author: {
+                    ...comment.author,
+                    image: comment.author.photoUrl,
+                },
+            },
+        });
     } catch (error) {
         console.error("Error creating comment:", error);
         return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });

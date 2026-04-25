@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,9 +24,11 @@ interface Comment {
     content: string;
     createdAt: string;
     author: {
+        id?: string;
         name: string;
         nickName: string | null;
-        image: string | null;
+        image?: string | null;
+        photoUrl?: string | null;
     };
 }
 
@@ -39,9 +41,11 @@ interface Announcement {
     totalReads: number;
     reads: ReadInfo[];
     author: {
+        id?: string;
         name: string;
         nickName: string | null;
-        image: string | null;
+        image?: string | null;
+        photoUrl?: string | null;
     };
     comments: Comment[];
 }
@@ -50,6 +54,7 @@ export default function AnnouncementDetailPage() {
     const { data: session } = useSession();
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [post, setPost] = useState<Announcement | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [newComment, setNewComment] = useState("");
@@ -66,13 +71,18 @@ export default function AnnouncementDetailPage() {
 
     const isAdminOrManager = session?.user?.role &&
         ["ADMIN", "HR", "MANAGER"].includes(session.user.role as string);
+    const rawAnnouncementId = params.id;
+    const announcementId = Array.isArray(rawAnnouncementId) ? rawAnnouncementId[0] : rawAnnouncementId;
+    const shouldOpenEdit = searchParams.get("edit") === "true";
 
-    const canEdit = post && session?.user?.id &&
-        (post.authorId === session.user.id || isAdminOrManager);
+    const canEdit = Boolean(post && session?.user?.id &&
+        (post.authorId === session.user.id || isAdminOrManager));
 
-    const fetchPost = async () => {
+    const fetchPost = useCallback(async () => {
+        if (!announcementId) return;
+
         try {
-            const res = await fetch(`/api/announcements/${params.id}`);
+            const res = await fetch(`/api/announcements/${announcementId}`);
             if (res.ok) {
                 const data = await res.json();
                 setPost(data.announcement);
@@ -86,24 +96,26 @@ export default function AnnouncementDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [announcementId, router]);
 
-    const markAsRead = async () => {
+    const markAsRead = useCallback(async () => {
+        if (!announcementId) return;
+
         try {
-            await fetch(`/api/announcements/${params.id}/read`, {
+            await fetch(`/api/announcements/${announcementId}/read`, {
                 method: "POST",
             });
         } catch {
             // Silently fail
         }
-    };
+    }, [announcementId]);
 
     useEffect(() => {
-        if (params.id) {
+        if (announcementId) {
             fetchPost();
             markAsRead();
         }
-    }, [params.id]);
+    }, [announcementId, fetchPost, markAsRead]);
 
     const startEditing = () => {
         if (!post) return;
@@ -116,9 +128,22 @@ export default function AnnouncementDetailPage() {
         setIsEditing(false);
         setEditTitle("");
         setEditContent("");
+        if (shouldOpenEdit && announcementId) {
+            router.replace(`/announcements/${announcementId}`);
+        }
     };
 
+    useEffect(() => {
+        if (!shouldOpenEdit || !canEdit || !post || isEditing) return;
+
+        setEditTitle(post.title === "ข้อความ" ? "" : post.title);
+        setEditContent(post.content);
+        setIsEditing(true);
+    }, [shouldOpenEdit, canEdit, post, isEditing]);
+
     const handleSave = async () => {
+        if (!announcementId) return;
+
         if (!editContent.trim()) {
             toast.error("กรุณากรอกเนื้อหา");
             return;
@@ -126,7 +151,7 @@ export default function AnnouncementDetailPage() {
 
         setIsSaving(true);
         try {
-            const res = await fetch(`/api/announcements/${params.id}`, {
+            const res = await fetch(`/api/announcements/${announcementId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -139,6 +164,9 @@ export default function AnnouncementDetailPage() {
                 toast.success("แก้ไขเรียบร้อย");
                 setIsEditing(false);
                 fetchPost();
+                if (shouldOpenEdit) {
+                    router.replace(`/announcements/${announcementId}`);
+                }
             } else {
                 const data = await res.json();
                 toast.error(data.error || "เกิดข้อผิดพลาด");
@@ -151,9 +179,11 @@ export default function AnnouncementDetailPage() {
     };
 
     const handleDelete = async () => {
+        if (!announcementId) return;
+
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/announcements/${params.id}`, {
+            const res = await fetch(`/api/announcements/${announcementId}`, {
                 method: "DELETE",
             });
 
@@ -173,11 +203,13 @@ export default function AnnouncementDetailPage() {
     };
 
     const handleComment = async () => {
+        if (!announcementId) return;
+
         if (!newComment.trim()) return;
 
         setIsPosting(true);
         try {
-            const res = await fetch(`/api/announcements/${params.id}/comments`, {
+            const res = await fetch(`/api/announcements/${announcementId}/comments`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: newComment }),
@@ -274,7 +306,7 @@ export default function AnnouncementDetailPage() {
                 <Card className="shadow-sm border-none bg-white">
                     <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
                         <Avatar>
-                            <AvatarImage src={post.author.image || ""} />
+                            <AvatarImage src={post.author.image || post.author.photoUrl || ""} />
                             <AvatarFallback className="bg-indigo-100 text-indigo-700">
                                 {post.author.nickName?.charAt(0) || post.author.name.charAt(0)}
                             </AvatarFallback>
@@ -416,7 +448,7 @@ export default function AnnouncementDetailPage() {
                                 <CardContent className="py-3">
                                     <div className="flex items-start gap-3">
                                         <Avatar className="w-8 h-8">
-                                            <AvatarImage src={comment.author.image || ""} />
+                                            <AvatarImage src={comment.author.image || comment.author.photoUrl || ""} />
                                             <AvatarFallback className="bg-slate-100 text-slate-700 text-sm">
                                                 {comment.author.nickName?.charAt(0) || comment.author.name.charAt(0)}
                                             </AvatarFallback>

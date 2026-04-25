@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
                         id: true,
                         name: true,
                         nickName: true,
+                        photoUrl: true,
                     },
                 },
                 _count: {
@@ -64,6 +65,10 @@ export async function GET(request: NextRequest) {
             })
             .map((a) => ({
                 ...a,
+                author: {
+                    ...a.author,
+                    image: a.author.photoUrl,
+                },
                 isRead: a.reads.length > 0,
                 reads: undefined, // Remove the raw reads data
                 readCount: a._count.reads,
@@ -112,12 +117,20 @@ export async function POST(request: NextRequest) {
             },
             include: {
                 author: {
-                    select: { name: true, nickName: true },
+                    select: { id: true, name: true, nickName: true, photoUrl: true },
                 },
             },
         });
 
-        return NextResponse.json({ announcement }, { status: 201 });
+        return NextResponse.json({
+            announcement: {
+                ...announcement,
+                author: {
+                    ...announcement.author,
+                    image: announcement.author.photoUrl,
+                },
+            },
+        }, { status: 201 });
     } catch (error) {
         console.error("Create announcement error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

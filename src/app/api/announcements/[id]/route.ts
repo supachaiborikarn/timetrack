@@ -19,12 +19,12 @@ export async function GET(
             where: { id },
             include: {
                 author: {
-                    select: { name: true, nickName: true }
+                    select: { id: true, name: true, nickName: true, photoUrl: true }
                 },
                 comments: {
                     include: {
                         author: {
-                            select: { name: true, nickName: true }
+                            select: { id: true, name: true, nickName: true, photoUrl: true }
                         }
                     },
                     orderBy: { createdAt: "asc" }
@@ -56,6 +56,17 @@ export async function GET(
 
         const enrichedAnnouncement = {
             ...announcement,
+            author: {
+                ...announcement.author,
+                image: announcement.author.photoUrl,
+            },
+            comments: announcement.comments.map((comment) => ({
+                ...comment,
+                author: {
+                    ...comment.author,
+                    image: comment.author.photoUrl,
+                },
+            })),
             reads: announcement.reads.map((r: { userId: string; readAt: Date }) => ({
                 userId: r.userId,
                 readAt: r.readAt,
@@ -130,12 +141,20 @@ export async function PUT(
             data: updateData,
             include: {
                 author: {
-                    select: { name: true, nickName: true },
+                    select: { id: true, name: true, nickName: true, photoUrl: true },
                 },
             },
         });
 
-        return NextResponse.json({ announcement: updated });
+        return NextResponse.json({
+            announcement: {
+                ...updated,
+                author: {
+                    ...updated.author,
+                    image: updated.author.photoUrl,
+                },
+            },
+        });
     } catch (error) {
         console.error("Error updating announcement:", error);
         return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });

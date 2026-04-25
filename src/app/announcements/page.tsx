@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, MessageSquare, Pin, Eye, Building2, Trash2 } from "lucide-react";
+import { Loader2, Send, MessageSquare, Pin, Eye, Building2, Trash2, Pencil } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import {
@@ -32,7 +33,8 @@ interface Announcement {
         id: string;
         name: string;
         nickName: string | null;
-        image: string | null;
+        image?: string | null;
+        photoUrl?: string | null;
     };
     _count: {
         comments: number;
@@ -48,6 +50,7 @@ interface Department {
 
 export default function AnnouncementsPage() {
     const { data: session } = useSession();
+    const router = useRouter();
     const [posts, setPosts] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [newPostContent, setNewPostContent] = useState("");
@@ -59,6 +62,9 @@ export default function AnnouncementsPage() {
 
     const isAdminOrManager = session?.user?.role &&
         ["ADMIN", "HR", "MANAGER"].includes(session.user.role as string);
+
+    const canManagePost = (post: Announcement) =>
+        Boolean(isAdminOrManager || session?.user?.id === post.author.id);
 
     const fetchPosts = async () => {
         try {
@@ -294,10 +300,21 @@ export default function AnnouncementsPage() {
                             {posts.map((post) => {
                                 const deptNames = getDeptNames(post.targetDepartmentIds);
                                 return (
-                                    <Card key={post.id} className="shadow-sm border-none bg-white">
+                                    <Card
+                                        key={post.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => router.push(`/announcements/${post.id}`)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" || e.key === " ") {
+                                                router.push(`/announcements/${post.id}`);
+                                            }
+                                        }}
+                                        className="shadow-sm border-none bg-white cursor-pointer transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                                    >
                                         <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
                                             <Avatar>
-                                                <AvatarImage src={post.author.image || ""} />
+                                                <AvatarImage src={post.author.image || post.author.photoUrl || ""} />
                                                 <AvatarFallback className="bg-indigo-100 text-indigo-700">
                                                     {post.author.nickName?.charAt(0) || post.author.name.charAt(0)}
                                                 </AvatarFallback>
@@ -326,7 +343,19 @@ export default function AnnouncementsPage() {
                                                                 <Pin className="w-4 h-4" />
                                                             </button>
                                                         )}
-                                                        {(isAdminOrManager || session?.user?.id === post.author.id) && (
+                                                        {canManagePost(post) && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    router.push(`/announcements/${post.id}?edit=true`);
+                                                                }}
+                                                                className="text-slate-400 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-blue-50"
+                                                                title="แก้ไขประกาศ"
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        {canManagePost(post) && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -368,10 +397,13 @@ export default function AnnouncementsPage() {
                                                 variant="ghost"
                                                 size="sm"
                                                 className="gap-2 text-slate-500 mt-2 hover:text-slate-900"
-                                                onClick={() => window.location.href = `/announcements/${post.id}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/announcements/${post.id}`);
+                                                }}
                                             >
                                                 <MessageSquare className="w-4 h-4" />
-                                                {post._count.comments} ความคิดเห็น
+                                                อ่านเต็ม / {post._count.comments} ความคิดเห็น
                                             </Button>
                                             <span className="text-xs text-slate-400 flex items-center gap-1 mt-2">
                                                 <Eye className="w-3 h-3" />
