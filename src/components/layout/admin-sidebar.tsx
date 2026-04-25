@@ -40,6 +40,7 @@ import {
     UserRoundSearch,
     BriefcaseBusiness,
     ShieldCheck,
+    Megaphone,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -49,6 +50,7 @@ interface NavItem extends AdminAccessItem {
 
 const navItems: NavItem[] = [
     { title: "แดชบอร์ด", href: "/admin", icon: LayoutDashboard },
+    { title: "ประกาศ", href: "/announcements", icon: Megaphone, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
     { title: "จัดการพนักงาน", href: "/admin/employees", icon: Users, roles: ["ADMIN", "HR"] },
     { title: "สถานี", href: "/admin/stations", icon: Building2, roles: ["ADMIN", "HR"] },
     { title: "แผนก", href: "/admin/departments", icon: FolderKanban, roles: ["ADMIN", "HR"] },

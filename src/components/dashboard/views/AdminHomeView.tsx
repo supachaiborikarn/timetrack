@@ -26,8 +26,6 @@ import {
     Phone,
     LogIn,
     LogOut,
-    CheckCircle2,
-    MessageCircle,
     Shuffle,
     Menu,
     Megaphone,
@@ -37,6 +35,7 @@ import {
     Pin,
     Send,
     X,
+    Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -67,7 +66,21 @@ interface DashboardStats {
     pendingLeaves: number;
     openShifts: number;
     absentEmployees: AbsentEmployee[];
-    presentEmployees: any[];
+    presentEmployees: PresentEmployee[];
+}
+
+interface PresentEmployee {
+    id: string;
+    name: string;
+    nickName: string | null;
+    station: string;
+}
+
+interface MonthlyAttendanceDay {
+    date: string;
+    onTime: number;
+    late: number;
+    absent: number;
 }
 
 interface AnnouncementItem {
@@ -84,7 +97,7 @@ interface AnnouncementItem {
 export function AdminHomeView() {
     const { data: session, status } = useSession();
     const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [monthlyAttendance, setMonthlyAttendance] = useState<any[]>([]);
+    const [monthlyAttendance, setMonthlyAttendance] = useState<MonthlyAttendanceDay[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAbsentDialogOpen, setIsAbsentDialogOpen] = useState(false);
     const [isPresentDialogOpen, setIsPresentDialogOpen] = useState(false);
@@ -94,7 +107,6 @@ export function AdminHomeView() {
     // Announcement management state
     const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
     const [isAnnouncementFormOpen, setIsAnnouncementFormOpen] = useState(false);
-    const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementItem | null>(null);
     const [annTitle, setAnnTitle] = useState("");
     const [annContent, setAnnContent] = useState("");
     const [annIsPinned, setAnnIsPinned] = useState(false);
@@ -155,18 +167,9 @@ export function AdminHomeView() {
     }, [session?.user?.id]);
 
     const openCreateForm = () => {
-        setEditingAnnouncement(null);
         setAnnTitle("");
         setAnnContent("");
         setAnnIsPinned(false);
-        setIsAnnouncementFormOpen(true);
-    };
-
-    const openEditForm = (ann: AnnouncementItem) => {
-        setEditingAnnouncement(ann);
-        setAnnTitle(ann.title === "ข้อความ" ? "" : ann.title);
-        setAnnContent(ann.content);
-        setAnnIsPinned(ann.isPinned);
         setIsAnnouncementFormOpen(true);
     };
 
@@ -177,12 +180,8 @@ export function AdminHomeView() {
         }
         setAnnSubmitting(true);
         try {
-            const url = editingAnnouncement
-                ? `/api/announcements/${editingAnnouncement.id}`
-                : "/api/announcements";
-            const method = editingAnnouncement ? "PUT" : "POST";
-            const res = await fetch(url, {
-                method,
+            const res = await fetch("/api/announcements", {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     title: annTitle.trim() || "ข้อความ",
@@ -191,7 +190,7 @@ export function AdminHomeView() {
                 }),
             });
             if (res.ok) {
-                toast.success(editingAnnouncement ? "แก้ไขประกาศสำเร็จ" : "สร้างประกาศสำเร็จ");
+                toast.success("สร้างประกาศสำเร็จ");
                 setIsAnnouncementFormOpen(false);
                 fetchAnnouncements();
             } else {
@@ -448,13 +447,20 @@ export function AdminHomeView() {
                             สร้างประกาศ
                         </button>
                     </div>
+                    <Link
+                        href="/announcements"
+                        className="mb-4 flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-[11px] font-bold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                    >
+                        <span>เปิดหน้าจัดการประกาศทั้งหมด</span>
+                        <span>ไปที่ /announcements</span>
+                    </Link>
 
                     {/* Create / Edit Form */}
                     {isAnnouncementFormOpen && (
                         <div className="mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                                    {editingAnnouncement ? "✏️ แก้ไขประกาศ" : "📢 สร้างประกาศใหม่"}
+                                    สร้างประกาศใหม่
                                 </p>
                                 <button onClick={() => setIsAnnouncementFormOpen(false)} className="text-gray-400 hover:text-gray-600">
                                     <X className="w-4 h-4" />
@@ -492,7 +498,7 @@ export function AdminHomeView() {
                                     className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#fbbf24] text-black text-[12px] font-bold active:scale-95 transition-transform disabled:opacity-50"
                                 >
                                     {annSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                                    {editingAnnouncement ? "บันทึก" : "ส่งประกาศ"}
+                                    ส่งประกาศ
                                 </button>
                             </div>
                         </div>
@@ -509,7 +515,10 @@ export function AdminHomeView() {
                                     className="p-3 rounded-2xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 hover:bg-gray-100 dark:hover:bg-zinc-700/50 transition-colors"
                                 >
                                     <div className="flex items-start gap-2.5">
-                                        <div className="flex-1 min-w-0">
+                                        <Link
+                                            href={`/announcements/${ann.id}`}
+                                            className="flex-1 min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                                        >
                                             <div className="flex items-center gap-1.5 mb-1">
                                                 {ann.isPinned && (
                                                     <span className="text-[9px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">📌 ปักหมุด</span>
@@ -530,21 +539,31 @@ export function AdminHomeView() {
                                                     👁 {ann.readCount}
                                                 </span>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <button
-                                                onClick={() => openEditForm(ann)}
-                                                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-600 transition-colors"
+                                        </Link>
+                                        <div className="flex flex-col gap-1 shrink-0">
+                                            <Link
+                                                href={`/announcements/${ann.id}`}
+                                                className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-500 transition-colors hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/30"
+                                                title="ดูประกาศ"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" />
+                                                ดู
+                                            </Link>
+                                            <Link
+                                                href={`/announcements/${ann.id}?edit=true`}
+                                                className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-500 transition-colors hover:bg-amber-100 hover:text-amber-600 dark:hover:bg-amber-900/30"
                                                 title="แก้ไข"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" />
-                                            </button>
+                                                แก้ไข
+                                            </Link>
                                             <button
                                                 onClick={() => handleDeleteAnnouncement(ann.id)}
-                                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
+                                                className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-500 transition-colors hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30"
                                                 title="ลบ"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
+                                                ลบ
                                             </button>
                                         </div>
                                     </div>
@@ -667,4 +686,3 @@ export function AdminHomeView() {
         </div>
     );
 }
-
