@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
             where: {
                 isActive: true,
                 employeeStatus: "ACTIVE",
-                role: "EMPLOYEE",
                 ...(normalizedTargetDepartmentIds.length > 0
                     ? { departmentId: { in: normalizedTargetDepartmentIds } }
                     : {}),

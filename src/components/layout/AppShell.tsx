@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { BottomNavigation } from "./BottomNavigation";
+import { GlobalAnnouncementModal } from "@/components/notifications/GlobalAnnouncementModal";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,11 +19,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isAdminPage) {
-    return <>{children}</>;
+    return (
+      <>
+        <GlobalAnnouncementModal />
+        {children}
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-background relative pb-[100px]">
+      <GlobalAnnouncementModal />
       <main className="w-full h-full relative">
         {children}
       </main>
