@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
             let latePenalty = 0;
             let totalOTAmount = 0;
             let totalAdjustment = 0;
+            let accumulatedWage = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
@@ -131,12 +132,19 @@ export async function GET(request: NextRequest) {
                     const actualHours = record.actualHours ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
+                    // Daily wage: override or auto (half-day rule)
+                    let dailyWage = 0;
                     let dayFactor = 0;
-                    if (actualHours >= 10) dayFactor = 1;
-                    else if (actualHours >= 5.5) dayFactor = 0.5;
+                    if (override?.overrideDailyWage != null) {
+                        dailyWage = Number(override.overrideDailyWage);
+                        dayFactor = dailyRate > 0 ? Math.min(dailyWage / dailyRate, 1) : (dailyWage > 0 ? 1 : 0);
+                    } else {
+                        if (actualHours >= 10) { dayFactor = 1; dailyWage = dailyRate; }
+                        else if (actualHours >= 5.5) { dayFactor = 0.5; dailyWage = dailyRate * 0.5; }
+                    }
 
                     workDays += dayFactor;
+                    accumulatedWage += dailyWage;
 
                     if (override?.overrideLatePenalty != null) {
                         latePenalty += Number(override.overrideLatePenalty);
@@ -154,7 +162,7 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            const regularPay = workDays * dailyRate;
+            const regularPay = accumulatedWage;
             const overtimePay = totalOTAmount;
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
