@@ -216,15 +216,33 @@ export default function EmployeePayrollDetailPage() {
                         const otAmount = record.isOTOverridden
                             ? record.otAmount
                             : otHours * data.employee.hourlyRate * data.employee.otMultiplier;
-                        const dailyWage = record.isWageOverridden
-                            ? record.dailyWage
-                            : (result.checkInTime ? data.employee.defaultDailyRate : 0);
-                        const total = dailyWage + otAmount - record.latePenalty;
+
+                        // Recalculate dayFactor and dailyWage from new actualHours
+                        let dailyWage = 0;
+                        let dayFactor = 0;
+                        if (record.isWageOverridden) {
+                            dailyWage = record.dailyWage;
+                            dayFactor = data.employee.defaultDailyRate > 0
+                                ? Math.min(dailyWage / data.employee.defaultDailyRate, 1)
+                                : (dailyWage > 0 ? 1 : 0);
+                        } else if (result.checkInTime && actualHours != null) {
+                            // Same thresholds as backend: ≥10h = 1 day, ≥5.5h = 0.5 day
+                            if (actualHours >= 10) {
+                                dayFactor = 1;
+                                dailyWage = data.employee.defaultDailyRate;
+                            } else if (actualHours >= 5.5) {
+                                dayFactor = 0.5;
+                                dailyWage = data.employee.defaultDailyRate * 0.5;
+                            }
+                        }
+
+                        const total = dailyWage + otAmount - record.latePenalty + record.adjustment;
 
                         updateLocalRecord(date, {
                             checkInTime: result.checkInTime,
                             checkOutTime: result.checkOutTime,
                             actualHours,
+                            dayFactor,
                             otHours: Math.round(otHours * 100) / 100,
                             otAmount: Math.round(otAmount * 100) / 100,
                             dailyWage,
