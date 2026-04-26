@@ -164,8 +164,11 @@ export async function GET(request: NextRequest) {
                         latePenalty += Number(record.latePenaltyAmount);
                     }
 
+                    // Temporary business rule: No OT for March 26 - April 25 period
+                    const isMarchAprilPeriod = startDate === "2026-03-26" && endDate === "2026-04-25";
+
                     // OT (from override only — HR adds manually)
-                    if (override?.overrideOT != null) {
+                    if (override?.overrideOT != null && !isMarchAprilPeriod) {
                         totalOTAmount += Number(override.overrideOT);
                     }
 

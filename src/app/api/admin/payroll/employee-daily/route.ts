@@ -207,8 +207,10 @@ export async function GET(request: NextRequest) {
             }
 
             // Get OT amount (override or calculated)
+            // Temporary business rule: No OT for March 26 - April 25 period
+            const isMarchAprilPeriod = startDate === "2026-03-26" && endDate === "2026-04-25";
             const isOTOverridden = override?.overrideOT != null;
-            const otAmount = isOTOverridden
+            const otAmount = (isOTOverridden && !isMarchAprilPeriod)
                 ? Number(override!.overrideOT)
                 : 0; // Default 0 — HR adds OT manually
 
