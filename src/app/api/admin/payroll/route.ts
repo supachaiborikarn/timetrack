@@ -175,8 +175,8 @@ export async function GET(request: NextRequest) {
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
 
-            // Social security: rate × gross earnings (ค่าแรง+OT), capped at max
-            const grossForSSO = regularPay + overtimePay;
+            // Social security: rate × ค่าแรง (ไม่รวม OT), capped at max
+            const grossForSSO = regularPay;
             const socialSecurity = emp.isSocialSecurityRegistered
                 ? Math.min(grossForSSO * ssoRate, ssoMax)
                 : 0;

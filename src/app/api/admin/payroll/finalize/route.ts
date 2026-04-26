@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
             const overtimePay = totalOTAmount;
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
-            const grossForSSO = regularPay + overtimePay;
+            const grossForSSO = regularPay;
             const socialSecurity = emp.isSocialSecurityRegistered
                 ? Math.min(grossForSSO * ssoRate, ssoMax)
                 : 0;
