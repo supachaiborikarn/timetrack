@@ -225,19 +225,19 @@ export default function PayrollPage() {
         setEndDate(format(endOfMonth(lastMonth), "yyyy-MM-dd"));
     };
 
-    // Payroll period preset (26th to 25th)
+    // Payroll period preset (26th to 25th) — เลือกงวดที่เพิ่งปิด
     const setPayrollPeriod = () => {
         const day = now.getDate();
         let periodStart, periodEnd;
 
         if (day >= 26) {
-            // 26th of current month to 25th of next month
-            periodStart = new Date(now.getFullYear(), now.getMonth(), 26);
-            periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 25);
-        } else {
-            // 26th of previous month to 25th of current month
+            // วันที่ 26+ → งวดที่เพิ่งปิด: 26 เดือนก่อน ถึง 25 เดือนนี้
             periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 26);
             periodEnd = new Date(now.getFullYear(), now.getMonth(), 25);
+        } else {
+            // วันที่ 1-25 → งวดที่เพิ่งปิด: 26 สองเดือนก่อน ถึง 25 เดือนก่อน
+            periodStart = new Date(now.getFullYear(), now.getMonth() - 2, 26);
+            periodEnd = new Date(now.getFullYear(), now.getMonth() - 1, 25);
         }
 
         setStartDate(format(periodStart, "yyyy-MM-dd"));
