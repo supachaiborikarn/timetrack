@@ -158,9 +158,9 @@ export async function GET(request: NextRequest) {
             const overtimePay = totalOTAmount;
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
-            const grossPay = regularPay + overtimePay - latePenalty;
+            const grossForSSO = regularPay + overtimePay;
             const socialSecurity = emp.isSocialSecurityRegistered
-                ? Math.min(grossPay * ssoRate, ssoMax)
+                ? Math.min(grossForSSO * ssoRate, ssoMax)
                 : 0;
             const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
             const totalPay = regularPay + overtimePay - totalDeductions + totalAdjustment;

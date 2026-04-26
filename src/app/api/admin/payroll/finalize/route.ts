@@ -115,10 +115,10 @@ export async function POST(request: NextRequest) {
         }
 
         // 6. Get SSO config
-        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "socialSecurityRate" } });
-        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "socialSecurityMaxBase" } });
-        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) / 100 : 0.05;
-        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) * ssoRate : 750;
+        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
+        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
+        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
+        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
 
         // 7. Calculate and Upsert Records
         const records = [];
@@ -170,9 +170,9 @@ export async function POST(request: NextRequest) {
             const overtimePay = totalOTAmount;
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
-            const grossPay = regularPay + overtimePay - latePenalty;
+            const grossForSSO = regularPay + overtimePay;
             const socialSecurity = emp.isSocialSecurityRegistered
-                ? Math.min(grossPay * ssoRate, ssoMax)
+                ? Math.min(grossForSSO * ssoRate, ssoMax)
                 : 0;
             const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
             const netPay = regularPay + overtimePay - totalDeductions + totalAdjustment;

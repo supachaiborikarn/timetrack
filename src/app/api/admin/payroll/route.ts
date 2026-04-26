@@ -175,10 +175,10 @@ export async function GET(request: NextRequest) {
             const advanceDeduction = advancesByUser[emp.id] || 0;
             const otherExpenses = Number(emp.otherExpenses) || 0;
 
-            // Social security: rate × actual gross pay, capped at max
-            const grossPay = regularPay + overtimePay - latePenalty;
+            // Social security: rate × gross earnings (ค่าแรง+OT), capped at max
+            const grossForSSO = regularPay + overtimePay;
             const socialSecurity = emp.isSocialSecurityRegistered
-                ? Math.min(grossPay * ssoRate, ssoMax)
+                ? Math.min(grossForSSO * ssoRate, ssoMax)
                 : 0;
 
             const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;

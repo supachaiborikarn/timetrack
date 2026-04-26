@@ -281,9 +281,9 @@ export async function GET(request: NextRequest) {
         const totalOT = dailyRecords.reduce((sum, d) => sum + d.otAmount, 0);
         const totalLatePenalty = dailyRecords.reduce((sum, d) => sum + d.latePenalty, 0);
         const totalAdjustment = dailyRecords.reduce((sum, d) => sum + d.adjustment, 0);
-        const grossPay = totalWage + totalOT - totalLatePenalty;
+        const grossForSSO = totalWage + totalOT;
         const socialSecurity = employee.isSocialSecurityRegistered
-            ? Math.min(grossPay * ssoRate, ssoMax)
+            ? Math.min(grossForSSO * ssoRate, ssoMax)
             : 0;
         const totalDeductions = totalLatePenalty + advanceDeduction + otherExpenses + socialSecurity;
 
