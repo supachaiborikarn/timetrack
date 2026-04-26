@@ -94,6 +94,10 @@ export async function GET(request: NextRequest) {
             if (station.employees.length === 0) continue;
 
             for (const dateKey of dates) {
+                // Skip weekends — employees are not expected to work Sat/Sun
+                const dayOfWeek = new Date(dateKey).getUTCDay();
+                if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
                 const absentEmployees = station.employees.filter((user: StationUser) => {
                     const userDates = checkedInDates.get(user.id);
                     return !userDates || !userDates.has(dateKey);
