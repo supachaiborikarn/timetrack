@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function toBangkokDateKey(d: Date): string {
+    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
+    return bkk.toISOString().split("T")[0];
+}
+
 // GET: Find overlapping absences within the same station
 export async function GET(request: NextRequest) {
     try {
@@ -46,7 +53,7 @@ export async function GET(request: NextRequest) {
                 userId: { in: allUserIds },
                 date: {
                     gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    lte: new Date(endDate + "T23:59:59Z"),
                 },
             },
             select: {
@@ -56,11 +63,11 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // Build attendance lookup: userId -> Set of dateKeys where they checked in
+        // Build attendance lookup using Bangkok date key (same as payroll routes)
         const checkedInDates = new Map<string, Set<string>>();
         for (const record of attendanceRecords) {
             if (record.checkInTime) {
-                const dateKey = record.date.toISOString().split("T")[0];
+                const dateKey = toBangkokDateKey(record.date);
                 if (!checkedInDates.has(record.userId)) {
                     checkedInDates.set(record.userId, new Set());
                 }
@@ -68,13 +75,15 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Generate all dates in range
+        // Generate all dates in range (using plain date strings, no TZ issues)
         const dates: string[] = [];
-        const current = new Date(startDate);
-        const end = new Date(endDate);
+        const [sy, sm, sd] = startDate.split("-").map(Number);
+        const [ey, em, ed] = endDate.split("-").map(Number);
+        const current = new Date(Date.UTC(sy, sm - 1, sd));
+        const end = new Date(Date.UTC(ey, em - 1, ed));
         while (current <= end) {
             dates.push(current.toISOString().split("T")[0]);
-            current.setDate(current.getDate() + 1);
+            current.setUTCDate(current.getUTCDate() + 1);
         }
 
         // Find overlapping absences per station per date
@@ -94,10 +103,6 @@ export async function GET(request: NextRequest) {
             if (station.employees.length === 0) continue;
 
             for (const dateKey of dates) {
-                // Skip weekends — employees are not expected to work Sat/Sun
-                const dayOfWeek = new Date(dateKey).getUTCDay();
-                if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
                 const absentEmployees = station.employees.filter((user: StationUser) => {
                     const userDates = checkedInDates.get(user.id);
                     return !userDates || !userDates.has(dateKey);
