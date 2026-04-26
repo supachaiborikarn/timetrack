@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
     isPushSupported,
     getNotificationPermission,
     initializePushNotifications,
-    registerServiceWorker
 } from "@/lib/push-notifications";
 
 export function PushNotificationProvider() {
     const { data: session } = useSession();
-    const [isChecking, setIsChecking] = useState(true);
 
     useEffect(() => {
         if (!session?.user?.id) {
-            setIsChecking(false);
             return;
         }
 
@@ -26,7 +23,6 @@ export function PushNotificationProvider() {
         const init = async () => {
             try {
                 if (!isPushSupported()) {
-                    setIsChecking(false);
                     return;
                 }
 
@@ -56,11 +52,10 @@ export function PushNotificationProvider() {
                         toast.error(`ระบบการแจ้งเตือนมีปัญหา: ${result.error}`);
                     }
                 }
-            } catch (error: any) {
+            } catch (error) {
                 console.error("Push init error:", error);
-                toast.error(`Push init error: ${error.message}`);
-            } finally {
-                setIsChecking(false);
+                const message = error instanceof Error ? error.message : "Unknown error";
+                toast.error(`Push init error: ${message}`);
             }
         };
 

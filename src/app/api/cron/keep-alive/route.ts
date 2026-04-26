@@ -12,6 +12,17 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET() {
     try {
+        if (process.env.ENABLE_KEEP_ALIVE !== "true") {
+            return NextResponse.json(
+                { ok: true, disabled: true, reason: "keep-alive is disabled to save free-tier compute" },
+                {
+                    headers: {
+                        "Cache-Control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=86400",
+                    },
+                },
+            );
+        }
+
         await prisma.$queryRaw`SELECT 1`;
         return NextResponse.json({ ok: true, ts: new Date().toISOString() });
     } catch (error) {

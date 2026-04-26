@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { isAdminRole } from "@/lib/admin-access";
+import { freeTierIntervals } from "@/lib/free-tier";
 
 export default function AdminLayoutWrapper({
     children,
@@ -56,13 +57,23 @@ export default function AdminLayoutWrapper({
         void fetchPendingCount();
         void fetchPermissions();
 
-        const interval = setInterval(() => {
-            void fetchPendingCount();
-        }, 300000);
+        const refreshPendingCountIfVisible = () => {
+            if (document.visibilityState === "visible") {
+                void fetchPendingCount();
+            }
+        };
+
+        const interval = setInterval(
+            refreshPendingCountIfVisible,
+            freeTierIntervals.adminPendingPoll,
+        );
+
+        document.addEventListener("visibilitychange", refreshPendingCountIfVisible);
 
         return () => {
             isActive = false;
             clearInterval(interval);
+            document.removeEventListener("visibilitychange", refreshPendingCountIfVisible);
         };
     }, [session?.user?.id]);
 

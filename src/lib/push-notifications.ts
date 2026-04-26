@@ -2,7 +2,10 @@
  * Push notification helper functions
  */
 
+import { freeTierIntervals } from "@/lib/free-tier";
+
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const LAST_PUSH_SYNC_KEY = "timetrack.lastPushSubscriptionSync";
 
 /**
  * Check if push notifications are supported
@@ -72,6 +75,8 @@ export async function subscribeToPush(
     }
 
     try {
+        const existingSubscription = await registration.pushManager.getSubscription();
+
         // Convert VAPID key to Uint8Array
         const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
             const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -84,10 +89,19 @@ export async function subscribeToPush(
             return outputArray;
         };
 
-        const subscription = await registration.pushManager.subscribe({
+        const subscription = existingSubscription || await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
         });
+
+        const lastSyncAt = Number(localStorage.getItem(LAST_PUSH_SYNC_KEY) || 0);
+        const shouldSyncServer = !existingSubscription ||
+            Date.now() - lastSyncAt > freeTierIntervals.pushSubscriptionSyncTtl;
+
+        if (!shouldSyncServer) {
+            console.log('Push subscription already synced recently');
+            return subscription;
+        }
 
         // Send subscription to server
         const response = await fetch('/api/notifications/subscribe', {
@@ -101,11 +115,13 @@ export async function subscribeToPush(
             throw new Error(`Server API Failed (${response.status}): ${JSON.stringify(errData)}`);
         }
 
+        localStorage.setItem(LAST_PUSH_SYNC_KEY, String(Date.now()));
         console.log('Push subscription created');
         return subscription;
-    } catch (error: any) {
+    } catch (error) {
         console.error('Failed to subscribe to push:', error);
-        throw new Error(`Subscribe Failed: ${error.message}`);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Subscribe Failed: ${message}`);
     }
 }
 
@@ -163,7 +179,8 @@ export async function initializePushNotifications(): Promise<{success: boolean, 
             return { success: false, error: 'ไม่สามารถสร้าง Subscription (1)' };
         }
         return { success: true };
-    } catch (err: any) {
-        return { success: false, error: err.message || 'Unknown error' };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        return { success: false, error: message };
     }
 }

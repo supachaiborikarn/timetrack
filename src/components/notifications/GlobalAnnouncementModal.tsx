@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Megaphone, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
+import { freeTierIntervals } from "@/lib/free-tier";
 
 interface Announcement {
     id: string;
@@ -28,6 +29,9 @@ interface Announcement {
     };
 }
 
+const PENDING_ANNOUNCEMENT_KEY = "timetrack.pendingMandatoryAnnouncement";
+const LAST_EMPTY_CHECK_KEY = "timetrack.lastEmptyMandatoryAnnouncementCheck";
+
 export function GlobalAnnouncementModal() {
     const { data: session } = useSession();
     const router = useRouter();
@@ -39,29 +43,56 @@ export function GlobalAnnouncementModal() {
     // Disable checking if user is on login/register pages
     const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
 
-    useEffect(() => {
-        if (!session?.user?.id || isAuthPage) {
-            setIsLoading(false);
-            return;
-        }
-
-        fetchUnreadMandatory();
-    }, [session?.user?.id, isAuthPage]);
-
-    const fetchUnreadMandatory = async () => {
+    const fetchUnreadMandatory = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await fetch("/api/announcements/unread-mandatory");
             if (res.ok) {
                 const data = await res.json();
-                setAnnouncement(data.announcement);
+                const nextAnnouncement = data.announcement || null;
+                setAnnouncement(nextAnnouncement);
+
+                if (nextAnnouncement) {
+                    sessionStorage.setItem(PENDING_ANNOUNCEMENT_KEY, JSON.stringify(nextAnnouncement));
+                    sessionStorage.removeItem(LAST_EMPTY_CHECK_KEY);
+                } else {
+                    sessionStorage.removeItem(PENDING_ANNOUNCEMENT_KEY);
+                    sessionStorage.setItem(LAST_EMPTY_CHECK_KEY, String(Date.now()));
+                }
             }
         } catch (error) {
             console.error("Failed to fetch unread mandatory announcements:", error);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (!session?.user?.id || isAuthPage) {
+            setIsLoading(false);
+            return;
+        }
+
+        const cachedPending = sessionStorage.getItem(PENDING_ANNOUNCEMENT_KEY);
+        if (cachedPending) {
+            try {
+                setAnnouncement(JSON.parse(cachedPending));
+                setIsLoading(false);
+                return;
+            } catch {
+                sessionStorage.removeItem(PENDING_ANNOUNCEMENT_KEY);
+            }
+        }
+
+        const lastEmptyCheck = Number(sessionStorage.getItem(LAST_EMPTY_CHECK_KEY) || 0);
+        const checkedRecently = Date.now() - lastEmptyCheck < freeTierIntervals.announcementMandatoryCheckTtl;
+        if (checkedRecently) {
+            setIsLoading(false);
+            return;
+        }
+
+        void fetchUnreadMandatory();
+    }, [fetchUnreadMandatory, session?.user?.id, isAuthPage]);
 
     const handleAcknowledge = async () => {
         if (!announcement) return;
@@ -73,6 +104,7 @@ export function GlobalAnnouncementModal() {
             });
             if (res.ok) {
                 toast.success("รับทราบประกาศเรียบร้อยแล้ว");
+                sessionStorage.removeItem(PENDING_ANNOUNCEMENT_KEY);
                 // Fetch again to see if there are more
                 await fetchUnreadMandatory();
             } else {

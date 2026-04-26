@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { Bell, Check, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
+import { freeTierIntervals } from "@/lib/free-tier";
 
 interface Notification {
     id: string;
@@ -32,6 +33,7 @@ export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
+    const lastFetchAtRef = useRef(0);
 
     const fetchNotifications = useCallback(async () => {
         try {
@@ -40,6 +42,7 @@ export function NotificationBell() {
                 const data = await res.json();
                 setNotifications(data.notifications || []);
                 setUnreadCount(data.unreadCount || 0);
+                lastFetchAtRef.current = Date.now();
             }
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
@@ -48,14 +51,21 @@ export function NotificationBell() {
 
     useEffect(() => {
         if (session?.user?.id) {
-            const initialTimeout = setTimeout(() => {
-                void fetchNotifications();
-            }, 0);
-            // Poll every 2 minutes (120s) to save Neon data transfer
-            const interval = setInterval(fetchNotifications, 120000);
+            const refreshIfStaleAndVisible = () => {
+                const isStale = Date.now() - lastFetchAtRef.current > freeTierIntervals.notificationPoll;
+                if (document.visibilityState === "visible" && isStale) {
+                    void fetchNotifications();
+                }
+            };
+
+            const initialTimeout = setTimeout(refreshIfStaleAndVisible, 1500);
+            const interval = setInterval(refreshIfStaleAndVisible, freeTierIntervals.notificationPoll);
+            document.addEventListener("visibilitychange", refreshIfStaleAndVisible);
+
             return () => {
                 clearTimeout(initialTimeout);
                 clearInterval(interval);
+                document.removeEventListener("visibilitychange", refreshIfStaleAndVisible);
             };
         }
     }, [fetchNotifications, session?.user?.id]);
@@ -70,6 +80,15 @@ export function NotificationBell() {
             void fetchNotifications();
         } catch (error) {
             console.error("Failed to mark as read:", error);
+        }
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        setIsOpen(open);
+        if (open && session?.user?.id) {
+            window.setTimeout(() => {
+                void fetchNotifications();
+            }, 0);
         }
     };
 
@@ -96,7 +115,7 @@ export function NotificationBell() {
     if (!session) return null;
 
     return (
-        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="w-5 h-5" />
