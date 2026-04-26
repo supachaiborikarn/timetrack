@@ -9,6 +9,8 @@ function toBangkokDateKey(d: Date): string {
     return bkk.toISOString().split("T")[0];
 }
 
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+
 // GET: Find overlapping absences within the same station
 export async function GET(request: NextRequest) {
     try {
@@ -48,12 +50,17 @@ export async function GET(request: NextRequest) {
         // Get attendance records for the date range
         type StationUser = { id: string; name: string; nickName: string | null; employeeId: string };
         const allUserIds = stations.flatMap((s) => s.employees.map((u: StationUser) => u.id));
+        
+        const start = parseDateStringToBangkokMidnight(startDate);
+        const endMidnight = parseDateStringToBangkokMidnight(endDate);
+        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
+
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
                 userId: { in: allUserIds },
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate + "T23:59:59Z"),
+                    gte: start,
+                    lte: end,
                 },
             },
             select: {
