@@ -490,7 +490,7 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-// PATCH: Update employee's otherExpenses
+// PATCH: Update employee's otherExpenses or totalAdjustment
 export async function PATCH(request: NextRequest) {
     try {
         const session = await auth();
@@ -499,20 +499,65 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { userId, otherExpenses } = body;
+        const { userId, otherExpenses, totalAdjustment, startDate, endDate } = body;
 
-        if (!userId || otherExpenses === undefined) {
-            return ApiErrors.validation("userId and otherExpenses are required");
+        if (!userId) {
+            return ApiErrors.validation("userId is required");
         }
 
-        await prisma.user.update({
-            where: { id: userId },
-            data: { otherExpenses: parseFloat(otherExpenses) || 0 },
-        });
+        // Update otherExpenses if provided
+        if (otherExpenses !== undefined) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { otherExpenses: parseFloat(otherExpenses) || 0 },
+            });
+        }
 
-        return successResponse({ updated: true, otherExpenses: parseFloat(otherExpenses) || 0 });
+        // Update totalAdjustment (Bonus) if provided
+        if (totalAdjustment !== undefined && startDate && endDate) {
+            const start = parseDateStringToBangkokMidnight(startDate);
+            const endMidnight = parseDateStringToBangkokMidnight(endDate);
+            const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
+            
+            // Zero out any existing adjustments in this period
+            await prisma.dailyPayrollOverride.updateMany({
+                where: {
+                    userId,
+                    date: { gte: start, lte: end },
+                    adjustment: { not: null }
+                },
+                data: { adjustment: 0 }
+            });
+
+            // Set the entire adjustment amount on the end date
+            const lastDay = parseDateStringToBangkokMidnight(endDate);
+            const newAdj = parseFloat(totalAdjustment) || 0;
+            
+            if (newAdj !== 0) {
+                const existing = await prisma.dailyPayrollOverride.findUnique({
+                    where: { userId_date: { userId, date: lastDay } }
+                });
+                
+                if (existing) {
+                    await prisma.dailyPayrollOverride.update({
+                        where: { id: existing.id },
+                        data: { adjustment: newAdj }
+                    });
+                } else {
+                    await prisma.dailyPayrollOverride.create({
+                        data: {
+                            userId,
+                            date: lastDay,
+                            adjustment: newAdj
+                        }
+                    });
+                }
+            }
+        }
+
+        return successResponse({ updated: true });
     } catch (error) {
-        console.error("Error updating otherExpenses:", error);
+        console.error("Error updating payroll adjustments:", error);
         return ApiErrors.internal();
     }
 }

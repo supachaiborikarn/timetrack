@@ -68,6 +68,7 @@ interface PayrollData {
         otherExpenses: number;
         socialSecurity: number;
         totalDeductions: number;
+        adjustment: number;
         totalPay: number;
     }>;
     summary: {
@@ -163,21 +164,37 @@ export default function PayrollPage() {
         setDepartmentId("all"); // Reset department when station changes
     };
 
+    // Initialize bonus amounts from database when payrollData loads
+    useEffect(() => {
+        if (payrollData) {
+            const newBonus: Record<string, number> = {};
+            payrollData.employees.forEach((emp) => {
+                if (emp.adjustment) {
+                    newBonus[emp.id] = emp.adjustment;
+                }
+            });
+            setBonusAmounts(newBonus);
+        }
+    }, [payrollData]);
+
     // Handle bonus amount change
     const handleBonusChange = (employeeId: string, value: string) => {
         const numValue = parseFloat(value) || 0;
-        setBonusAmounts(prev => ({
+        setBonusAmounts((prev) => ({
             ...prev,
-            [employeeId]: numValue
+            [employeeId]: numValue,
         }));
     };
 
-    // Calculate total bonus
+    // Calculate total bonus dynamically from local state
     const totalBonus = Object.values(bonusAmounts).reduce((sum, val) => sum + val, 0);
 
-    // Calculate adjusted grand total
+    // Calculate adjusted grand total:
+    // payrollData.summary.grandTotal already includes all the saved adjustments.
+    // We need to subtract the DB adjustments and add our local bonusAmounts state to reflect current edits.
+    const dbTotalAdjustment = payrollData?.employees.reduce((sum, emp) => sum + (emp.adjustment || 0), 0) || 0;
     const adjustedGrandTotal = payrollData
-        ? payrollData.summary.grandTotal + totalBonus
+        ? payrollData.summary.grandTotal - dbTotalAdjustment + totalBonus
         : 0;
 
     const calculatePayroll = async () => {
@@ -541,7 +558,8 @@ export default function PayrollPage() {
                                     <TableBody>
                                         {payrollData.employees.map((emp) => {
                                             const empBonus = bonusAmounts[emp.id] || 0;
-                                            const empGrandTotal = emp.totalPay + empBonus;
+                                            // emp.totalPay already includes emp.adjustment from the database
+                                            const empGrandTotal = emp.totalPay - (emp.adjustment || 0) + empBonus;
                                             return (
                                                 <TableRow key={emp.id} className="border-slate-700">
                                                     <TableCell className="text-slate-400">{emp.employeeId}</TableCell>
@@ -605,8 +623,24 @@ export default function PayrollPage() {
                                                             type="number"
                                                             min="0"
                                                             step="100"
-                                                            value={bonusAmounts[emp.id] || ""}
+                                                            value={bonusAmounts[emp.id] !== undefined ? bonusAmounts[emp.id] : ""}
                                                             onChange={(e) => handleBonusChange(emp.id, e.target.value)}
+                                                            onBlur={async (e) => {
+                                                                const val = parseFloat(e.target.value) || 0;
+                                                                if (val === (emp.adjustment || 0)) return;
+                                                                await fetch("/api/admin/payroll/employee-daily", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ 
+                                                                        userId: emp.id, 
+                                                                        totalAdjustment: val,
+                                                                        startDate,
+                                                                        endDate
+                                                                    }),
+                                                                });
+                                                                toast.success(`บันทึกเงินพิเศษ: ฿${val}`);
+                                                                calculatePayroll();
+                                                            }}
                                                             placeholder="0"
                                                             className="w-24 bg-slate-700 border-slate-600 text-amber-400 text-center"
                                                         />
@@ -631,7 +665,7 @@ export default function PayrollPage() {
                                                                 className="text-orange-400 hover:text-orange-300 hover:bg-slate-700"
                                                                 onClick={() => {
                                                                     const bonus = bonusAmounts[emp.id] || 0;
-                                                                    const totalPay = emp.totalPay + bonus;
+                                                                    const totalPay = emp.totalPay - (emp.adjustment || 0) + bonus;
 
                                                                     const payslipObj = {
                                                                         user: {
