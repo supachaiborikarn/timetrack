@@ -29,6 +29,7 @@ interface DailyRecord {
     isLatePenaltyOverridden: boolean;
     dailyWage: number;
     isWageOverridden: boolean;
+    dayFactor: number;
     otHours: number;
     otAmount: number;
     isOTOverridden: boolean;
@@ -194,12 +195,15 @@ export async function GET(request: NextRequest) {
             // Get wage (override or default with half-day rule)
             const isWageOverridden = override?.overrideDailyWage != null;
             let dailyWage = 0;
+            let dayFactor = 0;
             if (isWageOverridden) {
                 dailyWage = Number(override!.overrideDailyWage);
+                // Infer dayFactor from overridden wage
+                dayFactor = dailyRate > 0 ? Math.min(dailyWage / dailyRate, 1) : (dailyWage > 0 ? 1 : 0);
             } else if (attendance?.checkInTime && actualHours != null) {
                 // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
-                if (actualHours >= 10) dailyWage = dailyRate;
-                else if (actualHours >= 5.5) dailyWage = dailyRate * 0.5;
+                if (actualHours >= 10) { dayFactor = 1; dailyWage = dailyRate; }
+                else if (actualHours >= 5.5) { dayFactor = 0.5; dailyWage = dailyRate * 0.5; }
             }
 
             // Get OT amount (override or calculated)
@@ -243,6 +247,7 @@ export async function GET(request: NextRequest) {
                 isLatePenaltyOverridden,
                 dailyWage,
                 isWageOverridden,
+                dayFactor,
                 otHours: Math.round(otHours * 100) / 100,
                 otAmount: Math.round(otAmount * 100) / 100,
                 isOTOverridden,
@@ -290,7 +295,7 @@ export async function GET(request: NextRequest) {
         // Calculate summary
         const summary = {
             totalDays: dailyRecords.length,
-            workDays: dailyRecords.filter(d => d.checkInTime).length,
+            workDays: dailyRecords.reduce((sum, d) => sum + d.dayFactor, 0),
             totalWage,
             totalOT,
             totalLatePenalty,

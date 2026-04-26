@@ -41,6 +41,7 @@ interface DailyRecord {
     isLatePenaltyOverridden: boolean;
     dailyWage: number;
     isWageOverridden: boolean;
+    dayFactor: number;
     otHours: number;
     otAmount: number;
     isOTOverridden: boolean;
@@ -166,7 +167,7 @@ export default function EmployeePayrollDetailPage() {
         const summary = {
             ...data.summary,
             totalDays: updatedRecords.length,
-            workDays: updatedRecords.filter(d => d.checkInTime).length,
+            workDays: updatedRecords.reduce((sum, d) => sum + d.dayFactor, 0),
             totalWage,
             totalOT,
             totalLatePenalty,
