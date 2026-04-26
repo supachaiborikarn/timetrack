@@ -78,12 +78,29 @@ export async function POST(request: NextRequest) {
                     lateMinutes = calculateLateMinutes(localForCalc, shiftAssignment.shift.startTime);
                 }
 
+                // Get existing attendance to combine times if only one is provided
+                const existingAttendance = await prisma.attendance.findUnique({
+                    where: { userId_date: { userId, date: dateObj } },
+                });
+
+                const finalCheckIn = checkInDate || existingAttendance?.checkInTime || null;
+                let finalCheckOut = checkOutDate || existingAttendance?.checkOutTime || null;
+
+                // Handle night shift checkout crossing to next day
+                if (finalCheckIn && finalCheckOut && finalCheckOut < finalCheckIn) {
+                    finalCheckOut = new Date(finalCheckOut.getTime() + 24 * 60 * 60 * 1000);
+                    // Update checkOutDate if it was provided in this bulk entry
+                    if (checkOutDate) {
+                        checkOutDate = finalCheckOut;
+                    }
+                }
+
                 // Calculate work hours
                 let actualHours: number | null = null;
                 let overtimeHours: number | null = null;
-                if (checkInDate && checkOutDate) {
+                if (finalCheckIn && finalCheckOut) {
                     const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
-                    const result = calculateWorkHours(checkInDate, checkOutDate, breakMinutes);
+                    const result = calculateWorkHours(finalCheckIn, finalCheckOut, breakMinutes);
                     actualHours = result.totalHours;
                     overtimeHours = result.overtimeHours;
                 }

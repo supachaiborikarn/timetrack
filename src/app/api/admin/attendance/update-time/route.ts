@@ -79,15 +79,28 @@ export async function PATCH(request: NextRequest) {
         // Calculate actual hours if both times are set
         if (updateData.checkInTime && updateData.checkOutTime) {
             const inTime = updateData.checkInTime as Date;
-            const outTime = updateData.checkOutTime as Date;
+            let outTime = updateData.checkOutTime as Date;
+            
+            // If checkout is before checkin (e.g. night shift), it must be on the next day
+            if (outTime < inTime) {
+                outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
+                updateData.checkOutTime = outTime;
+            }
+
             const diffMs = outTime.getTime() - inTime.getTime();
             const actualHours = diffMs / (1000 * 60 * 60);
             updateData.actualHours = Math.max(0, actualHours);
         } else if (attendance) {
             // Recalculate with existing values if only one time changed
             const inTime = (updateData.checkInTime as Date | undefined) || attendance.checkInTime;
-            const outTime = (updateData.checkOutTime as Date | undefined) || attendance.checkOutTime;
+            let outTime = (updateData.checkOutTime as Date | undefined) || attendance.checkOutTime;
+            
             if (inTime && outTime) {
+                // If checkout is before checkin (e.g. night shift), it must be on the next day
+                if (outTime < inTime) {
+                    outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
+                    updateData.checkOutTime = outTime;
+                }
                 const diffMs = outTime.getTime() - inTime.getTime();
                 const actualHours = diffMs / (1000 * 60 * 60);
                 updateData.actualHours = Math.max(0, actualHours);
