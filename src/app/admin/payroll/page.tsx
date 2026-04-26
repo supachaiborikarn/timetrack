@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,18 +99,39 @@ interface AbsenceOverlap {
 
 export default function PayrollPage() {
     const { data: session, status } = useSession();
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const [stations, setStations] = useState<Station[]>([]);
     const [payrollData, setPayrollData] = useState<PayrollData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [absenceOverlaps, setAbsenceOverlaps] = useState<AbsenceOverlap[]>([]);
 
-    // Filters
+    // Filters — read from URL params, fallback to defaults
     const now = getBangkokNow();
-    const [startDate, setStartDate] = useState(format(startOfMonth(now), "yyyy-MM-dd"));
-    const [endDate, setEndDate] = useState(format(endOfMonth(now), "yyyy-MM-dd"));
-    const [stationId, setStationId] = useState("all");
-    const [departmentId, setDepartmentId] = useState("all");
-    const [normalHoursPerDay, setNormalHoursPerDay] = useState("10.5");
+    const [startDate, setStartDate] = useState(searchParams.get("startDate") || format(startOfMonth(now), "yyyy-MM-dd"));
+    const [endDate, setEndDate] = useState(searchParams.get("endDate") || format(endOfMonth(now), "yyyy-MM-dd"));
+    const [stationId, setStationId] = useState(searchParams.get("stationId") || "all");
+    const [departmentId, setDepartmentId] = useState(searchParams.get("departmentId") || "all");
+    const [normalHoursPerDay, setNormalHoursPerDay] = useState(searchParams.get("normalHours") || "10.5");
+
+    // Sync filters to URL
+    const updateURL = useCallback((overrides?: Record<string, string>) => {
+        const params = new URLSearchParams();
+        const values = {
+            startDate,
+            endDate,
+            stationId,
+            departmentId,
+            normalHours: normalHoursPerDay,
+            ...overrides,
+        };
+        if (values.startDate) params.set("startDate", values.startDate);
+        if (values.endDate) params.set("endDate", values.endDate);
+        if (values.stationId && values.stationId !== "all") params.set("stationId", values.stationId);
+        if (values.departmentId && values.departmentId !== "all") params.set("departmentId", values.departmentId);
+        if (values.normalHours && values.normalHours !== "10.5") params.set("normalHours", values.normalHours);
+        router.replace(`/admin/payroll?${params.toString()}`, { scroll: false });
+    }, [startDate, endDate, stationId, departmentId, normalHoursPerDay, router]);
 
     // Bonus amounts per employee (manually entered)
     const [bonusAmounts, setBonusAmounts] = useState<Record<string, number>>({});
@@ -161,6 +182,8 @@ export default function PayrollPage() {
 
     const calculatePayroll = async () => {
         setIsLoading(true);
+        // Save filters to URL so refresh restores them
+        updateURL();
         try {
             const params = new URLSearchParams({
                 startDate,
@@ -189,6 +212,15 @@ export default function PayrollPage() {
             setIsLoading(false);
         }
     };
+
+    // Auto-calculate on mount if URL has filter params (page refresh)
+    const hasUrlParams = searchParams.has("startDate");
+    useEffect(() => {
+        if (hasUrlParams && stations.length > 0) {
+            calculatePayroll();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasUrlParams, stations.length]);
 
     const handleExport = () => {
         const params = new URLSearchParams({
