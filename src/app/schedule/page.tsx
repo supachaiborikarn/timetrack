@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Calendar as CalendarIcon,
     ChevronLeft,
     ChevronRight,
     Clock,
@@ -62,13 +62,7 @@ export default function SchedulePage() {
         }
     }, [viewMode, currentWeekStart, currentMonth, currentYear]);
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchSchedule();
-        }
-    }, [session?.user?.id, dateRange]);
-
-    const fetchSchedule = async () => {
+    const fetchSchedule = useCallback(async () => {
         setIsLoading(true);
         try {
             const startDate = format(dateRange.start, "yyyy-MM-dd");
@@ -84,7 +78,13 @@ export default function SchedulePage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [dateRange]);
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            fetchSchedule();
+        }
+    }, [session?.user?.id, fetchSchedule]);
 
     // Week navigation
     const goToPreviousWeek = () => setCurrentWeekStart(subDays(currentWeekStart, 7));
@@ -146,18 +146,6 @@ export default function SchedulePage() {
         }
     };
 
-    if (status === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-        );
-    }
-
-    if (!session) {
-        redirect("/login");
-    }
-
     // Generate week days
     const weekDays = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(currentWeekStart, i);
@@ -205,6 +193,18 @@ export default function SchedulePage() {
         return weeks;
     }, [currentYear, currentMonth, assignments]);
 
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-900">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
+
+    if (!session) {
+        redirect("/login");
+    }
+
     const weekEndDate = addDays(currentWeekStart, 6);
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
         "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -224,9 +224,9 @@ export default function SchedulePage() {
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                        <a href="/">
+                        <Link href="/">
                             <ChevronLeft className="w-5 h-5" />
-                        </a>
+                        </Link>
                     </Button>
                     <div>
                         <h1 className="text-xl font-bold text-white">ตารางกะ</h1>
