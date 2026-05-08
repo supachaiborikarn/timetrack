@@ -9,6 +9,10 @@ import {
 } from "@/lib/date-utils";
 import { calculateDistance } from "@/lib/geo";
 import { getTimeTrackSettings } from "@/lib/server/system-settings";
+import {
+    isHousekeepingOvernightAttendance,
+    resolveHousekeepingOvernightClose,
+} from "@/lib/attendance-rules";
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,7 +31,7 @@ export async function POST(request: NextRequest) {
         // Get user with station info
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
-            include: { station: true },
+            include: { station: true, department: true },
         });
 
         if (!user || !user.station) {
@@ -132,6 +136,41 @@ export async function POST(request: NextRequest) {
         });
 
         const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
+
+        if (isHousekeepingOvernightAttendance({
+            checkInTime: attendance.checkInTime,
+            referenceTime: fullUtcNow,
+            department: user.department,
+            shift: shiftAssignment?.shift,
+        })) {
+            const fixed = resolveHousekeepingOvernightClose(
+                attendance.checkInTime,
+                fullUtcNow,
+                shiftAssignment?.shift,
+            );
+
+            const updatedAttendance = await prisma.attendance.update({
+                where: { id: attendance.id },
+                data: {
+                    checkOutTime: fixed.checkOutTime,
+                    checkOutLat: latitude,
+                    checkOutLng: longitude,
+                    checkOutDeviceId: deviceId,
+                    checkOutMethod: "AUTO_MAID_NO_NIGHT",
+                    checkOutStationId: checkOutStation?.id || null,
+                    actualHours: fixed.actualHours,
+                    overtimeHours: fixed.overtimeHours,
+                    note: `ระบบปิดรายการแม่บ้านข้ามคืน เพราะแผนกแม่บ้านไม่มีกะกลางคืน ${attendance.note || ""}`.trim(),
+                },
+            });
+
+            return successResponse({
+                checkOutTime: updatedAttendance.checkOutTime,
+                totalHours: fixed.actualHours,
+                overtimeHours: fixed.overtimeHours,
+                corrected: true,
+            });
+        }
 
         // Handle legacy time format check (transition period)
         // If checkInTime is seemingly in the future relative to UTC (e.g., stored as BKK time),

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDayBangkok, calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
+import { calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
+import { isHousekeepingDepartment } from "@/lib/attendance-rules";
 
 // Convert date string "YYYY-MM-DD" to Bangkok midnight (same as check-in API)
 function parseDateToBangkokMidnight(dateStr: string): Date {
@@ -31,6 +32,13 @@ export async function POST(request: NextRequest) {
 
         // Use Bangkok midnight — MUST match check-in API's startOfDayBangkok()
         const dayStart = parseDateToBangkokMidnight(date);
+
+        const targetUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                department: { select: { code: true, name: true } },
+            },
+        });
 
         // Find existing attendance for this day (check both Bangkok midnight and UTC midnight for safety)
         let attendance = await prisma.attendance.findFirst({
@@ -99,13 +107,25 @@ export async function POST(request: NextRequest) {
                 include: { shift: true },
             });
             const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
+            let finalCheckOut = targetDate;
 
-            const { totalHours, overtimeHours } = calculateWorkHours(attendance.checkInTime, targetDate, breakMinutes);
+            if (finalCheckOut < attendance.checkInTime) {
+                if (shiftAssignment?.shift.isNightShift) {
+                    finalCheckOut = new Date(finalCheckOut.getTime() + 24 * 60 * 60 * 1000);
+                } else {
+                    const message = isHousekeepingDepartment(targetUser?.department)
+                        ? "แม่บ้านไม่มีเวรกลางคืน กรุณาใส่เวลาเข้าออกในวันเดียวกัน"
+                        : "เวลาออกน้อยกว่าเวลาเข้าได้เฉพาะกะกลางคืน";
+                    return NextResponse.json({ error: message }, { status: 400 });
+                }
+            }
+
+            const { totalHours, overtimeHours } = calculateWorkHours(attendance.checkInTime, finalCheckOut, breakMinutes);
 
             attendance = await prisma.attendance.update({
                 where: { id: attendance.id },
                 data: {
-                    checkOutTime: targetDate,
+                    checkOutTime: finalCheckOut,
                     checkOutMethod: "MANUAL",
                     actualHours: totalHours,
                     overtimeHours: overtimeHours,

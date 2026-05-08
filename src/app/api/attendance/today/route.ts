@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
-import { startOfDayBangkok, getBangkokNow, getBangkokHour, addDays, subDays } from "@/lib/date-utils";
+import { startOfDayBangkok, addDays } from "@/lib/date-utils";
+import { isHousekeepingOvernightAttendance } from "@/lib/attendance-rules";
 
 export async function GET() {
     try {
@@ -10,7 +11,6 @@ export async function GET() {
             return ApiErrors.unauthorized();
         }
 
-        const now = getBangkokNow();
         const today = startOfDayBangkok(); // No arg = uses new Date() internally, avoids double +7h offset
 
         // Get user with station and department
@@ -18,7 +18,7 @@ export async function GET() {
             where: { id: session.user.id },
             include: {
                 station: { select: { name: true } },
-                department: { select: { name: true } },
+                department: { select: { code: true, name: true } },
             },
         });
 
@@ -48,10 +48,24 @@ export async function GET() {
                     ? (Date.now() - new Date(activeAttendance.checkInTime).getTime()) / (1000 * 60 * 60)
                     : 999;
 
-                // Only use it if it's reasonably recent (< 24 hours) as an "active" session
-                // If it's older, we pretend it doesn't exist so the UI lets the user "Check In" again
-                // (The Check-In API will handle auto-closing the old one)
-                if (hoursSinceCheckIn < 24) {
+                const activeShift = await prisma.shiftAssignment.findFirst({
+                    where: {
+                        userId: session.user.id,
+                        date: activeAttendance.date,
+                    },
+                    include: { shift: true },
+                });
+
+                const isInvalidHousekeepingOvernight = isHousekeepingOvernightAttendance({
+                    checkInTime: activeAttendance.checkInTime,
+                    referenceTime: new Date(),
+                    department: user?.department,
+                    shift: activeShift?.shift,
+                });
+
+                // Only use it if it's reasonably recent (< 24 hours) as an "active" session.
+                // The Check-In API will close invalid housekeeping overnight rows before creating today's row.
+                if (hoursSinceCheckIn < 24 && !isInvalidHousekeepingOvernight) {
                     attendance = activeAttendance;
                 }
             }

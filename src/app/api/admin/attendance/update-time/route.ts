@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
+import { isHousekeepingDepartment } from "@/lib/attendance-rules";
 
 // PATCH: Update attendance check-in/check-out times
 export async function PATCH(request: NextRequest) {
@@ -26,6 +27,24 @@ export async function PATCH(request: NextRequest) {
         const [year, month, day] = dateStr.split("-").map(Number);
         const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
         const dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS);
+
+        const [targetUser, shiftAssignment] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    department: { select: { code: true, name: true } },
+                },
+            }),
+            prisma.shiftAssignment.findFirst({
+                where: { userId, date: dateObj },
+                include: { shift: true },
+            }),
+        ]);
+
+        const canCrossMidnight = shiftAssignment?.shift?.isNightShift === true;
+        const invalidOvernightMessage = isHousekeepingDepartment(targetUser?.department)
+            ? "แม่บ้านไม่มีเวรกลางคืน กรุณาใส่เวลาเข้าออกในวันเดียวกัน"
+            : "เวลาออกน้อยกว่าเวลาเข้าได้เฉพาะกะกลางคืน";
 
         // Find existing attendance or create new one
         let attendance = await prisma.attendance.findUnique({
@@ -83,6 +102,9 @@ export async function PATCH(request: NextRequest) {
             
             // If checkout is before checkin (e.g. night shift), it must be on the next day
             if (outTime < inTime) {
+                if (!canCrossMidnight) {
+                    return ApiErrors.validation(invalidOvernightMessage);
+                }
                 outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
                 updateData.checkOutTime = outTime;
             }
@@ -98,6 +120,9 @@ export async function PATCH(request: NextRequest) {
             if (inTime && outTime) {
                 // If checkout is before checkin (e.g. night shift), it must be on the next day
                 if (outTime < inTime) {
+                    if (!canCrossMidnight) {
+                        return ApiErrors.validation(invalidOvernightMessage);
+                    }
                     outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
                     updateData.checkOutTime = outTime;
                 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
+import { isHousekeepingDepartment } from "@/lib/attendance-rules";
 
 // Convert date string "YYYY-MM-DD" to Bangkok midnight
 function parseDateToBangkokMidnight(dateStr: string): Date {
@@ -71,6 +72,12 @@ export async function POST(request: NextRequest) {
                     where: { userId, date: dateObj },
                     include: { shift: true },
                 });
+                const targetUser = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: {
+                        department: { select: { code: true, name: true } },
+                    },
+                });
 
                 let lateMinutes = 0;
                 if (checkInDate && shiftAssignment) {
@@ -88,10 +95,18 @@ export async function POST(request: NextRequest) {
 
                 // Handle night shift checkout crossing to next day
                 if (finalCheckIn && finalCheckOut && finalCheckOut < finalCheckIn) {
-                    finalCheckOut = new Date(finalCheckOut.getTime() + 24 * 60 * 60 * 1000);
-                    // Update checkOutDate if it was provided in this bulk entry
-                    if (checkOutDate) {
-                        checkOutDate = finalCheckOut;
+                    if (shiftAssignment?.shift.isNightShift) {
+                        finalCheckOut = new Date(finalCheckOut.getTime() + 24 * 60 * 60 * 1000);
+                        // Update checkOutDate if it was provided in this bulk entry
+                        if (checkOutDate) {
+                            checkOutDate = finalCheckOut;
+                        }
+                    } else {
+                        const message = isHousekeepingDepartment(targetUser?.department)
+                            ? "แม่บ้านไม่มีเวรกลางคืน"
+                            : "เวลาออกน้อยกว่าเวลาเข้าได้เฉพาะกะกลางคืน";
+                        results.push({ date, userId, success: false, error: message });
+                        continue;
                     }
                 }
 
