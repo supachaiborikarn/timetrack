@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "awesome-design-md/**",
     "prisma/**/*.js",
     "scripts/**",
+    "*.js",
   ]),
 ]);
 

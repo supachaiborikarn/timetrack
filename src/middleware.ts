@@ -8,6 +8,7 @@ export const config = {
     // Client pages and API routes still perform their own session checks.
     matcher: [
         "/admin/:path*",
+        "/auth-debug/:path*",
         "/advances/:path*",
         "/announcements/:path*",
         "/availability/:path*",

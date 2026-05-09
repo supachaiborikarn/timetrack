@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
 
             empAtt.forEach(att => {
                 if (!att.checkInTime) return;
-                let actual = att.actualHours ? Number(att.actualHours) : 0;
-                let regH = actual > normalHours ? normalHours : actual;
-                let otH = actual > normalHours ? actual - normalHours : 0;
+                const actual = att.actualHours ? Number(att.actualHours) : 0;
+                const regH = actual > normalHours ? normalHours : actual;
+                const otH = actual > normalHours ? actual - normalHours : 0;
                 regularPay += regH * hourlyRate;
                 overtimePay += otH * hourlyRate * otMult;
                 if (att.latePenaltyAmount) latePenalty += Number(att.latePenaltyAmount);

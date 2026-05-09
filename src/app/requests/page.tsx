@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,9 +61,9 @@ export default function RequestsPage() {
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
                 <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <a href="/">
+                    <Link href="/">
                         <ChevronLeft className="w-5 h-5" />
-                    </a>
+                    </Link>
                 </Button>
                 <div>
                     <h1 className="text-xl font-bold text-white">คำขอต่างๆ</h1>

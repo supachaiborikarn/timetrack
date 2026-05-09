@@ -41,6 +41,7 @@ import {
     BriefcaseBusiness,
     ShieldCheck,
     Megaphone,
+    Scale,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -74,6 +75,13 @@ const navItems: NavItem[] = [
         icon: Calendar,
         roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
         requiredPermissions: ["shift.view", "shift.edit"],
+    },
+    {
+        title: "Fairness กะ",
+        href: "/admin/shift-fairness",
+        icon: Scale,
+        roles: ["ADMIN", "HR", "MANAGER", "CASHIER"],
+        requiredPermissions: ["shift.view"],
     },
     {
         title: "ย้ายสาขา",

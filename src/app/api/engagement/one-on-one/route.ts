@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
         // If Admin/Manager: can view all or filter by userId.
         // If Employee: can only view own logs.
 
-        const where: any = {};
+        const where: Prisma.OneOnOneLogWhereInput = {};
         if (session.user.role === "EMPLOYEE") {
             where.userId = session.user.id;
         } else if (userId) {

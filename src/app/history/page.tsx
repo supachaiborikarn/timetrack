@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -167,9 +168,9 @@ export default function HistoryPage() {
             <CurvedHeader>
                 <div className="flex items-center gap-3 pt-4 mb-2 shadow-none">
                     <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-black/10 rounded-full" asChild>
-                        <a href="/">
+                        <Link href="/">
                             <ChevronLeft className="w-6 h-6" />
-                        </a>
+                        </Link>
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold text-primary-foreground">ประวัติลงเวลา</h1>

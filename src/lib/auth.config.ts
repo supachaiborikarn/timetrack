@@ -1,4 +1,6 @@
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import type { NextRequest } from "next/server";
 
 export const authConfig = {
     pages: {
@@ -9,9 +11,8 @@ export const authConfig = {
     session: { strategy: "jwt" },
     trustHost: true,
     callbacks: {
-        async jwt({ token, user }: { token: any, user: any }) {
+        async jwt({ token, user }: { token: JWT; user?: User }) {
             if (user) {
-                // Use assertions to bypass strict typing for now
                 token.id = user.id;
                 token.role = user.role;
                 token.stationId = user.stationId;
@@ -26,23 +27,24 @@ export const authConfig = {
 
             return token;
         },
-        async session({ session, token }: { session: any, token: any }) {
+        async session({ session, token }: { session: Session; token: JWT }) {
             // เพิ่มการตรวจสอบว่า token มีข้อมูลครบถ้วนหรือไม่ (ป้องกันเคสที่โดนล้าง token)
-            if (!token.id) {
-                session.user = null; // บังคับให้ session ไม่มีข้อมูล user
-                return session;
+            if (!token.id || !token.role || !token.employeeId) {
+                return {
+                    ...session,
+                    user: undefined as unknown as Session["user"],
+                };
             }
 
             if (token && session.user) {
-                // Use assertions to transfer data
-                session.user.id = token.id as string;
+                session.user.id = token.id;
                 session.user.role = token.role;
-                session.user.stationId = token.stationId;
+                session.user.stationId = token.stationId ?? null;
                 session.user.employeeId = token.employeeId;
             }
             return session;
         },
-        authorized({ auth, request: { nextUrl } }: { auth: any, request: { nextUrl: any } }) {
+        authorized({ auth, request: { nextUrl } }: { auth: Session | null; request: NextRequest }) {
             // ใช้ id เพื่อเป็นตัวยืนยันว่ามี session สมบูรณ์
             const isLoggedIn = !!auth?.user?.id;
             const isOnLogin = nextUrl.pathname.startsWith('/login');
@@ -51,9 +53,6 @@ export const authConfig = {
             if (isOnLogin) {
                 return true;
             }
-
-            // Allow debugging
-            if (nextUrl.pathname.startsWith('/auth-debug')) return true;
 
             // Simple check: strict login for everything else
             return isLoggedIn;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect, useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +71,8 @@ interface PayrollData {
         totalDeductions: number;
         adjustment: number;
         totalPay: number;
+        bankName?: string | null;
+        bankAccountNumber?: string | null;
     }>;
     summary: {
         totalEmployees: number;
@@ -654,10 +657,10 @@ export default function PayrollPage() {
                                                                 className="text-blue-400 hover:text-blue-300 hover:bg-slate-700"
                                                                 asChild
                                                             >
-                                                                <a href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
+                                                                <Link href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
                                                                     <Eye className="w-4 h-4 mr-1" />
                                                                     ดูรายวัน
-                                                                </a>
+                                                                </Link>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
@@ -672,8 +675,8 @@ export default function PayrollPage() {
                                                                             name: emp.nickName ? `${emp.name} (${emp.nickName})` : emp.name,
                                                                             employeeId: emp.employeeId,
                                                                             department: { name: emp.department },
-                                                                            bankName: (emp as any).bankName,
-                                                                            bankAccountNumber: (emp as any).bankAccountNumber
+                                                                            bankName: emp.bankName,
+                                                                            bankAccountNumber: emp.bankAccountNumber
                                                                         },
                                                                         period: {
                                                                             startDate: startDate,
@@ -786,7 +789,7 @@ export default function PayrollPage() {
                     <Card className="bg-slate-800/50 border-slate-700">
                         <CardContent className="py-12 text-center">
                             <Calculator className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                            <p className="text-slate-400">เลือกช่วงเวลาและกด "คำนวณ"</p>
+                            <p className="text-slate-400">เลือกช่วงเวลาและกด &quot;คำนวณ&quot;</p>
                         </CardContent>
                     </Card>
                 )}

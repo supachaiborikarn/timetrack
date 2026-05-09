@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
             "ยอดเบิก (บาท)": Number(adv.amount),
             "สถานะ": statusMap[adv.status] || adv.status,
             "เหตุผล": adv.reason || "-",
-            "หมายเหตุ": (adv as any).note || "-",
+            "หมายเหตุ": adv.note || "-",
             "วันที่ขอเบิก": new Date(adv.createdAt).toLocaleDateString("th-TH"),
         }));
 

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // Field labels for display
-const fieldLabels: Record<string, string> = {
+const fieldLabels = {
     phone: "เบอร์โทร",
     email: "อีเมล",
     nickName: "ชื่อเล่น",
@@ -13,7 +13,11 @@ const fieldLabels: Record<string, string> = {
     emergencyContactName: "ชื่อผู้ติดต่อฉุกเฉิน",
     emergencyContactPhone: "เบอร์ผู้ติดต่อฉุกเฉิน",
     emergencyContactRelation: "ความสัมพันธ์ผู้ติดต่อฉุกเฉิน",
-};
+} as const;
+
+function isEditableProfileField(fieldName: string): fieldName is keyof typeof fieldLabels {
+    return fieldName in fieldLabels;
+}
 
 // POST: Employee submits an edit request
 export async function POST(request: NextRequest) {
@@ -26,7 +30,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { fieldName, newValue } = body;
 
-        if (!fieldName || newValue === undefined) {
+        if (!fieldName || newValue === undefined || !isEditableProfileField(fieldName)) {
             return NextResponse.json({ error: "กรุณาระบุข้อมูลให้ครบ" }, { status: 400 });
         }
 
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "ไม่พบข้อมูลผู้ใช้" }, { status: 404 });
         }
 
-        const oldValue = (user as any)[fieldName]?.toString() || null;
+        const oldValue = user[fieldName]?.toString() || null;
         const fieldLabel = fieldLabels[fieldName] || fieldName;
 
         // Check if there's already a pending request for this field

@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
     Clock, FileText, CreditCard, Fingerprint,
     ChevronLeft, Edit2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { PasskeyButton } from "@/components/auth/PasskeyButton";
@@ -59,6 +61,14 @@ interface EditRequest {
     createdAt: string;
 }
 
+interface ProfilePayslip {
+    id: string;
+    netPay: number;
+    period?: {
+        name?: string | null;
+    } | null;
+}
+
 const roleLabels: Record<string, string> = {
     ADMIN: "ผู้ดูแลระบบ",
     HR: "ฝ่ายบุคคล",
@@ -72,7 +82,7 @@ interface EditableFieldProps {
     label: string;
     value: string | null | undefined;
     fieldName: string;
-    icon: any;
+    icon: LucideIcon;
     pendingRequest?: EditRequest;
     onRequestEdit: (fieldName: string, newValue: string) => Promise<void>;
     placeholder?: string;
@@ -153,7 +163,7 @@ export default function ProfilePage() {
     const [requests, setRequests] = useState<EditRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [payslips, setPayslips] = useState<any[]>([]);
+    const [payslips, setPayslips] = useState<ProfilePayslip[]>([]);
 
     // Password
     const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -236,7 +246,7 @@ export default function ProfilePage() {
             {/* Header bar */}
             <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border px-5 pt-6 pb-3 flex items-center justify-between">
                 <Button variant="ghost" size="icon" className="-ml-2" asChild>
-                    <a href="/"><ChevronLeft className="w-6 h-6" /></a>
+                    <Link href="/"><ChevronLeft className="w-6 h-6" /></Link>
                 </Button>
                 <h1 className="text-base font-black text-foreground">โปรไฟล์ส่วนตัว</h1>
                 <div className="w-9" />

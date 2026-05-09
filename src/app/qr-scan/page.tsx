@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -300,9 +301,9 @@ function QRScanPageInner() {
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white" asChild>
-                    <a href="/">
+                    <Link href="/">
                         <ChevronLeft className="w-6 h-6" />
-                    </a>
+                    </Link>
                 </Button>
                 <div>
                     <h1 className="text-xl font-bold text-white">สแกน QR Code</h1>
@@ -355,7 +356,7 @@ function QRScanPageInner() {
                                 </p>
                             )}
                             <Button asChild className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20">
-                                <a href="/">กลับหน้าหลัก</a>
+                                <Link href="/">กลับหน้าหลัก</Link>
                             </Button>
                         </CardContent>
                     </Card>

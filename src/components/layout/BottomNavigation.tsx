@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, List, Bell, User, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  const router = require("next/navigation").useRouter();
+  const router = useRouter();
   const { data: session, status } = useSession();
 
   // Hide on login page or when not authenticated

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -185,9 +186,9 @@ export default function AvailabilityPage() {
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
                 <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <a href="/">
+                    <Link href="/">
                         <ChevronLeft className="w-5 h-5" />
-                    </a>
+                    </Link>
                 </Button>
                 <div>
                     <h1 className="text-xl font-bold text-white">แจ้งวันว่าง</h1>

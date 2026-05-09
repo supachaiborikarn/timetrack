@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({
-            records: records.map((r: any) => ({
+            records: records.map((r) => ({
                 id: r.id,
                 date: r.date.toISOString(),
                 checkInTime: r.checkInTime?.toISOString() || null,

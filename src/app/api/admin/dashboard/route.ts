@@ -393,7 +393,7 @@ export async function GET(request: NextRequest) {
             createdAt: string;
         }> = [];
 
-        recentRequests.forEach((swap: any) => {
+        recentRequests.forEach((swap) => {
             allRequests.push({
                 id: swap.id,
                 type: "shift_swap",
@@ -403,22 +403,22 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        recentLeaves.forEach((leave: any) => {
+        recentLeaves.forEach((leave) => {
             allRequests.push({
                 id: leave.id,
                 type: "leave",
                 employeeName: leave.user?.name || "Unknown",
-                description: `ขอลา ${leave.leaveType === "SICK" ? "ป่วย" : leave.leaveType === "ANNUAL" ? "พักร้อน" : leave.leaveType === "PERSONAL" ? "กิจ" : leave.leaveType}`,
+                description: `ขอลา ${leave.type === "SICK" ? "ป่วย" : leave.type === "VACATION" ? "พักร้อน" : leave.type === "PERSONAL" ? "กิจ" : leave.type}`,
                 createdAt: leave.createdAt.toISOString(),
             });
         });
 
-        recentTimeCorrections.forEach((tc: any) => {
+        recentTimeCorrections.forEach((tc) => {
             allRequests.push({
                 id: tc.id,
                 type: "time_correction",
                 employeeName: tc.user?.name || "Unknown",
-                description: `ขอแก้ไขเวลา${tc.correctionType === "CHECK_IN" ? "เข้างาน" : "ออกงาน"}`,
+                description: `ขอแก้ไขเวลา${tc.requestType === "CHECK_IN" ? "เข้างาน" : "ออกงาน"}`,
                 createdAt: tc.createdAt.toISOString(),
             });
         });

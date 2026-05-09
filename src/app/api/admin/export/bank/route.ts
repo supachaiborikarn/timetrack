@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { format } from "@/lib/date-utils";
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
         // NOTE: Ideally, we should export *Confirmed* payroll records.
         // But for now we calculate on fly to enable testing.
 
-        const employeeWhere: any = { isActive: true, role: "EMPLOYEE" };
+        const employeeWhere: Prisma.UserWhereInput = { isActive: true, role: "EMPLOYEE" };
         if (stationId && stationId !== "all") employeeWhere.stationId = stationId;
 
         const employees = await prisma.user.findMany({
@@ -65,9 +66,9 @@ export async function GET(request: NextRequest) {
 
             empAtt.forEach(att => {
                 if (!att.checkInTime) return;
-                let actual = att.actualHours ? Number(att.actualHours) : 0;
-                let regH = actual > normalHours ? normalHours : actual;
-                let otH = actual > normalHours ? actual - normalHours : 0;
+                const actual = att.actualHours ? Number(att.actualHours) : 0;
+                const regH = actual > normalHours ? normalHours : actual;
+                const otH = actual > normalHours ? actual - normalHours : 0;
 
                 regularPay += regH * hourlyRate;
                 otPay += otH * hourlyRate * otMult;

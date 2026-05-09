@@ -1,10 +1,15 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { DebugLoginForm } from "./debug-form";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AuthDebugPage() {
+    if (process.env.NODE_ENV === "production") {
+        notFound();
+    }
+
     const session = await auth();
     const headerList = await headers();
 
@@ -61,6 +66,5 @@ export default async function AuthDebugPage() {
         </div>
     );
 }
-
 
 

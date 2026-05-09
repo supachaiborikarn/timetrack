@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -126,9 +127,9 @@ export default function EmployeeAdvancesPage() {
             <header className="bg-gradient-to-r from-[#241705] to-[#3a2510] border-b border-orange-900/20 px-4 py-4 shadow-lg shadow-black/20">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <a href="/" className="p-2 rounded-lg hover:bg-white/5 transition">
+                        <Link href="/" className="p-2 rounded-lg hover:bg-white/5 transition">
                             <ArrowLeft className="w-5 h-5 text-[#F09410]" />
-                        </a>
+                        </Link>
                         <div>
                             <h1 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FEEAF0] to-[#F0D0C7] text-lg">
                                 เบิกค่าแรง

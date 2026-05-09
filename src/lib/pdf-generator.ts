@@ -12,7 +12,40 @@ function setupThaiFont(doc: jsPDF) {
     doc.setFont("THSarabun");
 }
 
-export const generatePayslipPDF = (payslip: any, companyInfo: any) => {
+interface PayslipPdfData {
+    user: {
+        name: string;
+        employeeId: string;
+        department?: { name?: string | null } | null;
+        bankName?: string | null;
+        bankAccountNumber?: string | null;
+    };
+    period: {
+        startDate: string | Date;
+        endDate: string | Date;
+        name?: string;
+    };
+    createdAt: string | Date;
+    basePay: number | string;
+    overtimePay: number | string;
+    latePenalty: number | string;
+    advanceDeduct: number | string;
+    otherDeduct: number | string;
+    socialSecurity?: number | string | null;
+    netPay: number | string;
+}
+
+interface CompanyInfo {
+    name: string;
+}
+
+type JsPdfWithAutoTable = jsPDF & {
+    lastAutoTable: {
+        finalY: number;
+    };
+};
+
+export const generatePayslipPDF = (payslip: PayslipPdfData, companyInfo: CompanyInfo) => {
     const doc = new jsPDF();
 
     // Register Thai font
@@ -85,7 +118,7 @@ export const generatePayslipPDF = (payslip: any, companyInfo: any) => {
     });
 
     // Totals Row
-    const finalY = (doc as any).lastAutoTable.finalY + 2;
+    const finalY = (doc as JsPdfWithAutoTable).lastAutoTable.finalY + 2;
 
     autoTable(doc, {
         startY: finalY,

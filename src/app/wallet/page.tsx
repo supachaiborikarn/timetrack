@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -183,9 +184,9 @@ export default function WalletPage() {
             {/* Header */}
             <header className="bg-gradient-to-r from-[#241705] to-[#3a2510] border-b border-orange-900/20 px-4 py-4 shadow-lg shadow-black/20 sticky top-0 z-20">
                 <div className="flex items-center gap-3">
-                    <a href="/" className="p-2 -ml-2 rounded-lg hover:bg-white/5 transition">
+                    <Link href="/" className="p-2 -ml-2 rounded-lg hover:bg-white/5 transition">
                         <ArrowLeft className="w-5 h-5 text-stone-400" />
-                    </a>
+                    </Link>
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                         <Wallet className="w-5 h-5 text-white" />
                     </div>

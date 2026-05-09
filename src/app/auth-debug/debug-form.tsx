@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { debugLogin } from './actions';
 
+type DebugLoginResult = { loading: true } | Awaited<ReturnType<typeof debugLogin>> | null;
+
 export function DebugLoginForm() {
-    const [result, setResult] = useState<any>(null);
+    const [result, setResult] = useState<DebugLoginResult>(null);
 
     async function handleSubmit(formData: FormData) {
         setResult({ loading: true });
@@ -36,7 +38,7 @@ export function DebugLoginForm() {
             </form>
 
             {result && (
-                <div className={`p-2 rounded text-xs ${result.success ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                <div className={`p-2 rounded text-xs ${"success" in result && result.success ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
                     <pre>{JSON.stringify(result, null, 2)}</pre>
                 </div>
             )}

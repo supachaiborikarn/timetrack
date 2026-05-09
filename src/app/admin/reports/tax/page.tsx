@@ -28,6 +28,20 @@ interface TaxReportData {
     };
 }
 
+interface PayrollApiEmployee {
+    id: string;
+    name: string;
+    employeeId: string;
+    totalPay: number;
+    regularPay: number;
+    overtimePay: number;
+    latePenalty?: number | null;
+}
+
+interface PayrollApiResponse {
+    employees: PayrollApiEmployee[];
+}
+
 export default function TaxReportPage() {
     const { data: session, status } = useSession();
     const [reportData, setReportData] = useState<TaxReportData | null>(null);
@@ -45,10 +59,10 @@ export default function TaxReportPage() {
             const res = await fetch(`/api/admin/payroll?${params}`);
 
             if (res.ok) {
-                const data = await res.json();
+                const data = await res.json() as PayrollApiResponse;
 
                 // Calculate Tax & SSO Client-side (Projection)
-                const employees = data.employees.map((emp: any) => {
+                const employees = data.employees.map((emp) => {
                     const totalIncome = emp.totalPay + (emp.latePenalty || 0); // Gross income before penalty deduction? Usually tax is on gross.
                     // Let's assume Tax is on (Regular + OT).
                     const grossIncome = emp.regularPay + emp.overtimePay;
@@ -83,9 +97,9 @@ export default function TaxReportPage() {
                 });
 
                 const summary = {
-                    totalIncome: employees.reduce((sum: number, e: any) => sum + e.totalIncome, 0),
-                    totalSocialSecurity: employees.reduce((sum: number, e: any) => sum + e.socialSecurity, 0),
-                    totalTax: employees.reduce((sum: number, e: any) => sum + e.tax, 0)
+                    totalIncome: employees.reduce((sum, e) => sum + e.totalIncome, 0),
+                    totalSocialSecurity: employees.reduce((sum, e) => sum + e.socialSecurity, 0),
+                    totalTax: employees.reduce((sum, e) => sum + e.tax, 0)
                 };
 
                 setReportData({ employees, summary });

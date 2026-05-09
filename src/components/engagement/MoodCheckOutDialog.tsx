@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,12 +23,17 @@ export function MoodCheckOutDialog({
     const [mood, setMood] = useState<string | null>(null);
     const [note, setNote] = useState("");
 
-    useEffect(() => {
-        if (!isOpen) {
-            setMood(null);
-            setNote("");
+    const resetForm = () => {
+        setMood(null);
+        setNote("");
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            resetForm();
+            onClose();
         }
-    }, [isOpen]);
+    };
 
     const handleSubmit = () => {
         if (mood) {
@@ -37,7 +42,7 @@ export function MoodCheckOutDialog({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-md z-[130]">
                 <DialogHeader>
                     <DialogTitle className="text-center text-xl">วันนี้งานเป็นยังไงบ้างครับ?</DialogTitle>

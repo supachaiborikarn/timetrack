@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect, useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -354,9 +355,9 @@ export default function EmployeePayrollDetailPage() {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                            <a href="/admin/payroll">
+                            <Link href="/admin/payroll">
                                 <ChevronLeft className="w-5 h-5" />
-                            </a>
+                            </Link>
                         </Button>
                         <div>
                             <h1 className="text-xl font-bold text-white">

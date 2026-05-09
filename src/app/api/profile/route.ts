@@ -11,15 +11,13 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const userRaw = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
             where: { id: session.user.id },
             include: {
                 station: { select: { id: true, name: true, code: true } },
                 department: { select: { id: true, name: true, code: true } },
             },
         });
-        const user = userRaw as any;
-
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }

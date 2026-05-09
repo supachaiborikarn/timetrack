@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch station colleagues' attendance for absence overlap
-        let colleagueAttendanceMap = new Map<string, Set<string>>();
-        let colleagueNameMap = new Map<string, { name: string; nickName: string | null }>();
+        const colleagueAttendanceMap = new Map<string, Set<string>>();
+        const colleagueNameMap = new Map<string, { name: string; nickName: string | null }>();
         if (employee.stationId) {
             const colleagueWhere: Record<string, unknown> = {
                 stationId: employee.stationId,

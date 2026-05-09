@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,7 +32,7 @@ export function MenuList({ userRole }: MenuListProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Admin Dashboard Link - Full Width (for non-CLERK roles) */}
             {showAdminLink && !isClerkOrCashier && (
-                <a href="/admin" className="col-span-full block group">
+                <Link href="/admin" className="col-span-full block group">
                     <Card className="relative overflow-hidden bg-gradient-to-r from-[#F09410] to-[#BC430D] border-0 shadow-lg shadow-orange-900/20 hover:shadow-orange-600/30 hover:-translate-y-1 transition-all duration-300">
                         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
                         <CardContent className="p-4 flex items-center justify-between relative z-10">
@@ -54,12 +55,12 @@ export function MenuList({ userRole }: MenuListProps) {
                             </div>
                         </CardContent>
                     </Card>
-                </a>
+                </Link>
             )}
 
             {/* CLERK Quick Check-in Link */}
             {isClerkOrCashier && (
-                <a href="/admin/attendance" className="col-span-full block group">
+                <Link href="/admin/attendance" className="col-span-full block group">
                     <Card className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 border-0 shadow-lg shadow-emerald-900/20 hover:shadow-emerald-500/30 hover:-translate-y-1 transition-all duration-300">
                         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all" />
                         <CardContent className="p-4 flex items-center justify-between relative z-10">
@@ -82,11 +83,11 @@ export function MenuList({ userRole }: MenuListProps) {
                             </div>
                         </CardContent>
                     </Card>
-                </a>
+                </Link>
             )}
 
             {/* Schedule */}
-            <a href="/schedule" className="block group">
+            <Link href="/schedule" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 group">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
@@ -98,10 +99,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Shift Pool */}
-            <a href="/shift-pool" className="block group">
+            <Link href="/shift-pool" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-gradient-to-br hover:from-[#2a2420] hover:to-[#241705] hover:border-[#BC430D]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-[#BC430D]/5 rounded-full blur-xl -mr-10 -mt-10 group-hover:bg-[#BC430D]/10 transition-all" />
                     <CardContent className="p-4 flex items-center gap-4 relative z-10">
@@ -119,10 +120,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Availability */}
-            <a href="/availability" className="block group">
+            <Link href="/availability" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
                     <CardContent className="p-4 flex items-center gap-4 relative z-10">
                         <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
@@ -139,10 +140,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* History */}
-            <a href="/history" className="block group">
+            <Link href="/history" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
@@ -154,10 +155,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Requests */}
-            <a href="/requests" className="block group">
+            <Link href="/requests" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
@@ -169,10 +170,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Advance / เบิกค่าแรง */}
-            <a href="/advances" className="block group">
+            <Link href="/advances" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-green-500/50 hover:shadow-lg hover:shadow-green-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
@@ -184,10 +185,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Wallet / กระเป๋าเงิน */}
-            <a href="/wallet" className="block group">
+            <Link href="/wallet" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-gradient-to-br hover:from-[#2a2420] hover:to-[#1a2420] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl -mr-10 -mt-10 group-hover:bg-emerald-500/10 transition-all" />
                     <CardContent className="p-4 flex items-center gap-4 relative z-10">
@@ -203,11 +204,11 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Manage Advances (For Cashier/Manager/HR/Admin) */}
             {userRole && ["ADMIN", "HR", "MANAGER", "CASHIER"].includes(userRole) && (
-                <a href="/admin/advances" className="block group">
+                <Link href="/admin/advances" className="block group">
                     <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all duration-300 hover:-translate-y-1">
                         <CardContent className="p-4 flex items-center gap-4">
                             <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
@@ -219,11 +220,11 @@ export function MenuList({ userRole }: MenuListProps) {
                             </div>
                         </CardContent>
                     </Card>
-                </a>
+                </Link>
             )}
 
             {/* Chat */}
-            <a href="/announcements" className="col-span-full block group">
+            <Link href="/announcements" className="col-span-full block group">
                 <Card className="bg-gradient-to-r from-[#2a2420] to-[#241705] border-orange-900/30 hover:border-[#F09410]/50 hover:shadow-lg hover:shadow-orange-900/20 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -243,10 +244,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Admin Security */}
-            <a href="/admin/security" className="block group">
+            <Link href="/admin/security" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-red-500/50 hover:shadow-lg hover:shadow-red-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
@@ -258,10 +259,10 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
 
             {/* Profile */}
-            <a href="/profile" className="block group">
+            <Link href="/profile" className="block group">
                 <Card className="h-full bg-[#2a2420] border-orange-900/30 hover:bg-[#342a25] hover:border-[#FEEAF0]/30 hover:shadow-lg hover:shadow-orange-900/10 transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-4 flex items-center gap-4">
                         <div className="p-3 rounded-xl bg-[#F0D0C7]/10 group-hover:bg-[#F0D0C7]/20 transition-colors">
@@ -273,7 +274,7 @@ export function MenuList({ userRole }: MenuListProps) {
                         </div>
                     </CardContent>
                 </Card>
-            </a>
+            </Link>
         </div>
     );
 }

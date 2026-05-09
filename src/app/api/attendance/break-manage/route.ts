@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
             orderBy: { checkInTime: "desc" },
             include: { user: true }
         });
-        const attendance = attendanceRaw as any;
+        const attendance = attendanceRaw;
 
         if (!attendance) {
             return NextResponse.json({ error: "พนักงานยังไม่ได้เช็คอินหรือเช็คเอาต์ไปแล้ว" }, { status: 400 });

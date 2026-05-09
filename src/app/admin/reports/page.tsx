@@ -376,7 +376,7 @@ export default function ReportsPage() {
                 <Card>
                     <CardContent className="py-16 text-center">
                         <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-muted-foreground">เลือกช่วงเวลาและกด "สร้างรายงาน"</p>
+                        <p className="text-muted-foreground">เลือกช่วงเวลาและกด &quot;สร้างรายงาน&quot;</p>
                     </CardContent>
                 </Card>
             )}

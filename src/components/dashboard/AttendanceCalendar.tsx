@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
@@ -26,44 +25,38 @@ export function AttendanceCalendar({ data, currentMonth, currentYear }: Attendan
     const month = currentMonth ?? now.getMonth();
     const year = currentYear ?? now.getFullYear();
 
-    const calendarDays = useMemo(() => {
-        const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const today = now.getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = now.getDate();
+    const lookup = new Map<number, DailyAttendance>();
+    data.forEach((d) => {
+        const parts = d.date.split("-");
+        const day = parseInt(parts[2], 10);
+        lookup.set(day, d);
+    });
 
-        // Build lookup
-        const lookup = new Map<number, DailyAttendance>();
-        data.forEach((d) => {
-            const parts = d.date.split("-");
-            const day = parseInt(parts[2], 10);
-            lookup.set(day, d);
+    const calendarDays: Array<{
+        day: number | null;
+        isToday: boolean;
+        isWeekend: boolean;
+        data: DailyAttendance | null;
+    }> = [];
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        calendarDays.push({ day: null, isToday: false, isWeekend: false, data: null });
+    }
+
+    // Days of month
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dayOfWeek = (firstDay + d - 1) % 7;
+        calendarDays.push({
+            day: d,
+            isToday: d === today && month === now.getMonth() && year === now.getFullYear(),
+            isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+            data: lookup.get(d) || null,
         });
-
-        const cells: Array<{
-            day: number | null;
-            isToday: boolean;
-            isWeekend: boolean;
-            data: DailyAttendance | null;
-        }> = [];
-
-        // Empty cells before first day
-        for (let i = 0; i < firstDay; i++) {
-            cells.push({ day: null, isToday: false, isWeekend: false, data: null });
-        }
-
-        // Days of month
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dayOfWeek = (firstDay + d - 1) % 7;
-            cells.push({
-                day: d,
-                isToday: d === today && month === now.getMonth() && year === now.getFullYear(),
-                isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-                data: lookup.get(d) || null,
-            });
-        }
-
-        return cells;
-    }, [data, month, year]);
+    }
 
     const monthName = new Date(year, month).toLocaleDateString("th-TH", {
         month: "long",
