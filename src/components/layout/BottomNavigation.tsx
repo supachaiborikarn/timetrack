@@ -16,7 +16,7 @@ export function BottomNavigation() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl shadow-[0_-4px_25px_rgba(0,0,0,0.05)] border-t border-border">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-card rounded-t-3xl shadow-[0_-4px_25px_rgba(0,0,0,0.05)] border-t border-border">
       <div className="relative flex justify-around items-center h-20 px-4">
         {/* Home */}
         <Link 

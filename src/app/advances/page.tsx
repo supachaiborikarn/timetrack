@@ -40,7 +40,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.C
 };
 
 export default function EmployeeAdvancesPage() {
-    const { data: session, status: authStatus } = useSession();
+    const { status: authStatus } = useSession();
     const [advances, setAdvances] = useState<Advance[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showRequestModal, setShowRequestModal] = useState(false);
@@ -246,7 +246,7 @@ export default function EmployeeAdvancesPage() {
             {showRequestModal && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" onClick={() => setShowRequestModal(false)}>
                     <div
-                        className="bg-[#2a2420] border-t sm:border border-orange-900/30 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md p-6 space-y-4"
+                        className="bg-[#2a2420] border-t sm:border border-orange-900/30 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 space-y-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="text-lg font-bold text-[#F0D0C7] flex items-center gap-2">
