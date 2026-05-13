@@ -75,10 +75,22 @@ export function getCurrentPosition(): Promise<GeolocationPosition> {
     });
 }
 
+const DEVICE_ID_STORAGE_KEY = "timetrack.deviceId.v2";
+
+function createDeviceId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return `tt_${crypto.randomUUID()}`;
+    }
+
+    const randomPart = Math.random().toString(36).slice(2);
+    const timePart = Date.now().toString(36);
+    return `tt_${timePart}_${randomPart}`;
+}
+
 /**
- * Generate a simple device fingerprint
+ * Generate the old browser fingerprint for one-time migration.
  */
-export function getDeviceFingerprint(): string {
+export function getLegacyDeviceFingerprint(): string {
     if (typeof window === "undefined") return "";
 
     const components = [
@@ -99,4 +111,22 @@ export function getDeviceFingerprint(): string {
         hash = hash & hash;
     }
     return hash.toString(36);
+}
+
+/**
+ * Get a stable per-browser device id.
+ */
+export function getDeviceFingerprint(): string {
+    if (typeof window === "undefined") return "";
+
+    try {
+        const existingDeviceId = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+        if (existingDeviceId) return existingDeviceId;
+
+        const newDeviceId = createDeviceId();
+        window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, newDeviceId);
+        return newDeviceId;
+    } catch {
+        return getLegacyDeviceFingerprint();
+    }
 }

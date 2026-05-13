@@ -13,6 +13,7 @@ import {
 } from "@/lib/date-utils";
 import { calculateDistance } from "@/lib/geo";
 import { getTimeTrackSettings } from "@/lib/server/system-settings";
+import { verifyAndSyncUserDevice } from "@/lib/server/device-lock";
 import {
     isHousekeepingOvernightAttendance,
     resolveHousekeepingOvernightClose,
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { latitude, longitude, deviceId, method, qrCode } = body;
+        const { latitude, longitude, deviceId, legacyDeviceId, method, qrCode } = body;
 
         if (!latitude || !longitude) {
             return ApiErrors.validation("กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง");
@@ -102,9 +103,9 @@ export async function POST(request: NextRequest) {
             return ApiErrors.validation(`กรุณาสแกน QR Code ของสาขา ${closestStation.name} เพื่อเช็คอิน`);
         }
 
-        // Check device fingerprint (strict mode enabled to prevent buddy punching)
-        if (user.deviceId && user.deviceId !== deviceId) {
-          return ApiErrors.validation("กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้เท่านั้น (ห้ามเช็คอินแทนกัน)");
+        const deviceLock = await verifyAndSyncUserDevice(user, { deviceId, legacyDeviceId });
+        if (!deviceLock.ok) {
+            return errorResponse(deviceLock.error, 400, deviceLock.code);
         }
 
         const localNow = getBangkokNow();
@@ -293,7 +294,7 @@ export async function POST(request: NextRequest) {
                 checkInTime: utcNow, // Save UTC
                 checkInLat: latitude,
                 checkInLng: longitude,
-                checkInDeviceId: deviceId,
+                checkInDeviceId: deviceLock.deviceId,
                 checkInMethod: method,
                 checkInStationId: closestStation.id,
                 lateMinutes,
@@ -304,21 +305,13 @@ export async function POST(request: NextRequest) {
                 checkInTime: utcNow, // Save UTC
                 checkInLat: latitude,
                 checkInLng: longitude,
-                checkInDeviceId: deviceId,
+                checkInDeviceId: deviceLock.deviceId,
                 checkInMethod: method,
                 checkInStationId: closestStation.id,
                 lateMinutes,
                 latePenaltyAmount,
             },
         });
-
-        // Register device if first time
-        if (!user.deviceId) {
-            await prisma.user.update({
-                where: { id: session.user.id },
-                data: { deviceId },
-            });
-        }
 
         return successResponse({
             checkInTime: attendance.checkInTime,

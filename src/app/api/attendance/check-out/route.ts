@@ -9,6 +9,7 @@ import {
 } from "@/lib/date-utils";
 import { calculateDistance } from "@/lib/geo";
 import { getTimeTrackSettings } from "@/lib/server/system-settings";
+import { verifyAndSyncUserDevice } from "@/lib/server/device-lock";
 import {
     isHousekeepingOvernightAttendance,
     resolveHousekeepingOvernightClose,
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { latitude, longitude, deviceId, method, qrCode } = body;
+        const { latitude, longitude, deviceId, legacyDeviceId, method, qrCode } = body;
 
         if (!latitude || !longitude) {
             return ApiErrors.validation("กรุณาเปิด GPS เพื่อยืนยันตำแหน่ง");
@@ -38,9 +39,9 @@ export async function POST(request: NextRequest) {
             return ApiErrors.validation("คุณไม่ได้ถูกกำหนดให้อยู่สถานีใด");
         }
 
-        // Check device fingerprint (strict mode enabled to prevent buddy punching)
-        if (user.deviceId && user.deviceId !== deviceId) {
-            return ApiErrors.validation("กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้เท่านั้น (ห้ามเช็คเอาต์แทนกัน)");
+        const deviceLock = await verifyAndSyncUserDevice(user, { deviceId, legacyDeviceId });
+        if (!deviceLock.ok) {
+            return errorResponse(deviceLock.error, 400, deviceLock.code);
         }
 
         // CROSS-STATION CHECK-OUT: Validate GPS location against ANY active station
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
                     checkOutTime: fixed.checkOutTime,
                     checkOutLat: latitude,
                     checkOutLng: longitude,
-                    checkOutDeviceId: deviceId,
+                    checkOutDeviceId: deviceLock.deviceId,
                     checkOutMethod: "AUTO_MAID_NO_NIGHT",
                     checkOutStationId: checkOutStation?.id || null,
                     actualHours: fixed.actualHours,
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest) {
                 checkOutTime: finalCheckOutTime,
                 checkOutLat: latitude,
                 checkOutLng: longitude,
-                checkOutDeviceId: deviceId,
+                checkOutDeviceId: deviceLock.deviceId,
                 checkOutMethod: method,
                 checkOutStationId: checkOutStation?.id || null,
                 actualHours: finalTotalHours,

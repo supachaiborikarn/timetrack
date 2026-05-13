@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
+import { getCurrentPosition, getDeviceFingerprint, getLegacyDeviceFingerprint } from "@/lib/geo";
 import { getBangkokNow } from "@/lib/date-utils";
 
 interface AttendanceData {
@@ -81,6 +81,7 @@ export function useAttendance(userId: string | undefined) {
         try {
             const position = await getCurrentPosition();
             const deviceId = getDeviceFingerprint();
+            const legacyDeviceId = getLegacyDeviceFingerprint();
 
             const res = await fetch("/api/attendance/check-in", {
                 method: "POST",
@@ -89,6 +90,7 @@ export function useAttendance(userId: string | undefined) {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                     deviceId,
+                    legacyDeviceId,
                     method: "GPS",
                 }),
             });
@@ -119,6 +121,7 @@ export function useAttendance(userId: string | undefined) {
         try {
             const position = await getCurrentPosition();
             const deviceId = getDeviceFingerprint();
+            const legacyDeviceId = getLegacyDeviceFingerprint();
 
             const res = await fetch("/api/attendance/check-out", {
                 method: "POST",
@@ -127,6 +130,7 @@ export function useAttendance(userId: string | undefined) {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                     deviceId,
+                    legacyDeviceId,
                     method: "GPS",
                 }),
             });

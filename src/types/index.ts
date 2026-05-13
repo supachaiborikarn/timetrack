@@ -38,6 +38,7 @@ export interface CheckInRequest {
     latitude: number;
     longitude: number;
     deviceId: string;
+    legacyDeviceId?: string;
     method: "GPS" | "QR";
     qrCode?: string;
 }
@@ -46,6 +47,7 @@ export interface CheckOutRequest {
     latitude: number;
     longitude: number;
     deviceId: string;
+    legacyDeviceId?: string;
     method: "GPS" | "QR";
 }
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getCurrentPosition, getDeviceFingerprint } from "@/lib/geo";
+import { getCurrentPosition, getDeviceFingerprint, getLegacyDeviceFingerprint } from "@/lib/geo";
 import { formatTime } from "@/lib/date-utils";
 import { Html5Qrcode } from "html5-qrcode";
 import { Suspense } from "react";
@@ -53,6 +53,7 @@ function QRScanPageInner() {
         try {
             const position = await getCurrentPosition();
             const deviceId = getDeviceFingerprint();
+            const legacyDeviceId = getLegacyDeviceFingerprint();
 
             // First, check if employee is on break
             // Add timestamp to prevent caching
@@ -83,6 +84,7 @@ function QRScanPageInner() {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                         deviceId,
+                        legacyDeviceId,
                         method: "QR",
                         qrCode: decodedText,
                     }),
@@ -114,6 +116,7 @@ function QRScanPageInner() {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                         deviceId,
+                        legacyDeviceId,
                         method: "QR",
                         qrCode: decodedText,
                     }),
@@ -150,6 +153,7 @@ function QRScanPageInner() {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                         deviceId,
+                        legacyDeviceId,
                         method: "QR",
                         qrCode: decodedText,
                     }),
