@@ -75,6 +75,7 @@ npx tsx prisma/seed-permissions.ts
 | `AUTH_SECRET` | Secret key สำหรับ NextAuth (สร้างด้วย `openssl rand -base64 32`) |
 | `AUTH_URL` | URL ของแอพ (เช่น `https://timetrack.vercel.app`) |
 | `NEXTAUTH_URL` | เหมือน AUTH_URL |
+| `ENABLE_DB_KEEP_ALIVE` | เว้นว่างไว้ถ้าใช้ Neon free tier |
 
 ---
 
@@ -83,3 +84,4 @@ npx tsx prisma/seed-permissions.ts
 - ถ้าเจอ error เกี่ยวกับ Prisma ให้ลอง redeploy
 - ตรวจสอบ Vercel Logs ถ้ามีปัญหา
 - Database ต้อง accessible จาก Vercel (ใช้ Supabase จะไม่มีปัญหา)
+- ถ้าใช้ Neon free tier อย่าตั้ง uptime monitor ให้ยิง database keep-alive เพราะ Neon จะไม่หลับและ compute จะหมดเร็ว
