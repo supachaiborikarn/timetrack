@@ -13,7 +13,7 @@ import {
 } from "@/lib/date-utils";
 import { calculateDistance } from "@/lib/geo";
 import { getTimeTrackSettings } from "@/lib/server/system-settings";
-import { verifyAndSyncUserDevice } from "@/lib/server/device-lock";
+import { recordDeviceLockAudit, verifyAndSyncUserDevice } from "@/lib/server/device-lock";
 import {
     isHousekeepingOvernightAttendance,
     resolveHousekeepingOvernightClose,
@@ -104,6 +104,13 @@ export async function POST(request: NextRequest) {
         }
 
         const deviceLock = await verifyAndSyncUserDevice(user, { deviceId, legacyDeviceId });
+        await recordDeviceLockAudit({
+            request,
+            user,
+            submitted: { deviceId, legacyDeviceId },
+            result: deviceLock,
+            flow: "CHECK_IN",
+        });
         if (!deviceLock.ok) {
             return errorResponse(deviceLock.error, 400, deviceLock.code);
         }

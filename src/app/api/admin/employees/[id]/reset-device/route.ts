@@ -24,10 +24,30 @@ export async function POST(
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
         }
 
+        const previousDeviceId = existing.deviceId;
+
         // Reset the deviceId
         await prisma.user.update({
             where: { id },
             data: { deviceId: null },
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                action: "DEVICE_LOCK_RESET",
+                entity: "DeviceLock",
+                entityId: id,
+                userId: session.user.id,
+                ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip"),
+                userAgent: request.headers.get("user-agent"),
+                details: JSON.stringify({
+                    targetUserId: id,
+                    targetEmployeeId: existing.employeeId,
+                    targetName: existing.name,
+                    targetNickName: existing.nickName,
+                    previousDeviceId,
+                }),
+            },
         });
 
         return NextResponse.json({ success: true, message: "Device reset successfully" });
