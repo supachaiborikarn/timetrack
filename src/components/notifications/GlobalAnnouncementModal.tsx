@@ -136,14 +136,15 @@ export function GlobalAnnouncementModal() {
             }}
         >
             <DialogContent 
-                className="sm:max-w-[500px] border-amber-200 shadow-xl overflow-hidden"
+                className="flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden border-amber-200 p-4 shadow-xl sm:max-h-[min(90dvh,720px)] sm:max-w-[500px] sm:p-6"
+                showCloseButton={false}
                 onInteractOutside={(e) => e.preventDefault()}
                 onEscapeKeyDown={(e) => e.preventDefault()}
             >
                 {/* Header background glow */}
                 <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400" />
                 
-                <DialogHeader className="pt-4 pb-2">
+                <DialogHeader className="shrink-0 pt-4 pb-2">
                     <div className="mx-auto w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-2">
                         <Megaphone className="w-6 h-6 text-orange-600" />
                     </div>
@@ -155,24 +156,24 @@ export function GlobalAnnouncementModal() {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="my-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="font-semibold text-slate-900">
+                <div className="my-2 flex min-h-0 flex-1 flex-col rounded-lg border border-slate-100 bg-slate-50 p-4">
+                    <div className="mb-2 flex shrink-0 items-start justify-between gap-3">
+                        <p className="min-w-0 font-semibold text-slate-900">
                             {announcement.title !== "ข้อความ" ? announcement.title : "ประกาศ"}
                         </p>
-                        <span className="text-xs text-slate-500">
+                        <span className="shrink-0 text-xs text-slate-500">
                             {formatThaiDate(new Date(announcement.createdAt), "d MMM HH:mm")}
                         </span>
                     </div>
-                    <div className="text-sm text-slate-700 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-sm whitespace-pre-wrap text-slate-700">
                         {announcement.content}
                     </div>
-                    <div className="mt-4 pt-3 border-t text-xs text-slate-500">
+                    <div className="mt-4 shrink-0 border-t pt-3 text-xs text-slate-500">
                         ประกาศโดย {announcement.author.nickName || announcement.author.name}
                     </div>
                 </div>
 
-                <DialogFooter className="flex-col sm:flex-row gap-2 mt-2">
+                <DialogFooter className="mt-2 shrink-0 flex-col gap-2 sm:flex-row">
                     <Button
                         variant="outline"
                         onClick={handleReadMore}
