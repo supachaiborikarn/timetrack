@@ -24,10 +24,13 @@ const prismaDeviceLockStore: DeviceLockStore = {
             },
         });
     },
-    async setUserDeviceId(userId, deviceId) {
+    async setUserDeviceLock(userId, deviceId, deviceFingerprint) {
         await prisma.user.update({
             where: { id: userId },
-            data: { deviceId },
+            data: {
+                deviceId,
+                ...(deviceFingerprint ? { deviceFingerprint } : {}),
+            },
         });
     },
 };
@@ -54,12 +57,17 @@ export async function recordDeviceLockAudit(params: {
     result: DeviceLockResult;
     flow: "CHECK_IN" | "CHECK_OUT";
 }) {
-    const shouldLog = !params.result.ok || params.result.migratedFromLegacy;
+    const shouldLog = !params.result.ok || params.result.migratedFromLegacy || params.result.rotatedFromFingerprint;
     if (!shouldLog) return;
+    const action = !params.result.ok
+        ? `DEVICE_LOCK_${params.result.code}`
+        : params.result.rotatedFromFingerprint
+            ? "DEVICE_LOCK_ROTATED"
+            : "DEVICE_LOCK_MIGRATED";
 
     await prisma.auditLog.create({
         data: {
-            action: params.result.ok ? "DEVICE_LOCK_MIGRATED" : `DEVICE_LOCK_${params.result.code}`,
+            action,
             entity: "DeviceLock",
             entityId: params.user.id,
             userId: params.user.id,
@@ -68,9 +76,11 @@ export async function recordDeviceLockAudit(params: {
             details: JSON.stringify({
                 flow: params.flow,
                 currentDeviceId: params.user.deviceId,
+                currentDeviceFingerprint: params.user.deviceFingerprint,
                 submittedDeviceId: readSubmittedDeviceId(params.submitted.deviceId),
                 submittedLegacyDeviceId: readSubmittedDeviceId(params.submitted.legacyDeviceId),
                 migratedFromLegacy: params.result.ok ? params.result.migratedFromLegacy : false,
+                rotatedFromFingerprint: params.result.ok ? params.result.rotatedFromFingerprint : false,
                 errorCode: params.result.ok ? null : params.result.code,
                 error: params.result.ok ? null : params.result.error,
             }),

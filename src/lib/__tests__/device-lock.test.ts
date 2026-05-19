@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { verifyDeviceLock, type DeviceLockOwner, type DeviceLockStore } from "../device-lock";
 
-function createStore(owner: DeviceLockOwner | null = null): DeviceLockStore & { setUserDeviceId: ReturnType<typeof vi.fn> } {
+function createStore(owner: DeviceLockOwner | null = null): DeviceLockStore & { setUserDeviceLock: ReturnType<typeof vi.fn> } {
     return {
         findOwnerByDeviceId: vi.fn(async () => owner),
-        setUserDeviceId: vi.fn(async () => undefined),
+        setUserDeviceLock: vi.fn(async () => undefined),
     };
 }
 
@@ -13,54 +13,104 @@ describe("device-lock", () => {
         const store = createStore();
 
         const result = await verifyDeviceLock(
-            { id: "user-1", deviceId: "tt_current" },
+            { id: "user-1", deviceId: "tt_current", deviceFingerprint: "legacy123" },
             { deviceId: "tt_current" },
             store,
         );
 
-        expect(result).toEqual({ ok: true, deviceId: "tt_current", migratedFromLegacy: false });
-        expect(store.setUserDeviceId).not.toHaveBeenCalled();
+        expect(result).toEqual({
+            ok: true,
+            deviceId: "tt_current",
+            migratedFromLegacy: false,
+            rotatedFromFingerprint: false,
+            syncedFingerprint: false,
+        });
+        expect(store.setUserDeviceLock).not.toHaveBeenCalled();
     });
 
     it("migrates a legacy fingerprint to a stable device id", async () => {
         const store = createStore();
 
         const result = await verifyDeviceLock(
-            { id: "user-1", deviceId: "legacy123" },
+            { id: "user-1", deviceId: "legacy123", deviceFingerprint: null },
             { deviceId: "tt_new", legacyDeviceId: "legacy123" },
             store,
         );
 
-        expect(result).toEqual({ ok: true, deviceId: "tt_new", migratedFromLegacy: true });
-        expect(store.setUserDeviceId).toHaveBeenCalledWith("user-1", "tt_new");
+        expect(result).toEqual({
+            ok: true,
+            deviceId: "tt_new",
+            migratedFromLegacy: true,
+            rotatedFromFingerprint: false,
+            syncedFingerprint: true,
+        });
+        expect(store.setUserDeviceLock).toHaveBeenCalledWith("user-1", "tt_new", "legacy123");
+    });
+
+    it("saves a legacy fingerprint after a current registered device succeeds", async () => {
+        const store = createStore();
+
+        const result = await verifyDeviceLock(
+            { id: "user-1", deviceId: "tt_current", deviceFingerprint: null },
+            { deviceId: "tt_current", legacyDeviceId: "legacy123" },
+            store,
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            deviceId: "tt_current",
+            migratedFromLegacy: false,
+            rotatedFromFingerprint: false,
+            syncedFingerprint: true,
+        });
+        expect(store.setUserDeviceLock).toHaveBeenCalledWith("user-1", "tt_current", "legacy123");
+    });
+
+    it("rotates to a new stable id when the stored legacy fingerprint matches", async () => {
+        const store = createStore();
+
+        const result = await verifyDeviceLock(
+            { id: "user-1", deviceId: "tt_old", deviceFingerprint: "legacy123" },
+            { deviceId: "tt_new", legacyDeviceId: "legacy123" },
+            store,
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            deviceId: "tt_new",
+            migratedFromLegacy: false,
+            rotatedFromFingerprint: true,
+            syncedFingerprint: true,
+        });
+        expect(store.setUserDeviceLock).toHaveBeenCalledWith("user-1", "tt_new", "legacy123");
     });
 
     it("blocks old clients that only submit legacy fingerprints", async () => {
         const store = createStore();
 
         const result = await verifyDeviceLock(
-            { id: "user-1", deviceId: "legacy123" },
+            { id: "user-1", deviceId: "legacy123", deviceFingerprint: null },
             { deviceId: "legacy123" },
             store,
         );
 
         expect(result.ok).toBe(false);
         expect(result).toMatchObject({ code: "CLIENT_UPDATE_REQUIRED" });
-        expect(store.setUserDeviceId).not.toHaveBeenCalled();
+        expect(store.setUserDeviceLock).not.toHaveBeenCalled();
     });
 
     it("blocks a different device when the legacy id does not match", async () => {
         const store = createStore();
 
         const result = await verifyDeviceLock(
-            { id: "user-1", deviceId: "legacy123" },
+            { id: "user-1", deviceId: "tt_current", deviceFingerprint: "legacy123" },
             { deviceId: "tt_other", legacyDeviceId: "legacy999" },
             store,
         );
 
         expect(result.ok).toBe(false);
         expect(result).toMatchObject({ code: "DEVICE_MISMATCH" });
-        expect(store.setUserDeviceId).not.toHaveBeenCalled();
+        expect(store.setUserDeviceLock).not.toHaveBeenCalled();
     });
 
     it("blocks a device already owned by another active user", async () => {
@@ -72,13 +122,13 @@ describe("device-lock", () => {
         });
 
         const result = await verifyDeviceLock(
-            { id: "user-1", deviceId: null },
+            { id: "user-1", deviceId: null, deviceFingerprint: null },
             { deviceId: "tt_shared" },
             store,
         );
 
         expect(result.ok).toBe(false);
         expect(result).toMatchObject({ code: "DEVICE_ALREADY_USED" });
-        expect(store.setUserDeviceId).not.toHaveBeenCalled();
+        expect(store.setUserDeviceLock).not.toHaveBeenCalled();
     });
 });

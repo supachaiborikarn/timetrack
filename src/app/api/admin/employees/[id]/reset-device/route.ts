@@ -25,11 +25,12 @@ export async function POST(
         }
 
         const previousDeviceId = existing.deviceId;
+        const previousDeviceFingerprint = existing.deviceFingerprint;
 
-        // Reset the deviceId
+        // Reset the device lock.
         await prisma.user.update({
             where: { id },
-            data: { deviceId: null },
+            data: { deviceId: null, deviceFingerprint: null },
         });
 
         await prisma.auditLog.create({
@@ -46,6 +47,7 @@ export async function POST(
                     targetName: existing.name,
                     targetNickName: existing.nickName,
                     previousDeviceId,
+                    previousDeviceFingerprint,
                 }),
             },
         });

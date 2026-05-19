@@ -1,6 +1,7 @@
 export interface DeviceLockUser {
     id: string;
     deviceId: string | null;
+    deviceFingerprint: string | null;
 }
 
 export interface DeviceLockOwner {
@@ -12,7 +13,7 @@ export interface DeviceLockOwner {
 
 export interface DeviceLockStore {
     findOwnerByDeviceId(deviceId: string, currentUserId: string): Promise<DeviceLockOwner | null>;
-    setUserDeviceId(userId: string, deviceId: string): Promise<void>;
+    setUserDeviceLock(userId: string, deviceId: string, deviceFingerprint?: string): Promise<void>;
 }
 
 export interface SubmittedDeviceIds {
@@ -21,7 +22,13 @@ export interface SubmittedDeviceIds {
 }
 
 export type DeviceLockResult =
-    | { ok: true; deviceId: string; migratedFromLegacy: boolean }
+    | {
+        ok: true;
+        deviceId: string;
+        migratedFromLegacy: boolean;
+        rotatedFromFingerprint: boolean;
+        syncedFingerprint: boolean;
+    }
     | {
         ok: false;
         error: string;
@@ -65,12 +72,29 @@ export async function verifyDeviceLock(
     }
 
     if (user.deviceId === deviceId) {
-        return { ok: true, deviceId, migratedFromLegacy: false };
+        const shouldSyncFingerprint = Boolean(legacyDeviceId && !user.deviceFingerprint);
+        if (shouldSyncFingerprint) {
+            await store.setUserDeviceLock(user.id, deviceId, legacyDeviceId);
+        }
+
+        return {
+            ok: true,
+            deviceId,
+            migratedFromLegacy: false,
+            rotatedFromFingerprint: false,
+            syncedFingerprint: shouldSyncFingerprint,
+        };
     }
 
     const canMigrateLegacyDevice = Boolean(user.deviceId && legacyDeviceId && user.deviceId === legacyDeviceId);
+    const canRotateStableDevice = Boolean(
+        user.deviceId &&
+        user.deviceFingerprint &&
+        legacyDeviceId &&
+        user.deviceFingerprint === legacyDeviceId,
+    );
 
-    if (user.deviceId && !canMigrateLegacyDevice) {
+    if (user.deviceId && !canMigrateLegacyDevice && !canRotateStableDevice) {
         return {
             ok: false,
             error: "กรุณาใช้อุปกรณ์ที่ลงทะเบียนไว้เท่านั้น หากเปลี่ยนเครื่องให้แอดมินกดปลดล็อกอุปกรณ์ก่อน",
@@ -87,7 +111,13 @@ export async function verifyDeviceLock(
         };
     }
 
-    await store.setUserDeviceId(user.id, deviceId);
+    await store.setUserDeviceLock(user.id, deviceId, legacyDeviceId || undefined);
 
-    return { ok: true, deviceId, migratedFromLegacy: canMigrateLegacyDevice };
+    return {
+        ok: true,
+        deviceId,
+        migratedFromLegacy: canMigrateLegacyDevice,
+        rotatedFromFingerprint: canRotateStableDevice,
+        syncedFingerprint: Boolean(legacyDeviceId),
+    };
 }

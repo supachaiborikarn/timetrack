@@ -20,6 +20,7 @@ model User {
   stationId                  String?
   departmentId               String?
   deviceId                   String?
+  deviceFingerprint          String?
   photoUrl                   String?
   hourlyRate                 Decimal                @default(0)
   dailyRate                  Decimal                @default(0)
