@@ -24,7 +24,6 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
-    ChevronLeft,
     Download,
     Calculator,
     Loader2,
@@ -258,8 +257,8 @@ export default function PayrollPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -307,501 +306,486 @@ export default function PayrollPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="space-y-6">
             {/* Header */}
-            <header className="bg-slate-800/50 border-b border-slate-700 px-4 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                            <a href="/admin">
-                                <ChevronLeft className="w-5 h-5" />
-                            </a>
-                        </Button>
-                        <div>
-                            <h1 className="text-xl font-bold text-white">คำนวณเงินเดือน</h1>
-                            <p className="text-sm text-slate-400">คำนวณค่าแรงรายวัน</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            className="border-slate-600 text-slate-300"
-                            onClick={handleExport}
-                            disabled={!payrollData}
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            Export Excel
-                        </Button>
-                        <Button
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            disabled={!payrollData}
-                            onClick={async () => {
-                                if (!confirm("ยืนยันการปิดงวดบัญชี? ข้อมูลจะถูกบันทึกสำหรับพนักงานทุกคน")) return;
-                                try {
-                                    const res = await fetch("/api/admin/payroll/finalize", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            startDate,
-                                            endDate,
-                                            stationId: stationId === "all" ? undefined : stationId,
-                                            departmentId: departmentId === "all" ? undefined : departmentId,
-                                        }),
-                                    });
-                                    if (res.ok) alert("ปิดงวดบัญชีเรียบร้อย ✅");
-                                    else alert("เกิดข้อผิดพลาด");
-                                } catch {
-                                    alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-                                }
-                            }}
-                        >
-                            <DollarSign className="w-4 h-4 mr-2" />
-                            ปิดงวดบัญชี
-                        </Button>
-                    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">คำนวณเงินเดือน</h1>
+                    <p className="text-muted-foreground">คำนวณค่าแรงรายวัน</p>
                 </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto p-4">
-                {/* Filters */}
-                <Card className="bg-slate-800/50 border-slate-700 mb-6">
-                    <CardContent className="py-4">
-                        <div className="flex flex-wrap items-end gap-4">
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">ช่วงเวลา</label>
-                                <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" className="border-slate-600 text-xs" onClick={setPayrollPeriod}>
-                                        รอบเงินเดือน (26-25)
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-slate-600 text-xs" onClick={setThisMonth}>
-                                        เดือนนี้
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-slate-600 text-xs" onClick={setLastMonth}>
-                                        เดือนก่อน
-                                    </Button>
-                                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={handleExport}
+                        disabled={!payrollData}
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Excel
+                    </Button>
+                    <Button
+                        disabled={!payrollData}
+                        onClick={async () => {
+                            if (!confirm("ยืนยันการปิดงวดบัญชี? ข้อมูลจะถูกบันทึกสำหรับพนักงานทุกคน")) return;
+                            try {
+                                const res = await fetch("/api/admin/payroll/finalize", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        startDate,
+                                        endDate,
+                                        stationId: stationId === "all" ? undefined : stationId,
+                                        departmentId: departmentId === "all" ? undefined : departmentId,
+                                    }),
+                                });
+                                if (res.ok) alert("ปิดงวดบัญชีเรียบร้อย ✅");
+                                else alert("เกิดข้อผิดพลาด");
+                            } catch {
+                                alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                            }
+                        }}
+                    >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        ปิดงวดบัญชี
+                    </Button>
+                </div>
+            </div>
+            {/* Filters */}
+            <Card>
+                <CardContent className="py-4">
+                    <div className="flex flex-wrap items-end gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">ช่วงเวลา</label>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="text-xs" onClick={setPayrollPeriod}>
+                                    รอบเงินเดือน (26-25)
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-xs" onClick={setThisMonth}>
+                                    เดือนนี้
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-xs" onClick={setLastMonth}>
+                                    เดือนก่อน
+                                </Button>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">เริ่มต้น</label>
-                                <Input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="bg-slate-700 border-slate-600 text-white w-36"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">สิ้นสุด</label>
-                                <Input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="bg-slate-700 border-slate-600 text-white w-36"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">สถานี</label>
-                                <Select value={stationId} onValueChange={handleStationChange}>
-                                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-slate-800 border-slate-700">
-                                        <SelectItem value="all">ทั้งหมด</SelectItem>
-                                        {stations.map((s) => (
-                                            <SelectItem key={s.id} value={s.id}>
-                                                {s.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">แผนก</label>
-                                <Select value={departmentId} onValueChange={setDepartmentId}>
-                                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-slate-800 border-slate-700">
-                                        <SelectItem value="all">ทั้งหมด</SelectItem>
-                                        {filteredDepartments.map((d) => (
-                                            <SelectItem key={d.id} value={d.id}>
-                                                {d.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400">ชม.ปกติ/วัน</label>
-                                <Input
-                                    type="number"
-                                    step="0.5"
-                                    value={normalHoursPerDay}
-                                    onChange={(e) => setNormalHoursPerDay(e.target.value)}
-                                    className="bg-slate-700 border-slate-600 text-white w-20"
-                                />
-                            </div>
-                            <Button
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={calculatePayroll}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calculator className="w-4 h-4 mr-2" />}
-                                คำนวณ
-                            </Button>
                         </div>
-                    </CardContent>
-                </Card>
-
-                {/* Summary Stats */}
-                {payrollData && (
-                    <>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-white">{payrollData.summary.totalEmployees}</p>
-                                    <p className="text-xs text-slate-400">พนักงาน</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <Clock className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-white">{(payrollData.summary.totalHours || 0).toFixed(0)}</p>
-                                    <p className="text-xs text-slate-400">ชม.รวม • {formatWorkDays(payrollData.summary.totalWorkDays)} วัน</p>
-                                </CardContent>
-                            </Card>
-                            <Card className={`border-0 ${absenceOverlaps.length > 0 ? 'bg-gradient-to-br from-amber-600 to-orange-700' : 'bg-slate-800/50 border-slate-700'}`}>
-                                <CardContent className="py-4 text-center">
-                                    <AlertTriangle className={`w-6 h-6 mx-auto mb-2 ${absenceOverlaps.length > 0 ? 'text-white' : 'text-slate-500'}`} />
-                                    <p className={`text-2xl font-bold ${absenceOverlaps.length > 0 ? 'text-white' : 'text-slate-500'}`}>{absenceOverlaps.length}</p>
-                                    <p className={`text-xs ${absenceOverlaps.length > 0 ? 'text-amber-200' : 'text-slate-400'}`}>วันหยุดซ้ำกัน</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
-                                <CardContent className="py-4 text-center">
-                                    <DollarSign className="w-6 h-6 text-white mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-white">฿{formatCurrency(adjustedGrandTotal)}</p>
-                                    <p className="text-xs text-green-200">ค่าแรงรวม (รวมพิเศษ)</p>
-                                </CardContent>
-                            </Card>
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">เริ่มต้น</label>
+                            <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-36"
+                            />
                         </div>
-
-                        {/* Breakdown - Income */}
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-lg font-bold text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
-                                    <p className="text-xs text-slate-400">ค่าแรง</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-lg font-bold text-amber-400">+฿{formatCurrency(totalBonus)}</p>
-                                    <p className="text-xs text-slate-400">เงินพิเศษรวม</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-lg font-bold text-red-400">-฿{formatCurrency(payrollData.summary.totalDeductions)}</p>
-                                    <p className="text-xs text-slate-400">รวมหักทั้งหมด</p>
-                                </CardContent>
-                            </Card>
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">สิ้นสุด</label>
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-36"
+                            />
                         </div>
-
-                        {/* Breakdown - Deductions */}
-                        <div className="grid grid-cols-4 gap-4 mb-6">
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalLatePenalty)}</p>
-                                    <p className="text-xs text-slate-500">หักสาย</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalAdvanceDeduction)}</p>
-                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalOtherExpenses)}</p>
-                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(payrollData.summary.totalSocialSecurity)}</p>
-                                    <p className="text-xs text-slate-500">ประกันสังคม</p>
-                                </CardContent>
-                            </Card>
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">สถานี</label>
+                            <Select value={stationId} onValueChange={handleStationChange}>
+                                <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">ทั้งหมด</SelectItem>
+                                    {stations.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">แผนก</label>
+                            <Select value={departmentId} onValueChange={setDepartmentId}>
+                                <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">ทั้งหมด</SelectItem>
+                                    {filteredDepartments.map((d) => (
+                                        <SelectItem key={d.id} value={d.id}>
+                                            {d.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">ชม.ปกติ/วัน</label>
+                            <Input
+                                type="number"
+                                step="0.5"
+                                value={normalHoursPerDay}
+                                onChange={(e) => setNormalHoursPerDay(e.target.value)}
+                                className="w-20"
+                            />
+                        </div>
+                        <Button
+                            onClick={calculatePayroll}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calculator className="w-4 h-4 mr-2" />}
+                            คำนวณ
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
-                        {/* Employee Table */}
-                        <Card className="bg-slate-800/50 border-slate-700">
+            {/* Summary Stats */}
+            {payrollData && (
+                <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <Users className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-foreground">{payrollData.summary.totalEmployees}</p>
+                                <p className="text-xs text-muted-foreground">พนักงาน</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <Clock className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-foreground">{(payrollData.summary.totalHours || 0).toFixed(0)}</p>
+                                <p className="text-xs text-muted-foreground">ชม.รวม • {formatWorkDays(payrollData.summary.totalWorkDays)} วัน</p>
+                            </CardContent>
+                        </Card>
+                        <Card className={absenceOverlaps.length > 0 ? "border-amber-500/50 bg-amber-500/5" : ""}>
+                            <CardContent className="py-4 text-center">
+                                <AlertTriangle className={`w-6 h-6 mx-auto mb-2 ${absenceOverlaps.length > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                                <p className={`text-2xl font-bold ${absenceOverlaps.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>{absenceOverlaps.length}</p>
+                                <p className="text-xs text-muted-foreground">วันหยุดซ้ำกัน</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-primary/50 bg-primary/5">
+                            <CardContent className="py-4 text-center">
+                                <DollarSign className="w-6 h-6 text-primary mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-foreground">฿{formatCurrency(adjustedGrandTotal)}</p>
+                                <p className="text-xs text-muted-foreground">ค่าแรงรวม (รวมพิเศษ)</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Breakdown - Income */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
+                                <p className="text-xs text-muted-foreground">ค่าแรง</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">+฿{formatCurrency(totalBonus)}</p>
+                                <p className="text-xs text-muted-foreground">เงินพิเศษรวม</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-lg font-bold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalDeductions)}</p>
+                                <p className="text-xs text-muted-foreground">รวมหักทั้งหมด</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Breakdown - Deductions */}
+                    <div className="grid grid-cols-4 gap-4">
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalLatePenalty)}</p>
+                                <p className="text-xs text-muted-foreground">หักสาย</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalAdvanceDeduction)}</p>
+                                <p className="text-xs text-muted-foreground">หักเบิกล่วงหน้า</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalOtherExpenses)}</p>
+                                <p className="text-xs text-muted-foreground">ค่าใช้จ่ายอื่นๆ</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalSocialSecurity)}</p>
+                                <p className="text-xs text-muted-foreground">ประกันสังคม</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Employee Table */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">รายละเอียดตามพนักงาน</CardTitle>
+                        </CardHeader>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>รหัส</TableHead>
+                                        <TableHead>ชื่อ</TableHead>
+                                        <TableHead>แผนก</TableHead>
+                                        <TableHead className="text-center">วัน</TableHead>
+                                        <TableHead className="text-center">ชม.รวม</TableHead>
+                                        <TableHead className="text-right">ค่าแรง</TableHead>
+                                        <TableHead className="text-right text-red-600 dark:text-red-400">หักสาย</TableHead>
+                                        <TableHead className="text-right text-red-600 dark:text-red-400">เบิกล่วงหน้า</TableHead>
+                                        <TableHead className="text-right text-red-600 dark:text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
+                                        <TableHead className="text-right text-red-600 dark:text-red-400">ประกันสังคม</TableHead>
+                                        <TableHead className="text-center">เงินพิเศษ</TableHead>
+                                        <TableHead className="text-right">รวมสุทธิ</TableHead>
+                                        <TableHead className="text-center w-20"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {payrollData.employees.map((emp) => {
+                                        const empBonus = bonusAmounts[emp.id] || 0;
+                                        // emp.totalPay already includes emp.adjustment from the database
+                                        const empGrandTotal = emp.totalPay - (emp.adjustment || 0) + empBonus;
+                                        return (
+                                            <TableRow key={emp.id}>
+                                                <TableCell className="text-muted-foreground">{emp.employeeId}</TableCell>
+                                                <TableCell className="font-medium text-foreground">
+                                                    {emp.name}{emp.nickName ? ` (${emp.nickName})` : ""}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">{emp.department}</TableCell>
+                                                <TableCell className="text-center text-foreground">
+                                                    <div>{formatWorkDays(emp.workDays)}</div>
+                                                    {emp.halfDayCount > 0 && (
+                                                        <div className="text-[10px] text-amber-600 dark:text-amber-400">ครึ่ง {emp.halfDayCount}</div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-center text-blue-600 dark:text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
+                                                <TableCell className="text-right text-blue-600 dark:text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
+                                                <TableCell className="text-right text-red-600 dark:text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="100"
+                                                        defaultValue={emp.advanceDeduction || ""}
+                                                        placeholder="0"
+                                                        onBlur={async (e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            if (val === (emp.advanceDeduction || 0)) return;
+                                                            const m = endDate.split("-")[1];
+                                                            const y = endDate.split("-")[0];
+                                                            await fetch("/api/admin/advances", {
+                                                                method: "PATCH",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ userId: emp.id, month: m, year: y, amount: val }),
+                                                            });
+                                                            toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                                            calculatePayroll();
+                                                        }}
+                                                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                                        className="w-24 text-red-600 dark:text-red-400 text-center"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="100"
+                                                        defaultValue={emp.otherExpenses || ""}
+                                                        placeholder="0"
+                                                        onBlur={async (e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            if (val === (emp.otherExpenses || 0)) return;
+                                                            await fetch("/api/admin/payroll/employee-daily", {
+                                                                method: "PATCH",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ userId: emp.id, otherExpenses: val }),
+                                                            });
+                                                            toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                                            calculatePayroll();
+                                                        }}
+                                                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                                        className="w-24 text-red-600 dark:text-red-400 text-center"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-right text-red-600 dark:text-red-400">{emp.socialSecurity > 0 ? `-฿${formatCurrency(emp.socialSecurity)}` : '-'}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="100"
+                                                        value={bonusAmounts[emp.id] !== undefined ? bonusAmounts[emp.id] : ""}
+                                                        onChange={(e) => handleBonusChange(emp.id, e.target.value)}
+                                                        onBlur={async (e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            if (val === (emp.adjustment || 0)) return;
+                                                            await fetch("/api/admin/payroll/employee-daily", {
+                                                                method: "PATCH",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ 
+                                                                    userId: emp.id, 
+                                                                    totalAdjustment: val,
+                                                                    startDate,
+                                                                    endDate
+                                                                }),
+                                                            });
+                                                            toast.success(`บันทึกเงินพิเศษ: ฿${val}`);
+                                                            calculatePayroll();
+                                                        }}
+                                                        placeholder="0"
+                                                        className="w-24 text-amber-600 dark:text-amber-400 text-center"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold text-green-600 dark:text-green-400">฿{formatCurrency(empGrandTotal)}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-blue-600 dark:text-blue-400 hover:bg-accent"
+                                                            asChild
+                                                        >
+                                                            <Link href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
+                                                                <Eye className="w-4 h-4 mr-1" />
+                                                                ดูรายวัน
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-orange-600 dark:text-orange-400 hover:bg-accent"
+                                                            onClick={() => {
+                                                                const bonus = bonusAmounts[emp.id] || 0;
+                                                                const totalPay = emp.totalPay - (emp.adjustment || 0) + bonus;
+
+                                                                const payslipObj = {
+                                                                    user: {
+                                                                        name: emp.nickName ? `${emp.name} (${emp.nickName})` : emp.name,
+                                                                        employeeId: emp.employeeId,
+                                                                        department: { name: emp.department },
+                                                                        bankName: emp.bankName,
+                                                                        bankAccountNumber: emp.bankAccountNumber
+                                                                    },
+                                                                    period: {
+                                                                        startDate: startDate,
+                                                                        endDate: endDate,
+                                                                        name: "Period"
+                                                                    },
+                                                                    createdAt: new Date().toISOString(),
+                                                                    basePay: emp.regularPay,
+                                                                    overtimePay: emp.overtimePay,
+                                                                    latePenalty: emp.latePenalty,
+                                                                    advanceDeduct: emp.advanceDeduction,
+                                                                    otherDeduct: emp.otherExpenses,
+                                                                    socialSecurity: emp.socialSecurity,
+                                                                    netPay: totalPay,
+                                                                    bonus: bonus
+                                                                };
+
+                                                                try {
+                                                                    generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+                                                                } catch (err) {
+                                                                    console.error("PDF generation error:", err);
+                                                                    alert("ไม่สามารถสร้าง PDF ได้: " + (err instanceof Error ? err.message : "Unknown error"));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-amber-600 dark:text-amber-400 hover:bg-accent"
+                                                            title="ปิดงวดคนนี้"
+                                                            onClick={async () => {
+                                                                if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${emp.name}?`)) return;
+                                                                try {
+                                                                    const res = await fetch("/api/admin/payroll/finalize", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({ startDate, endDate, userId: emp.id }),
+                                                                    });
+                                                                    if (res.ok) toast.success(`ปิดงวด ${emp.name} เรียบร้อย ✅`);
+                                                                    else toast.error("เกิดข้อผิดพลาด");
+                                                                } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
+                                                            }}
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </Card>
+
+                    {/* Absence Overlaps */}
+                    {absenceOverlaps.length > 0 && (
+                        <Card className="border-amber-500/40">
                             <CardHeader>
-                                <CardTitle className="text-lg text-white">รายละเอียดตามพนักงาน</CardTitle>
+                                <CardTitle className="text-lg text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5" />
+                                    วันหยุดซ้ำกัน ({absenceOverlaps.length} วัน)
+                                </CardTitle>
+                                <p className="text-sm text-muted-foreground">วันที่มีพนักงาน 2 คนขึ้นไปหยุดพร้อมกันในสถานีเดียวกัน</p>
                             </CardHeader>
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow className="border-slate-700">
-                                            <TableHead className="text-slate-300">รหัส</TableHead>
-                                            <TableHead className="text-slate-300">ชื่อ</TableHead>
-                                            <TableHead className="text-slate-300">แผนก</TableHead>
-                                            <TableHead className="text-slate-300 text-center">วัน</TableHead>
-                                            <TableHead className="text-slate-300 text-center">ชม.รวม</TableHead>
-                                            <TableHead className="text-slate-300 text-right">ค่าแรง</TableHead>
-                                            <TableHead className="text-slate-300 text-right text-red-400">หักสาย</TableHead>
-                                            <TableHead className="text-slate-300 text-right text-red-400">เบิกล่วงหน้า</TableHead>
-                                            <TableHead className="text-slate-300 text-right text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
-                                            <TableHead className="text-slate-300 text-right text-red-400">ประกันสังคม</TableHead>
-                                            <TableHead className="text-slate-300 text-center">เงินพิเศษ</TableHead>
-                                            <TableHead className="text-slate-300 text-right">รวมสุทธิ</TableHead>
-                                            <TableHead className="text-slate-300 text-center w-20"></TableHead>
+                                        <TableRow>
+                                            <TableHead>วันที่</TableHead>
+                                            <TableHead>สถานี</TableHead>
+                                            <TableHead>พนักงานที่หยุด</TableHead>
+                                            <TableHead className="text-center">จำนวน</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {payrollData.employees.map((emp) => {
-                                            const empBonus = bonusAmounts[emp.id] || 0;
-                                            // emp.totalPay already includes emp.adjustment from the database
-                                            const empGrandTotal = emp.totalPay - (emp.adjustment || 0) + empBonus;
-                                            return (
-                                                <TableRow key={emp.id} className="border-slate-700">
-                                                    <TableCell className="text-slate-400">{emp.employeeId}</TableCell>
-                                                    <TableCell className="text-white font-medium">
-                                                        {emp.name}{emp.nickName ? ` (${emp.nickName})` : ""}
-                                                    </TableCell>
-                                                    <TableCell className="text-slate-400">{emp.department}</TableCell>
-                                                    <TableCell className="text-center text-white">
-                                                        <div>{formatWorkDays(emp.workDays)}</div>
-                                                        {emp.halfDayCount > 0 && (
-                                                            <div className="text-[10px] text-amber-400">ครึ่ง {emp.halfDayCount}</div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
-                                                    <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
-                                                    <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="100"
-                                                            defaultValue={emp.advanceDeduction || ""}
-                                                            placeholder="0"
-                                                            onBlur={async (e) => {
-                                                                const val = parseFloat(e.target.value) || 0;
-                                                                if (val === (emp.advanceDeduction || 0)) return;
-                                                                const m = endDate.split("-")[1];
-                                                                const y = endDate.split("-")[0];
-                                                                await fetch("/api/admin/advances", {
-                                                                    method: "PATCH",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ userId: emp.id, month: m, year: y, amount: val }),
-                                                                });
-                                                                toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
-                                                                calculatePayroll();
-                                                            }}
-                                                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                                                            className="w-24 bg-slate-700 border-slate-600 text-red-400 text-center"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="100"
-                                                            defaultValue={emp.otherExpenses || ""}
-                                                            placeholder="0"
-                                                            onBlur={async (e) => {
-                                                                const val = parseFloat(e.target.value) || 0;
-                                                                if (val === (emp.otherExpenses || 0)) return;
-                                                                await fetch("/api/admin/payroll/employee-daily", {
-                                                                    method: "PATCH",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ userId: emp.id, otherExpenses: val }),
-                                                                });
-                                                                toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
-                                                                calculatePayroll();
-                                                            }}
-                                                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                                                            className="w-24 bg-slate-700 border-slate-600 text-red-400 text-center"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-red-400">{emp.socialSecurity > 0 ? `-฿${formatCurrency(emp.socialSecurity)}` : '-'}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="100"
-                                                            value={bonusAmounts[emp.id] !== undefined ? bonusAmounts[emp.id] : ""}
-                                                            onChange={(e) => handleBonusChange(emp.id, e.target.value)}
-                                                            onBlur={async (e) => {
-                                                                const val = parseFloat(e.target.value) || 0;
-                                                                if (val === (emp.adjustment || 0)) return;
-                                                                await fetch("/api/admin/payroll/employee-daily", {
-                                                                    method: "PATCH",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ 
-                                                                        userId: emp.id, 
-                                                                        totalAdjustment: val,
-                                                                        startDate,
-                                                                        endDate
-                                                                    }),
-                                                                });
-                                                                toast.success(`บันทึกเงินพิเศษ: ฿${val}`);
-                                                                calculatePayroll();
-                                                            }}
-                                                            placeholder="0"
-                                                            className="w-24 bg-slate-700 border-slate-600 text-amber-400 text-center"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-green-400 font-bold">฿{formatCurrency(empGrandTotal)}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-blue-400 hover:text-blue-300 hover:bg-slate-700"
-                                                                asChild
-                                                            >
-                                                                <Link href={`/admin/payroll/${emp.id}?startDate=${startDate}&endDate=${endDate}`}>
-                                                                    <Eye className="w-4 h-4 mr-1" />
-                                                                    ดูรายวัน
-                                                                </Link>
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-orange-400 hover:text-orange-300 hover:bg-slate-700"
-                                                                onClick={() => {
-                                                                    const bonus = bonusAmounts[emp.id] || 0;
-                                                                    const totalPay = emp.totalPay - (emp.adjustment || 0) + bonus;
-
-                                                                    const payslipObj = {
-                                                                        user: {
-                                                                            name: emp.nickName ? `${emp.name} (${emp.nickName})` : emp.name,
-                                                                            employeeId: emp.employeeId,
-                                                                            department: { name: emp.department },
-                                                                            bankName: emp.bankName,
-                                                                            bankAccountNumber: emp.bankAccountNumber
-                                                                        },
-                                                                        period: {
-                                                                            startDate: startDate,
-                                                                            endDate: endDate,
-                                                                            name: "Period"
-                                                                        },
-                                                                        createdAt: new Date().toISOString(),
-                                                                        basePay: emp.regularPay,
-                                                                        overtimePay: emp.overtimePay,
-                                                                        latePenalty: emp.latePenalty,
-                                                                        advanceDeduct: emp.advanceDeduction,
-                                                                        otherDeduct: emp.otherExpenses,
-                                                                        socialSecurity: emp.socialSecurity,
-                                                                        netPay: totalPay,
-                                                                        bonus: bonus
-                                                                    };
-
-                                                                    try {
-                                                                        generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
-                                                                    } catch (err) {
-                                                                        console.error("PDF generation error:", err);
-                                                                        alert("ไม่สามารถสร้าง PDF ได้: " + (err instanceof Error ? err.message : "Unknown error"));
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <Download className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-amber-400 hover:text-amber-300 hover:bg-slate-700"
-                                                                title="ปิดงวดคนนี้"
-                                                                onClick={async () => {
-                                                                    if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${emp.name}?`)) return;
-                                                                    try {
-                                                                        const res = await fetch("/api/admin/payroll/finalize", {
-                                                                            method: "POST",
-                                                                            headers: { "Content-Type": "application/json" },
-                                                                            body: JSON.stringify({ startDate, endDate, userId: emp.id }),
-                                                                        });
-                                                                        if (res.ok) toast.success(`ปิดงวด ${emp.name} เรียบร้อย ✅`);
-                                                                        else toast.error("เกิดข้อผิดพลาด");
-                                                                    } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
-                                                                }}
-                                                            >
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
+                                        {absenceOverlaps.map((overlap, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="font-medium text-foreground">
+                                                    {new Date(overlap.date).toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short" })}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">{overlap.stationName}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {overlap.absentEmployees.map((emp) => (
+                                                            <Badge key={emp.id} variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 text-xs">
+                                                                {emp.nickName || emp.name}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge className="bg-amber-500 text-white border-transparent">
+                                                        {overlap.absentEmployees.length} คน
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </div>
                         </Card>
+                    )}
+                </>
+            )}
 
-                        {/* Absence Overlaps */}
-                        {absenceOverlaps.length > 0 && (
-                            <Card className="bg-slate-800/50 border-amber-700/50 mt-6">
-                                <CardHeader>
-                                    <CardTitle className="text-lg text-amber-400 flex items-center gap-2">
-                                        <AlertTriangle className="w-5 h-5" />
-                                        วันหยุดซ้ำกัน ({absenceOverlaps.length} วัน)
-                                    </CardTitle>
-                                    <p className="text-sm text-slate-400">วันที่มีพนักงาน 2 คนขึ้นไปหยุดพร้อมกันในสถานีเดียวกัน</p>
-                                </CardHeader>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="border-slate-700">
-                                                <TableHead className="text-slate-300">วันที่</TableHead>
-                                                <TableHead className="text-slate-300">สถานี</TableHead>
-                                                <TableHead className="text-slate-300">พนักงานที่หยุด</TableHead>
-                                                <TableHead className="text-slate-300 text-center">จำนวน</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {absenceOverlaps.map((overlap, idx) => (
-                                                <TableRow key={idx} className="border-slate-700">
-                                                    <TableCell className="text-white font-medium">
-                                                        {new Date(overlap.date).toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short" })}
-                                                    </TableCell>
-                                                    <TableCell className="text-slate-400">{overlap.stationName}</TableCell>
-                                                    <TableCell>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {overlap.absentEmployees.map((emp) => (
-                                                                <Badge key={emp.id} variant="outline" className="border-amber-600 text-amber-400 text-xs">
-                                                                    {emp.nickName || emp.name}
-                                                                </Badge>
-                                                            ))}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge className="bg-amber-600 text-white">
-                                                            {overlap.absentEmployees.length} คน
-                                                        </Badge>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </Card>
-                        )}
-                    </>
-                )}
-
-                {!payrollData && (
-                    <Card className="bg-slate-800/50 border-slate-700">
-                        <CardContent className="py-12 text-center">
-                            <Calculator className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                            <p className="text-slate-400">เลือกช่วงเวลาและกด &quot;คำนวณ&quot;</p>
-                        </CardContent>
-                    </Card>
-                )}
-            </main>
-        </div >
+            {!payrollData && (
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <Calculator className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <p className="text-muted-foreground">เลือกช่วงเวลาและกด &quot;คำนวณ&quot;</p>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }

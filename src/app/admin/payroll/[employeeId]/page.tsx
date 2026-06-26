@@ -336,8 +336,8 @@ export default function EmployeePayrollDetailPage() {
 
     if (status === "loading" || isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -347,518 +347,511 @@ export default function EmployeePayrollDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="space-y-6">
             {/* Header */}
-            <header className="bg-slate-800/50 border-b border-slate-700 px-4 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                            <Link href="/admin/payroll">
-                                <ChevronLeft className="w-5 h-5" />
-                            </Link>
-                        </Button>
-                        <div>
-                            <h1 className="text-xl font-bold text-white">
-                                {data?.employee.name || "กำลังโหลด..."}
-                            </h1>
-                            <p className="text-sm text-slate-400">
-                                {data?.employee.employeeId} • {data?.employee.department}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="bg-slate-700 border-slate-600 text-white w-36"
-                        />
-                        <span className="text-slate-400">-</span>
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="bg-slate-700 border-slate-600 text-white w-36"
-                        />
-                        <Button
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={fetchData}
-                            disabled={isLoading}
-                        >
-                            <Calendar className="w-4 h-4 mr-2" />
-                            โหลด
-                        </Button>
-                        <Button
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
-                            disabled={!data}
-                            onClick={async () => {
-                                if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${data?.employee.name}?`)) return;
-                                try {
-                                    const res = await fetch("/api/admin/payroll/finalize", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            startDate,
-                                            endDate,
-                                            userId: employeeId,
-                                        }),
-                                    });
-                                    if (res.ok) {
-                                        toast.success("ปิดงวดบัญชีเรียบร้อย ✅");
-                                    } else {
-                                        toast.error("เกิดข้อผิดพลาด");
-                                    }
-                                } catch {
-                                    toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-                                }
-                            }}
-                        >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            ปิดงวดคนนี้
-                        </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/admin/payroll">
+                            <ChevronLeft className="w-5 h-5" />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground">
+                            {data?.employee.name || "กำลังโหลด..."}
+                        </h1>
+                        <p className="text-muted-foreground">
+                            {data?.employee.employeeId} • {data?.employee.department}
+                        </p>
                     </div>
                 </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto p-4">
-                {/* Employee Info Card */}
-                {data && (
-                    <Card className="bg-slate-800/50 border-slate-700 mb-4">
-                        <CardContent className="py-4">
-                            <div className="flex flex-wrap gap-6">
-                                <div className="flex items-center gap-2">
-                                    <User className="w-5 h-5 text-blue-400" />
-                                    <span className="text-slate-400">สถานี:</span>
-                                    <span className="text-white">{data.employee.station}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <DollarSign className="w-5 h-5 text-green-400" />
-                                    <span className="text-slate-400">ค่าแรง/วัน:</span>
-                                    <span className="text-green-400 font-bold">
-                                        ฿{formatCurrency(data.employee.defaultDailyRate)}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className="w-5 h-5 text-purple-400" />
-                                    <span className="text-slate-400">OT x{data.employee.otMultiplier}:</span>
-                                    <span className="text-purple-400">
-                                        ฿{formatCurrency(data.employee.hourlyRate)}/ชม.
-                                    </span>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-slate-600 text-slate-300 ml-auto"
-                                    asChild
-                                >
-                                    <a href={`/admin/employees?edit=${data.employee.id}`}>
-                                        แก้ไขข้อมูลพนักงาน
-                                    </a>
-                                </Button>
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-36"
+                    />
+                    <span className="text-muted-foreground">-</span>
+                    <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-36"
+                    />
+                    <Button
+                        onClick={fetchData}
+                        disabled={isLoading}
+                    >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        โหลด
+                    </Button>
+                    <Button
+                        disabled={!data}
+                        onClick={async () => {
+                            if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${data?.employee.name}?`)) return;
+                            try {
+                                const res = await fetch("/api/admin/payroll/finalize", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        startDate,
+                                        endDate,
+                                        userId: employeeId,
+                                    }),
+                                });
+                                if (res.ok) {
+                                    toast.success("ปิดงวดบัญชีเรียบร้อย ✅");
+                                } else {
+                                    toast.error("เกิดข้อผิดพลาด");
+                                }
+                            } catch {
+                                toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                            }
+                        }}
+                    >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        ปิดงวดคนนี้
+                    </Button>
+                </div>
+            </div>
+            {/* Employee Info Card */}
+            {data && (
+                <Card>
+                    <CardContent className="py-4">
+                        <div className="flex flex-wrap gap-6">
+                            <div className="flex items-center gap-2">
+                                <User className="w-5 h-5 text-blue-500" />
+                                <span className="text-muted-foreground">สถานี:</span>
+                                <span className="text-foreground">{data.employee.station}</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Summary Cards */}
-                {data && (
-                    <>
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
-                                    <p className="text-xs text-slate-400">วันทำงาน</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">เต็ม {data.summary.fullDayCount} / ครึ่ง {data.summary.halfDayCount}</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-green-400">
-                                        ฿{formatCurrency(data.summary.totalWage)}
-                                    </p>
-                                    <p className="text-xs text-slate-400">ค่าแรงรวม</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-purple-400">
-                                        ฿{formatCurrency(data.summary.totalOT)}
-                                    </p>
-                                    <p className="text-xs text-slate-400">OT รวม</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-red-400">
-                                        -฿{formatCurrency(data.summary.totalDeductions)}
-                                    </p>
-                                    <p className="text-xs text-slate-400">รวมหัก</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="py-4 text-center">
-                                    <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
-                                        {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
-                                    </p>
-                                    <p className="text-xs text-slate-400">ปรับเงิน</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-gradient-to-br from-green-600 to-green-700 border-0">
-                                <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-white">
-                                        ฿{formatCurrency(data.summary.grandTotal)}
-                                    </p>
-                                    <p className="text-xs text-green-200">รวมสุทธิ</p>
-                                </CardContent>
-                            </Card>
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-green-500" />
+                                <span className="text-muted-foreground">ค่าแรง/วัน:</span>
+                                <span className="text-green-600 dark:text-green-400 font-bold">
+                                    ฿{formatCurrency(data.employee.defaultDailyRate)}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-purple-500" />
+                                <span className="text-muted-foreground">OT x{data.employee.otMultiplier}:</span>
+                                <span className="text-purple-600 dark:text-purple-400">
+                                    ฿{formatCurrency(data.employee.hourlyRate)}/ชม.
+                                </span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="ml-auto"
+                                asChild
+                            >
+                                <a href={`/admin/employees?edit=${data.employee.id}`}>
+                                    แก้ไขข้อมูลพนักงาน
+                                </a>
+                            </Button>
                         </div>
+                    </CardContent>
+                </Card>
+            )}
 
-                        {/* Deduction Breakdown */}
-                        <div className="grid grid-cols-4 gap-4 mb-6">
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
-                                    <p className="text-xs text-slate-500">หักสาย</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700 cursor-pointer hover:border-slate-500 transition"
-                                onClick={() => { if (!editingAdvance) { setEditingAdvance(true); setAdvanceValue(String(data.summary.advanceDeduction || 0)); } }}>
-                                <CardContent className="py-3 text-center">
-                                    {editingAdvance ? (
-                                        <Input
-                                            type="number"
-                                            value={advanceValue}
-                                            onChange={(e) => setAdvanceValue(e.target.value)}
-                                            onBlur={async () => {
-                                                setEditingAdvance(false);
-                                                const val = parseFloat(advanceValue) || 0;
-                                                const m = endDate.split("-")[1];
-                                                const y = endDate.split("-")[0];
-                                                await fetch("/api/admin/advances", {
-                                                    method: "PATCH",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({ userId: employeeId, month: m, year: y, amount: val }),
-                                                });
-                                                toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
-                                                fetchData();
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                            }}
-                                            className="w-24 mx-auto bg-slate-700 border-amber-500 text-white text-center text-sm"
-                                            autoFocus
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    ) : (
-                                        <p className="text-sm font-semibold text-red-300">{(data.summary.advanceDeduction || 0) > 0 ? `-฿${formatCurrency(data.summary.advanceDeduction)}` : '-'}</p>
-                                    )}
-                                    <p className="text-xs text-slate-500">หักเบิกล่วงหน้า <Edit2 className="w-3 h-3 inline" /></p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700 cursor-pointer hover:border-slate-500 transition"
-                                onClick={() => { if (!editingExpenses) { setEditingExpenses(true); setExpensesValue(String(data.summary.otherExpenses || 0)); } }}>
-                                <CardContent className="py-3 text-center">
-                                    {editingExpenses ? (
-                                        <Input
-                                            type="number"
-                                            value={expensesValue}
-                                            onChange={(e) => setExpensesValue(e.target.value)}
-                                            onBlur={async () => {
-                                                setEditingExpenses(false);
-                                                const val = parseFloat(expensesValue) || 0;
-                                                await fetch("/api/admin/payroll/employee-daily", {
-                                                    method: "PATCH",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({ userId: employeeId, otherExpenses: val }),
-                                                });
-                                                toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
-                                                fetchData();
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                            }}
-                                            className="w-24 mx-auto bg-slate-700 border-amber-500 text-white text-center text-sm"
-                                            autoFocus
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    ) : (
-                                        <p className="text-sm font-semibold text-red-300">{(data.summary.otherExpenses || 0) > 0 ? `-฿${formatCurrency(data.summary.otherExpenses)}` : '-'}</p>
-                                    )}
-                                    <p className="text-xs text-slate-500">ค่าใช้จ่ายอื่นๆ <Edit2 className="w-3 h-3 inline" /></p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3 text-center">
-                                    <p className="text-sm font-semibold text-red-300">{(data.summary.socialSecurity || 0) > 0 ? `-฿${formatCurrency(data.summary.socialSecurity)}` : '-'}</p>
-                                    <p className="text-xs text-slate-500">ประกันสังคม</p>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </>
-                )}
+            {/* Summary Cards */}
+            {data && (
+                <>
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
+                                <p className="text-xs text-muted-foreground">วันทำงาน</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">เต็ม {data.summary.fullDayCount} / ครึ่ง {data.summary.halfDayCount}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                    ฿{formatCurrency(data.summary.totalWage)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">ค่าแรงรวม</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                    ฿{formatCurrency(data.summary.totalOT)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">OT รวม</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                    -฿{formatCurrency(data.summary.totalDeductions)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">รวมหัก</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">ปรับเงิน</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-primary/50 bg-primary/5">
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-foreground">
+                                    ฿{formatCurrency(data.summary.grandTotal)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">รวมสุทธิ</p>
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                {/* Daily Table */}
-                {data && (
-                    <Card className="bg-slate-800/50 border-slate-700">
-                        <CardHeader>
-                            <CardTitle className="text-lg text-white flex items-center gap-2">
-                                <Calendar className="w-5 h-5" />
-                                ตารางรายวัน
-                            </CardTitle>
-                        </CardHeader>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-slate-700">
-                                        <TableHead className="text-slate-300">วันที่</TableHead>
-                                        <TableHead className="text-slate-300">วัน</TableHead>
-                                        <TableHead className="text-slate-300 text-center">เข้า</TableHead>
-                                        <TableHead className="text-slate-300 text-center">ออก</TableHead>
-                                        <TableHead className="text-slate-300 text-center">ชม.</TableHead>
-                                        <TableHead className="text-slate-300 text-center">นับวัน</TableHead>
-                                        <TableHead className="text-slate-300 text-center">พัก</TableHead>
-                                        <TableHead className="text-slate-300 text-center">OT (ชม.)</TableHead>
-                                        <TableHead className="text-slate-300 text-center w-28">ค่าแรง/วัน</TableHead>
-                                        <TableHead className="text-slate-300 text-center w-28">ค่า OT</TableHead>
-                                        <TableHead className="text-slate-300 text-center w-28">หักสาย</TableHead>
-                                        <TableHead className="text-slate-300 text-center w-28">ปรับเงิน</TableHead>
-                                        <TableHead className="text-slate-300 text-right">รวม</TableHead>
-                                        <TableHead className="text-slate-300 text-center w-12"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {data.dailyRecords.map((record) => {
-                                        const isWeekend = ["เสาร์", "อาทิตย์"].includes(record.dayOfWeek);
-                                        const hasOverride = record.isWageOverridden || record.isOTOverridden || record.isLatePenaltyOverridden || record.adjustment !== 0;
-                                        const isSaving = savingDate === record.date;
+                    {/* Deduction Breakdown */}
+                    <div className="grid grid-cols-4 gap-4 mb-6">
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
+                                <p className="text-xs text-muted-foreground">หักสาย</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="cursor-pointer hover:border-primary/50 transition"
+                            onClick={() => { if (!editingAdvance) { setEditingAdvance(true); setAdvanceValue(String(data.summary.advanceDeduction || 0)); } }}>
+                            <CardContent className="py-3 text-center">
+                                {editingAdvance ? (
+                                    <Input
+                                        type="number"
+                                        value={advanceValue}
+                                        onChange={(e) => setAdvanceValue(e.target.value)}
+                                        onBlur={async () => {
+                                            setEditingAdvance(false);
+                                            const val = parseFloat(advanceValue) || 0;
+                                            const m = endDate.split("-")[1];
+                                            const y = endDate.split("-")[0];
+                                            await fetch("/api/admin/advances", {
+                                                method: "PATCH",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ userId: employeeId, month: m, year: y, amount: val }),
+                                            });
+                                            toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                            fetchData();
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                        }}
+                                        className="w-24 mx-auto border-amber-500 text-center text-sm"
+                                        autoFocus
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">{(data.summary.advanceDeduction || 0) > 0 ? `-฿${formatCurrency(data.summary.advanceDeduction)}` : '-'}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">หักเบิกล่วงหน้า <Edit2 className="w-3 h-3 inline" /></p>
+                            </CardContent>
+                        </Card>
+                        <Card className="cursor-pointer hover:border-primary/50 transition"
+                            onClick={() => { if (!editingExpenses) { setEditingExpenses(true); setExpensesValue(String(data.summary.otherExpenses || 0)); } }}>
+                            <CardContent className="py-3 text-center">
+                                {editingExpenses ? (
+                                    <Input
+                                        type="number"
+                                        value={expensesValue}
+                                        onChange={(e) => setExpensesValue(e.target.value)}
+                                        onBlur={async () => {
+                                            setEditingExpenses(false);
+                                            const val = parseFloat(expensesValue) || 0;
+                                            await fetch("/api/admin/payroll/employee-daily", {
+                                                method: "PATCH",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ userId: employeeId, otherExpenses: val }),
+                                            });
+                                            toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                            fetchData();
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                        }}
+                                        className="w-24 mx-auto border-amber-500 text-center text-sm"
+                                        autoFocus
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">{(data.summary.otherExpenses || 0) > 0 ? `-฿${formatCurrency(data.summary.otherExpenses)}` : '-'}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">ค่าใช้จ่ายอื่นๆ <Edit2 className="w-3 h-3 inline" /></p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">{(data.summary.socialSecurity || 0) > 0 ? `-฿${formatCurrency(data.summary.socialSecurity)}` : '-'}</p>
+                                <p className="text-xs text-muted-foreground">ประกันสังคม</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </>
+            )}
 
-                                        return (
-                                            <TableRow
-                                                key={record.date}
-                                                className={`border - slate - 700 ${isWeekend ? "bg-slate-800/30" : ""} `}
-                                            >
-                                                <TableCell className="text-slate-400 font-mono text-sm">
-                                                    {record.date.slice(5)}
-                                                </TableCell>
-                                                <TableCell className={`${isWeekend ? "text-red-400" : "text-slate-300"} `}>
-                                                    <div className="flex items-center gap-1">
-                                                        {record.dayOfWeek}
-                                                        {record.absentColleagues.length > 0 && (
-                                                            <span
-                                                                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full"
-                                                            >
-                                                                <Users className="w-3 h-3 shrink-0" />
-                                                                {record.absentColleagues.map(c => c.nickName || c.name).join(", ")}
-                                                            </span>
+            {/* Daily Table */}
+            {data && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Calendar className="w-5 h-5" />
+                            ตารางรายวัน
+                        </CardTitle>
+                    </CardHeader>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>วันที่</TableHead>
+                                    <TableHead>วัน</TableHead>
+                                    <TableHead className="text-center">เข้า</TableHead>
+                                    <TableHead className="text-center">ออก</TableHead>
+                                    <TableHead className="text-center">ชม.</TableHead>
+                                    <TableHead className="text-center">นับวัน</TableHead>
+                                    <TableHead className="text-center">พัก</TableHead>
+                                    <TableHead className="text-center">OT (ชม.)</TableHead>
+                                    <TableHead className="text-center w-28">ค่าแรง/วัน</TableHead>
+                                    <TableHead className="text-center w-28">ค่า OT</TableHead>
+                                    <TableHead className="text-center w-28">หักสาย</TableHead>
+                                    <TableHead className="text-center w-28">ปรับเงิน</TableHead>
+                                    <TableHead className="text-right">รวม</TableHead>
+                                    <TableHead className="text-center w-12"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.dailyRecords.map((record) => {
+                                    const isWeekend = ["เสาร์", "อาทิตย์"].includes(record.dayOfWeek);
+                                    const hasOverride = record.isWageOverridden || record.isOTOverridden || record.isLatePenaltyOverridden || record.adjustment !== 0;
+                                    const isSaving = savingDate === record.date;
+
+                                    return (
+                                        <TableRow
+                                            key={record.date}
+                                            className={isWeekend ? "bg-muted/50" : ""}
+                                        >
+                                            <TableCell className="text-muted-foreground font-mono text-sm">
+                                                {record.date.slice(5)}
+                                            </TableCell>
+                                            <TableCell className={isWeekend ? "text-red-600 dark:text-red-400" : ""}>
+                                                <div className="flex items-center gap-1">
+                                                    {record.dayOfWeek}
+                                                    {record.absentColleagues.length > 0 && (
+                                                        <span
+                                                            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full"
+                                                        >
+                                                            <Users className="w-3 h-3 shrink-0" />
+                                                            {record.absentColleagues.map(c => c.nickName || c.name).join(", ")}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            {/* Check-in Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "checkIn" ? (
+                                                    <Input
+                                                        type="time"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-cyan-500 text-center"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "checkIn", record.checkInTime)}
+                                                        className="px-2 py-1 rounded hover:bg-accent text-foreground flex items-center justify-center gap-1 w-full group"
+                                                        disabled={isSaving}
+                                                    >
+                                                        {formatTime(record.checkInTime)}
+                                                        <Edit2 className="w-3 h-3 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
+                                                    </button>
+                                                )}
+                                            </TableCell>
+                                            {/* Check-out Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "checkOut" ? (
+                                                    <Input
+                                                        type="time"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-cyan-500 text-center"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "checkOut", record.checkOutTime)}
+                                                        className="px-2 py-1 rounded hover:bg-accent text-foreground flex items-center justify-center gap-1 w-full group"
+                                                        disabled={isSaving}
+                                                    >
+                                                        {formatTime(record.checkOutTime)}
+                                                        <Edit2 className="w-3 h-3 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
+                                                    </button>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center text-blue-600 dark:text-blue-400">
+                                                {record.actualHours?.toFixed(1) || "-"}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <span className={record.dayFactor === 0.5 ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}>
+                                                    {record.dayFactor > 0 ? formatWorkDays(record.dayFactor) : "-"}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-center text-cyan-600 dark:text-cyan-400">
+                                                {record.breakMinutes != null ? `${record.breakMinutes} น.` : "-"}
+                                            </TableCell>
+                                            <TableCell className="text-center text-purple-600 dark:text-purple-400">
+                                                {record.otHours > 0 ? record.otHours.toFixed(1) : "-"}
+                                            </TableCell>
+
+                                            {/* Wage Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "wage" ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-amber-500 text-center"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "wage", record.dailyWage)}
+                                                        className={`px-2 py-1 rounded hover:bg-accent w-full ${record.isWageOverridden
+                                                            ? "text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10"
+                                                            : "text-green-600 dark:text-green-400"
+                                                            } `}
+                                                        disabled={isSaving}
+                                                    >
+                                                        {record.dailyWage > 0 ? formatCurrency(record.dailyWage) : "-"}
+                                                    </button>
+                                                )}
+                                            </TableCell>
+
+                                            {/* OT Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "ot" ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-amber-500 text-center"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "ot", record.otAmount)}
+                                                        className={`px-2 py-1 rounded hover:bg-accent w-full ${record.isOTOverridden
+                                                            ? "text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10"
+                                                            : "text-purple-600 dark:text-purple-400"
+                                                            } `}
+                                                        disabled={isSaving}
+                                                    >
+                                                        {record.otAmount > 0 ? formatCurrency(record.otAmount) : "-"}
+                                                    </button>
+                                                )}
+                                            </TableCell>
+
+                                            {/* Late Penalty Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "latePenalty" ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-red-500 text-center"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "latePenalty", record.latePenalty)}
+                                                        className={`px-2 py-1 rounded hover:bg-accent w-full ${record.isLatePenaltyOverridden
+                                                            ? "text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10"
+                                                            : "text-red-600 dark:text-red-400"
+                                                            } `}
+                                                        disabled={isSaving}
+                                                    >
+                                                        {record.latePenalty > 0 ? `- ${formatCurrency(record.latePenalty)} ` : "-"}
+                                                    </button>
+                                                )}
+                                            </TableCell>
+
+                                            {/* Adjustment Cell - Editable */}
+                                            <TableCell className="text-center">
+                                                {editingCell?.date === record.date && editingCell?.field === "adjustment" ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={handleSaveEdit}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                                                        className="w-24 border-amber-500 text-center"
+                                                        placeholder="0"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStartEdit(record.date, "adjustment", record.adjustment)}
+                                                        className={`px-2 py-1 rounded hover:bg-accent w-full ${record.adjustment > 0 ? "text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10"
+                                                            : record.adjustment < 0 ? "text-red-600 dark:text-red-400 font-bold bg-red-500/10"
+                                                                : "text-muted-foreground"
+                                                            } `}
+                                                        disabled={isSaving}
+                                                    >
+                                                        {record.adjustment !== 0 ? (record.adjustment > 0 ? `+ ${formatCurrency(record.adjustment)} ` : formatCurrency(record.adjustment)) : "-"}
+                                                    </button>
+                                                )}
+                                            </TableCell>
+
+                                            <TableCell className="text-right font-bold text-foreground">
+                                                {record.total > 0 ? formatCurrency(record.total) : record.total < 0 ? formatCurrency(record.total) : "-"}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {hasOverride && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                                                        onClick={() => handleResetOverride(record.date)}
+                                                        disabled={isSaving}
+                                                        title="รีเซ็ตกลับค่าเริ่มต้น"
+                                                    >
+                                                        {isSaving ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <RotateCcw className="w-3 h-3" />
                                                         )}
-                                                    </div>
-                                                </TableCell>
-                                                {/* Check-in Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "checkIn" ? (
-                                                        <Input
-                                                            type="time"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-cyan-500 text-white text-center"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "checkIn", record.checkInTime)}
-                                                            className="px-2 py-1 rounded hover:bg-slate-700 text-white flex items-center justify-center gap-1 w-full group"
-                                                            disabled={isSaving}
-                                                        >
-                                                            {formatTime(record.checkInTime)}
-                                                            <Edit2 className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-                                                {/* Check-out Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "checkOut" ? (
-                                                        <Input
-                                                            type="time"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-cyan-500 text-white text-center"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "checkOut", record.checkOutTime)}
-                                                            className="px-2 py-1 rounded hover:bg-slate-700 text-white flex items-center justify-center gap-1 w-full group"
-                                                            disabled={isSaving}
-                                                        >
-                                                            {formatTime(record.checkOutTime)}
-                                                            <Edit2 className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition" />
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center text-blue-400">
-                                                    {record.actualHours?.toFixed(1) || "-"}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={record.dayFactor === 0.5 ? "text-amber-400 font-semibold" : "text-slate-300"}>
-                                                        {record.dayFactor > 0 ? formatWorkDays(record.dayFactor) : "-"}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-center text-cyan-400">
-                                                    {record.breakMinutes != null ? `${record.breakMinutes} น.` : "-"}
-                                                </TableCell>
-                                                <TableCell className="text-center text-purple-400">
-                                                    {record.otHours > 0 ? record.otHours.toFixed(1) : "-"}
-                                                </TableCell>
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </Card>
+            )}
 
-                                                {/* Wage Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "wage" ? (
-                                                        <Input
-                                                            type="number"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-amber-500 text-white text-center"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "wage", record.dailyWage)}
-                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isWageOverridden
-                                                                ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                : "text-green-400"
-                                                                } `}
-                                                            disabled={isSaving}
-                                                        >
-                                                            {record.dailyWage > 0 ? formatCurrency(record.dailyWage) : "-"}
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-
-                                                {/* OT Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "ot" ? (
-                                                        <Input
-                                                            type="number"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-amber-500 text-white text-center"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "ot", record.otAmount)}
-                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isOTOverridden
-                                                                ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                : "text-purple-400"
-                                                                } `}
-                                                            disabled={isSaving}
-                                                        >
-                                                            {record.otAmount > 0 ? formatCurrency(record.otAmount) : "-"}
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-
-                                                {/* Late Penalty Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "latePenalty" ? (
-                                                        <Input
-                                                            type="number"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-red-500 text-white text-center"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "latePenalty", record.latePenalty)}
-                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.isLatePenaltyOverridden
-                                                                ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                : "text-red-400"
-                                                                } `}
-                                                            disabled={isSaving}
-                                                        >
-                                                            {record.latePenalty > 0 ? `- ${formatCurrency(record.latePenalty)} ` : "-"}
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-
-                                                {/* Adjustment Cell - Editable */}
-                                                <TableCell className="text-center">
-                                                    {editingCell?.date === record.date && editingCell?.field === "adjustment" ? (
-                                                        <Input
-                                                            type="number"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={handleSaveEdit}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                                                            className="w-24 bg-slate-700 border-amber-500 text-white text-center"
-                                                            placeholder="0"
-                                                            autoFocus
-                                                        />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStartEdit(record.date, "adjustment", record.adjustment)}
-                                                            className={`px - 2 py - 1 rounded hover: bg - slate - 700 w - full ${record.adjustment > 0 ? "text-amber-400 font-bold bg-amber-500/10"
-                                                                : record.adjustment < 0 ? "text-red-400 font-bold bg-red-500/10"
-                                                                    : "text-slate-500"
-                                                                } `}
-                                                            disabled={isSaving}
-                                                        >
-                                                            {record.adjustment !== 0 ? (record.adjustment > 0 ? `+ ${formatCurrency(record.adjustment)} ` : formatCurrency(record.adjustment)) : "-"}
-                                                        </button>
-                                                    )}
-                                                </TableCell>
-
-                                                <TableCell className="text-right text-white font-bold">
-                                                    {record.total > 0 ? formatCurrency(record.total) : record.total < 0 ? formatCurrency(record.total) : "-"}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {hasOverride && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 text-slate-400 hover:text-red-400"
-                                                            onClick={() => handleResetOverride(record.date)}
-                                                            disabled={isSaving}
-                                                            title="รีเซ็ตกลับค่าเริ่มต้น"
-                                                        >
-                                                            {isSaving ? (
-                                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                            ) : (
-                                                                <RotateCcw className="w-3 h-3" />
-                                                            )}
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </Card>
-                )}
-
-                {/* Empty State */}
-                {!data && !isLoading && (
-                    <Card className="bg-slate-800/50 border-slate-700">
-                        <CardContent className="py-12 text-center">
-                            <User className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                            <p className="text-slate-400">ไม่พบข้อมูลพนักงาน</p>
-                        </CardContent>
-                    </Card>
-                )}
-            </main>
+            {/* Empty State */}
+            {!data && !isLoading && (
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <p className="text-muted-foreground">ไม่พบข้อมูลพนักงาน</p>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
