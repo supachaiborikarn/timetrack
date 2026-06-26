@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
+import { calculatePayrollDay, countWorkDayTypes } from "@/lib/payroll-day";
 
 export async function GET(request: NextRequest) {
     try {
@@ -93,16 +94,20 @@ export async function GET(request: NextRequest) {
         let totalPenalty = 0;
         let totalAdvanceDeduct = 0;
         let pendingCount = 0;
+        let workDays = 0;
 
         const dailyBreakdown = attendances.map((att) => {
             const dateKey = att.date.toISOString().split("T")[0];
             const override = overridesByDate.get(dateKey);
             const dayIncomes = incomesByDate.get(dateKey) || [];
 
-            // Daily wage
-            const wage = override?.overrideDailyWage
-                ? Number(override.overrideDailyWage)
-                : dailyRate;
+            const actualHours = att.actualHours != null ? Number(att.actualHours) : null;
+            const { dailyWage: wage, dayFactor } = calculatePayrollDay({
+                hasCheckIn: !!att.checkInTime,
+                actualHours,
+                dailyRate,
+                overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
+            });
 
             // OT pay
             const otHours = att.overtimeHours ? Number(att.overtimeHours) : 0;
@@ -132,13 +137,15 @@ export async function GET(request: NextRequest) {
             totalApprovedSpecialIncome += dayApprovedSpecial;
             totalPenalty += penalties;
             pendingCount += dayPending;
+            workDays += dayFactor;
 
             return {
                 date: dateKey,
                 status: att.status,
                 checkIn: att.checkInTime?.toISOString() || null,
                 checkOut: att.checkOutTime?.toISOString() || null,
-                actualHours: att.actualHours ? Number(att.actualHours) : null,
+                actualHours,
+                dayFactor,
                 overtimeHours: otHours,
                 dailyWage: wage,
                 overtimePay: otPay,
@@ -165,6 +172,7 @@ export async function GET(request: NextRequest) {
         // Projected net pay
         const projectedNetPay =
             totalDailyWage + totalOT + totalApprovedSpecialIncome - totalPenalty - totalAdvanceDeduct;
+        const workDayTypes = countWorkDayTypes(dailyBreakdown);
 
         return successResponse({
             employee: {
@@ -189,7 +197,9 @@ export async function GET(request: NextRequest) {
                 totalPenalty,
                 totalAdvanceDeduct,
                 projectedNetPay,
-                workDays: attendances.length,
+                workDays,
+                fullDayCount: workDayTypes.fullDayCount,
+                halfDayCount: workDayTypes.halfDayCount,
                 pendingItems: pendingCount,
             },
             advances: advances.map((adv) => ({

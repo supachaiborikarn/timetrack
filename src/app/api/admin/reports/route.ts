@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculatePayrollDay } from "@/lib/payroll-day";
 
 export async function GET(request: NextRequest) {
     try {
@@ -74,9 +75,11 @@ export async function GET(request: NextRequest) {
                 latePenalty: 0,
             };
 
-            if (record.checkInTime) {
-                existing.workDays += 1;
-            }
+            existing.workDays += calculatePayrollDay({
+                hasCheckIn: !!record.checkInTime,
+                actualHours: record.actualHours != null ? Number(record.actualHours) : null,
+                dailyRate: Number(record.user.dailyRate) || 0,
+            }).dayFactor;
             if (record.actualHours) {
                 existing.totalHours += Number(record.actualHours);
             }

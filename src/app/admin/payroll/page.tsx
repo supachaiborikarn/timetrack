@@ -36,6 +36,7 @@ import {
     CheckCircle2,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
+import { formatWorkDays } from "@/lib/payroll-day";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
 
@@ -61,6 +62,8 @@ interface PayrollData {
         department: string;
         dailyRate: number;
         workDays: number;
+        fullDayCount: number;
+        halfDayCount: number;
         totalHours: number;
         regularPay: number;
         overtimePay: number;
@@ -465,7 +468,7 @@ export default function PayrollPage() {
                                 <CardContent className="py-4 text-center">
                                     <Clock className="w-6 h-6 text-green-400 mx-auto mb-2" />
                                     <p className="text-2xl font-bold text-white">{(payrollData.summary.totalHours || 0).toFixed(0)}</p>
-                                    <p className="text-xs text-slate-400">ชม.รวม</p>
+                                    <p className="text-xs text-slate-400">ชม.รวม • {formatWorkDays(payrollData.summary.totalWorkDays)} วัน</p>
                                 </CardContent>
                             </Card>
                             <Card className={`border-0 ${absenceOverlaps.length > 0 ? 'bg-gradient-to-br from-amber-600 to-orange-700' : 'bg-slate-800/50 border-slate-700'}`}>
@@ -570,7 +573,12 @@ export default function PayrollPage() {
                                                         {emp.name}{emp.nickName ? ` (${emp.nickName})` : ""}
                                                     </TableCell>
                                                     <TableCell className="text-slate-400">{emp.department}</TableCell>
-                                                    <TableCell className="text-center text-white">{emp.workDays}</TableCell>
+                                                    <TableCell className="text-center text-white">
+                                                        <div>{formatWorkDays(emp.workDays)}</div>
+                                                        {emp.halfDayCount > 0 && (
+                                                            <div className="text-[10px] text-amber-400">ครึ่ง {emp.halfDayCount}</div>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="text-center text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
                                                     <TableCell className="text-right text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
                                                     <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>

@@ -1,0 +1,3 @@
+ALTER TABLE "PayrollRecord"
+ALTER COLUMN "workDays" TYPE DECIMAL(6,2)
+USING "workDays"::DECIMAL(6,2);

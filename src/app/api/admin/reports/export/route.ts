@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { format } from "@/lib/date-utils";
+import { calculatePayrollDay, formatWorkDays } from "@/lib/payroll-day";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -77,7 +77,11 @@ export async function GET(request: NextRequest) {
                 latePenalty: 0,
             };
 
-            if (record.checkInTime) existing.workDays += 1;
+            existing.workDays += calculatePayrollDay({
+                hasCheckIn: !!record.checkInTime,
+                actualHours: record.actualHours != null ? Number(record.actualHours) : null,
+                dailyRate: Number(record.user.dailyRate) || 0,
+            }).dayFactor;
             if (record.actualHours) existing.totalHours += Number(record.actualHours);
             if (record.overtimeHours) existing.overtimeHours += Number(record.overtimeHours);
             if (record.lateMinutes && record.lateMinutes > 0) existing.lateDays += 1;
@@ -106,7 +110,7 @@ export async function GET(request: NextRequest) {
             e.name,
             e.station,
             e.department,
-            e.workDays,
+            formatWorkDays(e.workDays),
             e.totalHours.toFixed(1),
             e.overtimeHours.toFixed(1),
             e.lateDays,
@@ -123,7 +127,7 @@ export async function GET(request: NextRequest) {
         rows.push([]);
         rows.push(["สรุปรวม"]);
         rows.push(["จำนวนพนักงาน", employees.length.toString()]);
-        rows.push(["วันทำงานรวม", totalWorkDays.toString()]);
+        rows.push(["วันทำงานรวม", formatWorkDays(totalWorkDays)]);
         rows.push(["ชั่วโมงรวม", totalHours.toFixed(1)]);
         rows.push(["OT รวม", totalOT.toFixed(1)]);
         rows.push(["วันมาสายรวม", totalLateDays.toString()]);
@@ -166,7 +170,7 @@ export async function GET(request: NextRequest) {
                     e.name,
                     e.station,
                     e.department,
-                    e.workDays,
+                    formatWorkDays(e.workDays),
                     e.totalHours.toFixed(1),
                     e.overtimeHours.toFixed(1),
                     e.lateDays,
@@ -179,7 +183,7 @@ export async function GET(request: NextRequest) {
             // Summary
             const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
             doc.setFontSize(10);
-            doc.text(`Summary: ${employees.length} employees | ${totalWorkDays} work days | ${totalHours.toFixed(1)} hours | ${totalOT.toFixed(1)} OT | ${totalLatePenalty.toFixed(0)} THB penalty`, 14, finalY);
+            doc.text(`Summary: ${employees.length} employees | ${formatWorkDays(totalWorkDays)} work days | ${totalHours.toFixed(1)} hours | ${totalOT.toFixed(1)} OT | ${totalLatePenalty.toFixed(0)} THB penalty`, 14, finalY);
 
             const pdfBuffer = doc.output("arraybuffer");
             const filename = `report_${startDate}_${endDate}.pdf`;

@@ -22,6 +22,7 @@ import {
     Sparkles,
     MinusCircle,
 } from "lucide-react";
+import { formatWorkDays } from "@/lib/payroll-day";
 
 interface SpecialIncomeItem {
     id: string;
@@ -39,6 +40,7 @@ interface DailyEntry {
     checkIn: string | null;
     checkOut: string | null;
     actualHours: number | null;
+    dayFactor: number;
     overtimeHours: number;
     dailyWage: number;
     overtimePay: number;
@@ -69,6 +71,8 @@ interface WalletData {
         totalAdvanceDeduct: number;
         projectedNetPay: number;
         workDays: number;
+        fullDayCount: number;
+        halfDayCount: number;
         pendingItems: number;
     };
     advances: { id: string; amount: number; date: string; status: string; reason: string | null }[];
@@ -242,7 +246,10 @@ export default function WalletPage() {
                                     ฿{formatMoney(summary.projectedNetPay)}
                                 </div>
                                 <div className="text-emerald-300/60 text-sm">
-                                    ทำงาน {summary.workDays} วัน • เฉลี่ย ฿{summary.workDays > 0 ? formatMoney(summary.projectedNetPay / summary.workDays) : "0"}/วัน
+                                    ทำงาน {formatWorkDays(summary.workDays)} วัน • เฉลี่ย ฿{summary.workDays > 0 ? formatMoney(summary.projectedNetPay / summary.workDays) : "0"}/วัน
+                                </div>
+                                <div className="text-emerald-300/50 text-xs mt-1">
+                                    เต็ม {summary.fullDayCount} / ครึ่ง {summary.halfDayCount}
                                 </div>
                             </CardContent>
                         </Card>
@@ -383,6 +390,11 @@ export default function WalletPage() {
                                                                         หัก ฿{formatMoney(day.totalPenalty)}
                                                                     </Badge>
                                                                 )}
+                                                                {day.dayFactor === 0.5 && (
+                                                                    <Badge className="bg-amber-500/15 text-amber-400 border-0 text-[10px] px-1.5 py-0">
+                                                                        ครึ่งวัน
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -405,6 +417,10 @@ export default function WalletPage() {
                                                             <div className="flex justify-between text-stone-400">
                                                                 <span>ค่าแรงวันนี้</span>
                                                                 <span className="text-[#F0D0C7]">฿{formatMoney(day.dailyWage)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-stone-400">
+                                                                <span>นับวันทำงาน</span>
+                                                                <span className="text-amber-400">{day.dayFactor > 0 ? formatWorkDays(day.dayFactor) : "-"}</span>
                                                             </div>
                                                             {day.overtimePay > 0 && (
                                                                 <div className="flex justify-between text-stone-400">

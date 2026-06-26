@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+import { calculatePayrollDay, countWorkDayTypes } from "@/lib/payroll-day";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -185,26 +186,20 @@ export async function GET(request: NextRequest) {
             const dayOfWeekDate = new Date(Date.UTC(y, m - 1, d));
 
             // Calculate actual hours and OT
-            const actualHours = attendance?.actualHours ? Number(attendance.actualHours) : null;
+            const actualHours = attendance?.actualHours != null ? Number(attendance.actualHours) : null;
             const lateMinutes = attendance?.lateMinutes || null;
             const latePenalty = attendance ? Number(attendance.latePenaltyAmount) || 0 : 0;
 
             // OT is not auto-calculated — HR adds manually via override
             const otHours = 0;
 
-            // Get wage (override or default with half-day rule)
             const isWageOverridden = override?.overrideDailyWage != null;
-            let dailyWage = 0;
-            let dayFactor = 0;
-            if (isWageOverridden) {
-                dailyWage = Number(override!.overrideDailyWage);
-                // Infer dayFactor from overridden wage
-                dayFactor = dailyRate > 0 ? Math.min(dailyWage / dailyRate, 1) : (dailyWage > 0 ? 1 : 0);
-            } else if (attendance?.checkInTime && actualHours != null) {
-                // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
-                if (actualHours >= 10) { dayFactor = 1; dailyWage = dailyRate; }
-                else if (actualHours >= 5.5) { dayFactor = 0.5; dailyWage = dailyRate * 0.5; }
-            }
+            const { dailyWage, dayFactor } = calculatePayrollDay({
+                hasCheckIn: !!attendance?.checkInTime,
+                actualHours,
+                dailyRate,
+                overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
+            });
 
             // Get OT amount (override or calculated)
             // Temporary business rule: No OT for March 26 - April 25 period
@@ -294,10 +289,14 @@ export async function GET(request: NextRequest) {
             : 0;
         const totalDeductions = totalLatePenalty + advanceDeduction + otherExpenses + socialSecurity;
 
+        const workDayTypes = countWorkDayTypes(dailyRecords);
+
         // Calculate summary
         const summary = {
             totalDays: dailyRecords.length,
             workDays: dailyRecords.reduce((sum, d) => sum + d.dayFactor, 0),
+            fullDayCount: workDayTypes.fullDayCount,
+            halfDayCount: workDayTypes.halfDayCount,
             totalWage,
             totalOT,
             totalLatePenalty,

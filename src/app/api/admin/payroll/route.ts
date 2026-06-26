@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+import { calculatePayrollDay } from "@/lib/payroll-day";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -130,6 +131,8 @@ export async function GET(request: NextRequest) {
             let totalOTAmount = 0;
             let totalAdjustment = 0;
             let accumulatedWage = 0;
+            let fullDayCount = 0;
+            let halfDayCount = 0;
 
             for (const record of empAttendance) {
                 if (record.checkInTime) {
@@ -139,23 +142,20 @@ export async function GET(request: NextRequest) {
 
                     const override = overrideMap.get(`${emp.id}:${dateKey}`);
 
-                    const actualHours = record.actualHours ? Number(record.actualHours) : 0;
+                    const actualHours = record.actualHours != null ? Number(record.actualHours) : 0;
                     totalHours += actualHours;
 
-                    // Daily wage: override or auto (half-day rule)
-                    let dailyWage = 0;
-                    let dayFactor = 0;
-                    if (override?.overrideDailyWage != null) {
-                        dailyWage = Number(override.overrideDailyWage);
-                        dayFactor = dailyRate > 0 ? Math.min(dailyWage / dailyRate, 1) : (dailyWage > 0 ? 1 : 0);
-                    } else {
-                        // Day factor: <5.5h = 0, 5.5-9.99h = 0.5, >=10h = 1.0
-                        if (actualHours >= 10) { dayFactor = 1; dailyWage = dailyRate; }
-                        else if (actualHours >= 5.5) { dayFactor = 0.5; dailyWage = dailyRate * 0.5; }
-                    }
+                    const { dailyWage, dayFactor } = calculatePayrollDay({
+                        hasCheckIn: !!record.checkInTime,
+                        actualHours,
+                        dailyRate,
+                        overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
+                    });
 
                     workDays += dayFactor;
                     accumulatedWage += dailyWage;
+                    if (dayFactor >= 1) fullDayCount += 1;
+                    else if (dayFactor === 0.5) halfDayCount += 1;
 
                     // Late penalty (override or auto)
                     if (override?.overrideLatePenalty != null) {
@@ -205,6 +205,8 @@ export async function GET(request: NextRequest) {
                 department: emp.department?.name || "-",
                 dailyRate,
                 workDays,
+                fullDayCount,
+                halfDayCount,
                 totalHours,
                 regularPay,
                 overtimePay,

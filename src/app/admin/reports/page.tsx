@@ -34,6 +34,7 @@ import {
     DollarSign,
 } from "lucide-react";
 import { format, getBangkokNow, subDays, startOfMonth, endOfMonth } from "@/lib/date-utils";
+import { formatWorkDays } from "@/lib/payroll-day";
 
 interface Station {
     id: string;
@@ -273,7 +274,7 @@ export default function ReportsPage() {
                                         <Clock className="w-5 h-5 text-green-500" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-bold text-foreground">{reportData.summary.totalWorkDays}</p>
+                                        <p className="text-2xl font-bold text-foreground">{formatWorkDays(reportData.summary.totalWorkDays)}</p>
                                         <p className="text-xs text-muted-foreground">วันทำงาน</p>
                                     </div>
                                 </div>
@@ -359,7 +360,7 @@ export default function ReportsPage() {
                                         <TableCell className="font-medium">{emp.name}</TableCell>
                                         <TableCell className="text-muted-foreground hidden md:table-cell">{emp.station}</TableCell>
                                         <TableCell className="text-muted-foreground hidden lg:table-cell">{emp.department}</TableCell>
-                                        <TableCell className="text-center">{emp.workDays}</TableCell>
+                                        <TableCell className="text-center">{formatWorkDays(emp.workDays)}</TableCell>
                                         <TableCell className="text-center text-blue-500 hidden sm:table-cell">{emp.totalHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-center text-purple-500 hidden sm:table-cell">{emp.overtimeHours.toFixed(1)}</TableCell>
                                         <TableCell className="text-center text-orange-500">{emp.lateDays}</TableCell>

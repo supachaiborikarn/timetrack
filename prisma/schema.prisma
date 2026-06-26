@@ -424,7 +424,7 @@ model PayrollRecord {
   id            String        @id @default(cuid())
   periodId      String
   userId        String
-  workDays      Int
+  workDays      Decimal
   totalHours    Decimal
   overtimeHours Decimal
   basePay       Decimal

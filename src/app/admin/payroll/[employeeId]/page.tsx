@@ -28,6 +28,7 @@ import {
     Users,
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
+import { calculatePayrollDay, countWorkDayTypes, formatWorkDays } from "@/lib/payroll-day";
 import { toast } from "sonner";
 
 interface DailyRecord {
@@ -67,6 +68,8 @@ interface EmployeePayrollData {
     summary: {
         totalDays: number;
         workDays: number;
+        fullDayCount: number;
+        halfDayCount: number;
         totalWage: number;
         totalOT: number;
         totalLatePenalty: number;
@@ -118,7 +121,7 @@ export default function EmployeePayrollDetailPage() {
                 const json = await res.json();
                 setData(json.data);
                 const workDays = json.data?.summary?.workDays || 0;
-                toast.success(`โหลดข้อมูลสำเร็จ(${workDays} วันทำงาน)`);
+                toast.success(`โหลดข้อมูลสำเร็จ(${formatWorkDays(workDays)} วันทำงาน)`);
             } else {
                 toast.error("ไม่สามารถโหลดข้อมูลได้");
             }
@@ -165,10 +168,13 @@ export default function EmployeePayrollDetailPage() {
         const totalAdjustment = updatedRecords.reduce((sum, d) => sum + d.adjustment, 0);
         const totalDeductions = totalLatePenalty + (data.summary.advanceDeduction || 0) + (data.summary.otherExpenses || 0) + (data.summary.socialSecurity || 0);
 
+        const workDayTypes = countWorkDayTypes(updatedRecords);
         const summary = {
             ...data.summary,
             totalDays: updatedRecords.length,
             workDays: updatedRecords.reduce((sum, d) => sum + d.dayFactor, 0),
+            fullDayCount: workDayTypes.fullDayCount,
+            halfDayCount: workDayTypes.halfDayCount,
             totalWage,
             totalOT,
             totalLatePenalty,
@@ -211,31 +217,16 @@ export default function EmployeePayrollDetailPage() {
                     const record = data.dailyRecords.find(r => r.date === date);
                     if (record) {
                         const actualHours = result.actualHours ?? record.actualHours;
-                        const normalHoursPerDay = 10.5;
-                        const otHours = actualHours && actualHours > normalHoursPerDay
-                            ? actualHours - normalHoursPerDay : 0;
+                        const otHours = 0;
                         const otAmount = record.isOTOverridden
                             ? record.otAmount
-                            : otHours * data.employee.hourlyRate * data.employee.otMultiplier;
-
-                        // Recalculate dayFactor and dailyWage from new actualHours
-                        let dailyWage = 0;
-                        let dayFactor = 0;
-                        if (record.isWageOverridden) {
-                            dailyWage = record.dailyWage;
-                            dayFactor = data.employee.defaultDailyRate > 0
-                                ? Math.min(dailyWage / data.employee.defaultDailyRate, 1)
-                                : (dailyWage > 0 ? 1 : 0);
-                        } else if (result.checkInTime && actualHours != null) {
-                            // Same thresholds as backend: ≥10h = 1 day, ≥5.5h = 0.5 day
-                            if (actualHours >= 10) {
-                                dayFactor = 1;
-                                dailyWage = data.employee.defaultDailyRate;
-                            } else if (actualHours >= 5.5) {
-                                dayFactor = 0.5;
-                                dailyWage = data.employee.defaultDailyRate * 0.5;
-                            }
-                        }
+                            : 0;
+                        const { dailyWage, dayFactor } = calculatePayrollDay({
+                            hasCheckIn: !!result.checkInTime,
+                            actualHours,
+                            dailyRate: data.employee.defaultDailyRate,
+                            overrideDailyWage: record.isWageOverridden ? record.dailyWage : null,
+                        });
 
                         const total = dailyWage + otAmount - record.latePenalty + record.adjustment;
 
@@ -280,7 +271,14 @@ export default function EmployeePayrollDetailPage() {
                     if (record) {
                         const updatedRecord = { ...record };
                         if (field === "wage") {
-                            updatedRecord.dailyWage = numValue;
+                            const { dailyWage, dayFactor } = calculatePayrollDay({
+                                hasCheckIn: !!record.checkInTime,
+                                actualHours: record.actualHours,
+                                dailyRate: data.employee.defaultDailyRate,
+                                overrideDailyWage: numValue,
+                            });
+                            updatedRecord.dailyWage = dailyWage;
+                            updatedRecord.dayFactor = dayFactor;
                             updatedRecord.isWageOverridden = true;
                         } else if (field === "ot") {
                             updatedRecord.otAmount = numValue;
@@ -468,8 +466,9 @@ export default function EmployeePayrollDetailPage() {
                         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
                             <Card className="bg-slate-800/50 border-slate-700">
                                 <CardContent className="py-4 text-center">
-                                    <p className="text-2xl font-bold text-blue-400">{data.summary.workDays}</p>
+                                    <p className="text-2xl font-bold text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
                                     <p className="text-xs text-slate-400">วันทำงาน</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">เต็ม {data.summary.fullDayCount} / ครึ่ง {data.summary.halfDayCount}</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-slate-800/50 border-slate-700">
@@ -616,6 +615,7 @@ export default function EmployeePayrollDetailPage() {
                                         <TableHead className="text-slate-300 text-center">เข้า</TableHead>
                                         <TableHead className="text-slate-300 text-center">ออก</TableHead>
                                         <TableHead className="text-slate-300 text-center">ชม.</TableHead>
+                                        <TableHead className="text-slate-300 text-center">นับวัน</TableHead>
                                         <TableHead className="text-slate-300 text-center">พัก</TableHead>
                                         <TableHead className="text-slate-300 text-center">OT (ชม.)</TableHead>
                                         <TableHead className="text-slate-300 text-center w-28">ค่าแรง/วัน</TableHead>
@@ -701,6 +701,11 @@ export default function EmployeePayrollDetailPage() {
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-400">
                                                     {record.actualHours?.toFixed(1) || "-"}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <span className={record.dayFactor === 0.5 ? "text-amber-400 font-semibold" : "text-slate-300"}>
+                                                        {record.dayFactor > 0 ? formatWorkDays(record.dayFactor) : "-"}
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell className="text-center text-cyan-400">
                                                     {record.breakMinutes != null ? `${record.breakMinutes} น.` : "-"}
