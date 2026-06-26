@@ -1,5 +1,5 @@
 export const FULL_DAY_MIN_HOURS = 10;
-export const HALF_DAY_MIN_HOURS = 5.5;
+export const HALF_DAY_MIN_HOURS = 5;
 
 type PayrollDayInput = {
     hasCheckIn: boolean;

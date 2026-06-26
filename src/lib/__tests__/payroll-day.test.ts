@@ -14,12 +14,20 @@ describe("payroll-day", () => {
         })).toEqual({ dayFactor: 1, dailyWage: 330 });
     });
 
-    it("counts a half day at 5.5 hours and pays half daily wage", () => {
+    it("counts a half day at exactly 5 hours and pays half daily wage", () => {
         expect(calculatePayrollDay({
             hasCheckIn: true,
-            actualHours: 5.5,
+            actualHours: 5,
             dailyRate: 330,
         })).toEqual({ dayFactor: 0.5, dailyWage: 165 });
+    });
+
+    it("does not count anything under 5 hours", () => {
+        expect(calculatePayrollDay({
+            hasCheckIn: true,
+            actualHours: 4.9,
+            dailyRate: 330,
+        })).toEqual({ dayFactor: 0, dailyWage: 0 });
     });
 
     it("combines two half days into one work day", () => {
