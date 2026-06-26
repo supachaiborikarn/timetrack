@@ -1,19 +1,51 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
-import WebAuthn from "next-auth/providers/webauthn";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@prisma/client";
 import { authConfig } from "./auth.config";
+import {
+    loginRateKey,
+    checkLoginAllowed,
+    recordLoginFailure,
+    recordLoginSuccess,
+    checkUserLoginAllowed,
+    nextUserLoginFailureState,
+} from "@/lib/rate-limit";
+
+type LoginUser = {
+    id: string;
+    failedLoginAttempts: number;
+    failedLoginFirstAt: Date | null;
+    loginLockedUntil: Date | null;
+};
+
+async function recordUserLoginFailure(user: LoginUser): Promise<void> {
+    const nextState = nextUserLoginFailureState(
+        user.failedLoginAttempts,
+        user.failedLoginFirstAt,
+        user.loginLockedUntil,
+    );
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: nextState,
+    });
+}
+
+async function recordUserLoginSuccess(userId: string): Promise<void> {
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            failedLoginAttempts: 0,
+            failedLoginFirstAt: null,
+            loginLockedUntil: null,
+        },
+    });
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
-    // adapter: PrismaAdapter(prisma) as any,
     providers: [
-        // WebAuthn({
-        //     name: "Biometrics",
-        // }),
         CredentialsProvider({
             id: "pin",
             name: "PIN Login",
@@ -25,6 +57,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (!credentials?.phone || !credentials?.pin) return null;
 
                 const loginKey = credentials.phone as string;
+
+                // Brute-force guard: block if this identifier is locked out
+                const rateKey = `pin:${loginRateKey(loginKey)}`;
+                if (!checkLoginAllowed(rateKey).allowed) return null;
 
                 // Step 1: ค้นหาจาก unique fields ก่อน (phone, username)
                 let user = await prisma.user.findFirst({
@@ -54,15 +90,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     // ถ้ามีมากกว่า 1 คน → return null (ต้องใช้ phone/username แทน)
                 }
 
-                if (!user) return null;
+                if (!user) {
+                    recordLoginFailure(rateKey);
+                    return null;
+                }
+
+                if (!checkUserLoginAllowed(user.loginLockedUntil).allowed) {
+                    return null;
+                }
 
                 const isValidPin = await bcrypt.compare(
                     credentials.pin as string,
                     user.pin
                 );
 
-                if (!isValidPin) return null;
+                if (!isValidPin) {
+                    await recordUserLoginFailure(user);
+                    recordLoginFailure(rateKey);
+                    return null;
+                }
 
+                await recordUserLoginSuccess(user.id);
+                recordLoginSuccess(rateKey);
                 return {
                     id: user.id,
                     name: user.name,
@@ -86,6 +135,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const password = credentials?.password as string;
 
                 if (!loginKey || !password) return null;
+
+                // Brute-force guard: block if this identifier is locked out
+                const rateKey = `password:${loginRateKey(loginKey)}`;
+                if (!checkLoginAllowed(rateKey).allowed) return null;
 
                 // Step 1: ค้นหาจาก unique fields ก่อน (email, username, employeeId)
                 let user = await prisma.user.findFirst({
@@ -116,15 +169,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     // ถ้ามีมากกว่า 1 คน → return null (ต้องใช้ email/username/employeeId แทน)
                 }
 
-                if (!user || !user.password) return null;
+                if (!user || !user.password) {
+                    recordLoginFailure(rateKey);
+                    return null;
+                }
+
+                if (!checkUserLoginAllowed(user.loginLockedUntil).allowed) {
+                    return null;
+                }
 
                 const isValidPassword = await bcrypt.compare(
                     password,
                     user.password
                 );
 
-                if (!isValidPassword) return null;
+                if (!isValidPassword) {
+                    await recordUserLoginFailure(user);
+                    recordLoginFailure(rateKey);
+                    return null;
+                }
 
+                await recordUserLoginSuccess(user.id);
+                recordLoginSuccess(rateKey);
                 return {
                     id: user.id,
                     name: user.name,

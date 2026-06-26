@@ -1,29 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { getBangkokNow, startOfDay } from "@/lib/date-utils";
 
 // This endpoint can be called by:
-// 1. Vercel Cron Jobs (recommended for production)
-// 2. External cron service
-// 3. Manual trigger by admin
+// 1. GET from Vercel Cron Jobs / external cron with `Authorization: Bearer <CRON_SECRET>`
+// 2. POST from a logged-in ADMIN/HR user for manual runs
+//
+// SECURITY: there is intentionally NO query-param bypass. A previous
+// `?manual=1` shortcut allowed anyone to approve all attendance without auth.
 
-export async function GET(request: NextRequest) {
+const APPROVER_ROLES = ["ADMIN", "HR"];
+
+function hasValidCronSecret(request: NextRequest): boolean {
+    const authHeader = request.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET;
+
+    return !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+}
+
+async function hasManualAccess(): Promise<boolean> {
+    const session = await auth();
+
+    return (
+        !!session?.user?.id &&
+        APPROVER_ROLES.includes(session.user.role)
+    );
+}
+
+async function approvePendingAttendance() {
     try {
-        // Optional: Verify cron secret for security
-        const authHeader = request.headers.get("authorization");
-        const cronSecret = process.env.CRON_SECRET;
-
-        // If CRON_SECRET is set, require it for cron calls
-        // Skip check for local development
-        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            // Allow admin manual trigger via query param
-            const { searchParams } = new URL(request.url);
-            const manualTrigger = searchParams.get("manual");
-            if (!manualTrigger) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
-        }
-
         const now = getBangkokNow();
         const today = startOfDay(now);
 
@@ -58,7 +64,18 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Also support POST for flexibility
+export async function GET(request: NextRequest) {
+    if (!hasValidCronSecret(request)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return approvePendingAttendance();
+}
+
 export async function POST(request: NextRequest) {
-    return GET(request);
+    if (!hasValidCronSecret(request) && !(await hasManualAccess())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return approvePendingAttendance();
 }
