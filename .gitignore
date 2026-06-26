@@ -42,3 +42,16 @@ next-env.d.ts
 
 /src/generated/prisma
 .env*.local
+
+# sensitive data dumps / exports / PII (NEVER commit)
+# NOTE: prisma/migrations/*.sql are schema migrations and remain tracked.
+/backup.sql
+/*.dump
+/*.bak
+/supabase_export.json
+*_export.json
+/cleaned_staff.csv
+/ai_ready_schedule_std.csv
+/staff*.csv
+credentials*.json
+*credentials*.txt
