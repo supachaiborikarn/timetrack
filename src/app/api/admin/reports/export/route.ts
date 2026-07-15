@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { calculatePayrollDay, formatWorkDays } from "@/lib/payroll-day";
+import { formatWorkDays } from "@/lib/payroll-day";
+import { roundMoney } from "@/lib/payroll-calculation";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -26,71 +27,26 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get all attendance in range
-        const whereClause: Record<string, unknown> = {
-            date: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
-            },
-        };
-
-        if (stationId) {
-            whereClause.user = { stationId };
-        }
-
-        const attendanceRecords = await prisma.attendance.findMany({
-            where: whereClause,
-            include: {
-                user: {
-                    include: {
-                        station: { select: { name: true } },
-                        department: { select: { name: true } },
-                    },
-                },
-            },
-        });
-
-        // Group by employee
-        const employeeMap = new Map<string, {
-            name: string;
-            employeeId: string;
-            station: string;
-            department: string;
-            workDays: number;
-            totalHours: number;
-            overtimeHours: number;
-            lateDays: number;
-            latePenalty: number;
-        }>();
-
-        for (const record of attendanceRecords) {
-            const key = record.userId;
-            const existing = employeeMap.get(key) || {
-                name: record.user.name,
-                employeeId: record.user.employeeId,
-                station: record.user.station?.name || "-",
-                department: record.user.department?.name || "-",
-                workDays: 0,
-                totalHours: 0,
-                overtimeHours: 0,
-                lateDays: 0,
-                latePenalty: 0,
-            };
-
-            existing.workDays += calculatePayrollDay({
-                hasCheckIn: !!record.checkInTime,
-                actualHours: record.actualHours != null ? Number(record.actualHours) : null,
-                dailyRate: Number(record.user.dailyRate) || 0,
-            }).dayFactor;
-            if (record.actualHours) existing.totalHours += Number(record.actualHours);
-            if (record.overtimeHours) existing.overtimeHours += Number(record.overtimeHours);
-            if (record.lateMinutes && record.lateMinutes > 0) existing.lateDays += 1;
-            if (record.latePenaltyAmount) existing.latePenalty += Number(record.latePenaltyAmount);
-
-            employeeMap.set(key, existing);
-        }
-
-        const employees = Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        const payroll = await loadPayrollCalculations({ startDate, endDate, stationId });
+        const employees = payroll.employees
+            .filter(({ calculation }) => calculation.dailyRecords.some((record) => record.attendance))
+            .map(({ employee, calculation }) => ({
+                name: employee.name,
+                employeeId: employee.employeeId,
+                station: employee.station?.name || "-",
+                department: employee.department?.name || "-",
+                workDays: calculation.workDays,
+                totalHours: calculation.totalHours,
+                overtimeHours: roundMoney(calculation.dailyRecords.reduce(
+                    (sum, record) => sum + record.overtimeHours,
+                    0,
+                )),
+                lateDays: calculation.dailyRecords.filter(
+                    (record) => (record.attendance?.lateMinutes || 0) > 0,
+                ).length,
+                latePenalty: calculation.latePenalty,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
 
         // Build Excel
         const headers = [
@@ -118,11 +74,11 @@ export async function GET(request: NextRequest) {
         ]);
 
         // Summary
-        const totalWorkDays = employees.reduce((sum, e) => sum + e.workDays, 0);
-        const totalHours = employees.reduce((sum, e) => sum + e.totalHours, 0);
-        const totalOT = employees.reduce((sum, e) => sum + e.overtimeHours, 0);
+        const totalWorkDays = roundMoney(employees.reduce((sum, e) => sum + e.workDays, 0));
+        const totalHours = roundMoney(employees.reduce((sum, e) => sum + e.totalHours, 0));
+        const totalOT = roundMoney(employees.reduce((sum, e) => sum + e.overtimeHours, 0));
         const totalLateDays = employees.reduce((sum, e) => sum + e.lateDays, 0);
-        const totalLatePenalty = employees.reduce((sum, e) => sum + e.latePenalty, 0);
+        const totalLatePenalty = roundMoney(employees.reduce((sum, e) => sum + e.latePenalty, 0));
 
         rows.push([]);
         rows.push(["สรุปรวม"]);

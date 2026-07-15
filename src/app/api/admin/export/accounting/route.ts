@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { format } from "@/lib/date-utils";
+import { roundMoney } from "@/lib/payroll-calculation";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
+
+function csv(value: unknown): string {
+    let text = String(value ?? "");
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -10,98 +15,50 @@ export async function GET(request: NextRequest) {
         if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
-        const stationId = searchParams.get("stationId");
+        if (!startDate || !endDate) return NextResponse.json({ error: "Dates required" }, { status: 400 });
 
-        if (!startDate || !endDate) {
-            return NextResponse.json({ error: "Dates required" }, { status: 400 });
-        }
-
-        // Fetch payroll calculation (Reuse logic)
-        const employeeWhere: Prisma.UserWhereInput = { isActive: true, role: "EMPLOYEE" };
-        if (stationId && stationId !== "all") employeeWhere.stationId = stationId;
-
-        // Fetch users
-        const employees = await prisma.user.findMany({
-            where: employeeWhere,
-            select: {
-                id: true,
-                dailyRate: true,
-                hourlyRate: true,
-                otRateMultiplier: true,
-                department: { select: { name: true } }
-            }
+        const payroll = await loadPayrollCalculations({
+            startDate,
+            endDate,
+            stationId: searchParams.get("stationId"),
+            departmentId: searchParams.get("departmentId"),
         });
+        const active = payroll.employees.filter(({ calculation }) => calculation.hasPayrollActivity);
+        const sum = (selector: (calculation: typeof active[number]["calculation"]) => number) =>
+            roundMoney(active.reduce((total, item) => total + selector(item.calculation), 0));
+        const salary = sum((calculation) => calculation.regularPay);
+        const overtime = sum((calculation) => calculation.overtimePay);
+        const otherIncome = sum((calculation) => Math.max(0, calculation.adjustment) + calculation.specialIncome);
+        const negativeAdjustments = sum((calculation) => Math.max(0, -calculation.adjustment));
+        const sso = sum((calculation) => calculation.socialSecurity);
+        const advances = sum((calculation) => calculation.advanceDeduction);
+        const otherDeductions = roundMoney(sum((calculation) => calculation.latePenalty + calculation.otherExpenses) + negativeAdjustments);
+        const netPay = sum((calculation) => calculation.totalPay);
+        const reference = `PAYROLL-${endDate.slice(5, 7)}${endDate.slice(2, 4)}`;
 
-        // Fetch Attendance
-        const attendance = await prisma.attendance.findMany({
-            where: {
-                userId: { in: employees.map(e => e.id) },
-                date: { gte: new Date(startDate), lte: new Date(endDate) }
-            }
-        });
+        const entries = [
+            [endDate, reference, "Salary Expense", "51000", salary, 0],
+            [endDate, reference, "Overtime Expense", "51001", overtime, 0],
+            [endDate, reference, "Other Payroll Income", "51002", otherIncome, 0],
+            [endDate, reference, "Social Security Payable", "21000", 0, sso],
+            [endDate, reference, "Employee Advances", "12000", 0, advances],
+            [endDate, reference, "Other Payroll Deductions", "21002", 0, otherDeductions],
+            [endDate, reference, "Net Pay Payable", "11000", 0, netPay],
+        ].filter((entry) => Number(entry[4]) !== 0 || Number(entry[5]) !== 0);
+        const header = ["Date", "Reference", "Description", "Account Code", "Debit", "Credit"].map(csv).join(",");
+        const rows = entries.map((entry) => entry.map((value, index) => csv(index >= 4 ? Number(value).toFixed(2) : value)).join(","));
 
-        // Configurable Account Codes (Defaults)
-        const ACCOUNTS = {
-            SALARY_EXPENSE: "51000",
-            OT_EXPENSE: "51001",
-            SSO_LIABILITY: "21000", // Social Security Payable
-            TAX_LIABILITY: "21001", // Withholding Tax Payable
-            BANK_ASSET: "11000"     // Cash/Bank
-        };
-
-        let totalSalary = 0;
-        let totalOT = 0;
-        // let totalSSO = 0; // Not calc yet
-        // let totalTax = 0; // Not calc yet
-
-        employees.forEach(emp => {
-            const empAtt = attendance.filter(a => a.userId === emp.id);
-            const normalHours = 10.5;
-            const hourlyRate = Number(emp.hourlyRate) || (Number(emp.dailyRate) / normalHours);
-            const otMult = Number(emp.otRateMultiplier) || 1.5;
-
-            empAtt.forEach(att => {
-                if (!att.checkInTime) return;
-                const actual = att.actualHours ? Number(att.actualHours) : 0;
-                const regH = actual > normalHours ? normalHours : actual;
-                const otH = actual > normalHours ? actual - normalHours : 0;
-
-                totalSalary += regH * hourlyRate;
-                totalOT += otH * hourlyRate * otMult;
-            });
-        });
-
-        const totalPayable = totalSalary + totalOT; // - deductions if any
-
-        // Generate Journal Entries
-        // Debit Salary Expense
-        // Debit OT Expense
-        // Credit Bank (Total)
-
-        const dateStr = format(new Date(endDate), "yyyy-MM-dd");
-        const ref = `PAYROLL-${format(new Date(endDate), "MMyy")}`;
-
-        const rows = [
-            `"${dateStr}","${ref}","Salary Expense","${ACCOUNTS.SALARY_EXPENSE}","${totalSalary.toFixed(2)}","0"`,
-            `"${dateStr}","${ref}","Overtime Expense","${ACCOUNTS.OT_EXPENSE}","${totalOT.toFixed(2)}","0"`,
-            `"${dateStr}","${ref}","Net Pay Payable","${ACCOUNTS.BANK_ASSET}","0","${totalPayable.toFixed(2)}"`
-        ];
-
-        const header = `"Date","Reference","Description","Account Code","Debit","Credit"`;
-        const csvContent = [header, ...rows].join("\n");
-
-        return new NextResponse(csvContent, {
+        return new NextResponse(`\uFEFF${[header, ...rows].join("\n")}`, {
             headers: {
                 "Content-Type": "text/csv; charset=utf-8",
-                "Content-Disposition": `attachment; filename="accounting_entry_${dateStr}.csv"`,
-            }
+                "Content-Disposition": `attachment; filename="accounting_entry_${endDate}.csv"`,
+            },
         });
-
     } catch (error) {
+        console.error("Accounting export error:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { format } from "date-fns";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
-import { calculatePayrollDay } from "@/lib/payroll-day";
+import { roundMoney } from "@/lib/payroll-calculation";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
+import { createPayrollDocumentNumbers } from "@/lib/payroll-document-settings";
+import { getPayrollDocumentSettings } from "@/lib/server/payroll-document-settings";
 
-const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
-
-function toBangkokDateKey(d: Date): string {
-    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
-    return bkk.toISOString().split("T")[0];
-}
+class FinalizedPayrollError extends Error {}
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,224 +17,140 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { startDate, endDate, stationId, userId } = body;
-
-        if (!startDate || !endDate) {
-            return NextResponse.json({ error: "Dates required" }, { status: 400 });
-        }
+        const { startDate, endDate, stationId, departmentId, userId } = body;
+        if (!startDate || !endDate) return NextResponse.json({ error: "Dates required" }, { status: 400 });
 
         const start = parseDateStringToBangkokMidnight(startDate);
-        const endStr = endDate as string;
-        const endParts = endStr.split("-");
-        const end = new Date(Date.UTC(
-            parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]),
-            16, 59, 59, 999
-        ));
+        const end = parseDateStringToBangkokMidnight(endDate);
+        const selectedStationId = stationId && stationId !== "all" ? stationId : undefined;
+        const selectedDepartmentId = departmentId && departmentId !== "all" ? departmentId : undefined;
+        const isPartial = !!userId || !!selectedStationId || !!selectedDepartmentId;
+        const periodName = `Payroll ${endDate.slice(5, 7)}/${endDate.slice(0, 4)}`;
+        const documentSettings = await getPayrollDocumentSettings();
 
-        // 1. Create or Find PayrollPeriod
-        const periodName = `Payroll ${format(new Date(endDate), "MM/yyyy")}`;
-        let period = await prisma.payrollPeriod.findFirst({
-            where: {
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
-            }
-        });
-
-        if (!period) {
-            period = await prisma.payrollPeriod.create({
-                data: {
-                    name: periodName,
-                    startDate: new Date(startDate),
-                    endDate: new Date(endDate),
-                    payDate: new Date(),
-                }
+        const result = await prisma.$transaction(async (tx) => {
+            const existingPeriod = await tx.payrollPeriod.findUnique({
+                where: { startDate_endDate: { startDate: start, endDate: end } },
             });
-        }
+            if (existingPeriod?.status === "FINALIZED") throw new FinalizedPayrollError();
 
-        // 2. Fetch Employees
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const employeeWhere: any = { isActive: true, role: "EMPLOYEE" };
-        if (userId) {
-            employeeWhere.id = userId;
-        } else if (stationId && stationId !== "all") {
-            employeeWhere.stationId = stationId;
-        }
-
-        const employees = await prisma.user.findMany({
-            where: employeeWhere,
-            select: {
-                id: true,
-                name: true,
-                dailyRate: true,
-                hourlyRate: true,
-                otRateMultiplier: true,
-                otherExpenses: true,
-                isSocialSecurityRegistered: true,
-            }
-        });
-
-        const employeeIds = employees.map(e => e.id);
-
-        // 3. Fetch Attendance
-        const attendance = await prisma.attendance.findMany({
-            where: {
-                userId: { in: employeeIds },
-                date: { gte: start, lte: end }
-            }
-        });
-
-        // 4. Fetch Overrides
-        const overrides = await prisma.dailyPayrollOverride.findMany({
-            where: {
-                userId: { in: employeeIds },
-                date: { gte: start, lte: end },
-            },
-        });
-        const overrideMap = new Map<string, typeof overrides[0]>();
-        for (const o of overrides) {
-            overrideMap.set(`${o.userId}:${toBangkokDateKey(o.date)}`, o);
-        }
-
-        // 5. Fetch Advances
-        const advanceMonth = parseInt(endDate.split("-")[1]);
-        const advanceYear = parseInt(endDate.split("-")[0]);
-        const advances = await prisma.advance.findMany({
-            where: {
-                userId: { in: employeeIds },
-                status: { in: ["APPROVED", "PAID"] },
-                month: advanceMonth,
-                year: advanceYear,
-            },
-        });
-        const advancesByUser: Record<string, number> = {};
-        for (const adv of advances) {
-            if (!advancesByUser[adv.userId]) advancesByUser[adv.userId] = 0;
-            advancesByUser[adv.userId] += Number(adv.amount);
-        }
-
-        // 6. Get SSO config
-        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
-        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
-        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
-        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
-
-        // 7. Calculate and Upsert Records
-        const records = [];
-        for (const emp of employees) {
-            const empAtt = attendance.filter(a => a.userId === emp.id);
-            const dailyRate = Number(emp.dailyRate) || 0;
-
-            const seenDates = new Set<string>();
-            let workDays = 0;
-            let totalHours = 0;
-            let latePenalty = 0;
-            let totalOTAmount = 0;
-            let totalAdjustment = 0;
-            let accumulatedWage = 0;
-
-            for (const record of empAtt) {
-                if (!record.checkInTime) continue;
-                const dateKey = toBangkokDateKey(record.date);
-                if (seenDates.has(dateKey)) continue;
-                seenDates.add(dateKey);
-
-                const override = overrideMap.get(`${emp.id}:${dateKey}`);
-
-                const actualHours = record.actualHours != null ? Number(record.actualHours) : 0;
-                totalHours += actualHours;
-
-                const { dailyWage, dayFactor } = calculatePayrollDay({
-                    hasCheckIn: !!record.checkInTime,
-                    actualHours,
-                    dailyRate,
-                    overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
+            const period = existingPeriod || await tx.payrollPeriod.create({
+                data: { name: periodName, startDate: start, endDate: end, payDate: new Date(), status: "DRAFT" },
+            });
+            const payroll = await loadPayrollCalculations({
+                startDate,
+                endDate,
+                stationId: selectedStationId,
+                departmentId: selectedDepartmentId,
+                userId,
+            }, tx);
+            const payable = payroll.employees.filter(({ calculation }) => calculation.hasPayrollActivity);
+            const payableIds = new Set(payable.map(({ employee }) => employee.id));
+            const staleIds = isPartial
+                ? payroll.employees
+                    .map(({ employee }) => employee.id)
+                    .filter((employeeId) => !payableIds.has(employeeId))
+                : (await tx.payrollRecord.findMany({
+                    where: { periodId: period.id },
+                    select: { userId: true },
+                }))
+                    .map((record) => record.userId)
+                    .filter((employeeId) => !payableIds.has(employeeId));
+            if (staleIds.length > 0) {
+                await tx.payrollRecord.deleteMany({
+                    where: { periodId: period.id, userId: { in: staleIds } },
                 });
-
-                workDays += dayFactor;
-                accumulatedWage += dailyWage;
-
-                if (override?.overrideLatePenalty != null) {
-                    latePenalty += Number(override.overrideLatePenalty);
-                } else if (record.latePenaltyAmount) {
-                    latePenalty += Number(record.latePenaltyAmount);
-                }
-
-                if (override?.overrideOT != null) {
-                    totalOTAmount += Number(override.overrideOT);
-                }
-
-                if (override?.adjustment) {
-                    totalAdjustment += Number(override.adjustment);
-                }
             }
+            const existingRecords = await tx.payrollRecord.findMany({
+                where: { periodId: period.id, userId: { in: payable.map(({ employee }) => employee.id) } },
+                select: { userId: true },
+            });
+            const existingUserIds = new Set(existingRecords.map((record) => record.userId));
+            const records = [];
 
-            const regularPay = accumulatedWage;
-            const overtimePay = totalOTAmount;
-            const advanceDeduction = advancesByUser[emp.id] || 0;
-            const otherExpenses = Number(emp.otherExpenses) || 0;
-            const grossForSSO = regularPay;
-            const socialSecurity = emp.isSocialSecurityRegistered
-                ? Math.min(grossForSSO * ssoRate, ssoMax)
-                : 0;
-            const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
-            const netPay = regularPay + overtimePay - totalDeductions + totalAdjustment;
-
-            if (workDays > 0 || netPay > 0) {
-                const record = await prisma.payrollRecord.upsert({
-                    where: {
-                        periodId_userId: {
-                            periodId: period.id,
-                            userId: emp.id
-                        }
-                    },
-                    update: {
-                        workDays,
-                        totalHours,
-                        overtimeHours: 0,
-                        basePay: regularPay,
-                        overtimePay,
-                        latePenalty,
-                        advanceDeduct: advanceDeduction,
-                        otherDeduct: otherExpenses,
-                        socialSecurity,
-                        netPay,
-                        updatedAt: new Date()
-                    },
-                    create: {
-                        periodId: period.id,
-                        userId: emp.id,
-                        workDays,
-                        totalHours,
-                        overtimeHours: 0,
-                        basePay: regularPay,
-                        overtimePay,
-                        latePenalty,
-                        advanceDeduct: advanceDeduction,
-                        otherDeduct: otherExpenses,
-                        socialSecurity,
-                        netPay
-                    }
+            for (const { employee, calculation } of payable) {
+                const overtimeHours = roundMoney(calculation.dailyRecords.reduce(
+                    (total, day) => total + day.overtimeHours,
+                    0,
+                ));
+                const documentNumbers = createPayrollDocumentNumbers({
+                    periodEndDate: end,
+                    employeeCode: employee.employeeId,
+                    payslipPrefix: documentSettings.payslipPrefix,
+                    receiptPrefix: documentSettings.receiptPrefix,
+                });
+                const data = {
+                    workDays: calculation.workDays,
+                    totalHours: calculation.totalHours,
+                    overtimeHours,
+                    dailyRate: Math.max(0, Number(employee.dailyRate) || 0),
+                    basePay: calculation.regularPay,
+                    overtimePay: calculation.overtimePay,
+                    latePenalty: calculation.latePenalty,
+                    advanceDeduct: calculation.advanceDeduction,
+                    otherDeduct: calculation.otherExpenses,
+                    socialSecurity: calculation.socialSecurity,
+                    adjustment: calculation.adjustment,
+                    specialIncome: calculation.specialIncome,
+                    netPay: calculation.totalPay,
+                    employeeName: employee.name,
+                    employeeCode: employee.employeeId,
+                    stationName: employee.station?.name || null,
+                    departmentName: employee.department?.name || null,
+                    bankName: employee.bankName,
+                    bankAccountNumber: employee.bankAccountNumber,
+                    ...documentNumbers,
+                };
+                const record = await tx.payrollRecord.upsert({
+                    where: { periodId_userId: { periodId: period.id, userId: employee.id } },
+                    update: data,
+                    create: { periodId: period.id, userId: employee.id, ...data },
                 });
                 records.push(record);
             }
-        }
 
-        if (records.length > 0) {
-            const notifications = records.map(record => ({
-                userId: record.userId,
-                type: "PAYROLL_ISSUED",
-                title: "สลิปเงินเดือนเบิกจ่ายแล้ว",
-                message: `สลิปเงินเดือนงวด ${periodName} พร้อมให้ดาวน์โหลดแล้ว`,
-                link: "/profile/documents",
-                isRead: false
-            }));
+            const newRecords = records.filter((record) => !existingUserIds.has(record.userId));
+            if (newRecords.length > 0) {
+                await tx.notification.createMany({
+                    data: newRecords.map((record) => ({
+                        userId: record.userId,
+                        type: "PAYROLL_ISSUED",
+                        title: "สลิปเงินเดือนพร้อมแล้ว",
+                        message: `สลิปเงินเดือนงวด ${periodName} พร้อมให้ดาวน์โหลดแล้ว`,
+                        link: "/profile/documents",
+                        isRead: false,
+                    })),
+                });
+            }
 
-            await prisma.notification.createMany({ data: notifications });
-        }
+            const updatedPeriod = await tx.payrollPeriod.update({
+                where: { id: period.id },
+                data: { status: isPartial ? "PROCESSING" : "FINALIZED", payDate: new Date() },
+            });
+            await tx.auditLog.create({
+                data: {
+                    userId: session.user.id,
+                    action: isPartial ? "SAVE_PARTIAL_PAYROLL" : "FINALIZE_PAYROLL",
+                    entity: "PayrollPeriod",
+                    entityId: period.id,
+                    details: JSON.stringify({
+                        startDate,
+                        endDate,
+                        stationId: selectedStationId,
+                        departmentId: selectedDepartmentId,
+                        employeeId: userId,
+                        recordCount: records.length,
+                    }),
+                },
+            });
+            return { count: records.length, periodId: period.id, status: updatedPeriod.status };
+        }, { timeout: 20_000 });
 
-        return NextResponse.json({ success: true, count: records.length, periodId: period.id });
-
+        return NextResponse.json({ success: true, ...result });
     } catch (error) {
+        if (error instanceof FinalizedPayrollError) {
+            return NextResponse.json({ error: "งวดนี้ปิดเรียบร้อยแล้วและไม่สามารถคำนวณทับได้" }, { status: 409 });
+        }
         console.error("Finalize Error:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }

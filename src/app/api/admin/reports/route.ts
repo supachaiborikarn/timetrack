@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { calculatePayrollDay } from "@/lib/payroll-day";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
+import { roundMoney } from "@/lib/payroll-calculation";
 
 export async function GET(request: NextRequest) {
     try {
@@ -22,90 +22,35 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get all attendance in range
-        const whereClause: Record<string, unknown> = {
-            date: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
-            },
-        };
-
-        if (stationId) {
-            whereClause.user = { stationId };
-        }
-
-        const attendanceRecords = await prisma.attendance.findMany({
-            where: whereClause,
-            include: {
-                user: {
-                    include: {
-                        station: { select: { name: true } },
-                        department: { select: { name: true } },
-                    },
-                },
-            },
-        });
-
-        // Group by employee
-        const employeeMap = new Map<string, {
-            id: string;
-            name: string;
-            employeeId: string;
-            station: string;
-            department: string;
-            workDays: number;
-            totalHours: number;
-            overtimeHours: number;
-            lateDays: number;
-            latePenalty: number;
-        }>();
-
-        for (const record of attendanceRecords) {
-            const key = record.userId;
-            const existing = employeeMap.get(key) || {
-                id: record.user.id,
-                name: record.user.name,
-                employeeId: record.user.employeeId,
-                station: record.user.station?.name || "-",
-                department: record.user.department?.name || "-",
-                workDays: 0,
-                totalHours: 0,
-                overtimeHours: 0,
-                lateDays: 0,
-                latePenalty: 0,
-            };
-
-            existing.workDays += calculatePayrollDay({
-                hasCheckIn: !!record.checkInTime,
-                actualHours: record.actualHours != null ? Number(record.actualHours) : null,
-                dailyRate: Number(record.user.dailyRate) || 0,
-            }).dayFactor;
-            if (record.actualHours) {
-                existing.totalHours += Number(record.actualHours);
-            }
-            if (record.overtimeHours) {
-                existing.overtimeHours += Number(record.overtimeHours);
-            }
-            if (record.lateMinutes && record.lateMinutes > 0) {
-                existing.lateDays += 1;
-            }
-            if (record.latePenaltyAmount) {
-                existing.latePenalty += Number(record.latePenaltyAmount);
-            }
-
-            employeeMap.set(key, existing);
-        }
-
-        const employees = Array.from(employeeMap.values());
+        const payroll = await loadPayrollCalculations({ startDate, endDate, stationId });
+        const employees = payroll.employees
+            .filter(({ calculation }) => calculation.dailyRecords.some((record) => record.attendance))
+            .map(({ employee, calculation }) => ({
+                id: employee.id,
+                name: employee.name,
+                employeeId: employee.employeeId,
+                station: employee.station?.name || "-",
+                department: employee.department?.name || "-",
+                workDays: calculation.workDays,
+                totalHours: calculation.totalHours,
+                overtimeHours: roundMoney(calculation.dailyRecords.reduce(
+                    (sum, record) => sum + record.overtimeHours,
+                    0,
+                )),
+                lateDays: calculation.dailyRecords.filter(
+                    (record) => (record.attendance?.lateMinutes || 0) > 0,
+                ).length,
+                latePenalty: calculation.latePenalty,
+            }));
 
         // Summary
         const summary = {
             totalEmployees: employees.length,
-            totalWorkDays: employees.reduce((sum, e) => sum + e.workDays, 0),
-            totalHours: employees.reduce((sum, e) => sum + e.totalHours, 0),
-            totalOT: employees.reduce((sum, e) => sum + e.overtimeHours, 0),
+            totalWorkDays: roundMoney(employees.reduce((sum, e) => sum + e.workDays, 0)),
+            totalHours: roundMoney(employees.reduce((sum, e) => sum + e.totalHours, 0)),
+            totalOT: roundMoney(employees.reduce((sum, e) => sum + e.overtimeHours, 0)),
             totalLateDays: employees.reduce((sum, e) => sum + e.lateDays, 0),
-            totalLatePenalty: employees.reduce((sum, e) => sum + e.latePenalty, 0),
+            totalLatePenalty: roundMoney(employees.reduce((sum, e) => sum + e.latePenalty, 0)),
         };
 
         return NextResponse.json({

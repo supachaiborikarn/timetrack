@@ -22,7 +22,7 @@ function roundWorkDays(value: number): number {
 }
 
 export function calculatePayrollDay(input: PayrollDayInput): PayrollDayResult {
-    const dailyRate = Number(input.dailyRate) || 0;
+    const dailyRate = Math.max(0, Number(input.dailyRate) || 0);
 
     if (input.overrideDailyWage != null) {
         const dailyWage = Math.max(0, Number(input.overrideDailyWage) || 0);

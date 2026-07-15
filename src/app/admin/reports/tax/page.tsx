@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, Loader2, Calculator } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
@@ -36,6 +35,8 @@ interface PayrollApiEmployee {
     regularPay: number;
     overtimePay: number;
     latePenalty?: number | null;
+    socialSecurity: number;
+    totalEarnings: number;
 }
 
 interface PayrollApiResponse {
@@ -61,38 +62,15 @@ export default function TaxReportPage() {
             if (res.ok) {
                 const data = await res.json() as PayrollApiResponse;
 
-                // Calculate Tax & SSO Client-side (Projection)
                 const employees = data.employees.map((emp) => {
-                    const totalIncome = emp.totalPay + (emp.latePenalty || 0); // Gross income before penalty deduction? Usually tax is on gross.
-                    // Let's assume Tax is on (Regular + OT).
-                    const grossIncome = emp.regularPay + emp.overtimePay;
-
-                    // SSO: 5% of Base Salary (capped at 15,000 base)
-                    // We need base salary specifically, here we use regularPay as proxy if dailyRate model
-                    // Ideally we check baseSalary field but we use daily calculation.
-                    // Estimate: 5% of gross up to 750 max.
-                    let sso = grossIncome * 0.05;
-                    if (sso > 750) sso = 750;
-                    if (sso < 0) sso = 0;
-
-                    // Tax: Simplified Progressive
-                    // 0-150,000 Exempt
-                    // This is monthly viewing, so we project annual? 
-                    // Let's us simple 3% withholding for now or 0 if low income.
-                    // For demo: 3% if > 25,000
-                    let tax = 0;
-                    if (grossIncome > 26000) { // Approx threshold
-                        tax = (grossIncome - sso) * 0.03; // Simple 3% withholding logic
-                    }
-
                     return {
                         id: emp.id,
                         name: emp.name,
                         employeeId: emp.employeeId,
-                        totalIncome: grossIncome,
-                        socialSecurity: Math.round(sso),
-                        tax: Math.round(tax),
-                        netIncome: grossIncome - sso - tax - (emp.latePenalty || 0)
+                        totalIncome: emp.totalEarnings,
+                        socialSecurity: emp.socialSecurity,
+                        tax: 0,
+                        netIncome: emp.totalPay,
                     };
                 });
 
@@ -118,8 +96,8 @@ export default function TaxReportPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold">รายงานภาษีและประกันสังคม (ประมาณการ)</h1>
-                    <p className="text-muted-foreground">คำนวณยอดนำส่งประกันสังคมและภาษีหัก ณ ที่จ่าย</p>
+                    <h1 className="text-2xl font-bold">รายงานรายได้และประกันสังคม</h1>
+                    <p className="text-muted-foreground">ยอดภาษีแสดงเป็นศูนย์จนกว่าจะมีข้อมูลภาษีที่ผ่านการตรวจสอบ</p>
                 </div>
                 {reportData && (
                     <Button variant="outline" onClick={() => {
@@ -167,7 +145,7 @@ export default function TaxReportPage() {
                         </Card>
                         <Card>
                             <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground">ภาษีหัก ณ ที่จ่าย</p>
+                                <p className="text-sm text-muted-foreground">ภาษีที่บันทึกในระบบ</p>
                                 <p className="text-2xl font-bold text-red-600">฿{reportData.summary.totalTax.toLocaleString()}</p>
                             </CardContent>
                         </Card>

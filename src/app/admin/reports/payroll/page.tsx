@@ -154,9 +154,10 @@ export default function PayrollReportPage() {
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ startDate, endDate, stationId: stationId === "all" ? undefined : stationId })
                                 });
-                                if (res.ok) alert("บันทึกข้อมูลเรียบร้อย");
-                                else alert("เกิดข้อผิดพลาด");
-                            } catch (e) {
+                                const response = await res.json().catch(() => null);
+                                if (res.ok) alert(response?.status === "FINALIZED" ? "ปิดงวดบัญชีเรียบร้อย" : "บันทึกรายการที่กรองไว้แล้ว");
+                                else alert(response?.error || "เกิดข้อผิดพลาด");
+                            } catch {
                                 alert("Failed to connect");
                             }
                         }}

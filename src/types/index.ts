@@ -134,6 +134,10 @@ export interface PayrollSummary {
     overtimePay: number;
     latePenalty: number;
     advanceDeduct: number;
+    otherDeduct: number;
+    socialSecurity: number;
+    adjustment: number;
+    specialIncome: number;
     netPay: number;
 }
 

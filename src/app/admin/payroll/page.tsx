@@ -36,7 +36,11 @@ import {
 } from "lucide-react";
 import { format, getBangkokNow, startOfMonth, endOfMonth } from "@/lib/date-utils";
 import { formatWorkDays } from "@/lib/payroll-day";
-import { generatePayslipPDF } from "@/lib/pdf-generator";
+import { generatePayslipPDF } from "@/lib/payroll-pdf-download";
+import {
+    DEFAULT_PAYROLL_DOCUMENT_SETTINGS,
+    type PayrollDocumentSettings,
+} from "@/lib/payroll-document-settings";
 import { toast } from "sonner";
 
 interface Department {
@@ -72,6 +76,8 @@ interface PayrollData {
         socialSecurity: number;
         totalDeductions: number;
         adjustment: number;
+        specialIncome: number;
+        totalEarnings: number;
         totalPay: number;
         bankName?: string | null;
         bankAccountNumber?: string | null;
@@ -82,6 +88,8 @@ interface PayrollData {
         totalHours: number;
         totalRegularPay: number;
         totalOvertimePay: number;
+        totalAdjustment: number;
+        totalSpecialIncome: number;
         totalLatePenalty: number;
         totalAdvanceDeduction: number;
         totalOtherExpenses: number;
@@ -111,6 +119,9 @@ export default function PayrollPage() {
     const [payrollData, setPayrollData] = useState<PayrollData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [absenceOverlaps, setAbsenceOverlaps] = useState<AbsenceOverlap[]>([]);
+    const [documentSettings, setDocumentSettings] = useState<PayrollDocumentSettings>(
+        DEFAULT_PAYROLL_DOCUMENT_SETTINGS,
+    );
 
     // Filters — read from URL params, fallback to defaults
     const now = getBangkokNow();
@@ -118,7 +129,6 @@ export default function PayrollPage() {
     const [endDate, setEndDate] = useState(searchParams.get("endDate") || format(endOfMonth(now), "yyyy-MM-dd"));
     const [stationId, setStationId] = useState(searchParams.get("stationId") || "all");
     const [departmentId, setDepartmentId] = useState(searchParams.get("departmentId") || "all");
-    const [normalHoursPerDay, setNormalHoursPerDay] = useState(searchParams.get("normalHours") || "10.5");
 
     // Sync filters to URL
     const updateURL = useCallback((overrides?: Record<string, string>) => {
@@ -128,16 +138,14 @@ export default function PayrollPage() {
             endDate,
             stationId,
             departmentId,
-            normalHours: normalHoursPerDay,
             ...overrides,
         };
         if (values.startDate) params.set("startDate", values.startDate);
         if (values.endDate) params.set("endDate", values.endDate);
         if (values.stationId && values.stationId !== "all") params.set("stationId", values.stationId);
         if (values.departmentId && values.departmentId !== "all") params.set("departmentId", values.departmentId);
-        if (values.normalHours && values.normalHours !== "10.5") params.set("normalHours", values.normalHours);
         router.replace(`/admin/payroll?${params.toString()}`, { scroll: false });
-    }, [startDate, endDate, stationId, departmentId, normalHoursPerDay, router]);
+    }, [startDate, endDate, stationId, departmentId, router]);
 
     // Bonus amounts per employee (manually entered)
     const [bonusAmounts, setBonusAmounts] = useState<Record<string, number>>({});
@@ -149,6 +157,12 @@ export default function PayrollPage() {
 
     useEffect(() => {
         fetchStations();
+        fetch("/api/admin/settings/payroll-documents")
+            .then((response) => response.ok ? response.json() : null)
+            .then((data) => {
+                if (data?.settings) setDocumentSettings(data.settings);
+            })
+            .catch((error) => console.error("Failed to load payroll document settings:", error));
     }, []);
 
     const fetchStations = async () => {
@@ -210,19 +224,28 @@ export default function PayrollPage() {
             const params = new URLSearchParams({
                 startDate,
                 endDate,
-                normalHoursPerDay,
+                ...(stationId !== "all" && { stationId }),
+                ...(departmentId !== "all" && { departmentId }),
+            });
+
+            const overlapParams = new URLSearchParams({
+                startDate,
+                endDate,
                 ...(stationId !== "all" && { stationId }),
                 ...(departmentId !== "all" && { departmentId }),
             });
 
             const [payrollRes, overlapRes] = await Promise.all([
                 fetch(`/api/admin/payroll?${params}`),
-                fetch(`/api/admin/payroll/absence-overlaps?startDate=${startDate}&endDate=${endDate}${stationId !== "all" ? `&stationId=${stationId}` : ""}`),
+                fetch(`/api/admin/payroll/absence-overlaps?${overlapParams}`),
             ]);
 
             if (payrollRes.ok) {
                 const data = await payrollRes.json();
                 setPayrollData(data);
+            } else {
+                setPayrollData(null);
+                toast.error("คำนวณเงินเดือนไม่สำเร็จ");
             }
             if (overlapRes.ok) {
                 const data = await overlapRes.json();
@@ -230,6 +253,8 @@ export default function PayrollPage() {
             }
         } catch (error) {
             console.error("Failed to calculate payroll:", error);
+            setPayrollData(null);
+            toast.error("เชื่อมต่อระบบเงินเดือนไม่สำเร็จ");
         } finally {
             setIsLoading(false);
         }
@@ -248,7 +273,6 @@ export default function PayrollPage() {
         const params = new URLSearchParams({
             startDate,
             endDate,
-            normalHoursPerDay,
             ...(stationId !== "all" && { stationId }),
             ...(departmentId !== "all" && { departmentId }),
         });
@@ -337,8 +361,10 @@ export default function PayrollPage() {
                                         departmentId: departmentId === "all" ? undefined : departmentId,
                                     }),
                                 });
-                                if (res.ok) alert("ปิดงวดบัญชีเรียบร้อย ✅");
-                                else alert("เกิดข้อผิดพลาด");
+                                const response = await res.json().catch(() => null);
+                                if (res.ok) {
+                                    alert(response?.status === "FINALIZED" ? "ปิดงวดบัญชีเรียบร้อย" : "บันทึกรายการที่กรองไว้แล้ว");
+                                } else alert(response?.error || "เกิดข้อผิดพลาด");
                             } catch {
                                 alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
                             }
@@ -417,16 +443,6 @@ export default function PayrollPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">ชม.ปกติ/วัน</label>
-                            <Input
-                                type="number"
-                                step="0.5"
-                                value={normalHoursPerDay}
-                                onChange={(e) => setNormalHoursPerDay(e.target.value)}
-                                className="w-20"
-                            />
-                        </div>
                         <Button
                             onClick={calculatePayroll}
                             disabled={isLoading}
@@ -452,7 +468,7 @@ export default function PayrollPage() {
                         <Card>
                             <CardContent className="py-4 text-center">
                                 <Clock className="w-6 h-6 text-green-500 mx-auto mb-2" />
-                                <p className="text-2xl font-bold text-foreground">{(payrollData.summary.totalHours || 0).toFixed(0)}</p>
+                                <p className="text-2xl font-bold text-foreground">{(payrollData.summary.totalHours || 0).toFixed(2)}</p>
                                 <p className="text-xs text-muted-foreground">ชม.รวม • {formatWorkDays(payrollData.summary.totalWorkDays)} วัน</p>
                             </CardContent>
                         </Card>
@@ -473,7 +489,7 @@ export default function PayrollPage() {
                     </div>
 
                     {/* Breakdown - Income */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <Card>
                             <CardContent className="py-4 text-center">
                                 <p className="text-lg font-bold text-blue-600 dark:text-blue-400">฿{formatCurrency(payrollData.summary.totalRegularPay)}</p>
@@ -482,8 +498,14 @@ export default function PayrollPage() {
                         </Card>
                         <Card>
                             <CardContent className="py-4 text-center">
+                                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">+฿{formatCurrency(payrollData.summary.totalSpecialIncome)}</p>
+                                <p className="text-xs text-muted-foreground">รายได้พิเศษอนุมัติ</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-4 text-center">
                                 <p className="text-lg font-bold text-amber-600 dark:text-amber-400">+฿{formatCurrency(totalBonus)}</p>
-                                <p className="text-xs text-muted-foreground">เงินพิเศษรวม</p>
+                                <p className="text-xs text-muted-foreground">โบนัส/ปรับเงิน</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -537,11 +559,12 @@ export default function PayrollPage() {
                                         <TableHead className="text-center">วัน</TableHead>
                                         <TableHead className="text-center">ชม.รวม</TableHead>
                                         <TableHead className="text-right">ค่าแรง</TableHead>
+                                        <TableHead className="text-right">รายได้พิเศษ</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">หักสาย</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">เบิกล่วงหน้า</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">ประกันสังคม</TableHead>
-                                        <TableHead className="text-center">เงินพิเศษ</TableHead>
+                                        <TableHead className="text-center">โบนัส/ปรับเงิน</TableHead>
                                         <TableHead className="text-right">รวมสุทธิ</TableHead>
                                         <TableHead className="text-center w-20"></TableHead>
                                     </TableRow>
@@ -566,6 +589,7 @@ export default function PayrollPage() {
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-600 dark:text-blue-400">{emp.totalHours.toFixed(1)}</TableCell>
                                                 <TableCell className="text-right text-blue-600 dark:text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
+                                                <TableCell className="text-right text-emerald-600 dark:text-emerald-400">{emp.specialIncome > 0 ? `+฿${formatCurrency(emp.specialIncome)}` : '-'}</TableCell>
                                                 <TableCell className="text-right text-red-600 dark:text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
                                                 <TableCell className="text-center">
                                                     <Input
@@ -579,13 +603,18 @@ export default function PayrollPage() {
                                                             if (val === (emp.advanceDeduction || 0)) return;
                                                             const m = endDate.split("-")[1];
                                                             const y = endDate.split("-")[0];
-                                                            await fetch("/api/admin/advances", {
-                                                                method: "PATCH",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ userId: emp.id, month: m, year: y, amount: val }),
-                                                            });
-                                                            toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
-                                                            calculatePayroll();
+                                                            try {
+                                                                const res = await fetch("/api/admin/advances", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ userId: emp.id, month: m, year: y, amount: val }),
+                                                                });
+                                                                if (!res.ok) throw new Error("SAVE_FAILED");
+                                                                toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                                            } catch {
+                                                                toast.error("บันทึกยอดเบิกล่วงหน้าไม่สำเร็จ");
+                                                            }
+                                                            await calculatePayroll();
                                                         }}
                                                         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                                         className="w-24 text-red-600 dark:text-red-400 text-center"
@@ -601,13 +630,18 @@ export default function PayrollPage() {
                                                         onBlur={async (e) => {
                                                             const val = parseFloat(e.target.value) || 0;
                                                             if (val === (emp.otherExpenses || 0)) return;
-                                                            await fetch("/api/admin/payroll/employee-daily", {
-                                                                method: "PATCH",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ userId: emp.id, otherExpenses: val }),
-                                                            });
-                                                            toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
-                                                            calculatePayroll();
+                                                            try {
+                                                                const res = await fetch("/api/admin/payroll/employee-daily", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ userId: emp.id, otherExpenses: val, startDate, endDate }),
+                                                                });
+                                                                if (!res.ok) throw new Error("SAVE_FAILED");
+                                                                toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                                            } catch {
+                                                                toast.error("บันทึกค่าใช้จ่ายอื่นไม่สำเร็จ");
+                                                            }
+                                                            await calculatePayroll();
                                                         }}
                                                         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                                         className="w-24 text-red-600 dark:text-red-400 text-center"
@@ -624,18 +658,23 @@ export default function PayrollPage() {
                                                         onBlur={async (e) => {
                                                             const val = parseFloat(e.target.value) || 0;
                                                             if (val === (emp.adjustment || 0)) return;
-                                                            await fetch("/api/admin/payroll/employee-daily", {
-                                                                method: "PATCH",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ 
-                                                                    userId: emp.id, 
-                                                                    totalAdjustment: val,
-                                                                    startDate,
-                                                                    endDate
-                                                                }),
-                                                            });
-                                                            toast.success(`บันทึกเงินพิเศษ: ฿${val}`);
-                                                            calculatePayroll();
+                                                            try {
+                                                                const res = await fetch("/api/admin/payroll/employee-daily", {
+                                                                    method: "PATCH",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({
+                                                                        userId: emp.id,
+                                                                        totalAdjustment: val,
+                                                                        startDate,
+                                                                        endDate
+                                                                    }),
+                                                                });
+                                                                if (!res.ok) throw new Error("SAVE_FAILED");
+                                                                toast.success(`บันทึกเงินพิเศษ: ฿${val}`);
+                                                            } catch {
+                                                                toast.error("บันทึกเงินพิเศษไม่สำเร็จ");
+                                                            }
+                                                            await calculatePayroll();
                                                         }}
                                                         placeholder="0"
                                                         className="w-24 text-amber-600 dark:text-amber-400 text-center"
@@ -659,7 +698,7 @@ export default function PayrollPage() {
                                                             variant="ghost"
                                                             size="sm"
                                                             className="text-orange-600 dark:text-orange-400 hover:bg-accent"
-                                                            onClick={() => {
+                                                            onClick={async () => {
                                                                 const bonus = bonusAmounts[emp.id] || 0;
                                                                 const totalPay = emp.totalPay - (emp.adjustment || 0) + bonus;
 
@@ -668,27 +707,33 @@ export default function PayrollPage() {
                                                                         name: emp.nickName ? `${emp.name} (${emp.nickName})` : emp.name,
                                                                         employeeId: emp.employeeId,
                                                                         department: { name: emp.department },
+                                                                        station: { name: emp.station },
                                                                         bankName: emp.bankName,
                                                                         bankAccountNumber: emp.bankAccountNumber
                                                                     },
                                                                     period: {
                                                                         startDate: startDate,
                                                                         endDate: endDate,
-                                                                        name: "Period"
+                                                                        payDate: endDate,
+                                                                        name: `Payroll ${endDate.slice(5, 7)}/${endDate.slice(0, 4)}`,
                                                                     },
                                                                     createdAt: new Date().toISOString(),
+                                                                    workDays: emp.workDays,
+                                                                    totalHours: emp.totalHours,
+                                                                    dailyRate: emp.dailyRate,
                                                                     basePay: emp.regularPay,
                                                                     overtimePay: emp.overtimePay,
                                                                     latePenalty: emp.latePenalty,
                                                                     advanceDeduct: emp.advanceDeduction,
                                                                     otherDeduct: emp.otherExpenses,
                                                                     socialSecurity: emp.socialSecurity,
+                                                                    adjustment: bonus,
+                                                                    specialIncome: emp.specialIncome,
                                                                     netPay: totalPay,
-                                                                    bonus: bonus
                                                                 };
 
                                                                 try {
-                                                                    generatePayslipPDF(payslipObj, { name: "TimeTrack Company" });
+                                                                    await generatePayslipPDF(payslipObj, documentSettings);
                                                                 } catch (err) {
                                                                     console.error("PDF generation error:", err);
                                                                     alert("ไม่สามารถสร้าง PDF ได้: " + (err instanceof Error ? err.message : "Unknown error"));
@@ -710,8 +755,8 @@ export default function PayrollPage() {
                                                                         headers: { "Content-Type": "application/json" },
                                                                         body: JSON.stringify({ startDate, endDate, userId: emp.id }),
                                                                     });
-                                                                    if (res.ok) toast.success(`ปิดงวด ${emp.name} เรียบร้อย ✅`);
-                                                                    else toast.error("เกิดข้อผิดพลาด");
+                                                                    if (res.ok) toast.success(`บันทึกงวดของ ${emp.name} เรียบร้อย`);
+                                                                    else toast.error((await res.json().catch(() => null))?.error || "เกิดข้อผิดพลาด");
                                                                 } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
                                                             }}
                                                         >

@@ -30,6 +30,14 @@ describe("payroll-day", () => {
         })).toEqual({ dayFactor: 0, dailyWage: 0 });
     });
 
+    it("never produces a negative wage when a negative daily rate is submitted", () => {
+        expect(calculatePayrollDay({
+            hasCheckIn: true,
+            actualHours: 10,
+            dailyRate: -330,
+        })).toEqual({ dayFactor: 1, dailyWage: 0 });
+    });
+
     it("combines two half days into one work day", () => {
         const records = [
             calculatePayrollDay({ hasCheckIn: true, actualHours: 5.5, dailyRate: 330 }),

@@ -48,6 +48,7 @@ interface DailyRecord {
     otAmount: number;
     isOTOverridden: boolean;
     adjustment: number;
+    specialIncome: number;
     note: string | null;
     total: number;
     absentColleagues: { name: string; nickName: string | null }[];
@@ -74,6 +75,9 @@ interface EmployeePayrollData {
         totalOT: number;
         totalLatePenalty: number;
         totalAdjustment: number;
+        totalSpecialIncome: number;
+        totalEarnings: number;
+        totalHours: number;
         advanceDeduction: number;
         otherExpenses: number;
         socialSecurity: number;
@@ -166,6 +170,7 @@ export default function EmployeePayrollDetailPage() {
         const totalOT = updatedRecords.reduce((sum, d) => sum + d.otAmount, 0);
         const totalLatePenalty = updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0);
         const totalAdjustment = updatedRecords.reduce((sum, d) => sum + d.adjustment, 0);
+        const totalSpecialIncome = updatedRecords.reduce((sum, d) => sum + d.specialIncome, 0);
         const totalDeductions = totalLatePenalty + (data.summary.advanceDeduction || 0) + (data.summary.otherExpenses || 0) + (data.summary.socialSecurity || 0);
 
         const workDayTypes = countWorkDayTypes(updatedRecords);
@@ -179,8 +184,11 @@ export default function EmployeePayrollDetailPage() {
             totalOT,
             totalLatePenalty,
             totalAdjustment,
+            totalSpecialIncome,
+            totalEarnings: totalWage + totalOT + totalAdjustment + totalSpecialIncome,
+            totalHours: updatedRecords.reduce((sum, d) => sum + Number(d.actualHours || 0), 0),
             totalDeductions,
-            grandTotal: totalWage + totalOT - totalDeductions + totalAdjustment,
+            grandTotal: totalWage + totalOT + totalAdjustment + totalSpecialIncome - totalDeductions,
         };
 
         setData({ ...data, dailyRecords: updatedRecords, summary });
@@ -216,11 +224,14 @@ export default function EmployeePayrollDetailPage() {
                     // Optimistic update for time
                     const record = data.dailyRecords.find(r => r.date === date);
                     if (record) {
-                        const actualHours = result.actualHours ?? record.actualHours;
-                        const otHours = 0;
+                        const actualHours = result.actualHours;
+                        const otHours = result.overtimeHours ?? 0;
                         const otAmount = record.isOTOverridden
                             ? record.otAmount
                             : 0;
+                        const latePenalty = record.isLatePenaltyOverridden
+                            ? record.latePenalty
+                            : Number(result.latePenaltyAmount || 0);
                         const { dailyWage, dayFactor } = calculatePayrollDay({
                             hasCheckIn: !!result.checkInTime,
                             actualHours,
@@ -228,7 +239,7 @@ export default function EmployeePayrollDetailPage() {
                             overrideDailyWage: record.isWageOverridden ? record.dailyWage : null,
                         });
 
-                        const total = dailyWage + otAmount - record.latePenalty + record.adjustment;
+                        const total = dailyWage + otAmount + record.adjustment + record.specialIncome - latePenalty;
 
                         updateLocalRecord(date, {
                             checkInTime: result.checkInTime,
@@ -237,10 +248,14 @@ export default function EmployeePayrollDetailPage() {
                             dayFactor,
                             otHours: Math.round(otHours * 100) / 100,
                             otAmount: Math.round(otAmount * 100) / 100,
+                            latePenalty,
                             dailyWage,
                             total: Math.round(total * 100) / 100,
                         });
                     }
+                } else {
+                    toast.error("บันทึกเวลาไม่สำเร็จ");
+                    await fetchData();
                 }
             } else {
                 // Wage/OT/latePenalty/adjustment override
@@ -290,14 +305,19 @@ export default function EmployeePayrollDetailPage() {
                             updatedRecord.adjustment = numValue;
                         }
                         updatedRecord.total = Math.round(
-                            (updatedRecord.dailyWage + updatedRecord.otAmount - updatedRecord.latePenalty + updatedRecord.adjustment) * 100
+                            (updatedRecord.dailyWage + updatedRecord.otAmount + updatedRecord.adjustment + updatedRecord.specialIncome - updatedRecord.latePenalty) * 100
                         ) / 100;
                         updateLocalRecord(date, updatedRecord);
                     }
+                } else {
+                    toast.error("บันทึกรายการไม่สำเร็จ");
+                    await fetchData();
                 }
             }
         } catch (error) {
             console.error("Failed to save:", error);
+            toast.error("บันทึกข้อมูลไม่สำเร็จ");
+            await fetchData();
         } finally {
             setEditingCell(null);
             setSavingDate(null);
@@ -308,12 +328,14 @@ export default function EmployeePayrollDetailPage() {
         setSavingDate(date);
         try {
             const params = new URLSearchParams({ userId: employeeId, date });
-            await fetch(`/api/admin/payroll/employee-daily?${params}`, {
+            const res = await fetch(`/api/admin/payroll/employee-daily?${params}`, {
                 method: "DELETE",
             });
+            if (!res.ok) throw new Error("RESET_FAILED");
             await fetchData();
         } catch (error) {
             console.error("Failed to reset:", error);
+            toast.error("ล้างค่าที่แก้ไว้ไม่สำเร็จ");
         } finally {
             setSavingDate(null);
         }
@@ -457,7 +479,15 @@ export default function EmployeePayrollDetailPage() {
             {/* Summary Cards */}
             {data && (
                 <>
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-4">
+                        <Card>
+                            <CardContent className="py-4 text-center">
+                                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                                    ฿{formatCurrency(data.summary.totalSpecialIncome)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">รายได้พิเศษ</p>
+                            </CardContent>
+                        </Card>
                         <Card>
                             <CardContent className="py-4 text-center">
                                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
@@ -521,6 +551,8 @@ export default function EmployeePayrollDetailPage() {
                                 {editingAdvance ? (
                                     <Input
                                         type="number"
+                                        min="0"
+                                        step="0.01"
                                         value={advanceValue}
                                         onChange={(e) => setAdvanceValue(e.target.value)}
                                         onBlur={async () => {
@@ -528,13 +560,18 @@ export default function EmployeePayrollDetailPage() {
                                             const val = parseFloat(advanceValue) || 0;
                                             const m = endDate.split("-")[1];
                                             const y = endDate.split("-")[0];
-                                            await fetch("/api/admin/advances", {
-                                                method: "PATCH",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ userId: employeeId, month: m, year: y, amount: val }),
-                                            });
-                                            toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
-                                            fetchData();
+                                            try {
+                                                const res = await fetch("/api/admin/advances", {
+                                                    method: "PATCH",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ userId: employeeId, month: m, year: y, amount: val }),
+                                                });
+                                                if (res.ok) toast.success(`บันทึกหักเบิกล่วงหน้า: ฿${val}`);
+                                                else toast.error("บันทึกยอดเบิกล่วงหน้าไม่สำเร็จ");
+                                            } catch {
+                                                toast.error("บันทึกยอดเบิกล่วงหน้าไม่สำเร็จ");
+                                            }
+                                            await fetchData();
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -555,18 +592,25 @@ export default function EmployeePayrollDetailPage() {
                                 {editingExpenses ? (
                                     <Input
                                         type="number"
+                                        min="0"
+                                        step="0.01"
                                         value={expensesValue}
                                         onChange={(e) => setExpensesValue(e.target.value)}
                                         onBlur={async () => {
                                             setEditingExpenses(false);
                                             const val = parseFloat(expensesValue) || 0;
-                                            await fetch("/api/admin/payroll/employee-daily", {
-                                                method: "PATCH",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ userId: employeeId, otherExpenses: val }),
-                                            });
-                                            toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
-                                            fetchData();
+                                            try {
+                                                const res = await fetch("/api/admin/payroll/employee-daily", {
+                                                    method: "PATCH",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ userId: employeeId, otherExpenses: val, startDate, endDate }),
+                                                });
+                                                if (res.ok) toast.success(`บันทึกค่าใช้จ่ายอื่นๆ: ฿${val}`);
+                                                else toast.error("บันทึกค่าใช้จ่ายอื่นไม่สำเร็จ");
+                                            } catch {
+                                                toast.error("บันทึกค่าใช้จ่ายอื่นไม่สำเร็จ");
+                                            }
+                                            await fetchData();
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -615,6 +659,7 @@ export default function EmployeePayrollDetailPage() {
                                     <TableHead className="text-center w-28">ค่าแรง/วัน</TableHead>
                                     <TableHead className="text-center w-28">ค่า OT</TableHead>
                                     <TableHead className="text-center w-28">หักสาย</TableHead>
+                                    <TableHead className="text-center w-28">รายได้พิเศษ</TableHead>
                                     <TableHead className="text-center w-28">ปรับเงิน</TableHead>
                                     <TableHead className="text-right">รวม</TableHead>
                                     <TableHead className="text-center w-12"></TableHead>
@@ -713,6 +758,8 @@ export default function EmployeePayrollDetailPage() {
                                                 {editingCell?.date === record.date && editingCell?.field === "wage" ? (
                                                     <Input
                                                         type="number"
+                                                        min="0"
+                                                        step="0.01"
                                                         value={editValue}
                                                         onChange={(e) => setEditValue(e.target.value)}
                                                         onBlur={handleSaveEdit}
@@ -739,6 +786,8 @@ export default function EmployeePayrollDetailPage() {
                                                 {editingCell?.date === record.date && editingCell?.field === "ot" ? (
                                                     <Input
                                                         type="number"
+                                                        min="0"
+                                                        step="0.01"
                                                         value={editValue}
                                                         onChange={(e) => setEditValue(e.target.value)}
                                                         onBlur={handleSaveEdit}
@@ -765,6 +814,8 @@ export default function EmployeePayrollDetailPage() {
                                                 {editingCell?.date === record.date && editingCell?.field === "latePenalty" ? (
                                                     <Input
                                                         type="number"
+                                                        min="0"
+                                                        step="0.01"
                                                         value={editValue}
                                                         onChange={(e) => setEditValue(e.target.value)}
                                                         onBlur={handleSaveEdit}
@@ -784,6 +835,10 @@ export default function EmployeePayrollDetailPage() {
                                                         {record.latePenalty > 0 ? `- ${formatCurrency(record.latePenalty)} ` : "-"}
                                                     </button>
                                                 )}
+                                            </TableCell>
+
+                                            <TableCell className="text-center text-emerald-600 dark:text-emerald-400">
+                                                {record.specialIncome > 0 ? `+ ${formatCurrency(record.specialIncome)}` : "-"}
                                             </TableCell>
 
                                             {/* Adjustment Cell - Editable */}

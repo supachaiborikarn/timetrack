@@ -27,6 +27,7 @@ import {
     X,
     Building2,
     Wallet,
+    WalletCards,
     Bell,
     Shield,
     FolderKanban,
@@ -119,6 +120,7 @@ const navItems: NavItem[] = [
         requiredPermissions: ["shift.view"],
     },
     { title: "เงินเดือน", href: "/admin/payroll", icon: Wallet, roles: ["ADMIN", "HR"] },
+    { title: "การจ่ายเงินเดือน", href: "/admin/payroll/payments", icon: WalletCards, roles: ["ADMIN", "HR"] },
     { title: "รายได้พิเศษ", href: "/admin/special-income", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "เบิกค่าแรง", href: "/admin/advances", icon: Banknote, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
     {
@@ -208,8 +210,16 @@ function SidebarContent({
             <nav className="flex-1 overflow-y-auto py-4 px-2">
                 <ul className="space-y-1">
                     {filteredNavItems.map((item) => {
-                        const isActive = pathname === item.href ||
-                            (item.href !== "/admin" && pathname.startsWith(item.href));
+                        const hasMoreSpecificMatch = filteredNavItems.some((candidate) => (
+                            candidate.href !== item.href
+                            && candidate.href.startsWith(`${item.href}/`)
+                            && pathname.startsWith(candidate.href)
+                        ));
+                        const isActive = pathname === item.href || (
+                            item.href !== "/admin"
+                            && pathname.startsWith(`${item.href}/`)
+                            && !hasMoreSpecificMatch
+                        );
                         const Icon = item.icon;
                         const showBadge = item.href === "/admin/approvals" && pendingCount > 0;
 

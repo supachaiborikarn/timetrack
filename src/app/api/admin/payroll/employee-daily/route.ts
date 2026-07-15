@@ -1,313 +1,159 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
-import { calculatePayrollDay, countWorkDayTypes } from "@/lib/payroll-day";
+import { PAYROLL_ELIGIBLE_ROLES, toBangkokDateKey } from "@/lib/payroll-calculation";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
 
-const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function toBangkokDateKey(d: Date): string {
-    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
-    return bkk.toISOString().split("T")[0];
+function addDays(dateStr: string, days: number): string {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day + days)).toISOString().split("T")[0];
 }
 
-function addDaysBKK(dateStr: string, days: number): string {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d + days));
-    return dt.toISOString().split("T")[0];
+function isDateString(value: unknown): value is string {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-interface DailyRecord {
-    date: string;
-    dayOfWeek: string;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    actualHours: number | null;
-    breakMinutes: number | null;
-    lateMinutes: number | null;
-    latePenalty: number;
-    isLatePenaltyOverridden: boolean;
-    dailyWage: number;
-    isWageOverridden: boolean;
-    dayFactor: number;
-    otHours: number;
-    otAmount: number;
-    isOTOverridden: boolean;
-    adjustment: number;
-    note: string | null;
-    total: number;
-    absentColleagues: { name: string; nickName: string | null }[];
+function parseOptionalMoney(value: unknown, allowNegative = false): number | undefined {
+    if (value === undefined) return undefined;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || (!allowNegative && parsed < 0)) throw new Error("INVALID_MONEY");
+    return Math.round(parsed * 100) / 100;
 }
 
-// GET: Fetch employee's daily payroll data for a date range
+type OverrideChanges = {
+    overrideDailyWage?: number | null;
+    overrideOT?: number | null;
+    overrideLatePenalty?: number | null;
+    adjustment?: number | null;
+    otherDeduction?: number | null;
+    note?: string | null;
+};
+
+async function upsertCanonicalOverride(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    dateStr: string,
+    changes: OverrideChanges,
+) {
+    const date = parseDateStringToBangkokMidnight(dateStr);
+    const end = new Date(date.getTime() + DAY_MS - 1);
+    const existingRecords = await tx.dailyPayrollOverride.findMany({
+        where: { userId, date: { gte: date, lte: end } },
+        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    });
+    const canonical = existingRecords.find((record) => record.date.getTime() === date.getTime());
+    const source = existingRecords[0];
+    const definedChanges = Object.fromEntries(
+        Object.entries(changes).filter(([, value]) => value !== undefined),
+    ) as OverrideChanges;
+    const merged = {
+        overrideDailyWage: source?.overrideDailyWage ?? null,
+        overrideOT: source?.overrideOT ?? null,
+        overrideLatePenalty: source?.overrideLatePenalty ?? null,
+        adjustment: source?.adjustment ?? 0,
+        otherDeduction: source?.otherDeduction ?? null,
+        note: source?.note ?? null,
+        ...definedChanges,
+    };
+
+    const target = canonical
+        ? await tx.dailyPayrollOverride.update({ where: { id: canonical.id }, data: merged })
+        : await tx.dailyPayrollOverride.create({ data: { userId, date, ...merged } });
+
+    await tx.dailyPayrollOverride.deleteMany({
+        where: { userId, date: { gte: date, lte: end }, id: { not: target.id } },
+    });
+    return target;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
-            return ApiErrors.unauthorized();
-        }
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) return ApiErrors.unauthorized();
 
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("userId");
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
-        const normalHoursPerDay = parseFloat(searchParams.get("normalHoursPerDay") || "10.5");
-
         if (!userId || !startDate || !endDate) {
             return ApiErrors.validation("userId, startDate, and endDate are required");
         }
 
-        // Get employee info
-        const employee = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                name: true,
-                employeeId: true,
-                dailyRate: true,
-                hourlyRate: true,
-                otRateMultiplier: true,
-                otherExpenses: true,
-                isSocialSecurityRegistered: true,
-                stationId: true,
-                departmentId: true,
-                station: { select: { name: true } },
-                department: { select: { name: true } },
-            },
-        });
+        const loaded = await loadPayrollCalculations({ userId, startDate, endDate });
+        const result = loaded.employees[0];
+        if (!result) return ApiErrors.notFound("Employee not found");
 
-        if (!employee) {
-            return ApiErrors.notFound("Employee not found");
-        }
-
-        const dailyRate = Number(employee.dailyRate) || 0;
-        const hourlyRate = Number(employee.hourlyRate) || (dailyRate / normalHoursPerDay);
-        const otMultiplier = Number(employee.otRateMultiplier) || 1.5;
-
-        // Get attendance records - use Bangkok midnight for date range
-        const start = parseDateStringToBangkokMidnight(startDate);
-        const endMidnight = parseDateStringToBangkokMidnight(endDate);
-        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
-
-        const attendances = await prisma.attendance.findMany({
-            where: {
-                userId,
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-            orderBy: { date: "asc" },
-        });
-
-        // Get overrides
-        const overrides = await prisma.dailyPayrollOverride.findMany({
-            where: {
-                userId,
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-        });
-
-        // Create maps using Bangkok date key (not UTC)
-        const overrideMap = new Map(
-            overrides.map(o => [toBangkokDateKey(o.date), o])
-        );
-
-        // For attendance, deduplicate by Bangkok date key (keep first)
-        const attendanceMap = new Map<string, typeof attendances[0]>();
-        for (const a of attendances) {
-            const dk = toBangkokDateKey(a.date);
-            if (!attendanceMap.has(dk)) {
-                attendanceMap.set(dk, a);
-            }
-        }
-
-        // Fetch station colleagues' attendance for absence overlap
-        const colleagueAttendanceMap = new Map<string, Set<string>>();
-        const colleagueNameMap = new Map<string, { name: string; nickName: string | null }>();
-        if (employee.stationId) {
-            const colleagueWhere: Record<string, unknown> = {
-                stationId: employee.stationId,
-                id: { not: userId },
-                isActive: true,
-            };
-            if (employee.departmentId) {
-                colleagueWhere.departmentId = employee.departmentId;
-            }
-            const colleagues = await prisma.user.findMany({
-                where: colleagueWhere,
-                select: { id: true, name: true, nickName: true },
-            });
-
-            for (const c of colleagues) {
-                colleagueNameMap.set(c.id, { name: c.name, nickName: c.nickName });
-            }
-
-            // Get all attendance records for colleagues in this period
-            const colleagueAttendances = await prisma.attendance.findMany({
+        const { employee, calculation } = result;
+        const dailyByDate = new Map(calculation.dailyRecords.map((record) => [record.date, record]));
+        const colleagueWhere: Prisma.UserWhereInput = {
+            id: { not: userId },
+            isActive: true,
+            role: { in: [...PAYROLL_ELIGIBLE_ROLES] },
+            stationId: employee.stationId,
+        };
+        if (employee.departmentId) colleagueWhere.departmentId = employee.departmentId;
+        const colleagues = employee.stationId
+            ? await prisma.user.findMany({ where: colleagueWhere, select: { id: true, name: true, nickName: true } })
+            : [];
+        const colleagueAttendance = colleagues.length > 0
+            ? await prisma.attendance.findMany({
                 where: {
-                    userId: { in: colleagues.map(c => c.id) },
-                    date: {
-                        gte: start,
-                        lte: end,
-                    },
+                    userId: { in: colleagues.map((colleague) => colleague.id) },
+                    status: "APPROVED",
+                    checkInTime: { not: null },
+                    date: { gte: loaded.start, lte: loaded.end },
                 },
                 select: { userId: true, date: true },
-            });
-
-            // Build a map: dateKey -> Set of userIds who DID check in
-            for (const ca of colleagueAttendances) {
-                const dk = toBangkokDateKey(ca.date);
-                if (!colleagueAttendanceMap.has(dk)) {
-                    colleagueAttendanceMap.set(dk, new Set());
-                }
-                colleagueAttendanceMap.get(dk)!.add(ca.userId);
-            }
+            })
+            : [];
+        const presentByDate = new Map<string, Set<string>>();
+        for (const attendance of colleagueAttendance) {
+            const dateKey = toBangkokDateKey(attendance.date);
+            const ids = presentByDate.get(dateKey) || new Set<string>();
+            ids.add(attendance.userId);
+            presentByDate.set(dateKey, ids);
         }
 
-        const allColleagueIds = Array.from(colleagueNameMap.keys());
-
-        // Build daily records for every day in range using Bangkok calendar
-        const dailyRecords: DailyRecord[] = [];
         const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"];
-
-        let currentDateStr = startDate; // "YYYY-MM-DD"
-        while (currentDateStr <= endDate) {
-            const dateKey = currentDateStr;
-            const attendance = attendanceMap.get(dateKey);
-            const override = overrideMap.get(dateKey);
-
-            // Get day of week from the date string
-            const [y, m, d] = currentDateStr.split("-").map(Number);
-            const dayOfWeekDate = new Date(Date.UTC(y, m - 1, d));
-
-            // Calculate actual hours and OT
-            const actualHours = attendance?.actualHours != null ? Number(attendance.actualHours) : null;
-            const lateMinutes = attendance?.lateMinutes || null;
-            const latePenalty = attendance ? Number(attendance.latePenaltyAmount) || 0 : 0;
-
-            // OT is not auto-calculated — HR adds manually via override
-            const otHours = 0;
-
-            const isWageOverridden = override?.overrideDailyWage != null;
-            const { dailyWage, dayFactor } = calculatePayrollDay({
-                hasCheckIn: !!attendance?.checkInTime,
-                actualHours,
-                dailyRate,
-                overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
-            });
-
-            // Get OT amount (override or calculated)
-            // Temporary business rule: No OT for March 26 - April 25 period
-            const isMarchAprilPeriod = startDate === "2026-03-26" && endDate === "2026-04-25";
-            const isOTOverridden = override?.overrideOT != null;
-            const otAmount = (isOTOverridden && !isMarchAprilPeriod)
-                ? Number(override!.overrideOT)
-                : 0; // Default 0 — HR adds OT manually
-
-            // Get late penalty (override or auto)
-            const isLatePenaltyOverridden = override?.overrideLatePenalty != null;
-            const finalLatePenalty = isLatePenaltyOverridden
-                ? Number(override!.overrideLatePenalty)
-                : latePenalty;
-
-            // Get adjustment (+/- arbitrary amount)
-            const adjustment = override?.adjustment ? Number(override.adjustment) : 0;
-
-            const total = dailyWage + otAmount - finalLatePenalty + adjustment;
-
-            // Find absent colleagues on this day (only relevant if this employee is also absent)
-            const absentColleagues: { name: string; nickName: string | null }[] = [];
-            if (!attendance?.checkInTime && allColleagueIds.length > 0) {
-                const presentOnDate = colleagueAttendanceMap.get(dateKey) || new Set();
-                for (const cId of allColleagueIds) {
-                    if (!presentOnDate.has(cId)) {
-                        const info = colleagueNameMap.get(cId);
-                        if (info) absentColleagues.push(info);
-                    }
-                }
-            }
-
+        const dailyRecords = [];
+        for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
+            const record = dailyByDate.get(date);
+            const attendance = record?.attendance;
+            const override = record?.override;
+            const dayDate = new Date(`${date}T00:00:00+07:00`);
+            const present = presentByDate.get(date) || new Set<string>();
             dailyRecords.push({
-                date: dateKey,
-                dayOfWeek: dayNames[dayOfWeekDate.getUTCDay()],
+                date,
+                dayOfWeek: dayNames[dayDate.getDay()],
                 checkInTime: attendance?.checkInTime?.toISOString() || null,
                 checkOutTime: attendance?.checkOutTime?.toISOString() || null,
-                actualHours,
-                breakMinutes: attendance?.breakDurationMin ?? null,
-                lateMinutes,
-                latePenalty: finalLatePenalty,
-                isLatePenaltyOverridden,
-                dailyWage,
-                isWageOverridden,
-                dayFactor,
-                otHours: Math.round(otHours * 100) / 100,
-                otAmount: Math.round(otAmount * 100) / 100,
-                isOTOverridden,
-                adjustment: Math.round(adjustment * 100) / 100,
+                actualHours: attendance?.actualHours == null ? null : Number(attendance.actualHours),
+                breakMinutes: attendance?.breakDurationMinutes ?? null,
+                lateMinutes: attendance?.lateMinutes ?? null,
+                latePenalty: record?.latePenalty || 0,
+                isLatePenaltyOverridden: override?.overrideLatePenalty != null,
+                dailyWage: record?.dailyWage || 0,
+                isWageOverridden: override?.overrideDailyWage != null,
+                dayFactor: record?.dayFactor || 0,
+                otHours: attendance?.overtimeHours == null ? 0 : Number(attendance.overtimeHours),
+                otAmount: record?.otAmount || 0,
+                isOTOverridden: override?.overrideOT != null,
+                adjustment: record?.adjustment || 0,
+                specialIncome: record?.specialIncome || 0,
                 note: override?.note || null,
-                total: Math.round(total * 100) / 100,
-                absentColleagues,
+                total: record?.total || 0,
+                absentColleagues: colleagues
+                    .filter((colleague) => !present.has(colleague.id))
+                    .map(({ name, nickName }) => ({ name, nickName })),
             });
-
-            currentDateStr = addDaysBKK(currentDateStr, 1);
         }
 
-        // Get advance deduction
-        const advanceMonth = parseInt(endDate.split("-")[1]);
-        const advanceYear = parseInt(endDate.split("-")[0]);
-        const advances = await prisma.advance.findMany({
-            where: {
-                userId,
-                status: { in: ["APPROVED", "PAID"] },
-                month: advanceMonth,
-                year: advanceYear,
-            },
-        });
-        const advanceDeduction = advances.reduce((sum, a) => sum + Number(a.amount), 0);
-
-        // Get other expenses and social security
-        const otherExpenses = Number(employee.otherExpenses) || 0;
-
-        // Social security from SystemConfig
-        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
-        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
-        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
-        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
-
-        const totalWage = dailyRecords.reduce((sum, d) => sum + d.dailyWage, 0);
-        const totalOT = dailyRecords.reduce((sum, d) => sum + d.otAmount, 0);
-        const totalLatePenalty = dailyRecords.reduce((sum, d) => sum + d.latePenalty, 0);
-        const totalAdjustment = dailyRecords.reduce((sum, d) => sum + d.adjustment, 0);
-        const grossForSSO = totalWage;
-        const socialSecurity = employee.isSocialSecurityRegistered
-            ? Math.min(grossForSSO * ssoRate, ssoMax)
-            : 0;
-        const totalDeductions = totalLatePenalty + advanceDeduction + otherExpenses + socialSecurity;
-
-        const workDayTypes = countWorkDayTypes(dailyRecords);
-
-        // Calculate summary
-        const summary = {
-            totalDays: dailyRecords.length,
-            workDays: dailyRecords.reduce((sum, d) => sum + d.dayFactor, 0),
-            fullDayCount: workDayTypes.fullDayCount,
-            halfDayCount: workDayTypes.halfDayCount,
-            totalWage,
-            totalOT,
-            totalLatePenalty,
-            totalAdjustment,
-            advanceDeduction,
-            otherExpenses,
-            socialSecurity,
-            totalDeductions,
-            grandTotal: totalWage + totalOT - totalDeductions + totalAdjustment,
-        };
-
+        const dailyRate = Math.max(0, Number(employee.dailyRate) || 0);
         return successResponse({
             employee: {
                 id: employee.id,
@@ -316,110 +162,68 @@ export async function GET(request: NextRequest) {
                 station: employee.station?.name || "-",
                 department: employee.department?.name || "-",
                 defaultDailyRate: dailyRate,
-                hourlyRate,
-                otMultiplier,
+                hourlyRate: Math.max(0, Number(employee.hourlyRate) || dailyRate / 10),
+                otMultiplier: Math.max(0, Number(employee.otRateMultiplier) || 1.5),
             },
             dailyRecords,
-            summary,
+            summary: {
+                totalDays: dailyRecords.length,
+                workDays: calculation.workDays,
+                fullDayCount: calculation.fullDayCount,
+                halfDayCount: calculation.halfDayCount,
+                totalHours: calculation.totalHours,
+                totalWage: calculation.regularPay,
+                totalOT: calculation.overtimePay,
+                totalLatePenalty: calculation.latePenalty,
+                totalAdjustment: calculation.adjustment,
+                totalSpecialIncome: calculation.specialIncome,
+                totalEarnings: calculation.totalEarnings,
+                advanceDeduction: calculation.advanceDeduction,
+                otherExpenses: calculation.otherExpenses,
+                socialSecurity: calculation.socialSecurity,
+                totalDeductions: calculation.totalDeductions,
+                grandTotal: calculation.totalPay,
+            },
         });
     } catch (error) {
-        console.error("Error fetching employee daily payroll:", error);
+        console.error("Error fetching daily payroll:", error);
         return ApiErrors.internal();
     }
 }
 
-// POST: Create or update daily override
 export async function POST(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
-            return ApiErrors.unauthorized();
-        }
-
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) return ApiErrors.unauthorized();
         const body = await request.json();
-        const { userId, date, overrideDailyWage, overrideOT, overrideLatePenalty, adjustment, note } = body;
+        if (!body.userId || !isDateString(body.date)) return ApiErrors.validation("userId and a valid date are required");
 
-        if (!userId || !date) {
-            return ApiErrors.validation("userId and date are required");
+        let changes: OverrideChanges;
+        try {
+            changes = {
+                overrideDailyWage: parseOptionalMoney(body.overrideDailyWage),
+                overrideOT: parseOptionalMoney(body.overrideOT),
+                overrideLatePenalty: parseOptionalMoney(body.overrideLatePenalty),
+                adjustment: parseOptionalMoney(body.adjustment, true),
+                note: body.note === undefined ? undefined : String(body.note || ""),
+            };
+        } catch {
+            return ApiErrors.validation("จำนวนเงินต้องเป็นตัวเลข และค่าแรง OT หรือค่าหักต้องไม่ติดลบ");
         }
 
-        const dateObj = new Date(date);
-
-        // Get existing override and employee info for audit
-        const existing = await prisma.dailyPayrollOverride.findUnique({
-            where: {
-                userId_date: {
-                    userId,
-                    date: dateObj,
+        const override = await prisma.$transaction(async (tx) => {
+            const saved = await upsertCanonicalOverride(tx, body.userId, body.date, changes);
+            await tx.auditLog.create({
+                data: {
+                    action: "UPDATE",
+                    entity: "DailyPayrollOverride",
+                    entityId: saved.id,
+                    details: JSON.stringify({ date: body.date, changes }),
+                    userId: session.user.id,
                 },
-            },
+            });
+            return saved;
         });
-
-        const employee = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { name: true, employeeId: true },
-        });
-
-        // Upsert override
-        const override = await prisma.dailyPayrollOverride.upsert({
-            where: {
-                userId_date: {
-                    userId,
-                    date: dateObj,
-                },
-            },
-            update: {
-                overrideDailyWage: overrideDailyWage !== undefined ? overrideDailyWage : undefined,
-                overrideOT: overrideOT !== undefined ? overrideOT : undefined,
-                overrideLatePenalty: overrideLatePenalty !== undefined ? overrideLatePenalty : undefined,
-                adjustment: adjustment !== undefined ? adjustment : undefined,
-                note: note !== undefined ? note : undefined,
-            },
-            create: {
-                userId,
-                date: dateObj,
-                overrideDailyWage,
-                overrideOT,
-                overrideLatePenalty,
-                adjustment,
-                note,
-            },
-        });
-
-        // Create audit log
-        const changes: string[] = [];
-        if (overrideDailyWage !== undefined) {
-            changes.push(`ค่าแรง: ${existing?.overrideDailyWage?.toString() || "auto"} → ${overrideDailyWage}`);
-        }
-        if (overrideOT !== undefined) {
-            changes.push(`OT: ${existing?.overrideOT?.toString() || "auto"} → ${overrideOT}`);
-        }
-        if (overrideLatePenalty !== undefined) {
-            changes.push(`หักสาย: ${existing?.overrideLatePenalty?.toString() || "auto"} → ${overrideLatePenalty}`);
-        }
-        if (adjustment !== undefined) {
-            changes.push(`ปรับเงิน: ${existing?.adjustment?.toString() || "0"} → ${adjustment}`);
-        }
-
-        await prisma.auditLog.create({
-            data: {
-                action: existing ? "UPDATE" : "CREATE",
-                entity: "DailyPayrollOverride",
-                entityId: override.id,
-                details: JSON.stringify({
-                    employeeId: employee?.employeeId,
-                    employeeName: employee?.name,
-                    date: date,
-                    changes: changes,
-                    oldDailyWage: existing?.overrideDailyWage?.toString() || null,
-                    oldOT: existing?.overrideOT?.toString() || null,
-                    newDailyWage: override.overrideDailyWage?.toString() || null,
-                    newOT: override.overrideOT?.toString() || null,
-                }),
-                userId: session.user.id,
-            },
-        });
-
         return successResponse({ override });
     } catch (error) {
         console.error("Error updating daily override:", error);
@@ -427,63 +231,30 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// DELETE: Remove override (reset to default)
 export async function DELETE(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
-            return ApiErrors.unauthorized();
-        }
-
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) return ApiErrors.unauthorized();
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("userId");
         const date = searchParams.get("date");
+        if (!userId || !isDateString(date)) return ApiErrors.validation("userId and a valid date are required");
+        const start = parseDateStringToBangkokMidnight(date);
+        const end = new Date(start.getTime() + DAY_MS - 1);
 
-        if (!userId || !date) {
-            return ApiErrors.validation("userId and date are required");
-        }
-
-        // Get existing override for audit
-        const existing = await prisma.dailyPayrollOverride.findUnique({
-            where: {
-                userId_date: {
-                    userId,
-                    date: new Date(date),
-                },
-            },
+        await prisma.$transaction(async (tx) => {
+            const deleted = await tx.dailyPayrollOverride.deleteMany({ where: { userId, date: { gte: start, lte: end } } });
+            if (deleted.count > 0) {
+                await tx.auditLog.create({
+                    data: {
+                        action: "DELETE",
+                        entity: "DailyPayrollOverride",
+                        details: JSON.stringify({ userId, date, deleted: deleted.count }),
+                        userId: session.user.id,
+                    },
+                });
+            }
         });
-
-        const employee = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { name: true, employeeId: true },
-        });
-
-        await prisma.dailyPayrollOverride.deleteMany({
-            where: {
-                userId,
-                date: new Date(date),
-            },
-        });
-
-        // Create audit log for deletion
-        if (existing) {
-            await prisma.auditLog.create({
-                data: {
-                    action: "DELETE",
-                    entity: "DailyPayrollOverride",
-                    entityId: existing.id,
-                    details: JSON.stringify({
-                        employeeId: employee?.employeeId,
-                        employeeName: employee?.name,
-                        date: date,
-                        deletedDailyWage: existing.overrideDailyWage?.toString() || null,
-                        deletedOT: existing.overrideOT?.toString() || null,
-                    }),
-                    userId: session.user.id,
-                },
-            });
-        }
-
         return successResponse({ deleted: true });
     } catch (error) {
         console.error("Error deleting daily override:", error);
@@ -491,70 +262,62 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-// PATCH: Update employee's otherExpenses or totalAdjustment
 export async function PATCH(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
-            return ApiErrors.unauthorized();
-        }
-
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) return ApiErrors.unauthorized();
         const body = await request.json();
-        const { userId, otherExpenses, totalAdjustment, startDate, endDate } = body;
-
-        if (!userId) {
-            return ApiErrors.validation("userId is required");
+        const { userId, startDate, endDate } = body;
+        if (!userId) return ApiErrors.validation("userId is required");
+        if (!isDateString(startDate) || !isDateString(endDate)) {
+            return ApiErrors.validation("startDate and endDate are required for period adjustments");
         }
 
-        // Update otherExpenses if provided
-        if (otherExpenses !== undefined) {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { otherExpenses: parseFloat(otherExpenses) || 0 },
-            });
+        let totalAdjustment: number | undefined;
+        let otherDeduction: number | undefined;
+        try {
+            totalAdjustment = parseOptionalMoney(body.totalAdjustment, true);
+            otherDeduction = parseOptionalMoney(body.otherExpenses);
+        } catch {
+            return ApiErrors.validation("จำนวนเงินไม่ถูกต้อง");
+        }
+        if (totalAdjustment === undefined && otherDeduction === undefined) {
+            return ApiErrors.validation("No adjustment value was provided");
         }
 
-        // Update totalAdjustment (Bonus) if provided
-        if (totalAdjustment !== undefined && startDate && endDate) {
-            const start = parseDateStringToBangkokMidnight(startDate);
-            const endMidnight = parseDateStringToBangkokMidnight(endDate);
-            const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1);
-            
-            // Zero out any existing adjustments in this period
-            await prisma.dailyPayrollOverride.updateMany({
-                where: {
-                    userId,
-                    date: { gte: start, lte: end },
-                    adjustment: { not: null }
-                },
-                data: { adjustment: 0 }
-            });
-
-            // Set the entire adjustment amount on the end date
-            const lastDay = parseDateStringToBangkokMidnight(endDate);
-            const newAdj = parseFloat(totalAdjustment) || 0;
-            
-            if (newAdj !== 0) {
-                const existing = await prisma.dailyPayrollOverride.findUnique({
-                    where: { userId_date: { userId, date: lastDay } }
+        const rangeStart = parseDateStringToBangkokMidnight(startDate);
+        const rangeEndMidnight = parseDateStringToBangkokMidnight(endDate);
+        const rangeEnd = new Date(rangeEndMidnight.getTime() + DAY_MS - 1);
+        await prisma.$transaction(async (tx) => {
+            if (totalAdjustment !== undefined) {
+                await tx.dailyPayrollOverride.updateMany({
+                    where: { userId, date: { gte: rangeStart, lte: rangeEnd } },
+                    data: { adjustment: 0 },
                 });
-                
-                if (existing) {
-                    await prisma.dailyPayrollOverride.update({
-                        where: { id: existing.id },
-                        data: { adjustment: newAdj }
-                    });
-                } else {
-                    await prisma.dailyPayrollOverride.create({
-                        data: {
-                            userId,
-                            date: lastDay,
-                            adjustment: newAdj
-                        }
-                    });
-                }
             }
-        }
+            if (otherDeduction !== undefined) {
+                await tx.dailyPayrollOverride.updateMany({
+                    where: { userId, date: { gte: rangeStart, lte: rangeEnd } },
+                    data: { otherDeduction: null },
+                });
+            }
+            const saved = await upsertCanonicalOverride(tx, userId, endDate, {
+                adjustment: totalAdjustment,
+                otherDeduction,
+            });
+            if (otherDeduction !== undefined) {
+                await tx.user.update({ where: { id: userId }, data: { otherExpenses: 0 } });
+            }
+            await tx.auditLog.create({
+                data: {
+                    action: "UPDATE",
+                    entity: "PayrollPeriodAdjustment",
+                    entityId: saved.id,
+                    details: JSON.stringify({ userId, startDate, endDate, totalAdjustment, otherDeduction }),
+                    userId: session.user.id,
+                },
+            });
+        });
 
         return successResponse({ updated: true });
     } catch (error) {

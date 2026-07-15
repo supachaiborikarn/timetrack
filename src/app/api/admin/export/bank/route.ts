@@ -1,8 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { format } from "@/lib/date-utils";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
+
+const BANK_CODES: Record<string, string> = {
+    "กรุงเทพ": "002",
+    "ธนาคารกรุงเทพ": "002",
+    "กสิกรไทย": "004",
+    "ธนาคารกสิกรไทย": "004",
+    "กรุงไทย": "006",
+    "ธนาคารกรุงไทย": "006",
+    "ทหารไทยธนชาต": "011",
+    "ธนาคารทหารไทยธนชาต": "011",
+    "ttb": "011",
+    "ไทยพาณิชย์": "014",
+    "ธนาคารไทยพาณิชย์": "014",
+    "cimb": "022",
+    "ยูโอบี": "024",
+    "uob": "024",
+    "กรุงศรีอยุธยา": "025",
+    "ธนาคารกรุงศรีอยุธยา": "025",
+    "ออมสิน": "030",
+    "ธนาคารออมสิน": "030",
+    "ธ.ก.ส.": "034",
+    "เกียรตินาคินภัทร": "069",
+};
+
+function csv(value: unknown): string {
+    let text = String(value ?? "");
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+}
+
+function bankCode(bankName: string | null): string {
+    if (!bankName) return "";
+    const normalized = bankName.trim().toLowerCase();
+    return BANK_CODES[normalized] || "";
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -10,104 +43,39 @@ export async function GET(request: NextRequest) {
         if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
-        const effectiveDate = searchParams.get("effectiveDate") || format(new Date(), "yyyy-MM-dd");
-        const stationId = searchParams.get("stationId");
+        const effectiveDate = searchParams.get("effectiveDate") || endDate;
+        if (!startDate || !endDate) return NextResponse.json({ error: "Dates required" }, { status: 400 });
 
-        if (!startDate || !endDate) {
-            return NextResponse.json({ error: "Dates required" }, { status: 400 });
-        }
-
-        // Fetch employees and attendance (Reuse logic or abstract it)
-        // For brevity, we simply fetch users and active payroll calculation
-        // NOTE: Ideally, we should export *Confirmed* payroll records.
-        // But for now we calculate on fly to enable testing.
-
-        const employeeWhere: Prisma.UserWhereInput = { isActive: true, role: "EMPLOYEE" };
-        if (stationId && stationId !== "all") employeeWhere.stationId = stationId;
-
-        const employees = await prisma.user.findMany({
-            where: employeeWhere,
-            select: {
-                id: true,
-                name: true,
-                employeeId: true,
-                bankAccountNumber: true,
-                bankName: true,
-                dailyRate: true,
-                hourlyRate: true,
-                otRateMultiplier: true,
-                // We need attendance to calc amount
-            }
+        const payroll = await loadPayrollCalculations({
+            startDate,
+            endDate,
+            stationId: searchParams.get("stationId"),
+            departmentId: searchParams.get("departmentId"),
         });
+        const reference = `SALARY ${endDate.slice(5, 7)}/${endDate.slice(0, 4)}`;
+        const rows = payroll.employees
+            .filter(({ calculation }) => calculation.hasPayrollActivity && calculation.totalPay > 0)
+            .map(({ employee, calculation }) => [
+                employee.bankAccountNumber || "",
+                calculation.totalPay.toFixed(2),
+                employee.name,
+                reference,
+                bankCode(employee.bankName),
+                employee.bankName || "",
+            ].map(csv).join(","));
+        const header = ["Account Number", "Amount", "Receiver Name", "Reference", "Bank Code", "Bank Name"].map(csv).join(",");
 
-        // 2. Fetch Attendance
-        const attendance = await prisma.attendance.findMany({
-            where: {
-                userId: { in: employees.map(e => e.id) },
-                date: { gte: new Date(startDate), lte: new Date(endDate) }
-            }
-        });
-
-        const exportData = employees.map(emp => {
-            const empAtt = attendance.filter(a => a.userId === emp.id);
-
-            // Simplified calc for export
-            const normalHours = 10.5; // Default
-            let regularPay = 0;
-            let otPay = 0;
-            let latePenalty = 0;
-
-            const hourlyRate = Number(emp.hourlyRate) || (Number(emp.dailyRate) / normalHours);
-            const otMult = Number(emp.otRateMultiplier) || 1.5;
-
-            empAtt.forEach(att => {
-                if (!att.checkInTime) return;
-                const actual = att.actualHours ? Number(att.actualHours) : 0;
-                const regH = actual > normalHours ? normalHours : actual;
-                const otH = actual > normalHours ? actual - normalHours : 0;
-
-                regularPay += regH * hourlyRate;
-                otPay += otH * hourlyRate * otMult;
-                if (att.latePenaltyAmount) latePenalty += Number(att.latePenaltyAmount);
-            });
-
-            const netPay = regularPay + otPay - latePenalty;
-
-            return {
-                code: "011", // Sending Bank Code (TTB) or Receiving Bank? Usually Receiving.
-                // If user bank is TTB -> 011. If SCB -> 014.
-                // We will use the bank name to map or default.
-                // For now, let's output the bank name in a column if unknown.
-                account: emp.bankAccountNumber || "",
-                amount: netPay.toFixed(2),
-                name: emp.name,
-                email: "",
-                ref: `SALARY ${format(new Date(endDate), "MM/yyyy")}`
-            };
-        }).filter(p => parseFloat(p.amount) > 0);
-
-        // Generate CSV (TTB Compatible Format - Simplified)
-        // Header: Account,Amount,Name,Ref,BankCode
-        const csvRows = exportData.map(d => {
-            return `"${d.account}","${d.amount}","${d.name}","${d.ref}","${d.code}"`;
-        });
-
-        const header = `"Account Number","Amount","Receiver Name","Reference","Bank Code"`;
-        const csvContent = [header, ...csvRows].join("\n");
-
-        return new NextResponse(csvContent, {
+        return new NextResponse(`\uFEFF${[header, ...rows].join("\n")}`, {
             headers: {
                 "Content-Type": "text/csv; charset=utf-8",
                 "Content-Disposition": `attachment; filename="payroll_transfer_${effectiveDate}.csv"`,
-            }
+            },
         });
-
     } catch (error) {
-        console.error("Export error:", error);
+        console.error("Bank export error:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

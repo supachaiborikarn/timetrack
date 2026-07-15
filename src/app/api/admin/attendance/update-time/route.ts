@@ -3,200 +3,131 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { isHousekeepingDepartment } from "@/lib/attendance-rules";
+import { InvalidAttendanceTimeError, recalculateAttendanceTimes } from "@/lib/attendance-edit";
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 
-// PATCH: Update attendance check-in/check-out times
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseRequestedTime(value: unknown, date: string): Date | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return null;
+    if (typeof value !== "string" || !/^\d{2}:\d{2}$/.test(value)) throw new Error("INVALID_TIME");
+    const parsed = new Date(`${date}T${value}:00+07:00`);
+    if (Number.isNaN(parsed.getTime())) throw new Error("INVALID_TIME");
+    return parsed;
+}
+
 export async function PATCH(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) {
-            return ApiErrors.unauthorized();
-        }
+        if (!session?.user?.id || !["ADMIN", "HR"].includes(session.user.role)) return ApiErrors.unauthorized();
 
         const body = await request.json();
-        const { userId, date, checkInTime, checkOutTime, note } = body;
-
-        if (!userId || !date) {
-            return ApiErrors.validation("userId and date are required");
+        const { userId, note } = body;
+        const date = typeof body.date === "string" ? body.date.split("T")[0] : "";
+        if (!userId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return ApiErrors.validation("userId and a valid date are required");
         }
 
-        // Parse date as Bangkok midnight to match how dates are stored in DB
-        // Input "2026-02-08" should become 2026-02-08 00:00 Bangkok = 2026-02-07T17:00:00Z
-        const dateStr = typeof date === "string" && date.includes("T")
-            ? date.split("T")[0]
-            : date;
-        const [year, month, day] = dateStr.split("-").map(Number);
-        const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
-        const dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - BANGKOK_OFFSET_MS);
+        let requestedCheckIn: Date | null | undefined;
+        let requestedCheckOut: Date | null | undefined;
+        try {
+            requestedCheckIn = parseRequestedTime(body.checkInTime, date);
+            requestedCheckOut = parseRequestedTime(body.checkOutTime, date);
+        } catch {
+            return ApiErrors.validation("รูปแบบเวลาต้องเป็น HH:mm");
+        }
 
-        const [targetUser, shiftAssignment] = await Promise.all([
+        const dateObj = parseDateStringToBangkokMidnight(date);
+        const dayEnd = new Date(dateObj.getTime() + DAY_MS - 1);
+        const [targetUser, shiftAssignment, existingRecords] = await Promise.all([
             prisma.user.findUnique({
                 where: { id: userId },
-                select: {
-                    department: { select: { code: true, name: true } },
-                },
+                select: { name: true, employeeId: true, department: { select: { code: true, name: true } } },
             }),
             prisma.shiftAssignment.findFirst({
                 where: { userId, date: dateObj },
                 include: { shift: true },
             }),
+            prisma.attendance.findMany({
+                where: { userId, date: { gte: dateObj, lte: dayEnd } },
+                include: { user: { select: { name: true, employeeId: true } } },
+                orderBy: [{ date: "asc" }, { updatedAt: "desc" }, { id: "asc" }],
+            }),
         ]);
+        if (!targetUser) return ApiErrors.notFound("Employee not found");
 
-        const canCrossMidnight = shiftAssignment?.shift?.isNightShift === true;
-        const invalidOvernightMessage = isHousekeepingDepartment(targetUser?.department)
+        const attendance = existingRecords[0] || null;
+        const oldCheckInTime = attendance?.checkInTime?.toISOString() || null;
+        const oldCheckOutTime = attendance?.checkOutTime?.toISOString() || null;
+        const invalidOvernightMessage = isHousekeepingDepartment(targetUser.department)
             ? "แม่บ้านไม่มีเวรกลางคืน กรุณาใส่เวลาเข้าออกในวันเดียวกัน"
             : "เวลาออกน้อยกว่าเวลาเข้าได้เฉพาะกะกลางคืน";
 
-        // Find existing attendance or create new one
-        let attendance = await prisma.attendance.findUnique({
-            where: {
-                userId_date: {
-                    userId,
-                    date: dateObj,
-                },
-            },
-            include: {
-                user: {
-                    select: { name: true, employeeId: true }
-                }
-            }
-        });
-
-        // Store old values for audit log
-        const oldCheckInTime = attendance?.checkInTime?.toISOString() || null;
-        const oldCheckOutTime = attendance?.checkOutTime?.toISOString() || null;
-
-        // Prepare update data
-        const updateData: Record<string, unknown> = {};
-
-        if (checkInTime !== undefined) {
-            if (checkInTime === null || checkInTime === "") {
-                updateData.checkInTime = null;
-            } else {
-                // Construct ISO string with +07:00 offset to ensure correct absolute time
-                // Format: YYYY-MM-DDTHH:mm:00+07:00
-                const dateTimeStr = `${dateStr}T${checkInTime}:00+07:00`;
-                updateData.checkInTime = new Date(dateTimeStr);
-                updateData.checkInMethod = "ADMIN_EDIT";
-            }
-        }
-
-        if (checkOutTime !== undefined) {
-            if (checkOutTime === null || checkOutTime === "") {
-                updateData.checkOutTime = null;
-            } else {
-                // Construct ISO string with +07:00 offset
-                const dateTimeStr = `${dateStr}T${checkOutTime}:00+07:00`;
-                updateData.checkOutTime = new Date(dateTimeStr);
-                updateData.checkOutMethod = "ADMIN_EDIT";
-            }
-        }
-
-        if (note !== undefined) {
-            updateData.note = note;
-        }
-
-        // Calculate actual hours if both times are set
-        if (updateData.checkInTime && updateData.checkOutTime) {
-            const inTime = updateData.checkInTime as Date;
-            let outTime = updateData.checkOutTime as Date;
-            
-            // If checkout is before checkin (e.g. night shift), it must be on the next day
-            if (outTime < inTime) {
-                if (!canCrossMidnight) {
-                    return ApiErrors.validation(invalidOvernightMessage);
-                }
-                outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
-                updateData.checkOutTime = outTime;
-            }
-
-            const diffMs = outTime.getTime() - inTime.getTime();
-            const actualHours = diffMs / (1000 * 60 * 60);
-            updateData.actualHours = Math.max(0, actualHours);
-        } else if (attendance) {
-            // Recalculate with existing values if only one time changed
-            const inTime = (updateData.checkInTime as Date | undefined) || attendance.checkInTime;
-            let outTime = (updateData.checkOutTime as Date | undefined) || attendance.checkOutTime;
-            
-            if (inTime && outTime) {
-                // If checkout is before checkin (e.g. night shift), it must be on the next day
-                if (outTime < inTime) {
-                    if (!canCrossMidnight) {
-                        return ApiErrors.validation(invalidOvernightMessage);
-                    }
-                    outTime = new Date(outTime.getTime() + 24 * 60 * 60 * 1000);
-                    updateData.checkOutTime = outTime;
-                }
-                const diffMs = outTime.getTime() - inTime.getTime();
-                const actualHours = diffMs / (1000 * 60 * 60);
-                updateData.actualHours = Math.max(0, actualHours);
-            }
-        }
-
-        const isCreating = !attendance;
-
-        if (attendance) {
-            // Update existing attendance
-            attendance = await prisma.attendance.update({
-                where: { id: attendance.id },
-                data: updateData,
-                include: {
-                    user: {
-                        select: { name: true, employeeId: true }
-                    }
-                }
+        let recalculated;
+        try {
+            recalculated = recalculateAttendanceTimes({
+                date,
+                existingCheckIn: attendance?.checkInTime || null,
+                existingCheckOut: attendance?.checkOutTime || null,
+                requestedCheckIn,
+                requestedCheckOut,
+                breakMinutes: shiftAssignment?.shift.breakMinutes ?? 60,
+                shiftStart: shiftAssignment?.shift.startTime,
+                canCrossMidnight: shiftAssignment?.shift.isNightShift === true,
             });
-        } else {
-            // Create new attendance record
-            attendance = await prisma.attendance.create({
+        } catch (error) {
+            if (error instanceof InvalidAttendanceTimeError) return ApiErrors.validation(invalidOvernightMessage);
+            throw error;
+        }
+
+        const saved = await prisma.$transaction(async (tx) => {
+            const data = {
+                date: dateObj,
+                checkInTime: recalculated.checkInTime,
+                checkOutTime: recalculated.checkOutTime,
+                actualHours: recalculated.actualHours,
+                overtimeHours: recalculated.overtimeHours,
+                lateMinutes: recalculated.lateMinutes,
+                latePenaltyAmount: recalculated.latePenaltyAmount,
+                status: "APPROVED" as const,
+                note: note === undefined ? attendance?.note : String(note || ""),
+                ...(requestedCheckIn !== undefined && { checkInMethod: recalculated.checkInTime ? "ADMIN_EDIT" : null }),
+                ...(requestedCheckOut !== undefined && { checkOutMethod: recalculated.checkOutTime ? "ADMIN_EDIT" : null }),
+            };
+            const updated = attendance
+                ? await tx.attendance.update({ where: { id: attendance.id }, data })
+                : await tx.attendance.create({ data: { userId, ...data } });
+            await tx.auditLog.create({
                 data: {
-                    userId,
-                    date: dateObj,
-                    ...(updateData as object),
+                    action: attendance ? "UPDATE" : "CREATE",
+                    entity: "Attendance",
+                    entityId: updated.id,
+                    details: JSON.stringify({
+                        employeeId: targetUser.employeeId,
+                        employeeName: targetUser.name,
+                        date,
+                        oldCheckInTime,
+                        oldCheckOutTime,
+                        newCheckInTime: updated.checkInTime?.toISOString() || null,
+                        newCheckOutTime: updated.checkOutTime?.toISOString() || null,
+                        actualHours: updated.actualHours?.toString() || null,
+                    }),
+                    userId: session.user.id,
                 },
-                include: {
-                    user: {
-                        select: { name: true, employeeId: true }
-                    }
-                }
             });
-        }
-
-        // Create Audit Log
-        const changes: string[] = [];
-        if (checkInTime !== undefined) {
-            const newCheckIn = attendance.checkInTime?.toISOString() || null;
-            changes.push(`เวลาเข้า: ${oldCheckInTime || "-"} → ${newCheckIn || "-"}`);
-        }
-        if (checkOutTime !== undefined) {
-            const newCheckOut = attendance.checkOutTime?.toISOString() || null;
-            changes.push(`เวลาออก: ${oldCheckOutTime || "-"} → ${newCheckOut || "-"}`);
-        }
-
-        await prisma.auditLog.create({
-            data: {
-                action: isCreating ? "CREATE" : "UPDATE",
-                entity: "Attendance",
-                entityId: attendance.id,
-                details: JSON.stringify({
-                    employeeId: attendance.user.employeeId,
-                    employeeName: attendance.user.name,
-                    date: date,
-                    changes: changes,
-                    oldCheckInTime,
-                    oldCheckOutTime,
-                    newCheckInTime: attendance.checkInTime?.toISOString() || null,
-                    newCheckOutTime: attendance.checkOutTime?.toISOString() || null,
-                }),
-                userId: session.user.id,
-            },
+            return updated;
         });
 
         return successResponse({
-            id: attendance.id,
-            date: attendance.date.toISOString(),
-            checkInTime: attendance.checkInTime?.toISOString() || null,
-            checkOutTime: attendance.checkOutTime?.toISOString() || null,
-            actualHours: attendance.actualHours ? Number(attendance.actualHours) : null,
+            id: saved.id,
+            date: saved.date.toISOString(),
+            checkInTime: saved.checkInTime?.toISOString() || null,
+            checkOutTime: saved.checkOutTime?.toISOString() || null,
+            actualHours: saved.actualHours == null ? null : Number(saved.actualHours),
+            overtimeHours: saved.overtimeHours == null ? null : Number(saved.overtimeHours),
+            lateMinutes: saved.lateMinutes,
+            latePenaltyAmount: Number(saved.latePenaltyAmount || 0),
         });
     } catch (error) {
         console.error("Error updating attendance time:", error);

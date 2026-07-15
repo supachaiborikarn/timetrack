@@ -16,6 +16,10 @@
 # next.js
 /.next/
 /out/
+/tmp/
+/output/
+/.playwright-cli/
+/graphify-out/
 
 # production
 /build

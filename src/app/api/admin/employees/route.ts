@@ -117,6 +117,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const parsedHourlyRate = Number(hourlyRate || 0);
+        const parsedDailyRate = Number(dailyRate || 0);
+        const parsedBaseSalary = Number(baseSalary || 0);
+        const parsedOtRateMultiplier = Number(otRateMultiplier || 1.5);
+        if ([parsedHourlyRate, parsedDailyRate, parsedBaseSalary, parsedOtRateMultiplier].some((value) => !Number.isFinite(value) || value < 0)) {
+            return NextResponse.json({ error: "ค่าแรง เงินเดือน และอัตรา OT ต้องเป็นตัวเลขตั้งแต่ศูนย์ขึ้นไป" }, { status: 400 });
+        }
+
         // Check for duplicates
         const existing = await prisma.user.findFirst({
             where: {
@@ -157,12 +165,12 @@ export async function POST(request: NextRequest) {
                 role: role as Role,
                 stationId: stationId || null,
                 departmentId: departmentId || null,
-                hourlyRate: hourlyRate || 0,
-                otRateMultiplier: otRateMultiplier || 1.5,
+                hourlyRate: parsedHourlyRate,
+                otRateMultiplier: parsedOtRateMultiplier,
                 // New Fields Merged
                 nickName: nickname || nickName || null,
-                dailyRate: dailyRate || 0,
-                baseSalary: baseSalary || 0,
+                dailyRate: parsedDailyRate,
+                baseSalary: parsedBaseSalary,
                 bankName: bankName || null,
                 bankAccountNumber: bankAccountNumber || null,
 

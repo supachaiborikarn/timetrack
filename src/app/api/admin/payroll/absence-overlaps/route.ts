@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
-
-function toBangkokDateKey(d: Date): string {
-    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
-    return bkk.toISOString().split("T")[0];
-}
-
 import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+import { PAYROLL_ELIGIBLE_ROLES, toBangkokDateKey } from "@/lib/payroll-calculation";
+
 
 // GET: Find overlapping absences within the same station
 export async function GET(request: NextRequest) {
@@ -23,6 +17,7 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
         const stationId = searchParams.get("stationId");
+        const departmentId = searchParams.get("departmentId");
 
         if (!startDate || !endDate) {
             return NextResponse.json(
@@ -41,7 +36,11 @@ export async function GET(request: NextRequest) {
             where: stationWhere,
             include: {
                 employees: {
-                    where: { isActive: true, role: "EMPLOYEE" },
+                    where: {
+                        isActive: true,
+                        role: { in: [...PAYROLL_ELIGIBLE_ROLES] },
+                        ...(departmentId && departmentId !== "all" ? { departmentId } : {}),
+                    },
                     select: { id: true, name: true, nickName: true, employeeId: true },
                 },
             },
@@ -58,6 +57,7 @@ export async function GET(request: NextRequest) {
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
                 userId: { in: allUserIds },
+                status: "APPROVED",
                 date: {
                     gte: start,
                     lte: end,

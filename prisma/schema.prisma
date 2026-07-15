@@ -245,25 +245,25 @@ model OvertimeRequest {
 }
 
 model Station {
-  id                  String       @id @default(cuid())
+  id                  String            @id @default(cuid())
   name                String
-  code                String       @unique
+  code                String            @unique
   type                StationType
   address             String
   latitude            Decimal
   longitude           Decimal
-  radius              Int          @default(100)
+  radius              Int               @default(100)
   wifiSSID            String?
   qrCode              String?
-  isActive            Boolean      @default(true)
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  isActive            Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   departments         Department[]
   shifts              Shift[]
-  registeredEmployees User[]       @relation("RegisteredStation")
-  employees           User[]       @relation("WorkStation")
-  attendances         Attendance[] @relation("AttendanceCheckInStation")
-  checkOutAttendances Attendance[] @relation("AttendanceCheckOutStation")
+  registeredEmployees User[]            @relation("RegisteredStation")
+  employees           User[]            @relation("WorkStation")
+  attendances         Attendance[]      @relation("AttendanceCheckInStation")
+  checkOutAttendances Attendance[]      @relation("AttendanceCheckOutStation")
   transfersFrom       StationTransfer[] @relation("TransferFrom")
   transfersTo         StationTransfer[] @relation("TransferTo")
 
@@ -349,7 +349,7 @@ model ShiftAssignment {
 }
 
 model Attendance {
-  id                 String           @id @default(cuid())
+  id                 String            @id @default(cuid())
   userId             String
   date               DateTime
   checkInTime        DateTime?
@@ -358,31 +358,31 @@ model Attendance {
   checkInDeviceId    String?
   checkInMethod      String?
   checkInStationId   String?
-  checkInStation     Station?         @relation("AttendanceCheckInStation", fields: [checkInStationId], references: [id])
+  checkInStation     Station?          @relation("AttendanceCheckInStation", fields: [checkInStationId], references: [id])
   checkOutTime       DateTime?
   checkOutLat        Decimal?
   checkOutLng        Decimal?
   checkOutDeviceId   String?
   checkOutMethod     String?
   checkOutStationId  String?
-  checkOutStation    Station?         @relation("AttendanceCheckOutStation", fields: [checkOutStationId], references: [id])
-  status             AttendanceStatus @default(PENDING)
+  checkOutStation    Station?          @relation("AttendanceCheckOutStation", fields: [checkOutStationId], references: [id])
+  status             AttendanceStatus  @default(PENDING)
   actualHours        Decimal?
   overtimeHours      Decimal?
   lateMinutes        Int?
   earlyLeaveMinutes  Int?
-  latePenaltyAmount  Decimal          @default(0)
+  latePenaltyAmount  Decimal           @default(0)
   note               String?
   approvedBy         String?
   approvedAt         DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
   breakDurationMin   Int?
   breakEndTime       DateTime?
-  breakPenaltyAmount Decimal          @default(0)
+  breakPenaltyAmount Decimal           @default(0)
   breakStartTime     DateTime?
-  approver           User?            @relation("AttendanceApprover", fields: [approvedBy], references: [id])
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver           User?             @relation("AttendanceApprover", fields: [approvedBy], references: [id])
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   transfers          StationTransfer[]
 
   @@unique([userId, date])
@@ -420,30 +420,47 @@ model PayrollPeriod {
   updatedAt DateTime        @updatedAt
   records   PayrollRecord[]
 
-  @@index([startDate, endDate])
+  @@unique([startDate, endDate])
 }
 
 model PayrollRecord {
-  id            String        @id @default(cuid())
-  periodId      String
-  userId        String
-  workDays      Decimal
-  totalHours    Decimal
-  overtimeHours Decimal
-  basePay       Decimal
-  overtimePay   Decimal
-  latePenalty   Decimal       @default(0)
-  advanceDeduct Decimal       @default(0)
-  otherDeduct   Decimal       @default(0)
-  socialSecurity Decimal      @default(0)
-  netPay        Decimal
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  period        PayrollPeriod @relation(fields: [periodId], references: [id])
-  user          User          @relation(fields: [userId], references: [id])
+  id                String        @id @default(cuid())
+  periodId          String
+  userId            String
+  workDays          Decimal
+  totalHours        Decimal
+  overtimeHours     Decimal
+  dailyRate         Decimal       @default(0)
+  basePay           Decimal
+  overtimePay       Decimal
+  latePenalty       Decimal       @default(0)
+  advanceDeduct     Decimal       @default(0)
+  otherDeduct       Decimal       @default(0)
+  socialSecurity    Decimal       @default(0)
+  adjustment        Decimal       @default(0)
+  specialIncome     Decimal       @default(0)
+  netPay            Decimal
+  employeeName      String?
+  employeeCode      String?
+  stationName       String?
+  departmentName    String?
+  bankName          String?
+  bankAccountNumber String?
+  documentNumber    String?       @unique
+  receiptNumber     String?       @unique
+  paymentStatus     String        @default("PENDING")
+  paymentMethod     String        @default("BANK_TRANSFER")
+  paidAt            DateTime?
+  paymentReference  String?
+  paymentNote       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  period            PayrollPeriod @relation(fields: [periodId], references: [id])
+  user              User          @relation(fields: [userId], references: [id])
 
   @@unique([periodId, userId])
   @@index([userId])
+  @@index([paymentStatus])
 }
 
 model Advance {
@@ -594,17 +611,18 @@ model ProfileEditRequest {
 }
 
 model DailyPayrollOverride {
-  id                   String   @id @default(cuid())
-  userId               String
-  date                 DateTime
-  overrideDailyWage    Decimal?
-  overrideOT           Decimal?
-  overrideLatePenalty   Decimal?
-  adjustment           Decimal? @default(0)
-  note                 String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(cuid())
+  userId              String
+  date                DateTime
+  overrideDailyWage   Decimal?
+  overrideOT          Decimal?
+  overrideLatePenalty Decimal?
+  adjustment          Decimal? @default(0)
+  otherDeduction      Decimal?
+  note                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
@@ -727,12 +745,12 @@ model HappinessLog {
   id        String   @id @default(cuid())
   userId    String
   date      DateTime @default(now())
-  mood      String   // HAPPY, NEUTRAL, SAD
+  mood      String // HAPPY, NEUTRAL, SAD
   note      String?
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, date])
 }
 
@@ -746,31 +764,31 @@ model OneOnOneLog {
   actionItems  String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
-  user         User     @relation("OneOnOneUser", fields: [userId], references: [id], onDelete: Cascade)
-  supervisor   User     @relation("OneOnOneSupervisor", fields: [supervisorId], references: [id])
-  
+
+  user       User @relation("OneOnOneUser", fields: [userId], references: [id], onDelete: Cascade)
+  supervisor User @relation("OneOnOneSupervisor", fields: [supervisorId], references: [id])
+
   @@index([userId])
   @@index([supervisorId])
 }
 
 // Station Transfer — บันทึกการย้ายสาขาระหว่างวัน
 model StationTransfer {
-  id              String      @id @default(cuid())
-  userId          String
-  attendanceId    String?
-  fromStationId   String
-  toStationId     String
-  transferTime    DateTime
-  reason          String?
-  method          String      @default("MANAGER") // MANAGER | SELF_QR
-  createdBy       String
-  createdAt       DateTime    @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  attendanceId  String?
+  fromStationId String
+  toStationId   String
+  transferTime  DateTime
+  reason        String?
+  method        String   @default("MANAGER") // MANAGER | SELF_QR
+  createdBy     String
+  createdAt     DateTime @default(now())
 
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attendance      Attendance? @relation(fields: [attendanceId], references: [id])
-  fromStation     Station     @relation("TransferFrom", fields: [fromStationId], references: [id])
-  toStation       Station     @relation("TransferTo", fields: [toStationId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance  Attendance? @relation(fields: [attendanceId], references: [id])
+  fromStation Station     @relation("TransferFrom", fields: [fromStationId], references: [id])
+  toStation   Station     @relation("TransferTo", fields: [toStationId], references: [id])
 
   @@index([userId, transferTime])
   @@index([attendanceId])

@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     "prisma/**/*.js",
     "scripts/**",
     "*.js",
+    "tmp/**",
+    "output/**",
+    "graphify-out/**",
+    ".playwright-cli/**",
   ]),
 ]);
 

@@ -100,6 +100,14 @@ export async function PUT(
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
         }
 
+        const parsedHourlyRate = Number(hourlyRate || 0);
+        const parsedDailyRate = Number(dailyRate || 0);
+        const parsedBaseSalary = Number(baseSalary || 0);
+        const parsedOtRateMultiplier = Number(otRateMultiplier || 1.5);
+        if ([parsedHourlyRate, parsedDailyRate, parsedBaseSalary, parsedOtRateMultiplier].some((value) => !Number.isFinite(value) || value < 0)) {
+            return NextResponse.json({ error: "ค่าแรง เงินเดือน และอัตรา OT ต้องเป็นตัวเลขตั้งแต่ศูนย์ขึ้นไป" }, { status: 400 });
+        }
+
         // Build update data
         const updateData: Record<string, unknown> = {
             name,
@@ -109,10 +117,10 @@ export async function PUT(
             role,
             stationId: stationId || null,
             departmentId: departmentId || null,
-            hourlyRate: parseFloat(hourlyRate) || 0,
-            dailyRate: parseFloat(dailyRate) || 0,
-            baseSalary: parseFloat(baseSalary) || 0,
-            otRateMultiplier: parseFloat(otRateMultiplier) || 1.5,
+            hourlyRate: parsedHourlyRate,
+            dailyRate: parsedDailyRate,
+            baseSalary: parsedBaseSalary,
+            otRateMultiplier: parsedOtRateMultiplier,
             isActive,
             // Bank
             bankAccountNumber: bankAccountNumber || null,

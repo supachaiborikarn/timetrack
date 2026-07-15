@@ -1,217 +1,94 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
-import { calculatePayrollDay, countWorkDayTypes } from "@/lib/payroll-day";
+import { roundMoney, toBangkokDateKey } from "@/lib/payroll-calculation";
+import { loadPayrollCalculations } from "@/lib/payroll-service";
 
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id) {
-            return ApiErrors.unauthorized();
-        }
-
-        const userId = session.user.id;
+        if (!session?.user?.id) return ApiErrors.unauthorized();
         const { searchParams } = new URL(request.url);
-        const month = parseInt(searchParams.get("month") || String(new Date().getMonth() + 1));
-        const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));
-
-        // Calculate date range for the month
-        const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-        const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59)); // last day of month
-
-        // Fetch all data in parallel
-        const [user, attendances, specialIncomes, advances, overrides] = await Promise.all([
-            prisma.user.findUnique({
-                where: { id: userId },
-                select: {
-                    id: true,
-                    name: true,
-                    employeeId: true,
-                    dailyRate: true,
-                    hourlyRate: true,
-                    otRateMultiplier: true,
-                    station: { select: { name: true } },
-                    department: { select: { name: true, isFrontYard: true } },
-                },
-            }),
-            prisma.attendance.findMany({
-                where: {
-                    userId,
-                    date: { gte: startDate, lte: endDate },
-                },
-                orderBy: { date: "asc" },
-            }),
-            prisma.specialIncome.findMany({
-                where: {
-                    userId,
-                    date: { gte: startDate, lte: endDate },
-                },
-                orderBy: { date: "asc" },
-            }),
-            prisma.advance.findMany({
-                where: {
-                    userId,
-                    date: { gte: startDate, lte: endDate },
-                    status: { in: ["APPROVED", "PAID"] },
-                },
-            }),
-            prisma.dailyPayrollOverride.findMany({
-                where: {
-                    userId,
-                    date: { gte: startDate, lte: endDate },
-                },
-            }),
-        ]);
-
-        if (!user) {
-            return ApiErrors.notFound("User");
+        const month = Number(searchParams.get("month") || new Date().getMonth() + 1);
+        const year = Number(searchParams.get("year") || new Date().getFullYear());
+        if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+            return ApiErrors.validation("Invalid month or year");
         }
 
-        const dailyRate = Number(user.dailyRate);
-        const hourlyRate = Number(user.hourlyRate);
-        const otMultiplier = Number(user.otRateMultiplier);
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+        const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        const payroll = await loadPayrollCalculations({ userId: session.user.id, startDate, endDate });
+        const result = payroll.employees[0];
+        if (!result) return ApiErrors.notFound("User");
+        const { employee, calculation, specialIncomes, advances } = result;
 
-        // Index special incomes and overrides by date
-        const incomesByDate = new Map<string, typeof specialIncomes>();
-        for (const si of specialIncomes) {
-            const dateKey = si.date.toISOString().split("T")[0];
-            if (!incomesByDate.has(dateKey)) incomesByDate.set(dateKey, []);
-            incomesByDate.get(dateKey)!.push(si);
-        }
-
-        const overridesByDate = new Map<string, typeof overrides[0]>();
-        for (const ov of overrides) {
-            const dateKey = ov.date.toISOString().split("T")[0];
-            overridesByDate.set(dateKey, ov);
-        }
-
-        // Build daily breakdown
-        let totalDailyWage = 0;
-        let totalOT = 0;
-        let totalSpecialIncome = 0;
-        let totalApprovedSpecialIncome = 0;
-        let totalPenalty = 0;
-        let totalAdvanceDeduct = 0;
-        let pendingCount = 0;
-        let workDays = 0;
-
-        const dailyBreakdown = attendances.map((att) => {
-            const dateKey = att.date.toISOString().split("T")[0];
-            const override = overridesByDate.get(dateKey);
-            const dayIncomes = incomesByDate.get(dateKey) || [];
-
-            const actualHours = att.actualHours != null ? Number(att.actualHours) : null;
-            const { dailyWage: wage, dayFactor } = calculatePayrollDay({
-                hasCheckIn: !!att.checkInTime,
-                actualHours,
-                dailyRate,
-                overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
-            });
-
-            // OT pay
-            const otHours = att.overtimeHours ? Number(att.overtimeHours) : 0;
-            const otPay = override?.overrideOT
-                ? Number(override.overrideOT)
-                : otHours * hourlyRate * otMultiplier;
-
-            // Penalties
-            const latePenalty = Number(att.latePenaltyAmount || 0);
-            const breakPenalty = Number(att.breakPenaltyAmount || 0);
-            const penalties = latePenalty + breakPenalty;
-
-            // Special incomes for this day
-            const daySpecialTotal = dayIncomes.reduce((sum, si) => sum + Number(si.amount), 0);
-            const dayApprovedSpecial = dayIncomes
-                .filter((si) => si.status === "APPROVED" || si.status === "PAID")
-                .reduce((sum, si) => sum + Number(si.amount), 0);
-            const dayPending = dayIncomes.filter((si) => si.status === "PENDING").length;
-
-            // Net for the day
-            const netDaily = wage + otPay + dayApprovedSpecial - penalties;
-
-            // Accumulate totals
-            totalDailyWage += wage;
-            totalOT += otPay;
-            totalSpecialIncome += daySpecialTotal;
-            totalApprovedSpecialIncome += dayApprovedSpecial;
-            totalPenalty += penalties;
-            pendingCount += dayPending;
-            workDays += dayFactor;
-
-            return {
-                date: dateKey,
-                status: att.status,
-                checkIn: att.checkInTime?.toISOString() || null,
-                checkOut: att.checkOutTime?.toISOString() || null,
-                actualHours,
-                dayFactor,
-                overtimeHours: otHours,
-                dailyWage: wage,
-                overtimePay: otPay,
-                latePenalty,
-                breakPenalty,
-                totalPenalty: penalties,
-                specialIncomes: dayIncomes.map((si) => ({
-                    id: si.id,
-                    type: si.type,
-                    description: si.description,
-                    salesAmount: si.salesAmount ? Number(si.salesAmount) : null,
-                    percentage: si.percentage ? Number(si.percentage) : null,
-                    amount: Number(si.amount),
-                    status: si.status,
-                })),
-                netDaily,
-                hasOverride: !!override,
-            };
-        });
-
-        // Advance deductions
-        totalAdvanceDeduct = advances.reduce((sum, adv) => sum + Number(adv.amount), 0);
-
-        // Projected net pay
-        const projectedNetPay =
-            totalDailyWage + totalOT + totalApprovedSpecialIncome - totalPenalty - totalAdvanceDeduct;
-        const workDayTypes = countWorkDayTypes(dailyBreakdown);
+        const dailyBreakdown = calculation.dailyRecords.map((record) => ({
+            date: record.date,
+            status: record.attendance?.status || "NO_ATTENDANCE",
+            checkIn: record.attendance?.checkInTime?.toISOString() || null,
+            checkOut: record.attendance?.checkOutTime?.toISOString() || null,
+            actualHours: record.attendance?.actualHours == null ? null : Number(record.attendance.actualHours),
+            dayFactor: record.dayFactor,
+            overtimeHours: record.attendance?.overtimeHours == null ? 0 : Number(record.attendance.overtimeHours),
+            dailyWage: record.dailyWage,
+            overtimePay: record.otAmount,
+            latePenalty: record.latePenalty,
+            breakPenalty: 0,
+            totalPenalty: roundMoney(record.latePenalty + record.otherDeduction),
+            adjustment: record.adjustment,
+            specialIncomes: record.specialIncomes.map((income) => ({
+                id: income.id || `${record.date}-${income.type || "income"}`,
+                type: income.type || "OTHER",
+                description: income.description || null,
+                salesAmount: income.salesAmount == null ? null : Number(income.salesAmount),
+                percentage: income.percentage == null ? null : Number(income.percentage),
+                amount: Number(income.amount),
+                status: income.status,
+            })),
+            netDaily: record.total,
+            hasOverride: !!record.override,
+        }));
+        const totalSpecialIncome = roundMoney(specialIncomes.reduce((total, income) => total + Math.max(0, Number(income.amount) || 0), 0));
+        const pendingCount = specialIncomes.filter((income) => income.status === "PENDING").length;
 
         return successResponse({
             employee: {
-                name: user.name,
-                employeeId: user.employeeId,
-                station: user.station?.name || null,
-                department: user.department?.name || null,
-                dailyRate,
+                name: employee.name,
+                employeeId: employee.employeeId,
+                station: employee.station?.name || null,
+                department: employee.department?.name || null,
+                dailyRate: Math.max(0, Number(employee.dailyRate) || 0),
             },
-            period: {
-                month,
-                year,
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
-            },
+            period: { month, year, startDate, endDate },
             dailyBreakdown,
             monthSummary: {
-                totalDailyWage,
-                totalOT,
+                totalDailyWage: calculation.regularPay,
+                totalOT: calculation.overtimePay,
                 totalSpecialIncome,
-                totalApprovedSpecialIncome,
-                totalPenalty,
-                totalAdvanceDeduct,
-                projectedNetPay,
-                workDays,
-                fullDayCount: workDayTypes.fullDayCount,
-                halfDayCount: workDayTypes.halfDayCount,
+                totalApprovedSpecialIncome: calculation.specialIncome,
+                totalAdjustment: calculation.adjustment,
+                totalPenalty: roundMoney(calculation.latePenalty + calculation.otherExpenses + calculation.socialSecurity),
+                totalAdvanceDeduct: calculation.advanceDeduction,
+                otherExpenses: calculation.otherExpenses,
+                socialSecurity: calculation.socialSecurity,
+                totalDeductions: calculation.totalDeductions,
+                projectedNetPay: calculation.totalPay,
+                workDays: calculation.workDays,
+                fullDayCount: calculation.fullDayCount,
+                halfDayCount: calculation.halfDayCount,
                 pendingItems: pendingCount,
             },
-            advances: advances.map((adv) => ({
-                id: adv.id,
-                amount: Number(adv.amount),
-                date: adv.date.toISOString().split("T")[0],
-                status: adv.status,
-                reason: adv.reason,
+            advances: advances.map((advance) => ({
+                id: advance.id,
+                amount: Number(advance.amount),
+                date: toBangkokDateKey(advance.date),
+                status: advance.status,
+                reason: advance.reason,
             })),
         });
     } catch (error) {
-        console.error("Error fetching wallet data:", error);
+        console.error("Wallet API error:", error);
         return ApiErrors.internal();
     }
 }

@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
-import { calculatePayrollDay } from "@/lib/payroll-day";
-
-const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
-
-function toBangkokDateKey(d: Date): string {
-    const bkk = new Date(d.getTime() + BANGKOK_OFFSET_MS);
-    return bkk.toISOString().split("T")[0];
-}
+import { loadPayrollCalculations, summarizePayroll } from "@/lib/payroll-service";
 
 export async function GET(request: NextRequest) {
     try {
@@ -21,230 +12,51 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
-        const stationId = searchParams.get("stationId");
-        const departmentId = searchParams.get("departmentId");
-
         if (!startDate || !endDate) {
-            return NextResponse.json(
-                { error: "startDate and endDate are required" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "startDate and endDate are required" }, { status: 400 });
         }
 
-        // Get social security config from SystemConfig
-        const ssoRateConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_rate" } });
-        const ssoMaxConfig = await prisma.systemConfig.findUnique({ where: { key: "social_security_max" } });
-        const ssoRate = ssoRateConfig ? parseFloat(ssoRateConfig.value) : 0.05;
-        const ssoMax = ssoMaxConfig ? parseFloat(ssoMaxConfig.value) : 750;
-
-        // Use Bangkok midnight to match how dates are stored in DB
-        const start = parseDateStringToBangkokMidnight(startDate);
-        const endMidnight = parseDateStringToBangkokMidnight(endDate);
-        const end = new Date(endMidnight.getTime() + 24 * 60 * 60 * 1000 - 1); // end of day
-
-        // For advance matching: use endDate month (payroll period 26 Jan - 25 Feb = February salary)
-        const advanceMonth = parseInt(endDate.split("-")[1]);
-        const advanceYear = parseInt(endDate.split("-")[0]);
-
-        // Get all employees
-        const employeeWhere: Record<string, unknown> = {
-            isActive: true,
-            role: "EMPLOYEE",
-        };
-
-        if (stationId) {
-            employeeWhere.stationId = stationId;
-        }
-
-        if (departmentId) {
-            employeeWhere.departmentId = departmentId;
-        }
-
-        const employees = await prisma.user.findMany({
-            where: employeeWhere,
-            include: {
-                station: { select: { name: true } },
-                department: { select: { name: true } },
-            },
+        const result = await loadPayrollCalculations({
+            startDate,
+            endDate,
+            stationId: searchParams.get("stationId"),
+            departmentId: searchParams.get("departmentId"),
         });
-
-        // Get attendance in range for all employees
-        const employeeIds = employees.map((e) => e.id);
-        const attendanceRecords = await prisma.attendance.findMany({
-            where: {
-                userId: { in: employeeIds },
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-        });
-
-        // Get all daily payroll overrides for the date range
-        const overrides = await prisma.dailyPayrollOverride.findMany({
-            where: {
-                userId: { in: employeeIds },
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-        });
-
-        // Map overrides by "userId:dateKey"
-        const overrideMap = new Map<string, typeof overrides[0]>();
-        for (const o of overrides) {
-            const dk = toBangkokDateKey(o.date);
-            overrideMap.set(`${o.userId}:${dk}`, o);
-        }
-
-        // Get approved/paid advances for matching month/year
-        const advances = await prisma.advance.findMany({
-            where: {
-                userId: { in: employeeIds },
-                status: { in: ["APPROVED", "PAID"] },
-                month: advanceMonth,
-                year: advanceYear,
-            },
-        });
-
-        // Group advances by userId
-        const advancesByUser: Record<string, number> = {};
-        for (const adv of advances) {
-            if (!advancesByUser[adv.userId]) advancesByUser[adv.userId] = 0;
-            advancesByUser[adv.userId] += Number(adv.amount);
-        }
-
-        // Calculate payroll for each employee
-        const payrollData = employees.map((emp) => {
-            const empAttendance = attendanceRecords.filter((a) => a.userId === emp.id);
-
-            // Daily rate from employee
-            const dailyRate = Number(emp.dailyRate) || 0;
-
-            // Deduplicate attendance by Bangkok date key
-            // Some records have duplicate dates stored as both 00:00Z and 17:00Z
-            const seenDates = new Set<string>();
-            let workDays = 0;
-            let totalHours = 0;
-            let latePenalty = 0;
-            let totalOTAmount = 0;
-            let totalAdjustment = 0;
-            let accumulatedWage = 0;
-            let fullDayCount = 0;
-            let halfDayCount = 0;
-
-            for (const record of empAttendance) {
-                if (record.checkInTime) {
-                    const dateKey = toBangkokDateKey(record.date);
-                    if (seenDates.has(dateKey)) continue; // skip duplicate
-                    seenDates.add(dateKey);
-
-                    const override = overrideMap.get(`${emp.id}:${dateKey}`);
-
-                    const actualHours = record.actualHours != null ? Number(record.actualHours) : 0;
-                    totalHours += actualHours;
-
-                    const { dailyWage, dayFactor } = calculatePayrollDay({
-                        hasCheckIn: !!record.checkInTime,
-                        actualHours,
-                        dailyRate,
-                        overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
-                    });
-
-                    workDays += dayFactor;
-                    accumulatedWage += dailyWage;
-                    if (dayFactor >= 1) fullDayCount += 1;
-                    else if (dayFactor === 0.5) halfDayCount += 1;
-
-                    // Late penalty (override or auto)
-                    if (override?.overrideLatePenalty != null) {
-                        latePenalty += Number(override.overrideLatePenalty);
-                    } else if (record.latePenaltyAmount) {
-                        latePenalty += Number(record.latePenaltyAmount);
-                    }
-
-                    // Temporary business rule: No OT for March 26 - April 25 period
-                    const isMarchAprilPeriod = startDate === "2026-03-26" && endDate === "2026-04-25";
-
-                    // OT (from override only — HR adds manually)
-                    if (override?.overrideOT != null && !isMarchAprilPeriod) {
-                        totalOTAmount += Number(override.overrideOT);
-                    }
-
-                    // Adjustment
-                    if (override?.adjustment) {
-                        totalAdjustment += Number(override.adjustment);
-                    }
-                }
-            }
-
-            // Calculate pay — use accumulated wage (respects overrides)
-            const regularPay = accumulatedWage;
-            const overtimePay = totalOTAmount;
-
-            // Deductions
-            const advanceDeduction = advancesByUser[emp.id] || 0;
-            const otherExpenses = Number(emp.otherExpenses) || 0;
-
-            // Social security: rate × ค่าแรง (ไม่รวม OT), capped at max
-            const grossForSSO = regularPay;
-            const socialSecurity = emp.isSocialSecurityRegistered
-                ? Math.min(grossForSSO * ssoRate, ssoMax)
-                : 0;
-
-            const totalDeductions = latePenalty + advanceDeduction + otherExpenses + socialSecurity;
-            const totalPay = regularPay + overtimePay - totalDeductions + totalAdjustment;
-
-            return {
-                id: emp.id,
-                name: emp.name,
-                nickName: emp.nickName,
-                employeeId: emp.employeeId,
-                station: emp.station?.name || "-",
-                department: emp.department?.name || "-",
-                dailyRate,
-                workDays,
-                fullDayCount,
-                halfDayCount,
-                totalHours,
-                regularPay,
-                overtimePay,
-                latePenalty,
-                advanceDeduction,
-                otherExpenses,
-                socialSecurity,
-                totalDeductions,
-                adjustment: totalAdjustment,
-                totalPay,
-                bankName: emp.bankName,
-                bankAccountNumber: emp.bankAccountNumber,
-            };
-        });
-
-        // Filter out employees with no work days
-        const activePayroll = payrollData.filter((p) => p.workDays > 0);
-
-        // Summary
-        const summary = {
-            totalEmployees: activePayroll.length,
-            totalWorkDays: activePayroll.reduce((sum, p) => sum + p.workDays, 0),
-            totalHours: activePayroll.reduce((sum, p) => sum + p.totalHours, 0),
-            totalRegularPay: activePayroll.reduce((sum, p) => sum + p.regularPay, 0),
-            totalOvertimePay: activePayroll.reduce((sum, p) => sum + p.overtimePay, 0),
-            totalLatePenalty: activePayroll.reduce((sum, p) => sum + p.latePenalty, 0),
-            totalAdvanceDeduction: activePayroll.reduce((sum, p) => sum + p.advanceDeduction, 0),
-            totalOtherExpenses: activePayroll.reduce((sum, p) => sum + p.otherExpenses, 0),
-            totalSocialSecurity: activePayroll.reduce((sum, p) => sum + p.socialSecurity, 0),
-            totalDeductions: activePayroll.reduce((sum, p) => sum + p.totalDeductions, 0),
-            grandTotal: activePayroll.reduce((sum, p) => sum + p.totalPay, 0),
-            ssoRate,
-            ssoMax,
-        };
+        const active = result.employees.filter(({ calculation }) => calculation.hasPayrollActivity);
+        const employees = active.map(({ employee, calculation }) => ({
+            id: employee.id,
+            name: employee.name,
+            nickName: employee.nickName,
+            employeeId: employee.employeeId,
+            station: employee.station?.name || "-",
+            department: employee.department?.name || "-",
+            dailyRate: Math.max(0, Number(employee.dailyRate) || 0),
+            workDays: calculation.workDays,
+            fullDayCount: calculation.fullDayCount,
+            halfDayCount: calculation.halfDayCount,
+            totalHours: calculation.totalHours,
+            regularPay: calculation.regularPay,
+            overtimePay: calculation.overtimePay,
+            latePenalty: calculation.latePenalty,
+            advanceDeduction: calculation.advanceDeduction,
+            otherExpenses: calculation.otherExpenses,
+            socialSecurity: calculation.socialSecurity,
+            totalDeductions: calculation.totalDeductions,
+            adjustment: calculation.adjustment,
+            specialIncome: calculation.specialIncome,
+            totalEarnings: calculation.totalEarnings,
+            totalPay: calculation.totalPay,
+            bankName: employee.bankName,
+            bankAccountNumber: employee.bankAccountNumber,
+        }));
 
         return NextResponse.json({
-            employees: activePayroll.sort((a, b) => a.name.localeCompare(b.name)),
-            summary,
+            employees,
+            summary: {
+                ...summarizePayroll(result.employees),
+                ssoRate: result.ssoRate,
+                ssoMax: result.ssoMax,
+            },
         });
     } catch (error) {
         console.error("Error calculating payroll:", error);

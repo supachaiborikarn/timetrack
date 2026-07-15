@@ -369,20 +369,21 @@ const EmployeeFormWithTabs = ({
                     <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label>ค่าแรง/วัน</Label>
-                            <Input type="number" value={formData.dailyRate} onChange={(e) => setFormData({ ...formData, dailyRate: parseFloat(e.target.value) || 0 })} />
+                            <Input type="number" min="0" step="0.01" value={formData.dailyRate} onChange={(e) => setFormData({ ...formData, dailyRate: Math.max(0, parseFloat(e.target.value) || 0) })} />
+                            <p className="text-xs text-muted-foreground">ใช้คำนวณเงินเดือนรายวัน</p>
                         </div>
                         <div className="space-y-2">
-                            <Label>เงินเดือน</Label>
-                            <Input type="number" value={formData.baseSalary} onChange={(e) => setFormData({ ...formData, baseSalary: parseFloat(e.target.value) || 0 })} />
+                            <Label>เงินเดือนอ้างอิง</Label>
+                            <Input type="number" min="0" step="0.01" value={formData.baseSalary} onChange={(e) => setFormData({ ...formData, baseSalary: Math.max(0, parseFloat(e.target.value) || 0) })} />
                         </div>
                         <div className="space-y-2">
                             <Label>ค่าแรง/ชม.</Label>
-                            <Input type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) || 0 })} required />
+                            <Input type="number" min="0" step="0.01" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: Math.max(0, parseFloat(e.target.value) || 0) })} required />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label>OT Rate (x เท่า)</Label>
-                        <Input type="number" step="0.1" value={formData.otRateMultiplier} onChange={(e) => setFormData({ ...formData, otRateMultiplier: parseFloat(e.target.value) || 0 })} required />
+                        <Input type="number" min="0" step="0.1" value={formData.otRateMultiplier} onChange={(e) => setFormData({ ...formData, otRateMultiplier: Math.max(0, parseFloat(e.target.value) || 0) })} required />
                     </div>
 
                     <hr className="my-4" />

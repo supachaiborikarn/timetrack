@@ -2,6 +2,12 @@ import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function parseAmount(value: unknown, allowZero = true): number | null {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0 || (!allowZero && amount === 0)) return null;
+    return Math.round(amount * 100) / 100;
+}
+
 // GET - List advances with filters
 export async function GET(req: NextRequest) {
     try {
@@ -105,7 +111,8 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { userId, amount, reason, month, year, note } = body;
 
-        if (!userId || !amount) {
+        const parsedAmount = parseAmount(amount, false);
+        if (!userId || parsedAmount === null) {
             return NextResponse.json({ error: "userId and amount are required" }, { status: 400 });
         }
 
@@ -116,7 +123,7 @@ export async function POST(req: NextRequest) {
         const advance = await prisma.advance.create({
             data: {
                 userId,
-                amount: parseFloat(amount),
+                amount: parsedAmount,
                 date: now,
                 month: advMonth,
                 year: advYear,
@@ -173,7 +180,13 @@ export async function PUT(req: NextRequest) {
                 updateData.paidAt = new Date();
             }
         }
-        if (amount !== undefined) updateData.amount = parseFloat(amount);
+        if (amount !== undefined) {
+            const parsedAmount = parseAmount(amount);
+            if (parsedAmount === null) {
+                return NextResponse.json({ error: "amount must be a non-negative number" }, { status: 400 });
+            }
+            updateData.amount = parsedAmount;
+        }
         if (reason !== undefined) updateData.reason = reason;
         if (note !== undefined) updateData.note = note;
 
@@ -240,60 +253,54 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: "userId, month, year, and amount are required" }, { status: 400 });
         }
 
-        const newAmount = parseFloat(amount) || 0;
+        const parsedMonth = Number(month);
+        const parsedYear = Number(year);
+        const newAmount = parseAmount(amount);
+        if (
+            newAmount === null ||
+            !Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12 ||
+            !Number.isInteger(parsedYear) || parsedYear < 2000
+        ) {
+            return NextResponse.json({ error: "Invalid month, year, or amount" }, { status: 400 });
+        }
 
         // Find existing advances for this user/period
         const advances = await prisma.advance.findMany({
             where: {
                 userId,
                 status: { in: ["APPROVED", "PAID"] },
-                month: parseInt(month),
-                year: parseInt(year),
+                month: parsedMonth,
+                year: parsedYear,
             },
             orderBy: { createdAt: "asc" },
         });
 
-        if (advances.length === 0 && newAmount > 0) {
-            // No advances exist — create one
-            await prisma.advance.create({
-                data: {
-                    userId,
-                    amount: newAmount,
-                    date: new Date(),
-                    month: parseInt(month),
-                    year: parseInt(year),
-                    status: "APPROVED",
-                    approvedBy: session.user.id,
-                    approvedAt: new Date(),
-                },
-            });
-        } else if (advances.length === 1) {
-            // Single advance — update its amount
-            await prisma.advance.update({
-                where: { id: advances[0].id },
-                data: { amount: newAmount },
-            });
-        } else if (advances.length > 1) {
-            // Multiple advances — set initial one to new total, zero out the rest
-            await prisma.advance.update({
-                where: { id: advances[0].id },
-                data: { amount: newAmount },
-            });
-            for (let i = 1; i < advances.length; i++) {
-                await prisma.advance.update({
-                    where: { id: advances[i].id },
-                    data: { amount: 0 },
+        await prisma.$transaction(async (tx) => {
+            if (advances.length === 0 && newAmount > 0) {
+                await tx.advance.create({
+                    data: {
+                        userId,
+                        amount: newAmount,
+                        date: new Date(),
+                        month: parsedMonth,
+                        year: parsedYear,
+                        status: "APPROVED",
+                        approvedBy: session.user.id,
+                        approvedAt: new Date(),
+                    },
                 });
+                return;
             }
-        } else if (newAmount === 0 && advances.length > 0) {
-            // Set all to 0
-            for (const adv of advances) {
-                await prisma.advance.update({
-                    where: { id: adv.id },
-                    data: { amount: 0 },
-                });
+            if (advances.length > 0) {
+                await tx.advance.update({ where: { id: advances[0].id }, data: { amount: newAmount } });
+                if (advances.length > 1) {
+                    await tx.advance.updateMany({
+                        where: { id: { in: advances.slice(1).map((advance) => advance.id) } },
+                        data: { amount: 0 },
+                    });
+                }
             }
-        }
+        });
 
         return NextResponse.json({ updated: true, amount: newAmount });
     } catch (error) {
