@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDay, endOfDay, getBangkokNow } from "@/lib/date-utils";
+import { getAttendanceDailySummary } from "@/lib/attendance-summary";
 
 export async function GET() {
     try {
@@ -10,41 +10,24 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const today = getBangkokNow();
-        const startOfToday = startOfDay(today);
-        const endOfToday = endOfDay(today);
-
-        // Get counts in parallel
         const [
             totalEmployees,
             totalStations,
-            todayAttendance,
             pendingLeaves,
+            attendanceSummary,
         ] = await Promise.all([
             prisma.user.count({ where: { isActive: true, role: "EMPLOYEE" } }),
             prisma.station.count({ where: { isActive: true } }),
-            prisma.attendance.findMany({
-                where: {
-                    date: { gte: startOfToday, lte: endOfToday },
-                },
-                select: {
-                    checkInTime: true,
-                    lateMinutes: true,
-                },
-            }),
             prisma.leave.count({ where: { status: "PENDING" } }),
+            getAttendanceDailySummary(),
         ]);
 
-        const presentToday = todayAttendance.filter((a) => a.checkInTime !== null).length;
-        const lateToday = todayAttendance.filter((a) => (a.lateMinutes || 0) > 5).length;
-
-        // Calculate absent (employees with shift today but no check-in)
-        const todayShifts = await prisma.shiftAssignment.count({
-            where: {
-                date: { gte: startOfToday, lte: endOfToday },
-            },
-        });
-        const absentToday = Math.max(0, todayShifts - presentToday);
+        const presentToday = attendanceSummary.totals.present;
+        const absentToday = attendanceSummary.totals.absentWithoutLeave;
+        const lateToday = attendanceSummary.groups.reduce(
+            (sum, group) => sum + group.present.filter((person) => person.lateMinutes > 5).length,
+            0,
+        );
 
         return NextResponse.json({
             totalEmployees,
@@ -53,6 +36,9 @@ export async function GET() {
             lateToday,
             pendingLeaves,
             totalStations,
+            approvedLeaveToday: attendanceSummary.totals.approvedLeave,
+            pendingLeaveToday: attendanceSummary.totals.pendingLeave,
+            upcomingToday: attendanceSummary.totals.upcoming,
         });
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);

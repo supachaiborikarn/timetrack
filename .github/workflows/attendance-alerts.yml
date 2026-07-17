@@ -1,0 +1,22 @@
+name: Attendance alerts
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger attendance report
+        env:
+          TIMETRACK_BASE_URL: ${{ secrets.TIMETRACK_BASE_URL }}
+          TIMETRACK_CRON_SECRET: ${{ secrets.TIMETRACK_CRON_SECRET }}
+        run: |
+          test -n "$TIMETRACK_BASE_URL"
+          test -n "$TIMETRACK_CRON_SECRET"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TIMETRACK_CRON_SECRET" \
+            "${TIMETRACK_BASE_URL%/}/api/cron/attendance-alerts"

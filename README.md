@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+การตั้งค่ารายงานพนักงานและคำสั่ง Discord อยู่ใน [DISCORD_SETUP.md](./DISCORD_SETUP.md)
+
 ## Getting Started
 
 First, run the development server:

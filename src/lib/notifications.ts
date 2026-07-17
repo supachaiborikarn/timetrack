@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 type NotificationType =
     | "SHIFT_REMINDER"
+    | "ATTENDANCE_ALERT"
     | "REQUEST_PENDING"
     | "ANNOUNCEMENT"
     | "SWAP_REQUEST"

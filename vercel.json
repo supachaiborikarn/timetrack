@@ -3,6 +3,10 @@
         {
             "path": "/api/cron/auto-approve",
             "schedule": "0 0 * * *"
+        },
+        {
+            "path": "/api/cron/attendance-alerts",
+            "schedule": "30 16 * * *"
         }
     ]
 }
