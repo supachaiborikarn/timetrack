@@ -35,7 +35,7 @@ describe("GET /api/notifications", () => {
         expect(notificationMock.deleteMany).toHaveBeenCalledWith({
             where: {
                 userId: "admin-1",
-                type: { in: ["ATTENDANCE_ALERT", "STAFF_SHORTAGE"] },
+                type: { in: ["ATTENDANCE_ALERT", "STAFF_SHORTAGE", "ANNOUNCEMENT"] },
                 createdAt: { lt: new Date("2026-08-07T17:00:00.000Z") },
             },
         });

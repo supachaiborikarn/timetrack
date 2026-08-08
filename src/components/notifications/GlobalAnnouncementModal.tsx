@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Megaphone, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
-import { formatThaiDate } from "@/lib/date-utils";
+import { formatThaiDate, startOfDayBangkok } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { freeTierIntervals } from "@/lib/free-tier";
 
@@ -76,9 +76,14 @@ export function GlobalAnnouncementModal() {
         const cachedPending = sessionStorage.getItem(PENDING_ANNOUNCEMENT_KEY);
         if (cachedPending) {
             try {
-                setAnnouncement(JSON.parse(cachedPending));
-                setIsLoading(false);
-                return;
+                const cachedAnnouncement = JSON.parse(cachedPending) as Announcement;
+                if (new Date(cachedAnnouncement.createdAt) >= startOfDayBangkok()) {
+                    setAnnouncement(cachedAnnouncement);
+                    setIsLoading(false);
+                    return;
+                }
+                sessionStorage.removeItem(PENDING_ANNOUNCEMENT_KEY);
+                sessionStorage.removeItem(LAST_EMPTY_CHECK_KEY);
             } catch {
                 sessionStorage.removeItem(PENDING_ANNOUNCEMENT_KEY);
             }

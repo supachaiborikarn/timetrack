@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { startOfDayBangkok } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -14,15 +15,12 @@ export async function GET() {
             select: { departmentId: true },
         });
 
-        // Cutoff date: 2026-04-25 00:00:00 GMT+7 (which is 2026-04-24T17:00:00.000Z)
-        const cutoffDate = new Date("2026-04-24T17:00:00.000Z");
-
-        // Fetch announcements created after cutoff
+        // Mandatory popups expire when the Bangkok calendar day changes.
         const recentAnnouncements = await prisma.announcement.findMany({
             where: {
                 isActive: true,
                 createdAt: {
-                    gte: cutoffDate,
+                    gte: startOfDayBangkok(),
                 },
             },
             include: {
