@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { startOfDayBangkok } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+
+const DAILY_ATTENDANCE_NOTIFICATION_TYPES = ["ATTENDANCE_ALERT", "STAFF_SHORTAGE"];
 
 // GET: List notifications for current user
 export async function GET(request: NextRequest) {
@@ -13,6 +16,16 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get("limit") || "20");
         const unreadOnly = searchParams.get("unread") === "true";
+
+        // Staffing alerts are useful only on the day they happen. Remove older
+        // alerts automatically so returning users do not see a stale backlog.
+        await prisma.notification.deleteMany({
+            where: {
+                userId: session.user.id,
+                type: { in: DAILY_ATTENDANCE_NOTIFICATION_TYPES },
+                createdAt: { lt: startOfDayBangkok() },
+            },
+        });
 
         const notifications = await prisma.notification.findMany({
             where: {
