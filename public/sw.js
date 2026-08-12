@@ -70,14 +70,21 @@ self.addEventListener('push', (event) => {
     if (!event.data) return;
 
     const data = event.data.json();
+    const metadata = data.data && typeof data.data === 'object' ? data.data : {};
+    const checkedAt = typeof metadata.checkedAt === 'string'
+        ? Date.parse(metadata.checkedAt)
+        : Number.NaN;
+    const notificationTime = Number.isFinite(checkedAt) ? checkedAt : Date.now();
     const options = {
         body: data.body || 'คุณมีการแจ้งเตือนใหม่',
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-72.png',
         vibrate: [100, 50, 100],
+        timestamp: notificationTime,
         data: {
+            ...metadata,
             url: data.url || '/',
-            dateOfArrival: Date.now(),
+            dateOfArrival: notificationTime,
         },
         actions: data.actions || [
             { action: 'open', title: 'เปิด' },
