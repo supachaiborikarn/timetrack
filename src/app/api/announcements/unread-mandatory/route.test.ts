@@ -33,6 +33,7 @@ describe("GET /api/announcements/unread-mandatory", () => {
         expect(announcementMock.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: {
                 isActive: true,
+                isPinned: true,
                 createdAt: { gte: new Date("2026-08-07T17:00:00.000Z") },
             },
         }));

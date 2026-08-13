@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     getBangkokNow,
+    formatBangkokDateTime,
     formatThaiDate,
     formatTime,
     calculateWorkHours,
@@ -35,6 +36,12 @@ describe('date-utils', () => {
             const date = new Date('2024-01-15');
             const formatted = formatThaiDate(date, 'yyyy-MM-dd');
             expect(formatted).toBe('2024-01-15');
+        });
+    });
+
+    describe('formatBangkokDateTime', () => {
+        it('formats UTC timestamps in Bangkok time', () => {
+            expect(formatBangkokDateTime('2026-08-12T17:56:00.000Z')).toContain('00:56');
         });
     });
 

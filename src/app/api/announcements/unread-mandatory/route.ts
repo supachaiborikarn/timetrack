@@ -15,10 +15,11 @@ export async function GET() {
             select: { departmentId: true },
         });
 
-        // Mandatory popups expire when the Bangkok calendar day changes.
+        // Only pinned announcements require acknowledgement and expire at Bangkok midnight.
         const recentAnnouncements = await prisma.announcement.findMany({
             where: {
                 isActive: true,
+                isPinned: true,
                 createdAt: {
                     gte: startOfDayBangkok(),
                 },

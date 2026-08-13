@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Megaphone, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
-import { formatThaiDate, startOfDayBangkok } from "@/lib/date-utils";
+import { formatBangkokDateTime, startOfDayBangkok } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { freeTierIntervals } from "@/lib/free-tier";
 
@@ -22,6 +22,7 @@ interface Announcement {
     title: string;
     content: string;
     createdAt: string;
+    isPinned: boolean;
     author: {
         name: string;
         nickName: string | null;
@@ -77,7 +78,10 @@ export function GlobalAnnouncementModal() {
         if (cachedPending) {
             try {
                 const cachedAnnouncement = JSON.parse(cachedPending) as Announcement;
-                if (new Date(cachedAnnouncement.createdAt) >= startOfDayBangkok()) {
+                if (
+                    cachedAnnouncement.isPinned === true &&
+                    new Date(cachedAnnouncement.createdAt) >= startOfDayBangkok()
+                ) {
                     setAnnouncement(cachedAnnouncement);
                     setIsLoading(false);
                     return;
@@ -167,7 +171,7 @@ export function GlobalAnnouncementModal() {
                             {announcement.title !== "ข้อความ" ? announcement.title : "ประกาศ"}
                         </p>
                         <span className="shrink-0 text-xs text-slate-500">
-                            {formatThaiDate(new Date(announcement.createdAt), "d MMM HH:mm")}
+                            ประกาศเมื่อ {formatBangkokDateTime(announcement.createdAt)}
                         </span>
                     </div>
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-sm whitespace-pre-wrap text-slate-700">

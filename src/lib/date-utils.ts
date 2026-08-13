@@ -85,6 +85,23 @@ export function formatThaiDate(date: Date | string, formatStr: string = "d MMM y
 }
 
 /**
+ * Format a timestamp for Bangkok, regardless of the browser or server timezone.
+ */
+export function formatBangkokDateTime(date: Date | string): string {
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (Number.isNaN(d.getTime())) return "";
+
+    return new Intl.DateTimeFormat("th-TH", {
+        timeZone: "Asia/Bangkok",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).format(d).replace(",", "");
+}
+
+/**
  * Format time in HH:mm format
  */
 export function formatTime(date: Date | string): string {
