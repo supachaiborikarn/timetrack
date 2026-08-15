@@ -39,6 +39,13 @@ const defaultPermissions = [
 
     // สิทธิ์
     { code: "permission.manage", name: "จัดการสิทธิ์ role", group: "สิทธิ์", sortOrder: 70 },
+
+    // รับสมัครงาน
+    { code: "application.view", name: "ดูใบสมัครงาน", group: "รับสมัครงาน", sortOrder: 80 },
+    { code: "application.review", name: "คัดกรอง/เปลี่ยนสถานะใบสมัคร", group: "รับสมัครงาน", sortOrder: 81 },
+    { code: "application.view_sensitive", name: "ดูเลขบัตร ปชช./สำเนาเอกสาร", group: "รับสมัครงาน", sortOrder: 82 },
+    { code: "application.hire", name: "จ้างผู้สมัครเป็นพนักงาน", group: "รับสมัครงาน", sortOrder: 83 },
+    { code: "application.delete", name: "ลบใบสมัครถาวร", group: "รับสมัครงาน", sortOrder: 84 },
 ];
 
 // Default role permissions
@@ -54,6 +61,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "station.view", "station.edit",
             "settings.manage",
             "permission.manage",
+            "application.view", "application.review", "application.view_sensitive", "application.hire", "application.delete",
         ],
     },
     {
@@ -65,6 +73,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "request.view", "request.approve",
             "report.view", "report.export",
             "station.view", "station.edit",
+            "application.view", "application.review", "application.view_sensitive", "application.hire",
         ],
     },
     {
@@ -76,6 +85,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "request.view", "request.approve",
             "report.view",
             "station.view",
+            "application.view", "application.review",
         ],
     },
     {

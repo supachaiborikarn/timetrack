@@ -125,3 +125,55 @@ export function nextUserLoginFailureState(
         loginLockedUntil: null,
     };
 }
+
+/**
+ * Generic fixed-window rate limiter for public endpoints (e.g. job application
+ * uploads/submissions). Independent in-memory store from the login limiter above —
+ * different keys, different windows, so they must not share state.
+ */
+type RateWindow = { count: number; windowStart: number };
+
+const genericStore = new Map<string, RateWindow>();
+const GENERIC_MAX_ENTRIES = 20_000;
+
+function pruneGeneric(): void {
+    if (genericStore.size < GENERIC_MAX_ENTRIES) return;
+    const t = now();
+    for (const [key, w] of genericStore) {
+        // A window is stale once it's more than a day old — callers use windows far shorter than that.
+        if (t - w.windowStart > 24 * 60 * 60 * 1000) genericStore.delete(key);
+    }
+}
+
+/**
+ * Returns whether an action identified by `key` is allowed right now, and
+ * records the attempt if so. `windowMs` is a fixed (not sliding) window.
+ */
+export function checkRate(
+    key: string,
+    limit: number,
+    windowMs: number,
+): { allowed: boolean; retryAfterSec: number } {
+    pruneGeneric();
+    const t = now();
+    const w = genericStore.get(key);
+
+    if (!w || t - w.windowStart > windowMs) {
+        genericStore.set(key, { count: 1, windowStart: t });
+        return { allowed: true, retryAfterSec: 0 };
+    }
+
+    if (w.count >= limit) {
+        return { allowed: false, retryAfterSec: Math.ceil((w.windowStart + windowMs - t) / 1000) };
+    }
+
+    w.count += 1;
+    return { allowed: true, retryAfterSec: 0 };
+}
+
+/** Best-effort client IP from standard proxy headers (Vercel sets x-forwarded-for). */
+export function getClientIp(headers: Headers): string {
+    const forwarded = headers.get("x-forwarded-for");
+    if (forwarded) return forwarded.split(",")[0].trim();
+    return headers.get("x-real-ip") || "unknown";
+}

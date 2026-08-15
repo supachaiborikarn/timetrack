@@ -77,6 +77,8 @@ model User {
   happinessLogs              HappinessLog[]
   oneOnOneLogs               OneOnOneLog[]          @relation("OneOnOneUser")
   supervisedOneOnOneLogs     OneOnOneLog[]          @relation("OneOnOneSupervisor")
+  reviewedApplications       JobApplication[]       @relation("ApplicationReviewer")
+  hiredFromApplication       JobApplication?        @relation("ApplicationHire")
 
   @@index([stationId])
   @@index([departmentId])
@@ -266,23 +268,25 @@ model Station {
   checkOutAttendances Attendance[]      @relation("AttendanceCheckOutStation")
   transfersFrom       StationTransfer[] @relation("TransferFrom")
   transfersTo         StationTransfer[] @relation("TransferTo")
+  jobApplications     JobApplication[]
 
   @@index([code])
 }
 
 model Department {
-  id            String            @id @default(cuid())
-  name          String
-  code          String
-  stationId     String
-  isFrontYard   Boolean           @default(false)
-  weeklyDayOff  Int?
-  sundayEndTime String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  station       Station           @relation(fields: [stationId], references: [id])
-  allowedShifts DepartmentShift[]
-  employees     User[]
+  id              String            @id @default(cuid())
+  name            String
+  code            String
+  stationId       String
+  isFrontYard     Boolean           @default(false)
+  weeklyDayOff    Int?
+  sundayEndTime   String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  station         Station           @relation(fields: [stationId], references: [id])
+  allowedShifts   DepartmentShift[]
+  employees       User[]
+  jobApplications JobApplication[]
 
   @@unique([stationId, code])
   @@index([stationId])
@@ -808,4 +812,129 @@ model StationTransfer {
 
   @@index([userId, transferTime])
   @@index([attendanceId])
+}
+
+// Job Application — ใบสมัครงานพนักงานใหม่
+model JobApplication {
+  id      String            @id @default(cuid())
+  refCode String            @unique
+  status  ApplicationStatus @default(SUBMITTED)
+
+  // ตำแหน่งที่สมัคร
+  positionTitle   String
+  employmentType  String?
+  stationId       String?
+  departmentId    String?
+  expectedSalary  Decimal?
+  availableFrom   DateTime?
+  preferredShifts Json?
+
+  // ข้อมูลส่วนตัว
+  prefix         String?
+  firstName      String
+  lastName       String
+  nickName       String?
+  birthDate      DateTime?
+  gender         String?
+  nationality    String?
+  religion       String?
+  maritalStatus  String?
+  militaryStatus String?
+  citizenIdEnc   String?
+  citizenIdLast4 String?
+
+  // ติดต่อ
+  phone             String
+  lineId            String?
+  email             String?
+  addressRegistered String?
+  addressCurrent    String?
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+
+  // ประวัติ
+  educations        Json?
+  workExperiences   Json?
+  skills            Json?
+  hasDrivingLicense Boolean @default(false)
+  licenseTypes      String?
+  screeningAnswers  Json?
+  applicantNote     String?
+
+  // ที่มา
+  source           String?
+  referredByUserId String?
+
+  // การพิจารณา
+  reviewedById  String?
+  reviewedAt    DateTime?
+  interviewAt   DateTime?
+  interviewNote String?
+  ratingScore   Int?
+  rejectReason  String?
+  hiredUserId   String?   @unique
+  hiredAt       DateTime?
+
+  // PDPA / audit
+  consentAcceptedAt DateTime
+  consentVersion    String
+  submittedIp       String?
+  userAgent         String?
+  purgeAfter        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  station    Station?             @relation(fields: [stationId], references: [id])
+  department Department?          @relation(fields: [departmentId], references: [id])
+  reviewedBy User?                @relation("ApplicationReviewer", fields: [reviewedById], references: [id])
+  hiredUser  User?                @relation("ApplicationHire", fields: [hiredUserId], references: [id])
+  files      JobApplicationFile[]
+
+  @@index([status])
+  @@index([stationId])
+  @@index([createdAt])
+  @@index([phone])
+}
+
+model JobApplicationFile {
+  id            String              @id @default(cuid())
+  applicationId String?
+  kind          ApplicationFileKind
+  mimeType      String
+  sizeBytes     Int
+  width         Int?
+  height        Int?
+  checksum      String?
+  storageDriver String              @default("cloudinary")
+  storageKey    String?
+  storageMeta   Json?
+  data          Bytes?
+  createdAt     DateTime            @default(now())
+  expiresAt     DateTime?
+
+  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([expiresAt])
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  SCREENING
+  INTERVIEW
+  OFFERED
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationFileKind {
+  PROFILE_PHOTO
+  CITIZEN_ID
+  HOUSE_REGISTRATION
+  EDUCATION_CERT
+  RESUME
+  OTHER
 }

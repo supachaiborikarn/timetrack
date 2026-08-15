@@ -39,6 +39,7 @@ import {
     ArrowLeftRight,
     BarChart3,
     UserRoundSearch,
+    UserPlus,
     BriefcaseBusiness,
     ShieldCheck,
     Megaphone,
@@ -147,6 +148,13 @@ const navItems: NavItem[] = [
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "Overtime", href: "/admin/overtime", icon: BriefcaseBusiness, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "Profile Requests", href: "/admin/profile-requests", icon: UserRoundSearch, roles: ["ADMIN", "HR"] },
+    {
+        title: "ใบสมัครงาน",
+        href: "/admin/applications",
+        icon: UserPlus,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["application.view"],
+    },
     { title: "QR Codes", href: "/admin/qr-codes", icon: QrCode, roles: ["ADMIN", "HR"] },
     { title: "ตั้งค่า", href: "/admin/settings", icon: Settings, roles: ["ADMIN"] },
     {

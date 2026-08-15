@@ -6,7 +6,8 @@ type NotificationType =
     | "REQUEST_PENDING"
     | "ANNOUNCEMENT"
     | "SWAP_REQUEST"
-    | "APPROVAL";
+    | "APPROVAL"
+    | "APPLICATION_SUBMITTED";
 
 interface CreateNotificationParams {
     userId: string;
