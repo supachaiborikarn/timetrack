@@ -42,6 +42,20 @@ export default function ApplyStatusPage() {
     const [result, setResult] = useState<StatusResult | null>(null);
 
     async function handleCheck() {
+        // Validate on press rather than disabling the button: a disabled button with no
+        // explanation leaves the applicant stuck, especially since the ref-code placeholder
+        // looks like a filled-in value.
+        if (!ref.trim()) {
+            setError(t("applyStatus.errRefRequired"));
+            setResult(null);
+            return;
+        }
+        if (!phone.trim()) {
+            setError(t("applyStatus.errPhoneRequired"));
+            setResult(null);
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setResult(null);
@@ -91,14 +105,24 @@ export default function ApplyStatusPage() {
                 <Card>
                     <CardContent className="pt-6 space-y-3">
                         <div className="space-y-1.5">
-                            <Label>{t("applyStatus.refCode")}</Label>
-                            <Input value={ref} onChange={(e) => setRef(e.target.value.toUpperCase())} placeholder="APP-69-0001" />
+                            <Label>
+                                {t("applyStatus.refCode")}
+                                <span className="text-destructive"> *</span>
+                            </Label>
+                            <Input
+                                value={ref}
+                                onChange={(e) => setRef(e.target.value.toUpperCase())}
+                                placeholder={t("applyStatus.refCodePlaceholder")}
+                            />
                         </div>
                         <div className="space-y-1.5">
-                            <Label>{t("applyStatus.phone")}</Label>
+                            <Label>
+                                {t("applyStatus.phone")}
+                                <span className="text-destructive"> *</span>
+                            </Label>
                             <Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
                         </div>
-                        <Button type="button" className="w-full" onClick={handleCheck} disabled={loading || !ref.trim() || !phone.trim()}>
+                        <Button type="button" className="w-full" onClick={handleCheck} disabled={loading}>
                             {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
                             {t("applyStatus.checkButton")}
                         </Button>
