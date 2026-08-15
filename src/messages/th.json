@@ -235,6 +235,7 @@
     "apply.errBirthDate": "กรุณาระบุวันเกิดให้ถูกต้อง",
     "apply.errEmail": "รูปแบบอีเมลไม่ถูกต้อง",
     "apply.errCitizenId": "เลขบัตรประชาชนต้องมี 13 หลัก",
+    "apply.errCitizenIdChecksum": "เลขบัตรประชาชนไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
     "apply.errProfilePhoto": "กรุณาแนบรูปถ่าย",
     "apply.errCitizenIdPhoto": "กรุณาแนบสำเนาบัตรประชาชน",
     "apply.errConsent": "กรุณายอมรับเงื่อนไขการเก็บข้อมูล",

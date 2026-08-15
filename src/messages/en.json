@@ -235,6 +235,7 @@
     "apply.errBirthDate": "Please enter a valid date of birth",
     "apply.errEmail": "Invalid email format",
     "apply.errCitizenId": "National ID number must be 13 digits",
+    "apply.errCitizenIdChecksum": "Invalid national ID number, please check it again",
     "apply.errProfilePhoto": "Please attach a photo",
     "apply.errCitizenIdPhoto": "Please attach a copy of your national ID",
     "apply.errConsent": "Please accept the data collection terms",

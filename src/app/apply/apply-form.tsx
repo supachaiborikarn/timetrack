@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLanguage } from "@/lib/language-context";
+import { isValidThaiCitizenId } from "@/lib/thai-citizen-id";
 import { PhotoCaptureField, type CapturedPhoto } from "@/components/applications/photo-capture-field";
 import { DocumentUploadField, type AttachedDocument } from "@/components/applications/document-upload-field";
 
@@ -212,7 +213,11 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
             if (!form.birthDate) return t("apply.errBirthDate");
             if (age !== null && (age < 15 || age > 75)) return t("apply.errBirthDate");
             if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return t("apply.errEmail");
-            if (!form.citizenId || form.citizenId.replace(/\D/g, "").length !== 13) return t("apply.errCitizenId");
+            const citizenDigits = form.citizenId.replace(/\D/g, "");
+            if (!citizenDigits || citizenDigits.length !== 13) return t("apply.errCitizenId");
+            // Same checksum rule the server enforces — checked here too so a typo is caught on
+            // this step instead of after the applicant has filled in everything and uploaded photos.
+            if (!isValidThaiCitizenId(citizenDigits)) return t("apply.errCitizenIdChecksum");
         }
         if (step === 4) {
             if (!form.profilePhoto) return t("apply.errProfilePhoto");
