@@ -2,7 +2,7 @@
 
 เอกสารออกแบบสำหรับเพิ่มระบบรับสมัครงานเข้า TimeTrack — ผู้สมัครกรอกใบสมัครออนไลน์ **พร้อมแนบรูปถ่าย** และเอกสารประกอบ, HR คัดกรอง/นัดสัมภาษณ์, และกดปุ่มเดียวเพื่อ **แปลงผู้สมัครเป็นพนักงาน** (สร้าง `User`) โดยข้อมูลและรูปถ่ายไหลต่อไปยังโปรไฟล์พนักงานทันที
 
-สถานะ: **เฟส 1–4 เสร็จแล้ว** (สคีมา, storage adapter, `<PhotoCaptureField />`, ฟอร์ม `/apply` สาธารณะ 5 ขั้นตอน + API รับสมัคร/เช็คสถานะ/ถอนใบสมัคร) — ทดสอบจริงจนสมัครงานสำเร็จ, เห็นไฟล์บน Cloudinary, และถอนใบสมัครแล้วเช็คว่าสำเนาบัตรถูกลบจริงแล้ว เหลือเฟส 5–7 (`/admin/applications`, ปุ่มจ้างงาน, cron cleanup) ดู [ข้อ 11](#11-แผนงาน) และ [ข้อ 12](#12-ข้อสรุปที่ตัดสินใจแล้ว-และที่ยังค้าง)
+สถานะ: **เสร็จครบทุกเฟส (1–7) และขึ้น production แล้ว** — ฟอร์ม `/apply` สาธารณะ, หน้า HR `/admin/applications` (คัดกรอง/สัมภาษณ์/ให้คะแนน/ปฏิเสธ/จ้างงาน/ลบถาวร/export), ปุ่มจ้างงานที่สร้าง `User` จริงพร้อมย้ายรูป, cron ทำความสะอาดรายวัน — ทดสอบจริงทุกเส้นทางจนเห็นผลจริงใน DB และ Cloudinary (สมัคร → คัดกรอง → สัมภาษณ์ → จ้างงานสำเร็จ, และเส้นทางปฏิเสธ/ลบที่ยืนยันว่าไฟล์ถูกลบจริง) deploy ขึ้น production ที่ `timetrack-lake.vercel.app` แล้วเมื่อ 15 ส.ค. 2569 ดู [ข้อ 11](#11-แผนงาน) สำหรับสถานะรายเฟส และ [ข้อ 12](#12-ข้อสรุปที่ตัดสินใจแล้ว-และที่ยังค้าง) สำหรับประเด็นที่ยังค้างซึ่งไม่กระทบการใช้งาน
 
 **ข้อสรุปหลัก 3 ข้อ (ตัดสินใจแล้ว 15 ส.ค. 2569)**
 1. เก็บไฟล์บน **Cloudinary** แบบ `type: authenticated` + signed URL อายุสั้น (ไม่ใช่ public URL)
@@ -422,13 +422,16 @@ MANAGER เห็นเฉพาะใบสมัครที่ `stationId` �
 | 2 | storage adapter (cloudinary + db) + API อัปโหลด/เสิร์ฟไฟล์ | `src/lib/storage.ts`, `src/app/api/applications/files/route.ts` | ✅ เสร็จ |
 | 3 | `<PhotoCaptureField />` + crop/resize/ลายน้ำ | `src/components/applications/` | ✅ เสร็จ |
 | 4 | ฟอร์ม `/apply` 5 ขั้นตอน + API ส่งใบสมัคร/เช็คสถานะ/ถอนใบสมัคร + i18n th/en/my | `src/app/apply/`, `src/app/api/applications/` | ✅ เสร็จ — ทดสอบสมัครจริงจนได้ refCode, ถอนใบสมัครแล้วสำเนาบัตรถูกลบจริงบน Cloudinary |
-| 5 | หน้า HR `/admin/applications` + API | `src/app/admin/applications/`, `src/app/api/admin/applications/` | ⏳ ยังไม่เริ่ม |
-| 6 | ปุ่มจ้าง → สร้าง User | `.../[id]/hire/route.ts` | ⏳ ยังไม่เริ่ม |
-| 7 | แจ้งเตือน + cron cleanup + export | `src/lib/notifications.ts`, `vercel.json` | ⏳ ยังไม่เริ่ม (in-app notification ตอนสมัครใหม่ทำแล้วในเฟส 4, เหลือ cron ลบไฟล์หมดอายุ + export) |
+| 5 | หน้า HR `/admin/applications` + API (list/detail/review/delete) | `src/app/admin/applications/`, `src/app/api/admin/applications/` | ✅ เสร็จ |
+| 6 | ปุ่มจ้าง → สร้าง User | `.../[id]/hire/route.ts` | ✅ เสร็จ — ทดสอบจ้างจริง ตรวจ DB ว่าฟิลด์/เลขบัตร/รูปถ่ายย้ายมาถูกต้อง |
+| 7 | แจ้งเตือน + cron cleanup + export | `src/lib/notifications.ts`, `vercel.json`, `.../cron/applications-cleanup/` | ✅ เสร็จ |
 
-**หมายเหตุจากการ implement เฟส 4:**
+**หมายเหตุจากการ implement (เฟส 4–7):**
 - Cloudinary แพลนปัจจุบันไม่มี "Token-based authentication" (feature ระดับ Advanced) — signed URL จึงไม่ time-limited จริงตามที่ออกแบบไว้ในข้อ 4.2 ใช้ `sign_url` (ปลอมไม่ได้ แต่ไม่หมดอายุ) แทนไปก่อน ความปลอดภัยจริงอยู่ที่ route ฝั่ง admin เป็นคนเดียวที่สร้างลิงก์ได้ ถ้าอัปเกรดแพลนทีหลังตั้ง `CLOUDINARY_AUTH_TOKEN_KEY` ก็สลับกลับได้ทันที
 - บัญชี Cloudinary ปิด "PDF and ZIP files delivery" ไว้ (ค่า default ด้านความปลอดภัย) — ฟิลด์วุฒิ/Resume ในฟอร์มเลยรับเฉพาะรูปภาพ (ไม่รับ PDF) ไม่งั้นอัปโหลดได้แต่ HR จะเปิดดูไม่ได้เลย ถ้าต้องการรับ PDF ต้องขอเปิดการตั้งค่านี้ก่อน
+- `purgeAfter` (ตั้งเวลาไฟล์หมดอายุ 180 วัน) ตั้งเฉพาะตอนใบสมัคร**ถูกปฏิเสธหรือถอน**เท่านั้น ไม่ได้ตั้งตั้งแต่วันสมัคร — กันไม่ให้ใบสมัครที่กำลังพิจารณาอยู่หรือจ้างงานไปแล้วโดนลบอัตโนมัติ
+- ตอนกดจ้างงาน รูปโปรไฟล์**ไม่ย้าย/rename**ไฟล์บน Cloudinary แต่ให้ `User.photoUrl` ชี้ไปที่ Cloudinary key เดียวกับไฟล์แนบของใบสมัคร (ปลอดภัยเพราะใบสมัครที่ HIRED แล้วลบไม่ได้อยู่แล้ว) — เลือกทางนี้แทนการ rename เพื่อไม่ให้ record ของไฟล์แนบเดิมเหลือ key ที่ชี้ไปยังไฟล์ที่ไม่มีอยู่แล้ว
+- Deploy ขึ้น production แล้ว (`timetrack-lake.vercel.app`), ตั้งค่า `CLOUDINARY_*` และ `FIELD_ENCRYPTION_KEY` ใน Vercel production env vars แล้ว, ทดสอบอัปโหลดไฟล์จริงบน production ผ่าน Cloudinary ยืนยันว่าใช้งานได้ก่อนส่งมอบ
 
 ---
 
