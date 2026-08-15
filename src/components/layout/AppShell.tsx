@@ -9,7 +9,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   // Pages that should not display the app navigation shell
   const noShellPaths = ["/login", "/register", "/forgot-password"];
-  const isNoShellPage = noShellPaths.includes(pathname);
+  // Public applicant-facing pages: standalone, with their own layout and bottom action bar.
+  // They must never show the employee nav — a job applicant isn't an employee, and even when an
+  // admin opens them to preview, the fixed nav would cover the form's own next/submit buttons.
+  const noShellPrefixes = ["/apply"];
+  const isNoShellPage = noShellPaths.includes(pathname)
+    || noShellPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   // Admin pages use their own sidebar layout — no bottom nav, no extra padding
   const isAdminPage = pathname.startsWith("/admin");
