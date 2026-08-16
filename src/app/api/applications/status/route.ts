@@ -23,7 +23,18 @@ export async function GET(request: NextRequest) {
 
     const application = await prisma.jobApplication.findFirst({
         where: { refCode: ref, phone },
-        include: { station: { select: { name: true } } },
+        include: {
+            station: { select: { name: true } },
+            // Applicants should be able to see the terms of the role they applied for — the pay
+            // especially — rather than only finding out at the interview. All of this is already
+            // public on /jobs, so returning it here exposes nothing new.
+            jobOpening: {
+                select: {
+                    slug: true, title: true, employmentType: true,
+                    salaryMin: true, salaryMax: true, salaryNote: true,
+                },
+            },
+        },
     });
 
     if (!application) {
@@ -38,5 +49,17 @@ export async function GET(request: NextRequest) {
         createdAt: application.createdAt,
         interviewAt: application.interviewAt,
         rejectReason: application.status === "REJECTED" ? application.rejectReason : null,
+        // Null for applications submitted before job postings existed — the page then points
+        // them at the list of current openings instead.
+        jobOpening: application.jobOpening
+            ? {
+                slug: application.jobOpening.slug,
+                title: application.jobOpening.title,
+                employmentType: application.jobOpening.employmentType,
+                salaryMin: application.jobOpening.salaryMin ? Number(application.jobOpening.salaryMin) : null,
+                salaryMax: application.jobOpening.salaryMax ? Number(application.jobOpening.salaryMax) : null,
+                salaryNote: application.jobOpening.salaryNote,
+            }
+            : null,
     });
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Search, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ import {
     AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/lib/language-context";
+import { EMPLOYMENT_TYPE_LABELS, formatSalaryRange } from "@/lib/job-opening";
 
 type StatusResult = {
     refCode: string;
@@ -28,6 +30,15 @@ type StatusResult = {
     createdAt: string;
     interviewAt: string | null;
     rejectReason: string | null;
+    /** Null for applications submitted before job postings existed. */
+    jobOpening: {
+        slug: string;
+        title: string;
+        employmentType: string | null;
+        salaryMin: number | null;
+        salaryMax: number | null;
+        salaryNote: string | null;
+    } | null;
 };
 
 const WITHDRAWABLE_STATUSES = new Set(["SUBMITTED", "SCREENING", "INTERVIEW", "OFFERED"]);
@@ -144,6 +155,45 @@ export default function ApplyStatusPage() {
                                 {result.rejectReason && <p className="text-destructive">{t("applyStatus.rejectReason")}: {result.rejectReason}</p>}
                             </div>
 
+                            {/* Show the terms of the role up front — pay is the thing most likely to
+                                change someone's mind, and they shouldn't first hear it at the interview. */}
+                            {result.jobOpening ? (
+                                <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                                    <p className="text-sm font-medium">{t("applyStatus.jobDetailsTitle")}</p>
+                                    <div className="text-sm space-y-1">
+                                        <div className="flex justify-between gap-3">
+                                            <span className="text-muted-foreground">{t("applyStatus.jobSalary")}</span>
+                                            <span className="font-medium text-right">
+                                                {formatSalaryRange(result.jobOpening.salaryMin, result.jobOpening.salaryMax, result.jobOpening.salaryNote)}
+                                            </span>
+                                        </div>
+                                        {result.jobOpening.employmentType && (
+                                            <div className="flex justify-between gap-3">
+                                                <span className="text-muted-foreground">{t("applyStatus.jobEmploymentType")}</span>
+                                                <span className="font-medium text-right">
+                                                    {EMPLOYMENT_TYPE_LABELS[result.jobOpening.employmentType] ?? result.jobOpening.employmentType}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Link
+                                        href={`/jobs/${encodeURIComponent(result.jobOpening.slug)}`}
+                                        className="inline-flex items-center gap-1 text-sm text-primary underline"
+                                    >
+                                        <FileText className="size-3.5" />
+                                        {t("applyStatus.viewFullJobDetails")}
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
+                                    <p className="text-sm">{t("applyStatus.noLinkedJob")}</p>
+                                    <Link href="/jobs" className="inline-flex items-center gap-1 text-sm text-primary underline">
+                                        <FileText className="size-3.5" />
+                                        {t("applyStatus.browseOpenJobs")}
+                                    </Link>
+                                </div>
+                            )}
+
                             {WITHDRAWABLE_STATUSES.has(result.status) && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -167,9 +217,9 @@ export default function ApplyStatusPage() {
                     </Card>
                 )}
 
-                <a href="/apply" className="block text-center text-sm text-muted-foreground underline">
+                <Link href="/jobs" className="block text-center text-sm text-muted-foreground underline">
                     {t("applyStatus.backToApply")}
-                </a>
+                </Link>
             </div>
         </div>
     );
