@@ -31,7 +31,7 @@ export function PushNotificationProvider() {
                 if (permission === 'default') {
                     // Ask user to enable notifications
                     toast("เปิดรับการแจ้งเตือน (Push Notifications)", {
-                        description: "เพื่อให้คุณไม่พลาดทุกการแจ้งเตือนสำคัญ เช่น คนหน้าลานไม่พอ",
+                        description: "เพื่อให้คุณไม่พลาดการแจ้งเตือนสำคัญ",
                         action: {
                             label: "เปิดใช้งาน",
                             onClick: async () => {
