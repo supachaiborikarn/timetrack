@@ -18,7 +18,7 @@ import {
     Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import QRCodeGenerator from "qrcode-generator";
+import { generateQRCodeSVG } from "@/lib/qr-code";
 
 interface Station {
     id: string;
@@ -60,28 +60,6 @@ export default function AdminQRCodesPage() {
         }
     };
 
-    const generateQRCodeSVG = (text: string, size: number = 200) => {
-        const qr = QRCodeGenerator(0, "M");
-        qr.addData(text);
-        qr.make();
-
-        const modules = qr.getModuleCount();
-        const cellSize = size / modules;
-
-        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
-        svg += `<rect width="${size}" height="${size}" fill="white"/>`;
-
-        for (let row = 0; row < modules; row++) {
-            for (let col = 0; col < modules; col++) {
-                if (qr.isDark(row, col)) {
-                    svg += `<rect x="${col * cellSize}" y="${row * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
-                }
-            }
-        }
-
-        svg += "</svg>";
-        return svg;
-    };
 
     const regenerateQRCode = async (stationId: string) => {
         setRegenerating(stationId);

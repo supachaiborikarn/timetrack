@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2, ExternalLink, Copy, Users } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, ExternalLink, Copy, Users, QrCode, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import {
     AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { EMPLOYMENT_TYPE_LABELS, formatSalaryRange, isOpeningOpen } from "@/lib/job-opening";
+import { generateQRCodeSVG, downloadQRCodeSVG, printJobPoster } from "@/lib/qr-code";
 
 type Station = { id: string; name: string; departments: { id: string; name: string }[] };
 
@@ -79,6 +80,8 @@ export default function AdminJobOpeningsPage() {
     const [form, setForm] = useState(emptyForm);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [qrOpening, setQrOpening] = useState<Opening | null>(null);
+    const [companyName, setCompanyName] = useState("");
 
     const fetchOpenings = useCallback(async () => {
         setLoading(true);
@@ -94,6 +97,10 @@ export default function AdminJobOpeningsPage() {
         if (!session?.user?.id) return;
         void fetchOpenings();
         fetch("/api/admin/stations").then((r) => r.json()).then((d) => setStations(d.stations ?? [])).catch(() => {});
+        fetch("/api/admin/settings/payroll-documents")
+            .then((r) => r.json())
+            .then((d) => setCompanyName(d.settings?.legalName || d.settings?.displayName || ""))
+            .catch(() => {});
     }, [session?.user?.id, fetchOpenings]);
 
     function openCreate() {
@@ -175,9 +182,39 @@ export default function AdminJobOpeningsPage() {
         await fetchOpenings();
     }
 
+    // Thai slugs must be encoded so the scanned/copied URL is valid for every reader.
+    function jobUrl(slug: string) {
+        return `${window.location.origin}/jobs/${encodeURIComponent(slug)}`;
+    }
+
+    /** Same link, shown unencoded — percent-encoded Thai is unreadable on a printed poster. */
+    function jobUrlForDisplay(slug: string) {
+        return `${window.location.origin}/jobs/${slug}`;
+    }
+
     function copyLink(slug: string) {
-        navigator.clipboard.writeText(`${window.location.origin}/jobs/${slug}`);
+        navigator.clipboard.writeText(jobUrl(slug));
         toast.success("คัดลอกลิงก์แล้ว");
+    }
+
+    function printPoster(o: Opening) {
+        const details = [
+            o.station?.name ? `สาขา ${o.station.name}` : "รับทุกสาขา",
+            o.employmentType ? EMPLOYMENT_TYPE_LABELS[o.employmentType] ?? o.employmentType : "",
+            formatSalaryRange(o.salaryMin, o.salaryMax, o.salaryNote),
+            o.positionsAvailable ? `รับ ${o.positionsAvailable} อัตรา` : "",
+        ];
+        const opened = printJobPoster({
+            url: jobUrl(o.slug),
+            displayUrl: jobUrlForDisplay(o.slug),
+            companyName: companyName || "รับสมัครงาน",
+            title: o.title,
+            details,
+            footerNote: o.closesAt
+                ? `ปิดรับสมัคร ${new Date(o.closesAt).toLocaleDateString("th-TH-u-ca-buddhist", { day: "numeric", month: "long", year: "numeric" })}`
+                : undefined,
+        });
+        if (!opened) toast.error("เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาต pop-up แล้วลองใหม่");
     }
 
     if (status === "loading") {
@@ -247,6 +284,7 @@ export default function AdminJobOpeningsPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
+                                                <Button size="icon-sm" variant="ghost" onClick={() => setQrOpening(o)} title="QR Code / ใบประกาศ"><QrCode className="size-4" /></Button>
                                                 <Button size="icon-sm" variant="ghost" onClick={() => copyLink(o.slug)} title="คัดลอกลิงก์"><Copy className="size-4" /></Button>
                                                 <Button size="icon-sm" variant="ghost" onClick={() => openEdit(o)} title="แก้ไข"><Pencil className="size-4" /></Button>
                                                 <AlertDialog>
@@ -370,6 +408,37 @@ export default function AdminJobOpeningsPage() {
                             {editingId ? "บันทึก" : "สร้างประกาศ"}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!qrOpening} onOpenChange={(open) => { if (!open) setQrOpening(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>QR Code — {qrOpening?.title}</DialogTitle>
+                    </DialogHeader>
+                    {qrOpening && (
+                        <div className="space-y-4">
+                            <div className="flex justify-center">
+                                <div
+                                    className="bg-white p-4 rounded-lg border"
+                                    // The QR is generated locally from our own URL, never from user-supplied HTML.
+                                    dangerouslySetInnerHTML={{ __html: generateQRCodeSVG(jobUrl(qrOpening.slug), 240) }}
+                                />
+                            </div>
+                            <p className="text-xs text-center text-muted-foreground break-all">{jobUrlForDisplay(qrOpening.slug)}</p>
+                            <p className="text-sm text-center text-muted-foreground">
+                                ติดไว้หน้าปั๊มให้ผู้สนใจสแกน จะเข้าหน้ารายละเอียดตำแหน่งนี้โดยตรง
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button variant="outline" onClick={() => downloadQRCodeSVG(jobUrl(qrOpening.slug), `QR-${qrOpening.slug}`)}>
+                                    <Download className="size-4" />ดาวน์โหลด QR
+                                </Button>
+                                <Button onClick={() => printPoster(qrOpening)}>
+                                    <Printer className="size-4" />พิมพ์ใบประกาศ
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>
