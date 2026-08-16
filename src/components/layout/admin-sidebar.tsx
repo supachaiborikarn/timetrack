@@ -40,6 +40,7 @@ import {
     BarChart3,
     UserRoundSearch,
     UserPlus,
+    Newspaper,
     BriefcaseBusiness,
     ShieldCheck,
     Megaphone,
@@ -148,6 +149,13 @@ const navItems: NavItem[] = [
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "Overtime", href: "/admin/overtime", icon: BriefcaseBusiness, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "Profile Requests", href: "/admin/profile-requests", icon: UserRoundSearch, roles: ["ADMIN", "HR"] },
+    {
+        title: "ประกาศรับสมัคร",
+        href: "/admin/job-openings",
+        icon: Newspaper,
+        roles: ["ADMIN", "HR"],
+        requiredPermissions: ["job_opening.manage"],
+    },
     {
         title: "ใบสมัครงาน",
         href: "/admin/applications",

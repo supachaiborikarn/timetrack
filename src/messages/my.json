@@ -107,7 +107,6 @@
     "role.manager": "မန်နေဂျာ",
     "role.cashier": "ငွေကိုင်",
     "role.employee": "ဝန်ထမ်း",
-
     "photoCapture.takePhoto": "ဓာတ်ပုံရိုက်ရန်",
     "photoCapture.chooseFile": "ဖိုင်ရွေးရန်",
     "photoCapture.retake": "ပြန်ရိုက်ရန်",
@@ -124,7 +123,6 @@
     "photoCapture.cropConfirm": "ဤဓာတ်ပုံကို အသုံးပြုမည်",
     "photoCapture.cropCancel": "ပယ်ဖျက်မည်",
     "photoCapture.zoom": "ချဲ့ရန်",
-
     "apply.pageTitle": "အလုပ်လျှောက်လွှာ",
     "apply.progressLabel": "တိုးတက်မှု",
     "apply.stepPrefix": "အဆင့်",
@@ -137,9 +135,11 @@
     "apply.next": "ရှေ့သို့",
     "apply.submit": "လျှောက်လွှာပို့ရန်",
     "apply.selectPlaceholder": "ရွေးချယ်ပါ",
-
     "apply.positionTitle": "လျှောက်ထားသည့်ရာထူး",
     "apply.positionTitlePlaceholder": "ဥပမာ - ဆီဆိုင်ဝန်ထမ်း၊ ငွေကိုင်၊ ဘာရစ်စတာ",
+    "apply.applyingFor": "လျှောက်ထားသည့်ရာထူး",
+    "apply.viewJobDetails": "ဤရာထူး၏အသေးစိတ်ကို ကြည့်ရန်",
+    "apply.openingClosedWarning": "သင်ဖွင့်ခဲ့သော ကြော်ငြာသည် လျှောက်လွှာလက်ခံခြင်း ရပ်ဆိုင်းပြီးဖြစ်သည်။ သို့သော် ရာထူးနှင့် ဆိုင်ခွဲကို ကိုယ်တိုင်ရွေးချယ်၍ လျှောက်ထားနိုင်ပါသေးသည်။",
     "apply.employmentType": "အလုပ်အကိုင်အမျိုးအစား",
     "apply.employmentFullTime": "အချိန်ပြည့်",
     "apply.employmentPartTime": "အချိန်ပိုင်း",
@@ -152,7 +152,6 @@
     "apply.shiftMorning": "မနက်ပိုင်း",
     "apply.shiftAfternoon": "နေ့လယ်ပိုင်း",
     "apply.shiftNight": "ညပိုင်း",
-
     "apply.prefix": "ဂုဏ်ပုဒ်",
     "apply.prefixMr": "ဦး",
     "apply.prefixMrs": "ဒေါ်",
@@ -190,7 +189,6 @@
     "apply.emergencyName": "အရေးပေါ်ဆက်သွယ်ရန်အမည်",
     "apply.emergencyPhone": "အရေးပေါ်ဆက်သွယ်ရန်ဖုန်းနံပါတ်",
     "apply.emergencyRelation": "ဆက်စပ်မှု",
-
     "apply.educationsTitle": "ပညာရေးအတွေ့အကြုံ",
     "apply.addRow": "တစ်ကြောင်းထပ်ထည့်ရန်",
     "apply.eduLevel": "ပညာအရည်အချင်း",
@@ -213,13 +211,11 @@
     "apply.applicantNote": "ကျွန်ုပ်တို့သိထားသင့်သည့် အခြားအချက်များ",
     "apply.yes": "ဟုတ်ကဲ့",
     "apply.no": "မဟုတ်ပါ",
-
     "apply.profilePhoto": "ဓာတ်ပုံ",
     "apply.citizenIdPhoto": "နိုင်ငံသားစိစစ်ရေးကတ်မိတ္တူ",
     "apply.educationCertFile": "ပညာအရည်အချင်းလက်မှတ် (ရှိလျှင်)",
     "apply.resumeFile": "အလုပ်လျှောက်လွှာအကျဉ်းချုပ် (ရှိလျှင်)",
     "apply.watermarkPrefix": "အလုပ်လျှောက်ရန်သာအသုံးပြုသည်",
-
     "apply.consentTitle": "သဘောတူညီချက်",
     "apply.consentPurpose": "{company} သည် ဤအချက်အလက်ကို အလုပ်ခန့်ထားရေးစဉ်းစားရန်အတွက်သာ စုဆောင်းပါသည်",
     "apply.consentDataCollected": "စုဆောင်းသည့်အချက်အလက်များတွင် ကိုယ်ရေးအချက်အလက်၊ မျက်နှာဓာတ်ပုံနှင့် နိုင်ငံသားစိစစ်ရေးကတ်မိတ္တူ ပါဝင်ပါသည်",
@@ -227,7 +223,6 @@
     "apply.consentRetention": "လျှောက်လွှာမအောင်မြင်ပါက အချက်အလက်ကို ၁၈၀ ရက်ထက်မပိုဘဲ သိမ်းဆည်းပြီး အလိုအလျောက်ဖျက်ပစ်မည်ဖြစ်ပြီး နိုင်ငံသားစိစစ်ရေးကတ်မိတ္တူကို ချက်ချင်းဖျက်ပစ်မည်ဖြစ်သည်",
     "apply.consentRights": "အခါအားလျော်စွာ လျှောက်လွှာအခြေအနေစစ်ဆေးသည့်စာမျက်နှာမှတဆင့် သင့်အချက်အလက်ကို ကြည့်ရှုခွင့်၊ ပြင်ဆင်ခွင့် သို့မဟုတ် ဖျက်ပစ်ခွင့် တောင်းဆိုနိုင်ပါသည်",
     "apply.consentCheckboxLabel": "အထက်ဖော်ပြပါအတိုင်း ကျွန်ုပ်၏အချက်အလက်ကို စုဆောင်းအသုံးပြုခွင့်ပေးပါသည်",
-
     "apply.errPosition": "လျှောက်ထားသည့်ရာထူးကို ဖြည့်စွက်ပါ",
     "apply.errStation": "ဆိုင်ခွဲကို ရွေးချယ်ပါ",
     "apply.errName": "အမည်နှင့် မျိုးနွယ်အမည်ကို ဖြည့်စွက်ပါ",
@@ -240,7 +235,6 @@
     "apply.errCitizenIdPhoto": "နိုင်ငံသားစိစစ်ရေးကတ်မိတ္တူ ပူးတွဲပါ",
     "apply.errConsent": "အချက်အလက်စုဆောင်းခြင်းဆိုင်ရာစည်းကမ်းများကို လက်ခံပါ",
     "apply.errSubmit": "လျှောက်လွှာပို့ခြင်း မအောင်မြင်ပါ၊ ထပ်မံကြိုးစားပါ",
-
     "apply.successTitle": "လျှောက်လွှာပို့ပြီးပါပြီ",
     "apply.successDesc": "သင့်လျှောက်လွှာကို လက်ခံရရှိပါပြီ။ ကနဦးစစ်ဆေးမှုအောင်မြင်ပါက ကျွန်ုပ်တို့အဖွဲ့မှ ဆက်သွယ်ပါမည်",
     "apply.duplicateTitle": "သင် ဤရာထူးကို လျှောက်ထားပြီးဖြစ်သည်",
@@ -248,7 +242,6 @@
     "apply.refCodeLabel": "လျှောက်လွှာကိုးကားနံပါတ်",
     "apply.saveScreenshotHint": "နောက်ပိုင်းအခြေအနေစစ်ဆေးရန်အတွက် ဤစာမျက်နှာကို ဓာတ်ပုံရိုက်၍ သိမ်းထားပါ",
     "apply.checkStatusLink": "လျှောက်လွှာအခြေအနေစစ်ဆေးရန်",
-
     "applyStatus.pageTitle": "လျှောက်လွှာအခြေအနေစစ်ဆေးရန်",
     "applyStatus.pageDesc": "လျှောက်ထားစဉ်အသုံးပြုခဲ့သော ကိုးကားနံပါတ်နှင့် ဖုန်းနံပါတ်ကို ဖြည့်စွက်ပါ",
     "applyStatus.refCode": "ကိုးကားနံပါတ်",

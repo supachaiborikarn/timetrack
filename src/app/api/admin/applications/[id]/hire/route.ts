@@ -37,6 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             otRateMultiplier,
             startDate,
             probationEndDate,
+            probationDailyRate,
             pin,
         } = body;
 
@@ -69,6 +70,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: "ค่าแรง เงินเดือน และอัตรา OT ต้องเป็นตัวเลขตั้งแต่ศูนย์ขึ้นไป" }, { status: 400 });
         }
 
+        // Null (not 0) means "no separate probation rate" — payroll then uses the normal daily
+        // rate for every day, so an omitted value must not be coerced into a zero-baht wage.
+        const parsedProbationDailyRate = probationDailyRate == null || probationDailyRate === ""
+            ? null
+            : Number(probationDailyRate);
+        if (parsedProbationDailyRate !== null && (!Number.isFinite(parsedProbationDailyRate) || parsedProbationDailyRate < 0)) {
+            return NextResponse.json({ error: "ค่าแรงช่วงทดลองงานต้องเป็นตัวเลขตั้งแต่ศูนย์ขึ้นไป" }, { status: 400 });
+        }
+
         const hashedPin = await bcrypt.hash(String(pin), 10);
         const defaultPassword = await bcrypt.hash("123456", 10);
         const citizenId = application.citizenIdEnc ? decryptField(application.citizenIdEnc) : null;
@@ -97,6 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                     citizenId,
                     startDate: startDate ? new Date(startDate) : new Date(),
                     probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+                    probationDailyRate: parsedProbationDailyRate,
                     registeredStationId: stationId || application.stationId || null,
                     emergencyContactName: application.emergencyName || null,
                     emergencyContactPhone: application.emergencyPhone || null,

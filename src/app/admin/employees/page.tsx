@@ -90,6 +90,17 @@ interface Employee {
     registeredStation: { id: string; name: string } | null;
     isSocialSecurityRegistered: boolean;
     socialSecurityNumber: string | null;
+    probationEndDate: string | null;
+}
+
+/**
+ * Probation is derived from probationEndDate rather than stored as an employeeStatus, so it
+ * expires on its own and can't accidentally exclude the employee from the many `employeeStatus:
+ * "ACTIVE"` queries used for dashboards, announcements and attendance alerts.
+ */
+function isOnProbation(probationEndDate: string | null): boolean {
+    if (!probationEndDate) return false;
+    return new Date(probationEndDate).getTime() >= new Date().setHours(0, 0, 0, 0);
 }
 
 interface Station {
@@ -690,7 +701,12 @@ export default function EmployeesPage() {
                                         <TableCell className="font-medium">{emp.employeeId}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span>{emp.name}</span>
+                                                <span className="flex items-center gap-1.5">
+                                                    {emp.name}
+                                                    {isOnProbation(emp.probationEndDate) && (
+                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ทดลองงาน</Badge>
+                                                    )}
+                                                </span>
                                                 {emp.nickName && <span className="text-sm text-muted-foreground">({emp.nickName})</span>}
                                             </div>
                                         </TableCell>

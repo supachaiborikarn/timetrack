@@ -111,4 +111,84 @@ describe("payroll-calculation", () => {
         expect(legacy.otherExpenses).toBe(360);
         expect(cleared.otherExpenses).toBe(0);
     });
+
+    describe("probation daily rate", () => {
+        // Three full working days: 1, 2 and 3 June. 10h is the full-day threshold
+        // (FULL_DAY_MIN_HOURS) — 8h would only count as a half day.
+        const threeFullDays = [
+            { id: "d1", date: bkkDate("2026-06-01"), status: "APPROVED", checkInTime: bkkDate("2026-06-01"), actualHours: 10 },
+            { id: "d2", date: bkkDate("2026-06-02"), status: "APPROVED", checkInTime: bkkDate("2026-06-02"), actualHours: 10 },
+            { id: "d3", date: bkkDate("2026-06-03"), status: "APPROVED", checkInTime: bkkDate("2026-06-03"), actualHours: 10 },
+        ];
+        const baseInput = {
+            startDate: "2026-06-01",
+            endDate: "2026-06-30",
+            dailyRate: 400,
+            isSocialSecurityRegistered: false,
+            attendance: threeFullDays,
+            overrides: [],
+        };
+
+        it("pays the normal rate for every day when no probation rate is set", () => {
+            const result = calculatePayrollPeriod(baseInput);
+            expect(result.totalPay).toBe(1200); // 3 × 400
+        });
+
+        it("pays the probation rate for every day inside the probation window", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: 300,
+                probationEndDate: bkkDate("2026-06-30"),
+            });
+            expect(result.totalPay).toBe(900); // 3 × 300
+        });
+
+        it("switches rate mid-period on the day after probation ends", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: 300,
+                probationEndDate: bkkDate("2026-06-02"),
+            });
+            // 1 and 2 June at 300 (end date is inclusive), 3 June at the normal 400
+            expect(result.totalPay).toBe(1000);
+        });
+
+        it("falls back to the normal rate when an end date is set without a probation rate", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: null,
+                probationEndDate: bkkDate("2026-06-30"),
+            });
+            expect(result.totalPay).toBe(1200);
+        });
+
+        it("falls back to the normal rate when a probation rate is set without an end date", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: 300,
+                probationEndDate: null,
+            });
+            expect(result.totalPay).toBe(1200);
+        });
+
+        it("accepts a plain date-key string for the probation end date", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: 300,
+                probationEndDate: "2026-06-02",
+            });
+            expect(result.totalPay).toBe(1000);
+        });
+
+        it("lets a per-day wage override win over the probation rate", () => {
+            const result = calculatePayrollPeriod({
+                ...baseInput,
+                probationDailyRate: 300,
+                probationEndDate: bkkDate("2026-06-30"),
+                overrides: [{ date: bkkDate("2026-06-01"), overrideDailyWage: 500 }],
+            });
+            // 1 June overridden to 500, 2 and 3 June at the probation rate
+            expect(result.totalPay).toBe(1100);
+        });
+    });
 });

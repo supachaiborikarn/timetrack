@@ -116,6 +116,7 @@ type ApplicationDetail = ApplicationRow & {
     interviewNote: string | null;
     rejectReason: string | null;
     department: { id: string; name: string } | null;
+    jobOpening: { id: string; slug: string; title: string } | null;
     hiredUser: { id: string; name: string; employeeId: string } | null;
     files: { id: string; kind: string; mimeType: string; width: number | null; height: number | null }[];
 };
@@ -392,6 +393,11 @@ export default function AdminApplicationsPage() {
                                 <div>
                                     <Badge>{STATUS_LABELS[detail.status] ?? detail.status}</Badge>
                                     <div className="text-sm text-muted-foreground mt-1">{detail.positionTitle} — {detail.station?.name}{detail.department ? ` / ${detail.department.name}` : ""}</div>
+                                    {detail.jobOpening && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            สมัครผ่านประกาศ: <a href={`/jobs/${detail.jobOpening.slug}`} target="_blank" rel="noreferrer" className="underline">{detail.jobOpening.title}</a>
+                                        </div>
+                                    )}
                                     {detail.hiredUser && <div className="text-xs text-green-600 mt-1">จ้างเป็นพนักงานแล้ว: {detail.hiredUser.name} ({detail.hiredUser.employeeId})</div>}
                                 </div>
                             </div>
@@ -549,6 +555,23 @@ export default function AdminApplicationsPage() {
     );
 }
 
+/** Standard probation term for a new hire. */
+const PROBATION_MONTHS = 3;
+
+/**
+ * Adds whole months to a yyyy-mm-dd date key. Clamps to the last day of the target month so
+ * e.g. 31 Jan + 3 months lands on 30 Apr rather than rolling over into May.
+ */
+function addMonths(dateKey: string, months: number): string {
+    if (!dateKey) return "";
+    const [year, month, day] = dateKey.split("-").map(Number);
+    if (!year || !month || !day) return "";
+    const targetMonthIndex = month - 1 + months;
+    const lastDayOfTargetMonth = new Date(Date.UTC(year, targetMonthIndex + 1, 0)).getUTCDate();
+    const result = new Date(Date.UTC(year, targetMonthIndex, Math.min(day, lastDayOfTargetMonth)));
+    return result.toISOString().slice(0, 10);
+}
+
 const FILE_KIND_LABELS: Record<string, string> = {
     PROFILE_PHOTO: "รูปถ่าย",
     CITIZEN_ID: "สำเนาบัตรประชาชน",
@@ -587,11 +610,20 @@ function HireDialogContent({
     const [dailyRate, setDailyRate] = useState("0");
     const [baseSalary, setBaseSalary] = useState("0");
     const [otRateMultiplier, setOtRateMultiplier] = useState("1.5");
-    const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-    const [probationEndDate, setProbationEndDate] = useState("");
+    const initialStartDate = new Date().toISOString().slice(0, 10);
+    const [startDate, setStartDate] = useState(initialStartDate);
+    const [probationEndDate, setProbationEndDate] = useState(() => addMonths(initialStartDate, PROBATION_MONTHS));
+    const [probationDailyRate, setProbationDailyRate] = useState("");
     const [pin, setPin] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Every new hire starts on probation, so the end date follows the start date automatically.
+    // It stays editable for the cases that don't fit the standard term.
+    function handleStartDateChange(value: string) {
+        setStartDate(value);
+        setProbationEndDate(addMonths(value, PROBATION_MONTHS));
+    }
 
     const selectedStation = stations.find((s) => s.id === stationId);
 
@@ -617,6 +649,7 @@ function HireDialogContent({
                     otRateMultiplier: Number(otRateMultiplier),
                     startDate,
                     probationEndDate: probationEndDate || undefined,
+                    probationDailyRate: probationDailyRate.trim() ? Number(probationDailyRate) : undefined,
                     pin: pin.trim(),
                 }),
             });
@@ -662,7 +695,7 @@ function HireDialogContent({
                     </div>
                     <div className="space-y-1.5">
                         <Label>วันที่เริ่มงาน</Label>
-                        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                        <Input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -703,9 +736,25 @@ function HireDialogContent({
                         <Input type="number" step="0.1" value={otRateMultiplier} onChange={(e) => setOtRateMultiplier(e.target.value)} />
                     </div>
                 </div>
-                <div className="space-y-1.5">
-                    <Label>วันสิ้นสุดทดลองงาน</Label>
-                    <Input type="date" value={probationEndDate} onChange={(e) => setProbationEndDate(e.target.value)} />
+                <div className="rounded-lg border p-3 space-y-3">
+                    <p className="text-sm font-medium">ช่วงทดลองงาน</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label>วันสิ้นสุดทดลองงาน</Label>
+                            <Input type="date" value={probationEndDate} onChange={(e) => setProbationEndDate(e.target.value)} />
+                            <p className="text-xs text-muted-foreground">ตั้งอัตโนมัติ {PROBATION_MONTHS} เดือนจากวันเริ่มงาน แก้ไขได้</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>ค่าแรง/วัน ช่วงทดลองงาน</Label>
+                            <Input
+                                type="number"
+                                placeholder="เว้นว่าง = ใช้เรทปกติ"
+                                value={probationDailyRate}
+                                onChange={(e) => setProbationDailyRate(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">ถึงวันสิ้นสุดใช้เรทนี้ หลังจากนั้นใช้เรทปกติอัตโนมัติ</p>
+                        </div>
+                    </div>
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
             </div>

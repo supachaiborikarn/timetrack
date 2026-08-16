@@ -17,11 +17,12 @@ const applicationPermissions = [
     { code: "application.view_sensitive", name: "ดูเลขบัตร ปชช./สำเนาเอกสาร", group: "รับสมัครงาน", sortOrder: 82 },
     { code: "application.hire", name: "จ้างผู้สมัครเป็นพนักงาน", group: "รับสมัครงาน", sortOrder: 83 },
     { code: "application.delete", name: "ลบใบสมัครถาวร", group: "รับสมัครงาน", sortOrder: 84 },
+    { code: "job_opening.manage", name: "จัดการประกาศรับสมัครงาน", group: "รับสมัครงาน", sortOrder: 85 },
 ];
 
 const grants: { role: Role; codes: string[] }[] = [
-    { role: "ADMIN", codes: ["application.view", "application.review", "application.view_sensitive", "application.hire", "application.delete"] },
-    { role: "HR", codes: ["application.view", "application.review", "application.view_sensitive", "application.hire"] },
+    { role: "ADMIN", codes: ["application.view", "application.review", "application.view_sensitive", "application.hire", "application.delete", "job_opening.manage"] },
+    { role: "HR", codes: ["application.view", "application.review", "application.view_sensitive", "application.hire", "job_opening.manage"] },
     { role: "MANAGER", codes: ["application.view", "application.review"] },
 ];
 

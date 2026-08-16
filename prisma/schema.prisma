@@ -46,6 +46,9 @@ model User {
   isSocialSecurityRegistered Boolean                @default(false)
   nickName                   String?
   probationEndDate           DateTime?
+  // Daily rate paid on/before probationEndDate. Null = no separate probation rate,
+  // so payroll uses dailyRate for every day exactly as it did before this field existed.
+  probationDailyRate         Decimal?
   registeredStationId        String?
   socialSecurityNumber       String?
   startDate                  DateTime?              @default(now())
@@ -78,6 +81,7 @@ model User {
   oneOnOneLogs               OneOnOneLog[]          @relation("OneOnOneUser")
   supervisedOneOnOneLogs     OneOnOneLog[]          @relation("OneOnOneSupervisor")
   reviewedApplications       JobApplication[]       @relation("ApplicationReviewer")
+  createdJobOpenings         JobOpening[]           @relation("JobOpeningCreator")
   hiredFromApplication       JobApplication?        @relation("ApplicationHire")
 
   @@index([stationId])
@@ -269,6 +273,7 @@ model Station {
   transfersFrom       StationTransfer[] @relation("TransferFrom")
   transfersTo         StationTransfer[] @relation("TransferTo")
   jobApplications     JobApplication[]
+  jobOpenings         JobOpening[]
 
   @@index([code])
 }
@@ -287,6 +292,7 @@ model Department {
   allowedShifts   DepartmentShift[]
   employees       User[]
   jobApplications JobApplication[]
+  jobOpenings     JobOpening[]
 
   @@unique([stationId, code])
   @@index([stationId])
@@ -825,6 +831,7 @@ model JobApplication {
   employmentType  String?
   stationId       String?
   departmentId    String?
+  jobOpeningId    String? // ประกาศรับสมัครที่ผู้สมัครกดสมัครมา (null = สมัครผ่านลิงก์ /apply ตรง)
   expectedSalary  Decimal?
   availableFrom   DateTime?
   preferredShifts Json?
@@ -887,6 +894,7 @@ model JobApplication {
 
   station    Station?             @relation(fields: [stationId], references: [id])
   department Department?          @relation(fields: [departmentId], references: [id])
+  jobOpening JobOpening?          @relation(fields: [jobOpeningId], references: [id])
   reviewedBy User?                @relation("ApplicationReviewer", fields: [reviewedById], references: [id])
   hiredUser  User?                @relation("ApplicationHire", fields: [hiredUserId], references: [id])
   files      JobApplicationFile[]
@@ -917,6 +925,37 @@ model JobApplicationFile {
 
   @@index([applicationId])
   @@index([expiresAt])
+}
+
+// ประกาศรับสมัครงาน — รายละเอียดตำแหน่งที่ผู้สมัครอ่านก่อนตัดสินใจกรอกใบสมัคร
+model JobOpening {
+  id                 String    @id @default(cuid())
+  slug               String    @unique // ใช้เป็น URL: /jobs/<slug>
+  title              String
+  description        String    @db.Text
+  responsibilities   String?   @db.Text
+  requirements       String?   @db.Text
+  benefits           String?   @db.Text
+  employmentType     String?
+  stationId          String?
+  departmentId       String?
+  salaryMin          Decimal?
+  salaryMax          Decimal?
+  salaryNote         String? // เช่น "ตามประสบการณ์" กรณีไม่ระบุตัวเลข
+  positionsAvailable Int?
+  isActive           Boolean   @default(true)
+  closesAt           DateTime? // เลยวันนี้แล้วถือว่าปิดรับ
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  station      Station?         @relation(fields: [stationId], references: [id])
+  department   Department?      @relation(fields: [departmentId], references: [id])
+  createdBy    User             @relation("JobOpeningCreator", fields: [createdById], references: [id])
+  applications JobApplication[]
+
+  @@index([isActive])
+  @@index([stationId])
 }
 
 enum ApplicationStatus {

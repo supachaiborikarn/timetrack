@@ -20,10 +20,23 @@ type StationOption = {
     departments: { id: string; name: string }[];
 };
 
+type JobOpeningRef = {
+    id: string;
+    slug: string;
+    title: string;
+    employmentType: string | null;
+    stationId: string | null;
+    departmentId: string | null;
+};
+
 interface ApplyFormProps {
     stations: StationOption[];
     companyName: string;
     formToken: string;
+    /** Set when the applicant arrived from a job posting — position and branch come from it. */
+    opening?: JobOpeningRef | null;
+    /** True when the link pointed at a posting that is no longer accepting applications. */
+    openingClosed?: boolean;
 }
 
 type Education = { level: string; institute: string; major: string; graduationYear: string; gpa: string };
@@ -158,7 +171,7 @@ const SHIFT_OPTIONS = [
     { value: "NIGHT", key: "apply.shiftNight" },
 ];
 
-export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) {
+export function ApplyForm({ stations, companyName, formToken, opening = null, openingClosed = false }: ApplyFormProps) {
     const { t } = useLanguage();
     const [step, setStep] = useState(1);
     const [form, setForm] = useState<FormState>(emptyFormState);
@@ -174,10 +187,21 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
         // the client is up, but this keeps the server-rendered empty state as the first
         // paint (no hydration mismatch) instead of setting state synchronously in the effect.
         Promise.resolve().then(() => {
-            setForm(loadDraft());
+            const draft = loadDraft();
+            // The posting is the source of truth for what they're applying to — it overrides
+            // any stale position/branch left in a draft from a previous visit.
+            setForm(opening
+                ? {
+                    ...draft,
+                    positionTitle: opening.title,
+                    employmentType: opening.employmentType ?? draft.employmentType,
+                    stationId: opening.stationId ?? draft.stationId,
+                    departmentId: opening.departmentId ?? draft.departmentId,
+                }
+                : draft);
             setHydrated(true);
         });
-    }, []);
+    }, [opening]);
 
     useEffect(() => {
         if (!hydrated) return;
@@ -304,7 +328,8 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
                 healthConditionDetail: form.screeningHealthDetail || undefined,
             },
             applicantNote: form.applicantNote || undefined,
-            source: "QR",
+            source: opening ? "JOB_POSTING" : "QR",
+            jobOpeningId: opening?.id,
             fileIds,
             consentAccepted: form.consentAccepted,
         };
@@ -366,6 +391,12 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
                     <p className="text-sm text-muted-foreground">{companyName}</p>
                 </header>
 
+                {openingClosed && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 mb-4">
+                        <p className="text-sm text-destructive">{t("apply.openingClosedWarning")}</p>
+                    </div>
+                )}
+
                 <div className="flex items-center gap-1 mb-6" aria-label={t("apply.progressLabel")}>
                     {Array.from({ length: STEP_COUNT }, (_, i) => i + 1).map((s) => (
                         <div key={s} className={`h-1.5 flex-1 rounded-full ${s <= step ? "bg-primary" : "bg-border"}`} />
@@ -390,11 +421,23 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
 
                         {step === 1 && (
                             <div className="space-y-4">
-                                <Field label={t("apply.positionTitle")} required>
-                                    <Input value={form.positionTitle} onChange={(e) => update("positionTitle", e.target.value)} placeholder={t("apply.positionTitlePlaceholder")} />
-                                </Field>
+                                {opening ? (
+                                    // Applying through a posting: the position is fixed, so show it as
+                                    // confirmation rather than an editable field they could contradict.
+                                    <div className="rounded-lg border bg-muted/50 p-3">
+                                        <p className="text-xs text-muted-foreground">{t("apply.applyingFor")}</p>
+                                        <p className="font-medium">{opening.title}</p>
+                                        <a href={`/jobs/${opening.slug}`} className="text-xs text-primary underline">
+                                            {t("apply.viewJobDetails")}
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <Field label={t("apply.positionTitle")} required>
+                                        <Input value={form.positionTitle} onChange={(e) => update("positionTitle", e.target.value)} placeholder={t("apply.positionTitlePlaceholder")} />
+                                    </Field>
+                                )}
                                 <Field label={t("apply.employmentType")}>
-                                    <Select value={form.employmentType} onValueChange={(v) => update("employmentType", v)}>
+                                    <Select value={form.employmentType} onValueChange={(v) => update("employmentType", v)} disabled={Boolean(opening?.employmentType)}>
                                         <SelectTrigger className="w-full"><SelectValue placeholder={t("apply.selectPlaceholder")} /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="FULL_TIME">{t("apply.employmentFullTime")}</SelectItem>
@@ -405,7 +448,11 @@ export function ApplyForm({ stations, companyName, formToken }: ApplyFormProps) 
                                 </Field>
                                 <div className="grid grid-cols-2 gap-3">
                                     <Field label={t("apply.station")} required>
-                                        <Select value={form.stationId} onValueChange={(v) => setForm((p) => ({ ...p, stationId: v, departmentId: "" }))}>
+                                        <Select
+                                            value={form.stationId}
+                                            onValueChange={(v) => setForm((p) => ({ ...p, stationId: v, departmentId: "" }))}
+                                            disabled={Boolean(opening?.stationId)}
+                                        >
                                             <SelectTrigger className="w-full"><SelectValue placeholder={t("apply.selectPlaceholder")} /></SelectTrigger>
                                             <SelectContent>
                                                 {stations.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}

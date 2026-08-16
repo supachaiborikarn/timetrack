@@ -107,7 +107,6 @@
     "role.manager": "Manager",
     "role.cashier": "Cashier",
     "role.employee": "Employee",
-
     "photoCapture.takePhoto": "Take Photo",
     "photoCapture.chooseFile": "Choose File",
     "photoCapture.retake": "Retake",
@@ -124,7 +123,6 @@
     "photoCapture.cropConfirm": "Use This Photo",
     "photoCapture.cropCancel": "Cancel",
     "photoCapture.zoom": "Zoom",
-
     "apply.pageTitle": "Job Application",
     "apply.progressLabel": "Progress",
     "apply.stepPrefix": "Step",
@@ -137,9 +135,11 @@
     "apply.next": "Next",
     "apply.submit": "Submit Application",
     "apply.selectPlaceholder": "Select",
-
     "apply.positionTitle": "Position Applying For",
     "apply.positionTitlePlaceholder": "e.g. Gas station attendant, Cashier, Barista",
+    "apply.applyingFor": "Applying for",
+    "apply.viewJobDetails": "View this job's details",
+    "apply.openingClosedWarning": "The posting you followed is no longer accepting applications, but you can still apply by choosing a position and branch yourself.",
     "apply.employmentType": "Employment Type",
     "apply.employmentFullTime": "Full-time",
     "apply.employmentPartTime": "Part-time",
@@ -152,7 +152,6 @@
     "apply.shiftMorning": "Morning",
     "apply.shiftAfternoon": "Afternoon",
     "apply.shiftNight": "Night",
-
     "apply.prefix": "Title",
     "apply.prefixMr": "Mr.",
     "apply.prefixMrs": "Mrs.",
@@ -190,7 +189,6 @@
     "apply.emergencyName": "Emergency Contact Name",
     "apply.emergencyPhone": "Emergency Contact Phone",
     "apply.emergencyRelation": "Relationship",
-
     "apply.educationsTitle": "Education History",
     "apply.addRow": "Add Row",
     "apply.eduLevel": "Education Level",
@@ -213,13 +211,11 @@
     "apply.applicantNote": "Anything else you'd like us to know",
     "apply.yes": "Yes",
     "apply.no": "No",
-
     "apply.profilePhoto": "Photo",
     "apply.citizenIdPhoto": "National ID Copy",
     "apply.educationCertFile": "Education Certificate (optional)",
     "apply.resumeFile": "Resume (optional)",
     "apply.watermarkPrefix": "For job application use only",
-
     "apply.consentTitle": "Consent & Agreement",
     "apply.consentPurpose": "{company} collects this information solely to consider your job application.",
     "apply.consentDataCollected": "Data collected includes personal information, a facial photo, and a copy of your national ID.",
@@ -227,7 +223,6 @@
     "apply.consentRetention": "If your application is not successful, your data will be kept for no more than 180 days and then automatically deleted. Your ID copy is deleted immediately.",
     "apply.consentRights": "You may request access to, correction of, or deletion of your data at any time via the application status page.",
     "apply.consentCheckboxLabel": "I consent to the collection and use of my data as described above.",
-
     "apply.errPosition": "Please enter the position you're applying for",
     "apply.errStation": "Please select a branch",
     "apply.errName": "Please enter your first and last name",
@@ -240,7 +235,6 @@
     "apply.errCitizenIdPhoto": "Please attach a copy of your national ID",
     "apply.errConsent": "Please accept the data collection terms",
     "apply.errSubmit": "Failed to submit application, please try again",
-
     "apply.successTitle": "Application Submitted",
     "apply.successDesc": "We've received your application. Our team will contact you if you pass the initial screening.",
     "apply.duplicateTitle": "You've Already Applied",
@@ -248,7 +242,6 @@
     "apply.refCodeLabel": "Application Reference Code",
     "apply.saveScreenshotHint": "Please save a screenshot of this to check your status later.",
     "apply.checkStatusLink": "Check Application Status",
-
     "applyStatus.pageTitle": "Check Application Status",
     "applyStatus.pageDesc": "Enter the reference code and phone number you applied with",
     "applyStatus.refCode": "Reference Code",

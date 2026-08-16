@@ -7,6 +7,7 @@ import { isValidThaiCitizenId } from "@/lib/thai-citizen-id";
 import { encryptField } from "@/lib/crypto-field";
 import { createNotifications } from "@/lib/notifications";
 import { getAttendanceDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
+import { isOpeningOpen } from "@/lib/job-opening";
 
 export const runtime = "nodejs";
 
@@ -138,6 +139,18 @@ export async function POST(request: NextRequest) {
     const applicantNote = optionalString(body.applicantNote, 1000);
     const source = optionalString(body.source, 30);
 
+    // Only accept an opening that actually exists and is still open, so a hand-crafted request
+    // can't attach an application to a closed or bogus posting.
+    const requestedOpeningId = optionalString(body.jobOpeningId, 60);
+    let jobOpeningId: string | null = null;
+    if (requestedOpeningId) {
+        const opening = await prisma.jobOpening.findUnique({
+            where: { id: requestedOpeningId },
+            select: { id: true, isActive: true, closesAt: true },
+        });
+        if (opening && isOpeningOpen(opening)) jobOpeningId = opening.id;
+    }
+
     // --- step 4: files ---
     const fileIds = Array.isArray(body.fileIds)
         ? body.fileIds.filter((f): f is string => typeof f === "string").slice(0, MAX_FILES)
@@ -217,6 +230,7 @@ export async function POST(request: NextRequest) {
                     screeningAnswers: screeningAnswers as Prisma.InputJsonValue,
                     applicantNote,
                     source,
+                    jobOpeningId,
                     consentAcceptedAt: new Date(),
                     consentVersion: CONSENT_VERSION,
                     submittedIp: ip,

@@ -87,6 +87,14 @@ type CalculatePayrollPeriodInput = {
     startDate: string;
     endDate: string;
     dailyRate: NumericLike;
+    /**
+     * Daily rate for days on or before `probationEndDate`. Both must be present for the
+     * probation rate to apply; if either is missing, `dailyRate` is used for every day,
+     * which is exactly how this function behaved before probation rates existed.
+     */
+    probationDailyRate?: NumericLike | null;
+    /** Last day (inclusive) paid at `probationDailyRate`, as a Bangkok-date key or Date. */
+    probationEndDate?: Date | string | null;
     isSocialSecurityRegistered: boolean;
     legacyOtherDeduction?: NumericLike;
     attendance: PayrollAttendanceInput[];
@@ -156,8 +164,26 @@ export function selectLatestOverrideByBangkokDate(
     return result;
 }
 
+/**
+ * Resolves the probation rate into `{ rate, lastDateKey }`, or null when no probation rate
+ * applies. Requires BOTH a rate and an end date — a rate with no end date has no window to
+ * apply to, and an end date with no rate means the employer didn't set a different probation
+ * wage, so the normal daily rate stands for the whole period.
+ */
+function resolveProbationRate(input: CalculatePayrollPeriodInput): { rate: number; lastDateKey: string } | null {
+    if (input.probationDailyRate == null || input.probationEndDate == null) return null;
+
+    const lastDateKey = typeof input.probationEndDate === "string"
+        ? input.probationEndDate.slice(0, 10)
+        : toBangkokDateKey(input.probationEndDate);
+    if (!lastDateKey) return null;
+
+    return { rate: Math.max(0, toNumber(input.probationDailyRate)), lastDateKey };
+}
+
 export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): PayrollPeriodCalculation {
     const dailyRate = Math.max(0, toNumber(input.dailyRate));
+    const probationRate = resolveProbationRate(input);
     const attendanceByDate = selectApprovedAttendanceByBangkokDate(input.attendance);
     const overridesByDate = selectLatestOverrideByBangkokDate(input.overrides);
     const specialIncomes = input.specialIncomes || [];
@@ -188,10 +214,14 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
             const overtimeHours = attendanceRecord?.checkInTime
                 ? Math.max(0, toNumber(attendanceRecord.overtimeHours))
                 : 0;
+            // Days up to and including the probation end date are paid at the probation rate.
+            const rateForDay = probationRate && dateKey <= probationRate.lastDateKey
+                ? probationRate.rate
+                : dailyRate;
             const day = calculatePayrollDay({
                 hasCheckIn: !!attendanceRecord?.checkInTime,
                 actualHours: attendanceRecord?.checkInTime ? actualHours : null,
-                dailyRate,
+                dailyRate: rateForDay,
                 overrideDailyWage: override?.overrideDailyWage?.toString() ?? null,
             });
             const latePenalty = Math.max(0, override?.overrideLatePenalty != null

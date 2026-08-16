@@ -18,6 +18,7 @@ async function loadApplicationScoped(id: string, role: Role, userStationId: stri
         include: {
             station: { select: { id: true, name: true } },
             department: { select: { id: true, name: true } },
+            jobOpening: { select: { id: true, slug: true, title: true } },
             reviewedBy: { select: { id: true, name: true } },
             hiredUser: { select: { id: true, name: true, employeeId: true } },
             files: {

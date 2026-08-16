@@ -107,7 +107,6 @@
     "role.manager": "ผู้จัดการ",
     "role.cashier": "เสมียน",
     "role.employee": "พนักงาน",
-
     "photoCapture.takePhoto": "ถ่ายรูป",
     "photoCapture.chooseFile": "เลือกจากคลัง",
     "photoCapture.retake": "ถ่ายใหม่",
@@ -124,7 +123,6 @@
     "photoCapture.cropConfirm": "ใช้รูปนี้",
     "photoCapture.cropCancel": "ยกเลิก",
     "photoCapture.zoom": "ซูม",
-
     "apply.pageTitle": "ใบสมัครงาน",
     "apply.progressLabel": "ความคืบหน้า",
     "apply.stepPrefix": "ขั้นตอน",
@@ -137,9 +135,11 @@
     "apply.next": "ถัดไป",
     "apply.submit": "ส่งใบสมัคร",
     "apply.selectPlaceholder": "เลือก",
-
     "apply.positionTitle": "ตำแหน่งที่สมัคร",
     "apply.positionTitlePlaceholder": "เช่น พนักงานปั๊ม, แคชเชียร์, บาริสต้า",
+    "apply.applyingFor": "สมัครตำแหน่ง",
+    "apply.viewJobDetails": "ดูรายละเอียดตำแหน่งนี้",
+    "apply.openingClosedWarning": "ประกาศรับสมัครที่คุณเปิดมาปิดรับแล้ว แต่ยังสมัครแบบทั่วไปได้โดยเลือกตำแหน่งและสาขาเอง",
     "apply.employmentType": "ประเภทการจ้างงาน",
     "apply.employmentFullTime": "เต็มเวลา",
     "apply.employmentPartTime": "พาร์ทไทม์",
@@ -152,7 +152,6 @@
     "apply.shiftMorning": "เช้า",
     "apply.shiftAfternoon": "บ่าย",
     "apply.shiftNight": "ดึก",
-
     "apply.prefix": "คำนำหน้า",
     "apply.prefixMr": "นาย",
     "apply.prefixMrs": "นาง",
@@ -190,7 +189,6 @@
     "apply.emergencyName": "ชื่อผู้ติดต่อฉุกเฉิน",
     "apply.emergencyPhone": "เบอร์โทรผู้ติดต่อฉุกเฉิน",
     "apply.emergencyRelation": "ความสัมพันธ์",
-
     "apply.educationsTitle": "ประวัติการศึกษา",
     "apply.addRow": "เพิ่มรายการ",
     "apply.eduLevel": "ระดับการศึกษา",
@@ -213,13 +211,11 @@
     "apply.applicantNote": "ข้อความเพิ่มเติมถึงเรา",
     "apply.yes": "ใช่",
     "apply.no": "ไม่ใช่",
-
     "apply.profilePhoto": "รูปถ่าย",
     "apply.citizenIdPhoto": "สำเนาบัตรประชาชน",
     "apply.educationCertFile": "วุฒิการศึกษา (ถ้ามี)",
     "apply.resumeFile": "Resume (ถ้ามี)",
     "apply.watermarkPrefix": "ใช้สมัครงานเท่านั้น",
-
     "apply.consentTitle": "ข้อตกลงและความยินยอม",
     "apply.consentPurpose": "{company} เก็บข้อมูลนี้เพื่อพิจารณาการจ้างงานเท่านั้น",
     "apply.consentDataCollected": "ข้อมูลที่เก็บ ได้แก่ ข้อมูลส่วนตัว รูปถ่ายใบหน้า และสำเนาบัตรประชาชน",
@@ -227,7 +223,6 @@
     "apply.consentRetention": "หากไม่ผ่านการพิจารณา ข้อมูลจะถูกเก็บไม่เกิน 180 วันแล้วลบอัตโนมัติ สำเนาบัตรประชาชนจะถูกลบทันที",
     "apply.consentRights": "ท่านมีสิทธิ์ขอเข้าถึง แก้ไข หรือลบข้อมูลของท่านได้ตลอดเวลา ผ่านหน้าตรวจสอบสถานะใบสมัคร",
     "apply.consentCheckboxLabel": "ข้าพเจ้ายินยอมให้เก็บและใช้ข้อมูลตามที่ระบุไว้ข้างต้น",
-
     "apply.errPosition": "กรุณาระบุตำแหน่งที่สมัคร",
     "apply.errStation": "กรุณาเลือกสาขา",
     "apply.errName": "กรุณากรอกชื่อ-นามสกุล",
@@ -240,7 +235,6 @@
     "apply.errCitizenIdPhoto": "กรุณาแนบสำเนาบัตรประชาชน",
     "apply.errConsent": "กรุณายอมรับเงื่อนไขการเก็บข้อมูล",
     "apply.errSubmit": "ส่งใบสมัครไม่สำเร็จ กรุณาลองใหม่",
-
     "apply.successTitle": "ส่งใบสมัครสำเร็จ",
     "apply.successDesc": "เราได้รับใบสมัครของคุณแล้ว ทีมงานจะติดต่อกลับหากผ่านการคัดเลือกเบื้องต้น",
     "apply.duplicateTitle": "คุณสมัครตำแหน่งนี้ไปแล้ว",
@@ -248,7 +242,6 @@
     "apply.refCodeLabel": "รหัสอ้างอิงใบสมัคร",
     "apply.saveScreenshotHint": "กรุณาบันทึกภาพหน้าจอนี้ไว้เพื่อใช้ตรวจสอบสถานะภายหลัง",
     "apply.checkStatusLink": "ตรวจสอบสถานะใบสมัคร",
-
     "applyStatus.pageTitle": "ตรวจสอบสถานะใบสมัคร",
     "applyStatus.pageDesc": "กรอกรหัสอ้างอิงและเบอร์โทรที่ใช้สมัคร",
     "applyStatus.refCode": "รหัสอ้างอิง",
