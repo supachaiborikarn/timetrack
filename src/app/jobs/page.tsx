@@ -6,7 +6,8 @@ import { EMPLOYMENT_TYPE_LABELS, formatSalaryRange } from "@/lib/job-opening";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobsPage() {
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ closed?: string }> }) {
+    const { closed } = await searchParams;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -34,6 +35,14 @@ export default async function JobsPage() {
                     <h1 className="text-2xl font-bold">ตำแหน่งงานที่เปิดรับ</h1>
                     <p className="text-sm text-muted-foreground mt-1">{companyName}</p>
                 </header>
+
+                {closed === "1" && (
+                    <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 mb-4">
+                        <p className="text-sm">
+                            ตำแหน่งที่คุณเปิดมาปิดรับสมัครแล้ว — ด้านล่างคือตำแหน่งที่ยังเปิดรับอยู่
+                        </p>
+                    </div>
+                )}
 
                 {openings.length === 0 ? (
                     <div className="rounded-lg border bg-background p-8 text-center">
