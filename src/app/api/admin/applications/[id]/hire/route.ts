@@ -83,8 +83,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const defaultPassword = await bcrypt.hash("123456", 10);
         const citizenId = application.citizenIdEnc ? decryptField(application.citizenIdEnc) : null;
 
-        const [user] = await prisma.$transaction([
-            prisma.user.create({
+        // Interactive transaction so the application can reference the new user id in the same
+        // atomic unit. The earlier array form needed a follow-up update for hiredUserId, which
+        // could fail on its own and leave an application marked HIRED with no employee linked —
+        // a state that could neither be deleted nor corrected from the UI.
+        const user = await prisma.$transaction(async (tx) => {
+            const created = await tx.user.create({
                 data: {
                     employeeId,
                     name,
@@ -113,16 +117,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                     emergencyContactPhone: application.emergencyPhone || null,
                     emergencyContactRelation: application.emergencyRelation || null,
                 },
-            }),
-            prisma.jobApplication.update({
-                where: { id },
-                data: { status: "HIRED", hiredAt: new Date() },
-            }),
-        ]);
+            });
 
-        // hiredUserId needs the freshly created user's id — set it in a follow-up update
-        // (Prisma transactions can't reference one statement's result from another).
-        await prisma.jobApplication.update({ where: { id }, data: { hiredUserId: user.id } });
+            await tx.jobApplication.update({
+                where: { id },
+                data: { status: "HIRED", hiredAt: new Date(), hiredUserId: created.id },
+            });
+
+            return created;
+        });
 
         await logActivity(session.user.id, "HIRE", "JobApplication", `จ้างงาน ${application.refCode} เป็นพนักงาน ${employeeId}`, id);
 

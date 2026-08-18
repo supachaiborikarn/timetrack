@@ -849,6 +849,9 @@ model JobApplication {
   militaryStatus String?
   citizenIdEnc   String?
   citizenIdLast4 String?
+  // Deterministic HMAC of the citizen ID, purely so duplicate submissions can be detected —
+  // the encrypted value uses a random IV and can't be matched with a query.
+  citizenIdHash  String?
 
   // ติดต่อ
   phone             String
@@ -903,6 +906,7 @@ model JobApplication {
   @@index([stationId])
   @@index([createdAt])
   @@index([phone])
+  @@index([citizenIdHash])
 }
 
 model JobApplicationFile {

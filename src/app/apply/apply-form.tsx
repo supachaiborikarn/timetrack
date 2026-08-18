@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,7 +178,7 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
     const [stepError, setStepError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [result, setResult] = useState<{ refCode: string; duplicate: boolean } | null>(null);
+    const [result, setResult] = useState<{ refCode: string; duplicate: boolean; reason?: string } | null>(null);
     const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
@@ -340,7 +340,7 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
             const json = await res.json();
 
             if (res.status === 409 && json.refCode) {
-                setResult({ refCode: json.refCode, duplicate: true });
+                setResult({ refCode: json.refCode, duplicate: true, reason: json.error });
                 window.localStorage.removeItem(STORAGE_KEY);
                 return;
             }
@@ -363,9 +363,16 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
             <div className="min-h-dvh flex items-center justify-center p-4 bg-muted/30">
                 <Card className="w-full max-w-md">
                     <CardContent className="pt-6 text-center space-y-4">
-                        <CheckCircle2 className="size-14 text-green-600 mx-auto" />
+                        {result.duplicate
+                            ? <AlertCircle className="size-14 text-amber-600 mx-auto" />
+                            : <CheckCircle2 className="size-14 text-green-600 mx-auto" />}
                         <h1 className="text-lg font-bold">{result.duplicate ? t("apply.duplicateTitle") : t("apply.successTitle")}</h1>
-                        <p className="text-sm text-muted-foreground">{result.duplicate ? t("apply.duplicateDesc") : t("apply.successDesc")}</p>
+                        {/* The server explains exactly why this counted as a duplicate (still under
+                            review / already hired / too soon after a rejection), which is more useful
+                            than the generic line — fall back to it only if the reason is missing. */}
+                        <p className="text-sm text-muted-foreground">
+                            {result.duplicate ? (result.reason || t("apply.duplicateDesc")) : t("apply.successDesc")}
+                        </p>
                         <div className="rounded-lg border-2 border-dashed p-4">
                             <p className="text-xs text-muted-foreground mb-1">{t("apply.refCodeLabel")}</p>
                             <p className="text-2xl font-mono font-bold tracking-wider">{result.refCode}</p>

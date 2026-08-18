@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRate, getClientIp } from "@/lib/rate-limit";
 import { verifyFormToken } from "@/lib/form-token";
 import { isValidThaiCitizenId } from "@/lib/thai-citizen-id";
-import { encryptField } from "@/lib/crypto-field";
+import { encryptField, hashFieldForLookup } from "@/lib/crypto-field";
 import { createNotifications } from "@/lib/notifications";
 import { getAttendanceDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
 import { isOpeningOpen } from "@/lib/job-opening";
@@ -13,7 +13,10 @@ export const runtime = "nodejs";
 
 const SUBMIT_LIMIT_PER_HOUR = 3;
 const SUBMIT_WINDOW_MS = 60 * 60 * 1000;
-const DUPLICATE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+// How long a rejected applicant must wait before trying again. Applications still under
+// consideration (or already hired) block a re-submission regardless of age.
+const REAPPLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const OPEN_STATUSES = ["SUBMITTED", "SCREENING", "INTERVIEW", "OFFERED"] as const;
 const CONSENT_VERSION = "2569-08-v1";
 
 const EMPLOYMENT_TYPES = new Set(["FULL_TIME", "PART_TIME", "DAILY"]);
@@ -171,20 +174,67 @@ export async function POST(request: NextRequest) {
     // --- step 5: consent ---
     if (body.consentAccepted !== true) return badRequest("กรุณายอมรับเงื่อนไขการเก็บข้อมูล");
 
-    // --- duplicate guard ---
-    const duplicate = await prisma.jobApplication.findFirst({
-        where: { phone, positionTitle, createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) } },
-        orderBy: { createdAt: "desc" },
-    });
-    if (duplicate) {
-        return NextResponse.json(
-            { error: "คุณเพิ่งสมัครตำแหน่งนี้ไปแล้วภายใน 30 วันที่ผ่านมา", refCode: duplicate.refCode },
-            { status: 409 }
-        );
-    }
-
     const citizenIdEnc = encryptField(citizenId);
     const citizenIdLast4 = citizenId.slice(-4);
+    const citizenIdHash = hashFieldForLookup(citizenId);
+
+    // --- duplicate guard ---
+    // Matches the *person*, not the position. The original check required the position title to
+    // match too, which stopped working the moment job openings were introduced: the same people
+    // re-applied and the title changed from what they had typed by hand to the posting's title,
+    // so nothing matched. Citizen ID is the reliable identity; phone alone is not (a household
+    // can share one), so it only counts when the name matches as well.
+    const previous = await prisma.jobApplication.findFirst({
+        where: {
+            status: { not: "DRAFT" },
+            OR: [
+                { citizenIdHash },
+                { phone, firstName, lastName },
+            ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { refCode: true, status: true, positionTitle: true, createdAt: true },
+    });
+
+    if (previous) {
+        if ((OPEN_STATUSES as readonly string[]).includes(previous.status)) {
+            return NextResponse.json(
+                {
+                    error: `คุณมีใบสมัครที่อยู่ระหว่างการพิจารณาอยู่แล้ว (ตำแหน่ง${previous.positionTitle}) `
+                        + "หากต้องการเปลี่ยนตำแหน่งหรือแก้ไขข้อมูล กรุณาติดต่อเจ้าหน้าที่",
+                    refCode: previous.refCode,
+                    duplicateOf: previous.status,
+                },
+                { status: 409 }
+            );
+        }
+        if (previous.status === "HIRED") {
+            return NextResponse.json(
+                {
+                    error: "ข้อมูลนี้ได้รับการจ้างงานเรียบร้อยแล้ว ไม่ต้องสมัครซ้ำ หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่",
+                    refCode: previous.refCode,
+                    duplicateOf: previous.status,
+                },
+                { status: 409 }
+            );
+        }
+        // REJECTED — a fresh attempt is allowed, but not immediately.
+        // WITHDRAWN is deliberately not blocked: the applicant cancelled it themselves,
+        // usually to redo the form.
+        if (previous.status === "REJECTED" && previous.createdAt.getTime() > Date.now() - REAPPLY_WINDOW_MS) {
+            const daysLeft = Math.ceil(
+                (previous.createdAt.getTime() + REAPPLY_WINDOW_MS - Date.now()) / (24 * 60 * 60 * 1000)
+            );
+            return NextResponse.json(
+                {
+                    error: `คุณเพิ่งสมัครไปเมื่อไม่นานมานี้ สามารถสมัครใหม่ได้อีกครั้งในอีก ${daysLeft} วัน`,
+                    refCode: previous.refCode,
+                    duplicateOf: previous.status,
+                },
+                { status: 409 }
+            );
+        }
+    }
     const userAgent = request.headers.get("user-agent")?.slice(0, 300) ?? null;
 
     let application;
@@ -214,6 +264,7 @@ export async function POST(request: NextRequest) {
                     militaryStatus,
                     citizenIdEnc,
                     citizenIdLast4,
+                    citizenIdHash,
                     phone,
                     lineId,
                     email,

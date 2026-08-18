@@ -237,7 +237,7 @@
     "apply.successTitle": "Application Submitted",
     "apply.successDesc": "We've received your application. Our team will contact you if you pass the initial screening.",
     "apply.duplicateTitle": "You've Already Applied",
-    "apply.duplicateDesc": "We found your application for this position within the last 30 days. Here is your existing reference code.",
+    "apply.duplicateDesc": "We found an existing application from you. Here is your reference code.",
     "apply.refCodeLabel": "Application Reference Code",
     "apply.saveScreenshotHint": "Please save a screenshot of this to check your status later.",
     "apply.checkStatusLink": "Check Application Status",

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "crypto";
 
 /**
  * AES-256-GCM helpers for encrypting individual sensitive fields (e.g. citizen ID)
@@ -42,6 +42,20 @@ export function decryptField(stored: string): string {
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
     return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+}
+
+/**
+ * Deterministic keyed hash for exact-match lookups on a value that is stored encrypted.
+ *
+ * `encryptField` uses a random IV, so the same input yields different ciphertext every time and
+ * can never be matched with a query. This HMAC gives a stable value to index and compare on
+ * without storing the number itself. Keyed (not a bare SHA) so a stolen database can't be
+ * brute-forced against the small space of 13-digit IDs.
+ */
+export function hashFieldForLookup(plaintext: string): string {
+    const secret = process.env.FIELD_ENCRYPTION_KEY;
+    if (!secret) throw new Error("FIELD_ENCRYPTION_KEY is not set");
+    return createHmac("sha256", secret).update(plaintext).digest("hex");
 }
 
 /** Last 4 digits of a Thai citizen ID, kept as plaintext for display/lookup. */

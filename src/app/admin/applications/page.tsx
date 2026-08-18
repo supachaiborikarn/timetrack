@@ -12,6 +12,7 @@ import {
     Star,
     Trash2,
     UserPlus,
+    UserMinus,
     FileText,
     Phone,
     Calendar,
@@ -147,6 +148,7 @@ export default function AdminApplicationsPage() {
     const [interviewAt, setInterviewAt] = useState("");
     const [interviewNote, setInterviewNote] = useState("");
     const [hireOpen, setHireOpen] = useState(false);
+    const [unhireReason, setUnhireReason] = useState("");
 
     const fetchList = useCallback(async () => {
         setLoading(true);
@@ -260,6 +262,37 @@ export default function AdminApplicationsPage() {
         });
         setDetail((prev) => (prev ? { ...prev, ratingScore: score } : prev));
         await fetchList();
+    }
+
+    async function handleUnhire() {
+        if (!selectedId || !unhireReason.trim()) return;
+        setActionBusy(true);
+        try {
+            const res = await fetch(`/api/admin/applications/${selectedId}/unhire`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason: unhireReason.trim() }),
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                toast.error(json.error || "ยกเลิกการจ้างไม่สำเร็จ");
+                return;
+            }
+            // Be explicit about what happened to the account — an employee with existing records
+            // is deactivated rather than deleted, and HR needs to know which one they got.
+            if (!json.hadAccount) {
+                toast.success("ยกเลิกการจ้างแล้ว (ใบสมัครนี้ไม่มีบัญชีพนักงานผูกอยู่)");
+            } else if (json.accountDeleted) {
+                toast.success("ยกเลิกการจ้างและลบบัญชีพนักงานแล้ว");
+            } else {
+                toast.success(`ปิดใช้งานบัญชีพนักงานแทนการลบ เพราะมีข้อมูลอยู่: ${json.keptBecause.join(", ")}`, { duration: 8000 });
+            }
+            setUnhireReason("");
+            await openDetail(selectedId);
+            await fetchList();
+        } finally {
+            setActionBusy(false);
+        }
     }
 
     async function handleDelete() {
@@ -526,6 +559,46 @@ export default function AdminApplicationsPage() {
 
                             {detail.rejectReason && detail.status === "REJECTED" && (
                                 <p className="text-sm text-destructive border-t pt-3">เหตุผลที่ปฏิเสธ: {detail.rejectReason}</p>
+                            )}
+
+                            {/* A hired application can't be edited or deleted while an employee account
+                                hangs off it. Undoing the hire deals with the account first, then returns
+                                the application to a normal state. */}
+                            {canHire && detail.status === "HIRED" && (
+                                <section className="space-y-2 border-t pt-3">
+                                    <p className="font-medium text-sm">ยกเลิกการจ้าง</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        ใช้กรณีรับเข้าทำงานแล้วแต่ไม่มาจริง — บัญชีพนักงานจะถูกลบถ้ายังไม่เคยใช้งาน
+                                        (ถ้าเคยลงเวลาหรือมีข้อมูลแล้วจะปิดใช้งานแทน) และใบสมัครจะกลับเป็น &quot;ไม่ผ่าน&quot; ให้ลบได้
+                                    </p>
+                                    <Textarea
+                                        rows={2}
+                                        placeholder="เหตุผล เช่น เรียกมาทำงานแล้วไม่มา"
+                                        value={unhireReason}
+                                        onChange={(e) => setUnhireReason(e.target.value)}
+                                    />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="sm" variant="destructive" disabled={actionBusy || !unhireReason.trim()}>
+                                                <UserMinus className="size-4" />ยกเลิกการจ้าง
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>ยืนยันยกเลิกการจ้าง</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    {detail.hiredUser
+                                                        ? `บัญชีพนักงาน ${detail.hiredUser.name} (${detail.hiredUser.employeeId}) จะถูกลบหรือปิดใช้งาน และจะเข้าสู่ระบบไม่ได้อีก`
+                                                        : "ใบสมัครนี้ไม่มีบัญชีพนักงานผูกอยู่ จะเปลี่ยนสถานะกลับเป็น \"ไม่ผ่าน\" เท่านั้น"}
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleUnhire}>ยืนยัน</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </section>
                             )}
 
                             {canDelete && (
