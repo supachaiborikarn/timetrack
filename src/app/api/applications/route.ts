@@ -8,6 +8,7 @@ import { encryptField, hashFieldForLookup } from "@/lib/crypto-field";
 import { createNotifications } from "@/lib/notifications";
 import { getAttendanceDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
 import { isOpeningOpen } from "@/lib/job-opening";
+import { nextRefCode, refCodePrefix } from "@/lib/application-ref-code";
 
 export const runtime = "nodejs";
 
@@ -45,11 +46,20 @@ function parseDate(value: unknown): Date | null {
 }
 
 async function generateRefCode(): Promise<string> {
-    const beYear = new Date().getFullYear() + 543;
-    const yy = String(beYear).slice(-2);
-    const prefix = `APP-${yy}-`;
-    const count = await prisma.jobApplication.count({ where: { refCode: { startsWith: prefix } } });
-    return `${prefix}${String(count + 1).padStart(4, "0")}`;
+    const prefix = refCodePrefix();
+    // Read the largest code numerically. A string sort would put "APP-69-10000" before
+    // "APP-69-9999" once the sequence outgrows four digits.
+    const existing = await prisma.jobApplication.findMany({
+        where: { refCode: { startsWith: prefix } },
+        select: { refCode: true },
+    });
+    const latest = existing.reduce<string | null>((max, { refCode }) => {
+        const n = Number.parseInt(refCode.slice(prefix.length), 10);
+        if (!Number.isFinite(n)) return max;
+        const maxN = max ? Number.parseInt(max.slice(prefix.length), 10) : -1;
+        return n > maxN ? refCode : max;
+    }, null);
+    return nextRefCode(prefix, latest);
 }
 
 export async function POST(request: NextRequest) {
