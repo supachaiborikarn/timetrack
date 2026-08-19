@@ -24,6 +24,13 @@ export function isHousingStatus(value: unknown): value is HousingStatus {
     return typeof value === "string" && (HOUSING_STATUS_ORDER as string[]).includes(value);
 }
 
+export type SelfReportedHousingStatus = Extract<HousingStatus, "COMPANY_DORM" | "OWN_HOUSING">;
+
+/** Statuses an employee may choose for their own current accommodation. */
+export function isSelfReportedHousingStatus(value: unknown): value is SelfReportedHousingStatus {
+    return value === "COMPANY_DORM" || value === "OWN_HOUSING";
+}
+
 /**
  * Only people living in their own place are owed the allowance. `UNKNOWN` is
  * deliberately excluded: not having asked someone yet is not evidence that they

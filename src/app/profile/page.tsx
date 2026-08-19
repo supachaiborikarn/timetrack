@@ -10,13 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Loader2, User, Phone, Mail, Building2, Briefcase,
     Key, Lock, Eye, EyeOff, Wallet, DollarSign,
     MapPin, Calendar, Contact, Check, X,
     Clock, FileText, CreditCard, Fingerprint,
-    ChevronLeft, Edit2,
+    ChevronLeft, Edit2, House,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -51,7 +52,17 @@ interface Profile {
     emergencyContactRelation: string | null;
     startDate: string | null;
     employeeStatus: string;
+    housingStatus: "UNKNOWN" | "COMPANY_DORM" | "OWN_HOUSING";
+    housingUpdatedAt: string | null;
+    dormitory: Dormitory | null;
     createdAt: string;
+}
+
+interface Dormitory {
+    id: string;
+    name: string;
+    isActive: boolean;
+    station: { id: string; name: string; code: string } | null;
 }
 
 interface EditRequest {
@@ -97,7 +108,6 @@ const EditableField = ({
     const [isEditing, setIsEditing] = useState(false);
     const [tempValue, setTempValue] = useState(value || "");
     const [isSaving, setIsSaving] = useState(false);
-    const { t } = useLanguage();
 
     useEffect(() => { setTempValue(value || ""); }, [value]);
 
@@ -166,6 +176,9 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [payslips, setPayslips] = useState<ProfilePayslip[]>([]);
+    const [dormitories, setDormitories] = useState<Dormitory[]>([]);
+    const [housingSelection, setHousingSelection] = useState("");
+    const [isSavingHousing, setIsSavingHousing] = useState(false);
 
     // Password
     const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -182,7 +195,18 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
         const res = await fetch("/api/profile");
-        if (res.ok) { const d = await res.json(); setProfile(d.profile); }
+        if (res.ok) {
+            const d = await res.json();
+            setProfile(d.profile);
+            setDormitories(d.dormitories || []);
+            setHousingSelection(
+                d.profile.housingStatus === "COMPANY_DORM" && d.profile.dormitory?.id
+                    ? `dorm:${d.profile.dormitory.id}`
+                    : d.profile.housingStatus === "OWN_HOUSING"
+                        ? "OWN_HOUSING"
+                        : "",
+            );
+        }
     };
     const fetchRequests = async () => {
         const res = await fetch("/api/profile/edit-request");
@@ -252,6 +276,37 @@ export default function ProfilePage() {
         } catch { toast.error("เกิดข้อผิดพลาด"); } finally { setIsSaving(false); }
     };
 
+    const handleSaveHousing = async () => {
+        if (!housingSelection) {
+            toast.error("กรุณาเลือกที่พักปัจจุบัน");
+            return;
+        }
+
+        const isDormitory = housingSelection.startsWith("dorm:");
+        setIsSavingHousing(true);
+        try {
+            const res = await fetch("/api/profile/housing", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    housingStatus: isDormitory ? "COMPANY_DORM" : "OWN_HOUSING",
+                    dormitoryId: isDormitory ? housingSelection.slice(5) : null,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "บันทึกข้อมูลที่พักไม่สำเร็จ");
+                return;
+            }
+            toast.success(data.message || "บันทึกข้อมูลที่พักแล้ว");
+            await fetchProfile();
+        } catch {
+            toast.error("บันทึกข้อมูลที่พักไม่สำเร็จ");
+        } finally {
+            setIsSavingHousing(false);
+        }
+    };
+
     const getPendingRequest = (fieldName: string) =>
         requests.find(r => r.fieldName === fieldName && r.status === "PENDING");
 
@@ -310,6 +365,48 @@ export default function ProfilePage() {
                                 <p className="text-[9px] font-bold text-primary mt-1 uppercase tracking-wide">{label}</p>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                {/* ── Employee-reported housing ── */}
+                <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
+                    <div className="flex items-start gap-3 mb-4">
+                        <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
+                            <House className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-black text-foreground">ที่พักของฉัน</h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">เลือกปั๊มที่พักอยู่ หรือเลือกที่พักของตัวเอง</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Select value={housingSelection} onValueChange={setHousingSelection}>
+                            <SelectTrigger className="w-full h-11 rounded-xl">
+                                <SelectValue placeholder="เลือกที่พักปัจจุบัน" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {dormitories.map((dormitory) => (
+                                    <SelectItem key={dormitory.id} value={`dorm:${dormitory.id}`} disabled={!dormitory.isActive}>
+                                        {dormitory.station?.name
+                                            ? `${dormitory.station.name} — ${dormitory.name}`
+                                            : dormitory.name}
+                                        {!dormitory.isActive ? " (ปิดใช้งาน)" : ""}
+                                    </SelectItem>
+                                ))}
+                                <SelectItem value="OWN_HOUSING">พักบ้านหรือห้องเช่าของตัวเอง</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Button
+                            onClick={handleSaveHousing}
+                            disabled={isSavingHousing || !housingSelection}
+                            className="w-full h-11 rounded-xl font-bold"
+                        >
+                            {isSavingHousing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            บันทึกข้อมูลที่พัก
+                        </Button>
+                        <p className="text-[11px] text-muted-foreground text-center">ข้อมูลนี้ใช้ตรวจสิทธิ์ค่าที่พัก กรุณาเลือกตามที่พักปัจจุบัน</p>
                     </div>
                 </div>
 

@@ -6,6 +6,7 @@ import {
     findHousingIssues,
     isEligibleForHousingAllowance,
     isHousingStatus,
+    isSelfReportedHousingStatus,
     monthRange,
 } from "../housing";
 
@@ -107,5 +108,17 @@ describe("isHousingStatus", () => {
         expect(isHousingStatus("OWN_HOUSING")).toBe(true);
         expect(isHousingStatus("RENTED")).toBe(false);
         expect(isHousingStatus(null)).toBe(false);
+    });
+});
+
+describe("isSelfReportedHousingStatus", () => {
+    it("allows employees to report a company dorm or their own place", () => {
+        expect(isSelfReportedHousingStatus("COMPANY_DORM")).toBe(true);
+        expect(isSelfReportedHousingStatus("OWN_HOUSING")).toBe(true);
+    });
+
+    it("does not let an employee submit the unanswered survey status", () => {
+        expect(isSelfReportedHousingStatus("UNKNOWN")).toBe(false);
+        expect(isSelfReportedHousingStatus("anything-else")).toBe(false);
     });
 });

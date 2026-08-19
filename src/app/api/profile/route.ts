@@ -16,11 +16,35 @@ export async function GET() {
             include: {
                 station: { select: { id: true, name: true, code: true } },
                 department: { select: { id: true, name: true, code: true } },
+                dormitory: {
+                    select: {
+                        id: true,
+                        name: true,
+                        isActive: true,
+                        station: { select: { id: true, name: true, code: true } },
+                    },
+                },
             },
         });
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
+
+        const dormitories = await prisma.dormitory.findMany({
+            where: {
+                OR: [
+                    { isActive: true },
+                    ...(user.dormitoryId ? [{ id: user.dormitoryId }] : []),
+                ],
+            },
+            orderBy: [{ station: { name: "asc" } }, { name: "asc" }],
+            select: {
+                id: true,
+                name: true,
+                isActive: true,
+                station: { select: { id: true, name: true, code: true } },
+            },
+        });
 
         return NextResponse.json({
             profile: {
@@ -54,9 +78,14 @@ export async function GET() {
                 startDate: user.startDate,
                 probationEndDate: user.probationEndDate,
                 employeeStatus: user.employeeStatus,
+                // Employee-reported accommodation
+                housingStatus: user.housingStatus,
+                housingUpdatedAt: user.housingUpdatedAt,
+                dormitory: user.dormitory,
                 // Additional
                 createdAt: user.createdAt,
             },
+            dormitories,
         });
     } catch (error) {
         console.error("Error fetching profile:", error);
