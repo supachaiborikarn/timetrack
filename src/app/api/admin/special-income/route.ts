@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
                 SALES_COMMISSION: "เปอร์เซ็นต์ขาย",
                 BONUS: "โบนัส",
                 TIP: "ทิป",
+                HOUSING_ALLOWANCE: "ค่าที่พัก",
                 OTHER: "รายได้พิเศษอื่นๆ",
             };
 

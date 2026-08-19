@@ -58,6 +58,7 @@ import {
     Gift,
     HandCoins,
     MoreHorizontal,
+    BedDouble,
     CalendarDays,
     Save,
     ListFilter,
@@ -135,6 +136,7 @@ const TYPE_OPTIONS = [
     { value: "SALES_COMMISSION", label: "เปอร์เซ็นต์ขาย", icon: Percent, color: "text-blue-400" },
     { value: "BONUS", label: "โบนัส", icon: Gift, color: "text-amber-400" },
     { value: "TIP", label: "ทิป", icon: HandCoins, color: "text-green-400" },
+    { value: "HOUSING_ALLOWANCE", label: "ค่าที่พัก", icon: BedDouble, color: "text-purple-400" },
     { value: "OTHER", label: "อื่นๆ", icon: MoreHorizontal, color: "text-slate-400" },
 ];
 

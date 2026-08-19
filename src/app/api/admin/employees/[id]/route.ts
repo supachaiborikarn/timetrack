@@ -76,7 +76,6 @@ export async function PUT(
             // New fields
             bankAccountNumber,
             bankName,
-            housingCost,
             // Remote fields
 
             gender,

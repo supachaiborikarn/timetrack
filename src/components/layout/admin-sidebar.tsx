@@ -45,6 +45,7 @@ import {
     ShieldCheck,
     Megaphone,
     Scale,
+    BedDouble,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -58,6 +59,13 @@ const navItems: NavItem[] = [
     { title: "จัดการพนักงาน", href: "/admin/employees", icon: Users, roles: ["ADMIN", "HR"] },
     { title: "สถานี", href: "/admin/stations", icon: Building2, roles: ["ADMIN", "HR"] },
     { title: "แผนก", href: "/admin/departments", icon: FolderKanban, roles: ["ADMIN", "HR"] },
+    {
+        title: "ที่พักคนงาน",
+        href: "/admin/housing",
+        icon: BedDouble,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["housing.view"],
+    },
     {
         title: "ลงเวลาทำงาน",
         href: "/admin/attendance",

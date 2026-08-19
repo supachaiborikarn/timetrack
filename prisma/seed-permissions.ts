@@ -51,6 +51,10 @@ const defaultPermissions = [
     { code: "employee_document.view", name: "ดูเอกสารพนักงาน", group: "เอกสารพนักงาน", sortOrder: 90 },
     { code: "employee_document.manage", name: "อัปโหลด/ลบเอกสารพนักงาน", group: "เอกสารพนักงาน", sortOrder: 91 },
     { code: "employee_document.view_sensitive", name: "ดูเอกสารอ่อนไหว (บัตร ปชช./พาสปอร์ต/บัญชีธนาคาร)", group: "เอกสารพนักงาน", sortOrder: 92 },
+
+    // ที่พักคนงาน
+    { code: "housing.view", name: "ดูข้อมูลที่พักคนงาน", group: "ที่พักคนงาน", sortOrder: 100 },
+    { code: "housing.manage", name: "แก้ไขที่พัก/ค่าที่พัก", group: "ที่พักคนงาน", sortOrder: 101 },
 ];
 
 // Default role permissions
@@ -68,6 +72,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "permission.manage",
             "application.view", "application.review", "application.view_sensitive", "application.hire", "application.delete",
             "employee_document.view", "employee_document.manage", "employee_document.view_sensitive",
+            "housing.view", "housing.manage",
         ],
     },
     {
@@ -81,6 +86,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "station.view", "station.edit",
             "application.view", "application.review", "application.view_sensitive", "application.hire",
             "employee_document.view", "employee_document.manage", "employee_document.view_sensitive",
+            "housing.view", "housing.manage",
         ],
     },
     {
@@ -94,6 +100,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "station.view",
             "application.view", "application.review",
             "employee_document.view",
+            "housing.view",
         ],
     },
     {

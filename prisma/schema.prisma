@@ -49,6 +49,12 @@ model User {
   // Daily rate paid on/before probationEndDate. Null = no separate probation rate,
   // so payroll uses dailyRate for every day exactly as it did before this field existed.
   probationDailyRate         Decimal?
+  housingStatus              HousingStatus          @default(UNKNOWN)
+  dormitoryId                String?
+  /// ค่าที่พักรายเดือนเฉพาะคนนี้ — null = ใช้ค่าเริ่มต้นของบริษัท
+  housingAllowance           Decimal?
+  housingNote                String?
+  housingUpdatedAt           DateTime?
   registeredStationId        String?
   socialSecurityNumber       String?
   startDate                  DateTime?              @default(now())
@@ -85,6 +91,7 @@ model User {
   hiredFromApplication       JobApplication?        @relation("ApplicationHire")
   ownedAssets                StoredAsset[]          @relation("AssetOwner")
   uploadedAssets             StoredAsset[]          @relation("AssetUploader")
+  dormitory                  Dormitory?             @relation("EmployeeDormitory", fields: [dormitoryId], references: [id], onDelete: SetNull)
 
   @@index([stationId])
   @@index([departmentId])
@@ -278,6 +285,7 @@ model Station {
   transfersTo         StationTransfer[] @relation("TransferTo")
   jobApplications     JobApplication[]
   jobOpenings         JobOpening[]
+  dormitories         Dormitory[]
 
   @@index([code])
 }
@@ -1060,4 +1068,35 @@ enum AssetKind {
   /// Evidence an employee attached to a time-correction or advance request.
   REQUEST_ATTACHMENT
   ANNOUNCEMENT_IMAGE
+}
+
+/// ที่พักคนงานของบริษัท พนักงานที่ไม่ได้อยู่ที่นี่จะได้เงินค่าที่พักแทน
+/// (ดู docs/employee-housing-design.md)
+model Dormitory {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  /// สาขาที่ที่พักนี้รองรับ — ใช้ตรวจว่าพนักงานอยู่ที่พักตรงกับสาขาที่ทำงานไหม
+  stationId String?
+  capacity  Int?
+  note      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  station   Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  residents User[]   @relation("EmployeeDormitory")
+
+  @@index([stationId])
+}
+
+enum HousingStatus {
+  /// ยังไม่ได้สำรวจ — ค่าเริ่มต้น จงใจแยกจาก OWN_HOUSING เพื่อไม่ให้คนที่ยัง
+  /// ไม่ได้ถามกลายเป็นคนมีสิทธิ์รับเงินค่าที่พักโดยอัตโนมัติ
+  UNKNOWN
+  /// อยู่บ้านพักของบริษัท (ต้องระบุ dormitoryId ด้วย)
+  COMPANY_DORM
+  /// อยู่ที่พักของตัวเอง — เป็นกลุ่มเดียวที่ได้เงินค่าที่พัก
+  OWN_HOUSING
 }
