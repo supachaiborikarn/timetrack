@@ -46,6 +46,11 @@ const defaultPermissions = [
     { code: "application.view_sensitive", name: "ดูเลขบัตร ปชช./สำเนาเอกสาร", group: "รับสมัครงาน", sortOrder: 82 },
     { code: "application.hire", name: "จ้างผู้สมัครเป็นพนักงาน", group: "รับสมัครงาน", sortOrder: 83 },
     { code: "application.delete", name: "ลบใบสมัครถาวร", group: "รับสมัครงาน", sortOrder: 84 },
+
+    // เอกสารพนักงาน
+    { code: "employee_document.view", name: "ดูเอกสารพนักงาน", group: "เอกสารพนักงาน", sortOrder: 90 },
+    { code: "employee_document.manage", name: "อัปโหลด/ลบเอกสารพนักงาน", group: "เอกสารพนักงาน", sortOrder: 91 },
+    { code: "employee_document.view_sensitive", name: "ดูเอกสารอ่อนไหว (บัตร ปชช./พาสปอร์ต/บัญชีธนาคาร)", group: "เอกสารพนักงาน", sortOrder: 92 },
 ];
 
 // Default role permissions
@@ -62,6 +67,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "settings.manage",
             "permission.manage",
             "application.view", "application.review", "application.view_sensitive", "application.hire", "application.delete",
+            "employee_document.view", "employee_document.manage", "employee_document.view_sensitive",
         ],
     },
     {
@@ -74,6 +80,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "report.view", "report.export",
             "station.view", "station.edit",
             "application.view", "application.review", "application.view_sensitive", "application.hire",
+            "employee_document.view", "employee_document.manage", "employee_document.view_sensitive",
         ],
     },
     {
@@ -86,6 +93,7 @@ const defaultRolePermissions: { role: Role; permissions: string[] }[] = [
             "report.view",
             "station.view",
             "application.view", "application.review",
+            "employee_document.view",
         ],
     },
     {

@@ -37,6 +37,7 @@ interface Announcement {
     title: string;
     content: string;
     authorId: string;
+    imageUrl: string | null;
     createdAt: string;
     totalReads: number;
     reads: ReadInfo[];
@@ -378,7 +379,13 @@ export default function AnnouncementDetailPage() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-slate-700 whitespace-pre-wrap">{post.content}</p>
+                            <div className="space-y-3">
+                                <p className="text-slate-700 whitespace-pre-wrap">{post.content}</p>
+                                {post.imageUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element -- authenticated route, not a static asset
+                                    <img src={post.imageUrl} alt="" className="w-full rounded-2xl border object-contain" />
+                                )}
+                            </div>
                         )}
                     </CardContent>
                 </Card>

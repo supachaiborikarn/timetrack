@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { decryptField } from "@/lib/crypto-field";
 import { logActivity } from "@/lib/logger";
+import { copyApplicationFilesToEmployee } from "@/lib/employee-onboarding";
 import type { Role } from "@prisma/client";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,10 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
 
         const { id } = await params;
-        const application = await prisma.jobApplication.findUnique({
-            where: { id },
-            include: { files: { where: { kind: "PROFILE_PHOTO" } } },
-        });
+        const application = await prisma.jobApplication.findUnique({ where: { id } });
         if (!application) return NextResponse.json({ error: "ไม่พบใบสมัคร" }, { status: 404 });
         if (application.status === "HIRED") return NextResponse.json({ error: "จ้างงานไปแล้ว" }, { status: 400 });
         if (application.status === "WITHDRAWN") return NextResponse.json({ error: "ผู้สมัครถอนใบสมัครแล้ว" }, { status: 400 });
@@ -129,16 +127,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
         await logActivity(session.user.id, "HIRE", "JobApplication", `จ้างงาน ${application.refCode} เป็นพนักงาน ${employeeId}`, id);
 
-        // Point the new employee's photoUrl at the SAME Cloudinary object as the application's
-        // PROFILE_PHOTO file — deliberately not renamed/moved. A hired application's files are
-        // never deletable (blocked above and in DELETE .../[id]), so sharing the key is safe and
-        // avoids leaving the application's own file record pointing at a now-missing object.
-        const profilePhoto = application.files[0];
-        if (profilePhoto?.storageDriver === "cloudinary" && profilePhoto.storageKey) {
-            await prisma.user.update({ where: { id: user.id }, data: { photoUrl: profilePhoto.storageKey } });
-        }
+        // Copy the applicant's attachments into the employee record — the photo becomes
+        // the avatar, the rest becomes the start of their document vault. Deliberately
+        // after the transaction and never fatal: a hire that already created the User
+        // must not be rolled back because one image failed to copy.
+        const fileCopy = await copyApplicationFilesToEmployee(id, user.id, session.user.id).catch((error) => {
+            console.error("Error copying application files to employee:", error);
+            return { copied: 0, failed: 0 };
+        });
 
-        return NextResponse.json({ success: true, userId: user.id });
+        return NextResponse.json({ success: true, userId: user.id, filesCopied: fileCopy.copied, filesFailed: fileCopy.failed });
     } catch (error) {
         console.error("Error hiring applicant:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Loader2, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/language-context";
-import { MAX_SOURCE_BYTES, DOCUMENT_MAX_SIDE, WEBP_QUALITY, loadImage, canvasToBlob, blobToDataUrl, drawResizedToCanvas, uploadApplicationFile } from "./file-processing";
+import { MAX_SOURCE_BYTES, DOCUMENT_MAX_SIDE, WEBP_QUALITY, loadImage, canvasToBlob, blobToDataUrl, drawResizedToCanvas, uploadApplicationFile } from "@/components/media/file-processing";
 
 /**
  * Optional document attachment (education certificate, resume) — a photo of the

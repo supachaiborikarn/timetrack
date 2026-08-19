@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, RotateCcw, X } from "lucide-react";
+import { Camera, ImageIcon, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/language-context";
 import { cn } from "@/lib/utils";
+import { ImageCropDialog } from "@/components/media/image-crop-dialog";
 import {
     MAX_SOURCE_BYTES,
     DOCUMENT_MAX_SIDE,
@@ -15,7 +15,7 @@ import {
     blobToDataUrl,
     drawResizedToCanvas,
     uploadApplicationFile,
-} from "./file-processing";
+} from "@/components/media/file-processing";
 
 /**
  * Captures/selects a photo, prepares it client-side, and uploads it to
@@ -53,11 +53,8 @@ export function PhotoCaptureField({ kind, label, value, onChange, watermarkText,
     const [stage, setStage] = useState<Stage>("idle");
     const [error, setError] = useState<string | null>(null);
 
-    // Crop-stage state (PROFILE_PHOTO only)
+    // Crop-stage state (PROFILE_PHOTO only) — the crop itself is ImageCropDialog's job.
     const [cropImage, setCropImage] = useState<HTMLImageElement | null>(null);
-    const [zoom, setZoom] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
     const isBusy = stage === "processing" || stage === "uploading";
     const helpText = kind === "PROFILE_PHOTO" ? t("photoCapture.helpProfilePhoto") : t("photoCapture.helpCitizenId");
@@ -66,8 +63,6 @@ export function PhotoCaptureField({ kind, label, value, onChange, watermarkText,
         setStage("idle");
         setError(null);
         setCropImage(null);
-        setZoom(1);
-        setOffset({ x: 0, y: 0 });
     }, []);
 
     async function uploadBlob(blob: Blob) {
@@ -108,13 +103,7 @@ export function PhotoCaptureField({ kind, label, value, onChange, watermarkText,
         }
 
         if (kind === "PROFILE_PHOTO") {
-            const baseScale = Math.max(CROP_FRAME.width / img.naturalWidth, CROP_FRAME.height / img.naturalHeight);
             setCropImage(img);
-            setZoom(1);
-            setOffset({
-                x: (CROP_FRAME.width - img.naturalWidth * baseScale) / 2,
-                y: (CROP_FRAME.height - img.naturalHeight * baseScale) / 2,
-            });
             setStage("cropping");
             return;
         }
@@ -129,73 +118,16 @@ export function PhotoCaptureField({ kind, label, value, onChange, watermarkText,
         }
     }
 
-    async function confirmCrop() {
-        if (!cropImage) return;
+    async function handleCropConfirm(blob: Blob) {
         setStage("processing");
+        setCropImage(null);
         try {
-            const baseScale = Math.max(CROP_FRAME.width / cropImage.naturalWidth, CROP_FRAME.height / cropImage.naturalHeight);
-            const effectiveScale = baseScale * zoom;
-            const sx = -offset.x / effectiveScale;
-            const sy = -offset.y / effectiveScale;
-            const sw = CROP_FRAME.width / effectiveScale;
-            const sh = CROP_FRAME.height / effectiveScale;
-
-            const canvas = document.createElement("canvas");
-            canvas.width = PHOTO_OUTPUT.width;
-            canvas.height = PHOTO_OUTPUT.height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) throw new Error("no 2d context");
-            ctx.drawImage(cropImage, sx, sy, sw, sh, 0, 0, PHOTO_OUTPUT.width, PHOTO_OUTPUT.height);
-
-            const blob = await canvasToBlob(canvas, WEBP_QUALITY);
-            setCropImage(null);
             await uploadBlob(blob);
         } catch {
             setError(t("photoCapture.errorUpload"));
             setStage("error");
         }
     }
-
-    function clampOffset(nextOffset: { x: number; y: number }, effectiveScale: number, img: HTMLImageElement) {
-        const displayedW = img.naturalWidth * effectiveScale;
-        const displayedH = img.naturalHeight * effectiveScale;
-        const minX = CROP_FRAME.width - displayedW;
-        const minY = CROP_FRAME.height - displayedH;
-        return {
-            x: Math.min(0, Math.max(minX, nextOffset.x)),
-            y: Math.min(0, Math.max(minY, nextOffset.y)),
-        };
-    }
-
-    function handlePointerDown(e: React.PointerEvent) {
-        (e.target as Element).setPointerCapture(e.pointerId);
-        dragState.current = { startX: e.clientX, startY: e.clientY, originX: offset.x, originY: offset.y };
-    }
-
-    function handlePointerMove(e: React.PointerEvent) {
-        if (!dragState.current || !cropImage) return;
-        const baseScale = Math.max(CROP_FRAME.width / cropImage.naturalWidth, CROP_FRAME.height / cropImage.naturalHeight);
-        const effectiveScale = baseScale * zoom;
-        const dx = e.clientX - dragState.current.startX;
-        const dy = e.clientY - dragState.current.startY;
-        setOffset(clampOffset({ x: dragState.current.originX + dx, y: dragState.current.originY + dy }, effectiveScale, cropImage));
-    }
-
-    function handlePointerUp(e: React.PointerEvent) {
-        dragState.current = null;
-        (e.target as Element).releasePointerCapture(e.pointerId);
-    }
-
-    function handleZoomChange(nextZoom: number) {
-        if (!cropImage) return;
-        const baseScale = Math.max(CROP_FRAME.width / cropImage.naturalWidth, CROP_FRAME.height / cropImage.naturalHeight);
-        setZoom(nextZoom);
-        setOffset((prev) => clampOffset(prev, baseScale * nextZoom, cropImage));
-    }
-
-    const cropPreviewScale = cropImage
-        ? Math.max(CROP_FRAME.width / cropImage.naturalWidth, CROP_FRAME.height / cropImage.naturalHeight) * zoom
-        : 1;
 
     return (
         <div className="space-y-2">
@@ -260,62 +192,14 @@ export function PhotoCaptureField({ kind, label, value, onChange, watermarkText,
                 }}
             />
 
-            <Dialog open={stage === "cropping"} onOpenChange={(open) => { if (!open) reset(); }}>
-                <DialogContent className="w-fit">
-                    <DialogHeader>
-                        <DialogTitle>{t("photoCapture.cropTitle")}</DialogTitle>
-                    </DialogHeader>
-
-                    {cropImage && (
-                        <div className="space-y-3">
-                            <div
-                                className="relative overflow-hidden rounded-md border bg-muted touch-none select-none"
-                                style={{ width: CROP_FRAME.width, height: CROP_FRAME.height }}
-                                onPointerDown={handlePointerDown}
-                                onPointerMove={handlePointerMove}
-                                onPointerUp={handlePointerUp}
-                            >
-                                {/* eslint-disable-next-line @next/next/no-img-element -- source is a locally loaded HTMLImageElement, cropped via canvas on confirm */}
-                                <img
-                                    src={cropImage.src}
-                                    alt=""
-                                    draggable={false}
-                                    style={{
-                                        position: "absolute",
-                                        left: offset.x,
-                                        top: offset.y,
-                                        width: cropImage.naturalWidth * cropPreviewScale,
-                                        height: cropImage.naturalHeight * cropPreviewScale,
-                                        maxWidth: "none",
-                                    }}
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground w-10">{t("photoCapture.zoom")}</span>
-                                <input
-                                    type="range"
-                                    min={1}
-                                    max={3}
-                                    step={0.05}
-                                    value={zoom}
-                                    onChange={(e) => handleZoomChange(Number(e.target.value))}
-                                    className="flex-1"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={reset}>
-                            <X className="size-4" />
-                            {t("photoCapture.cropCancel")}
-                        </Button>
-                        <Button type="button" onClick={confirmCrop} disabled={stage !== "cropping"}>
-                            {t("photoCapture.cropConfirm")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ImageCropDialog
+                image={cropImage}
+                frame={CROP_FRAME}
+                output={PHOTO_OUTPUT}
+                onConfirm={handleCropConfirm}
+                onCancel={reset}
+                busy={isBusy}
+            />
         </div>
     );
 }

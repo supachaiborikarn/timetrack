@@ -22,6 +22,7 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
+    Paperclip,
 } from "lucide-react";
 
 interface Advance {
@@ -33,6 +34,7 @@ interface Advance {
     year: number;
     reason: string | null;
     note: string | null;
+    attachmentUrl: string | null;
     status: "PENDING" | "APPROVED" | "PAID" | "REJECTED";
     approvedBy: string | null;
     approvedAt: string | null;
@@ -465,6 +467,11 @@ export default function AdminAdvancesPage() {
                                                     <span className="text-muted-foreground text-xs line-clamp-1">
                                                         {adv.reason || "-"}
                                                     </span>
+                                                    {adv.attachmentUrl && (
+                                                        <a href={adv.attachmentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                                                            <Paperclip className="w-3 h-3" /> หลักฐาน
+                                                        </a>
+                                                    )}
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex items-center justify-center gap-1">

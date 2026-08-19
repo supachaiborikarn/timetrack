@@ -83,6 +83,8 @@ model User {
   reviewedApplications       JobApplication[]       @relation("ApplicationReviewer")
   createdJobOpenings         JobOpening[]           @relation("JobOpeningCreator")
   hiredFromApplication       JobApplication?        @relation("ApplicationHire")
+  ownedAssets                StoredAsset[]          @relation("AssetOwner")
+  uploadedAssets             StoredAsset[]          @relation("AssetUploader")
 
   @@index([stationId])
   @@index([departmentId])
@@ -110,9 +112,11 @@ model Announcement {
   isActive            Boolean            @default(true)
   isPinned            Boolean            @default(false)
   targetDepartmentIds String?
+  imageAssetId        String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   author              User               @relation(fields: [authorId], references: [id])
+  image               StoredAsset?       @relation(fields: [imageAssetId], references: [id], onDelete: SetNull)
   comments            Comment[]
   reads               AnnouncementRead[]
 
@@ -474,21 +478,23 @@ model PayrollRecord {
 }
 
 model Advance {
-  id         String        @id @default(cuid())
-  userId     String
-  amount     Decimal
-  date       DateTime
-  reason     String?
-  status     AdvanceStatus @default(PENDING)
-  approvedBy String?
-  approvedAt DateTime?
-  paidAt     DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  month      Int?
-  note       String?
-  year       Int?
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  userId       String
+  amount       Decimal
+  date         DateTime
+  reason       String?
+  status       AdvanceStatus @default(PENDING)
+  approvedBy   String?
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  month        Int?
+  note         String?
+  year         Int?
+  attachmentId String?
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachment   StoredAsset?  @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([status])
@@ -517,7 +523,9 @@ model TimeCorrection {
   approvedAt       DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  attachmentId     String?
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachment       StoredAsset?  @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([status])
@@ -980,4 +988,76 @@ enum ApplicationFileKind {
   EDUCATION_CERT
   RESUME
   OTHER
+}
+
+/// Any image the HR system stores outside a job application — employee photos,
+/// the employee document vault, evidence attached to a request, announcement
+/// images. Deliberately one flat table rather than one per feature: the bytes,
+/// the storage driver and the cleanup rules are identical everywhere, and only
+/// `kind` decides who may look at it (see src/lib/assets.ts).
+///
+/// Written in two phases, same as JobApplicationFile: the row is created first
+/// so its id can be the storage key, then storage.put() fills in storageKey.
+model StoredAsset {
+  id                String    @id @default(cuid())
+  kind              AssetKind
+  /// The employee this asset is about — the subject, not the uploader. Null only
+  /// for assets that belong to no one in particular (announcement images).
+  ownerUserId       String?
+  uploadedById      String?
+  mimeType          String
+  sizeBytes         Int
+  width             Int?
+  height            Int?
+  checksum          String?
+  fileName          String?
+  note              String?
+  storageDriver     String    @default("cloudinary")
+  storageKey        String?
+  storageMeta       Json?
+  data              Bytes?
+  /// When the *document itself* stops being valid in the real world (work permit,
+  /// visa, passport). Drives the expiry reminders — never used for cleanup.
+  documentExpiresAt DateTime?
+  /// When this row and its bytes should be deleted. Set on upload so an abandoned
+  /// upload can't linger; cleared once the asset is attached to something.
+  purgeAfter        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  owner      User? @relation("AssetOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  timeCorrections TimeCorrection[]
+  advances        Advance[]
+  announcements   Announcement[]
+
+  @@index([ownerUserId, kind])
+  @@index([purgeAfter])
+  @@index([documentExpiresAt])
+}
+
+enum AssetKind {
+  /// Employee avatar. At most one live row per employee (enforced in the API,
+  /// which deletes the previous one on replace).
+  EMPLOYEE_PHOTO
+
+  // ── Employee document vault ────────────────────────────────────────────────
+  CITIZEN_ID
+  HOUSE_REGISTRATION
+  PASSPORT
+  WORK_PERMIT
+  VISA
+  EMPLOYMENT_CONTRACT
+  EDUCATION_CERT
+  TRAINING_CERT
+  BANK_BOOK
+  MEDICAL_CERT
+  RESUME
+  OTHER_DOCUMENT
+
+  // ── Attachments ────────────────────────────────────────────────────────────
+  /// Evidence an employee attached to a time-correction or advance request.
+  REQUEST_ATTACHMENT
+  ANNOUNCEMENT_IMAGE
 }

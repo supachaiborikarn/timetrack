@@ -25,8 +25,10 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
+    Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AssetAttachmentField, type PendingAsset } from "@/components/media/asset-fields";
 import { formatThaiDate, getBangkokNow, format, subDays } from "@/lib/date-utils";
 
 interface TimeCorrection {
@@ -36,6 +38,7 @@ interface TimeCorrection {
     requestedTime: string;
     reason: string;
     status: string;
+    attachmentUrl: string | null;
     createdAt: string;
 }
 
@@ -50,6 +53,7 @@ export default function TimeCorrectionPage() {
     const [requestType, setRequestType] = useState("CHECK_IN");
     const [requestedTime, setRequestedTime] = useState("08:00");
     const [reason, setReason] = useState("");
+    const [attachment, setAttachment] = useState<PendingAsset | null>(null);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -91,6 +95,7 @@ export default function TimeCorrectionPage() {
                     // Send as ISO string with timezone offset to ensure consistency
                     requestedTime: new Date(`${selectedDate}T${requestedTime}:00`).toISOString(),
                     reason,
+                    attachmentId: attachment?.id ?? null,
                 }),
             });
 
@@ -101,6 +106,7 @@ export default function TimeCorrectionPage() {
                     description: "รอผู้จัดการอนุมัติ",
                 });
                 setReason("");
+                setAttachment(null);
                 fetchRequests();
             } else {
                 toast.error(data.error || "เกิดข้อผิดพลาด");
@@ -224,6 +230,17 @@ export default function TimeCorrectionPage() {
                             />
                         </div>
 
+                        <div className="space-y-2">
+                            <Label className="text-slate-300">แนบหลักฐาน (ถ้ามี)</Label>
+                            <AssetAttachmentField
+                                kind="REQUEST_ATTACHMENT"
+                                value={attachment}
+                                onChange={setAttachment}
+                                buttonLabel="แนบรูป"
+                                helpText="เช่น รูปหน้าจอเวลา, ใบรับรอง หรือหลักฐานอื่นที่ยืนยันเวลาจริง"
+                            />
+                        </div>
+
                         <Button
                             type="submit"
                             className="w-full bg-yellow-600 hover:bg-yellow-700"
@@ -270,6 +287,11 @@ export default function TimeCorrectionPage() {
                                     </p>
                                     <p>เวลาที่ขอ: {format(new Date(req.requestedTime), "HH:mm")}</p>
                                     <p>เหตุผล: {req.reason}</p>
+                                    {req.attachmentUrl && (
+                                        <a href={req.attachmentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-400 hover:underline">
+                                            <Paperclip className="w-3.5 h-3.5" /> ดูหลักฐานที่แนบ
+                                        </a>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

@@ -1,4 +1,4 @@
-/** Shared client-side helpers for image capture/upload components under src/components/applications/. */
+/** Shared client-side helpers for the image capture/upload components under src/components/media/. */
 
 export const MAX_SOURCE_BYTES = 8 * 1024 * 1024; // 8MB — checked before any client-side processing
 export const DOCUMENT_MAX_SIDE = 1600; // long enough to keep document text legible
@@ -53,6 +53,37 @@ export async function uploadApplicationFile(kind: string, blob: Blob, filename: 
     form.append("file", blob, filename);
 
     const res = await fetch("/api/applications/files", { method: "POST", body: form });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || "upload failed");
+    return json;
+}
+
+export type UploadedAsset = {
+    id: string;
+    kind: string;
+    url: string;
+    thumbUrl: string;
+    fileName: string | null;
+    sizeBytes: number;
+    documentExpiresAt: string | null;
+};
+
+/** Uploads to the generic asset endpoint. `fields` carries the per-kind extras
+ *  (ownerUserId, documentExpiresAt, note) the endpoint understands. */
+export async function uploadAsset(
+    kind: string,
+    blob: Blob,
+    filename: string,
+    fields?: Record<string, string | null | undefined>
+): Promise<UploadedAsset> {
+    const form = new FormData();
+    form.append("kind", kind);
+    form.append("file", blob, filename);
+    for (const [key, value] of Object.entries(fields ?? {})) {
+        if (value != null && value !== "") form.append(key, value);
+    }
+
+    const res = await fetch("/api/assets", { method: "POST", body: form });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error || "upload failed");
     return json;

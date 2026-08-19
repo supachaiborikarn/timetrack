@@ -2,15 +2,15 @@ import { v2 as cloudinary } from "cloudinary";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Storage adapter for job-application attachments (photos, ID copies, resumes).
+ * Storage adapter for every image the system keeps — job-application attachments
+ * (JobApplicationFile) and everything else (StoredAsset, see src/lib/assets.ts).
  *
- * Two-phase usage: the caller first creates the JobApplicationFile row (to get
- * an id) with a placeholder driver, then calls `storage.put({ key: file.id, ... })`.
- * Both drivers persist into that same row — cloudinary writes storageKey/storageMeta,
- * the db driver writes the bytes into `data` directly. This keeps storage.ts as the
- * only place that knows how to read/write file bytes, while the JobApplicationFile
- * row (kind, applicationId, sizeBytes, etc.) stays owned by the API route that
- * creates it.
+ * Two-phase usage: the caller first creates the row (to get an id) with a
+ * placeholder driver, then calls `storage.put({ key: row.id, ... })`. Both drivers
+ * persist into that same row — cloudinary writes storageKey/storageMeta, the db
+ * driver writes the bytes into `data` directly. This keeps storage.ts as the only
+ * place that knows how to read/write file bytes, while the row's own columns
+ * (kind, owner, sizeBytes, ...) stay owned by the caller that creates it.
  */
 
 export type ResourceType = "image" | "raw";
@@ -117,12 +117,34 @@ class CloudinaryDriver implements StorageDriver {
     }
 }
 
+/**
+ * Dev-only fallback that keeps the bytes in the owning row's `data` column.
+ * Both file tables carry the same `data`/`storageDriver`/`storageKey` columns, so
+ * the driver just needs to be told which one it is writing to.
+ */
 class DbDriver implements StorageDriver {
+    constructor(private readonly table: FileTable) {}
+
+    // The two Prisma delegates have structurally different generics, so they can't be
+    // held in one variable — each operation dispatches on `table` instead.
+    private async writeData(id: string, data: Buffer | null, storageKey: string | null) {
+        const update = { data, ...(data ? { storageDriver: "db", storageKey } : {}) };
+        if (this.table === "storedAsset") {
+            await prisma.storedAsset.update({ where: { id }, data: update });
+        } else {
+            await prisma.jobApplicationFile.update({ where: { id }, data: update });
+        }
+    }
+
+    private async readData(id: string): Promise<Uint8Array | null> {
+        const row = this.table === "storedAsset"
+            ? await prisma.storedAsset.findUniqueOrThrow({ where: { id }, select: { data: true } })
+            : await prisma.jobApplicationFile.findUniqueOrThrow({ where: { id }, select: { data: true } });
+        return row.data;
+    }
+
     async put(input: { key: string; body: Buffer; mimeType: string; resourceType: ResourceType }): Promise<StoredFile> {
-        await prisma.jobApplicationFile.update({
-            where: { id: input.key },
-            data: { data: input.body, storageDriver: "db", storageKey: input.key },
-        });
+        await this.writeData(input.key, input.body, input.key);
 
         return {
             driver: "db",
@@ -139,24 +161,29 @@ class DbDriver implements StorageDriver {
     }
 
     async get(file: StoredFile): Promise<Buffer> {
-        const row = await prisma.jobApplicationFile.findUniqueOrThrow({ where: { id: file.key } });
-        if (!row.data) throw new Error(`No data stored for file ${file.key}`);
-        return Buffer.from(row.data);
+        const data = await this.readData(file.key);
+        if (!data) throw new Error(`No data stored for file ${file.key}`);
+        return Buffer.from(data);
     }
 
     async delete(file: StoredFile): Promise<void> {
-        await prisma.jobApplicationFile.update({ where: { id: file.key }, data: { data: null } }).catch(() => {
+        await this.writeData(file.key, null, null).catch(() => {
             // Row may already be gone (e.g. cascaded on application delete) — nothing left to clean up.
         });
     }
 }
 
-let cachedDriver: StorageDriver | null = null;
+/** Which table the `db` fallback driver keeps bytes in. Ignored by Cloudinary. */
+export type FileTable = "jobApplicationFile" | "storedAsset";
 
-export function getStorage(): StorageDriver {
-    if (cachedDriver) return cachedDriver;
-    cachedDriver = isCloudinaryConfigured() ? new CloudinaryDriver() : new DbDriver();
-    return cachedDriver;
+const cachedDrivers = new Map<FileTable, StorageDriver>();
+
+export function getStorage(table: FileTable = "jobApplicationFile"): StorageDriver {
+    const cached = cachedDrivers.get(table);
+    if (cached) return cached;
+    const driver = isCloudinaryConfigured() ? new CloudinaryDriver() : new DbDriver(table);
+    cachedDrivers.set(table, driver);
+    return driver;
 }
 
 export function resourceTypeForMime(mimeType: string): ResourceType {

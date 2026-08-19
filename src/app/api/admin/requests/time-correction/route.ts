@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDayBangkok } from "@/lib/date-utils";
+import { assetUrl } from "@/lib/asset-kinds";
 
 // Get pending time correction requests (for managers/admin)
 export async function GET() {
@@ -36,6 +37,7 @@ export async function GET() {
                 requestedTime: r.requestedTime.toISOString(),
                 reason: r.reason,
                 status: r.status,
+                attachmentUrl: r.attachmentId ? assetUrl(r.attachmentId) : null,
                 createdAt: r.createdAt.toISOString(),
                 user: { name: r.user.name, employeeId: r.user.employeeId },
             })),

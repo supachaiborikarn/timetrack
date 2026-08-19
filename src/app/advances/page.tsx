@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AssetAttachmentField, type PendingAsset } from "@/components/media/asset-fields";
 import {
     Banknote,
     Plus,
@@ -18,6 +19,7 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
+    Paperclip,
 } from "lucide-react";
 
 interface Advance {
@@ -28,6 +30,7 @@ interface Advance {
     reason: string | null;
     note: string | null;
     status: string;
+    attachmentUrl: string | null;
     createdAt: string;
     paidAt: string | null;
 }
@@ -47,6 +50,7 @@ export default function EmployeeAdvancesPage() {
     const [formAmount, setFormAmount] = useState("");
     const [formReason, setFormReason] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [attachment, setAttachment] = useState<PendingAsset | null>(null);
 
     const now = new Date();
     const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
@@ -83,12 +87,13 @@ export default function EmployeeAdvancesPage() {
             const res = await fetch("/api/advances", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: formAmount, reason: formReason }),
+                body: JSON.stringify({ amount: formAmount, reason: formReason, attachmentId: attachment?.id ?? null }),
             });
             if (res.ok) {
                 setShowRequestModal(false);
                 setFormAmount("");
                 setFormReason("");
+                setAttachment(null);
                 fetchAdvances();
             } else {
                 const err = await res.json();
@@ -212,6 +217,11 @@ export default function EmployeeAdvancesPage() {
                                                 {adv.reason && (
                                                     <p className="text-xs text-stone-400">{adv.reason}</p>
                                                 )}
+                                                {adv.attachmentUrl && (
+                                                    <a href={adv.attachmentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-[#F09410] hover:underline">
+                                                        <Paperclip className="w-3 h-3" /> ดูหลักฐานที่แนบ
+                                                    </a>
+                                                )}
                                                 <p className="text-[10px] text-stone-500">
                                                     {new Date(adv.createdAt).toLocaleDateString("th-TH", {
                                                         day: "numeric",
@@ -274,6 +284,16 @@ export default function EmployeeAdvancesPage() {
                                     placeholder="ระบุเหตุผลในการขอเบิก (ถ้ามี)"
                                     rows={3}
                                     className="w-full rounded-lg border border-orange-900/30 bg-[#1a1412] px-4 py-3 text-sm text-[#F0D0C7] placeholder:text-stone-600 resize-none focus:outline-none focus:border-[#F09410]/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-[#F0D0C7] mb-1.5 block">แนบหลักฐาน (ถ้ามี)</label>
+                                <AssetAttachmentField
+                                    kind="REQUEST_ATTACHMENT"
+                                    value={attachment}
+                                    onChange={setAttachment}
+                                    buttonLabel="แนบรูป"
+                                    helpText="เช่น ใบเสร็จ ใบรับรองแพทย์ หรือเอกสารที่ใช้ประกอบการพิจารณา"
                                 />
                             </div>
                         </div>

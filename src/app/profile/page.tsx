@@ -22,6 +22,7 @@ import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { PasskeyButton } from "@/components/auth/PasskeyButton";
+import { AssetPhotoField } from "@/components/media/asset-fields";
 import { useLanguage } from "@/lib/language-context";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ interface Profile {
     email: string | null;
     phone: string | null;
     role: string;
+    photoUrl: string | null;
     station: { id: string; name: string; code: string } | null;
     department: { id: string; name: string; code: string } | null;
     hourlyRate: number;
@@ -198,6 +200,25 @@ export default function ProfilePage() {
         }
     }, [session?.user?.id]);
 
+    const handlePhotoUploaded = () => {
+        // Re-read the profile so photoUrl flips from null to the avatar route the
+        // first time a photo is added; the component shows its own local preview
+        // meanwhile, so this never blocks the UI.
+        fetchProfile();
+        toast.success("อัปเดตรูปโปรไฟล์แล้ว");
+    };
+
+    const handlePhotoRemoved = async () => {
+        if (!profile?.id) return;
+        const res = await fetch(`/api/employees/${profile.id}/photo`, { method: "DELETE" });
+        if (res.ok) {
+            toast.success("ลบรูปโปรไฟล์แล้ว");
+            fetchProfile();
+        } else {
+            toast.error("ลบรูปไม่สำเร็จ");
+        }
+    };
+
     const handleRequestEdit = async (fieldName: string, newValue: string) => {
         const res = await fetch("/api/profile/edit-request", {
             method: "POST",
@@ -256,14 +277,12 @@ export default function ProfilePage() {
                 {/* ── Profile summary card ── */}
                 <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="relative shrink-0">
-                            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
-                                <User className="w-9 h-9 text-primary opacity-60" />
-                            </div>
-                            <div className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background">
-                                <Edit2 className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                        </div>
+                        <AssetPhotoField
+                            photoUrl={profile?.photoUrl ?? null}
+                            onUploaded={handlePhotoUploaded}
+                            onRemoved={handlePhotoRemoved}
+                            fallback={<User className="w-9 h-9 text-primary opacity-60" />}
+                        />
                         <div className="flex-1 min-w-0">
                             <h2 className="text-xl font-black text-foreground">{profile?.name || "-"}</h2>
                             <p className="text-sm text-muted-foreground">{profile?.employeeId || "-"}</p>

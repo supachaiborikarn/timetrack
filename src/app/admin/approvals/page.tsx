@@ -24,6 +24,7 @@ import {
     Banknote,
     Building2,
     Filter,
+    Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate, format } from "@/lib/date-utils";
@@ -36,6 +37,7 @@ interface TimeCorrection {
     requestedTime: string;
     reason: string;
     status: string;
+    attachmentUrl: string | null;
     createdAt: string;
     user: { name: string; employeeId: string };
 }
@@ -416,6 +418,11 @@ export default function ApprovalsPage() {
                                                         </p>
                                                         <p>เวลาที่ขอ: {format(new Date(req.requestedTime), "HH:mm")}</p>
                                                         <p>เหตุผล: {req.reason}</p>
+                                                        {req.attachmentUrl && (
+                                                            <a href={req.attachmentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                                                <Paperclip className="w-3.5 h-3.5" /> ดูหลักฐานที่แนบ
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">

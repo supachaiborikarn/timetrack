@@ -60,10 +60,12 @@ import {
     SlidersHorizontal,
     ArrowUpDown,
     Smartphone,
+    FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddEmployeeDialog, EditEmployeeDialog } from "@/components/employees/employee-dialogs";
+import { EmployeeDocumentsDialog } from "@/components/employees/employee-documents-dialog";
 import { BulkActionBar } from "@/components/admin/BulkActionBar";
 
 // Interfaces
@@ -75,6 +77,7 @@ interface Employee {
     phone: string;
     email: string | null;
     role: string;
+    photoUrl: string | null;
     hourlyRate: number;
     dailyRate: number | null;
     baseSalary: number | null;
@@ -130,6 +133,7 @@ export default function EmployeesPage() {
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -210,6 +214,11 @@ export default function EmployeesPage() {
         } catch {
             toast.error("เกิดข้อผิดพลาดในการปลดล็อกอุปกรณ์");
         }
+    };
+
+    const openDocumentsDialog = (emp: Employee) => {
+        setSelectedEmployee(emp);
+        setIsDocumentsDialogOpen(true);
     };
 
     const openEditDialog = (emp: Employee) => {
@@ -747,6 +756,7 @@ export default function EmployeesPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-500" onClick={() => handleResetDevice(emp)} title="ปลดล็อกอุปกรณ์"><Smartphone className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => openDocumentsDialog(emp)} title="รูปและเอกสาร"><FolderOpen className="w-4 h-4" /></Button>
                                             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(emp)} title="แก้ไข"><Pencil className="w-4 h-4" /></Button>
                                             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(emp)} title="ลบ"><Trash2 className="w-4 h-4" /></Button>
                                         </TableCell>
@@ -757,6 +767,14 @@ export default function EmployeesPage() {
                     </Card>
                 )}
             </div>
+
+            {/* Photo + document vault */}
+            <EmployeeDocumentsDialog
+                open={isDocumentsDialogOpen}
+                onOpenChange={setIsDocumentsDialogOpen}
+                employee={selectedEmployee}
+                onPhotoChanged={fetchEmployees}
+            />
 
             {/* Edit Dialog */}
             <EditEmployeeDialog

@@ -31,6 +31,7 @@ export async function GET() {
                 email: user.email,
                 phone: user.phone,
                 role: user.role,
+                photoUrl: user.photoUrl,
                 station: user.station,
                 department: user.department,
                 // Wage info

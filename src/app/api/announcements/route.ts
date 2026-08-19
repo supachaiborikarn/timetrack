@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyAnnouncement } from "@/lib/notifications";
+import { claimUploadedAsset } from "@/lib/assets";
+import { assetUrl } from "@/lib/asset-kinds";
 
 export async function GET(request: NextRequest) {
     try {
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
             })
             .map((a) => ({
                 ...a,
+                imageUrl: a.imageAssetId ? assetUrl(a.imageAssetId) : null,
                 author: {
                     ...a.author,
                     image: a.author.photoUrl,
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { title, content, isPinned, targetDepartmentIds } = await request.json();
+        const { title, content, isPinned, targetDepartmentIds, imageAssetId } = await request.json();
 
         if (!content) {
             return NextResponse.json({ error: "Content required" }, { status: 400 });
@@ -110,11 +113,19 @@ export async function POST(request: NextRequest) {
                 ? targetDepartmentIds
                 : [];
 
+        let claimedImageId: string | null;
+        try {
+            claimedImageId = await claimUploadedAsset(imageAssetId, session.user.id, "ANNOUNCEMENT_IMAGE");
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "รูปประกอบไม่ถูกต้อง" }, { status: 400 });
+        }
+
         const announcement = await prisma.announcement.create({
             data: {
                 title: title || "ข้อความ",
                 content,
                 authorId: session.user.id,
+                imageAssetId: claimedImageId,
                 isPinned: canPin ? (isPinned || false) : false,
                 targetDepartmentIds:
                     normalizedTargetDepartmentIds.length > 0
@@ -148,6 +159,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             announcement: {
                 ...announcement,
+                imageUrl: announcement.imageAssetId ? assetUrl(announcement.imageAssetId) : null,
                 author: {
                     ...announcement.author,
                     image: announcement.author.photoUrl,

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deleteAsset } from "@/lib/assets";
 
 /**
  * Removing an employee account entirely is only safe when the account has never been used for
@@ -84,6 +85,14 @@ export async function removeEmployeeAccount(userId: string): Promise<{ deleted: 
         });
         return { deleted: false, activity };
     }
+
+    // StoredAsset rows cascade with the user, but the bytes live in Cloudinary and
+    // would be left behind paying for storage nobody can reach — delete them first.
+    const assets = await prisma.storedAsset.findMany({
+        where: { ownerUserId: userId },
+        select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true },
+    });
+    for (const asset of assets) await deleteAsset(asset);
 
     await prisma.user.delete({ where: { id: userId } });
     return { deleted: true, activity };

@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { claimUploadedAsset } from "@/lib/assets";
+import { assetUrl } from "@/lib/asset-kinds";
 
 // GET - Employee's own advances
 export async function GET(req: NextRequest) {
@@ -29,7 +31,12 @@ export async function GET(req: NextRequest) {
             orderBy: { createdAt: "desc" },
         });
 
-        return NextResponse.json({ advances });
+        return NextResponse.json({
+            advances: advances.map((a) => ({
+                ...a,
+                attachmentUrl: a.attachmentId ? assetUrl(a.attachmentId) : null,
+            })),
+        });
     } catch (error) {
         console.error("Error fetching employee advances:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -45,10 +52,19 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { amount, reason } = body;
+        const { amount, reason, attachmentId } = body;
 
         if (!amount || parseFloat(amount) <= 0) {
             return NextResponse.json({ error: "กรุณาระบุจำนวนเงินที่ต้องการเบิก" }, { status: 400 });
+        }
+
+        // Same rule as the other requests: a receipt that can't be claimed fails the
+        // request outright rather than being silently dropped.
+        let claimedAttachmentId: string | null;
+        try {
+            claimedAttachmentId = await claimUploadedAsset(attachmentId, session.user.id, "REQUEST_ATTACHMENT");
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "ไฟล์แนบไม่ถูกต้อง" }, { status: 400 });
         }
 
         const now = new Date();
@@ -62,6 +78,7 @@ export async function POST(req: NextRequest) {
                 year: now.getFullYear(),
                 reason: reason || null,
                 status: "PENDING",
+                attachmentId: claimedAttachmentId,
             },
         });
 

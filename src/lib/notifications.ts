@@ -7,7 +7,8 @@ type NotificationType =
     | "ANNOUNCEMENT"
     | "SWAP_REQUEST"
     | "APPROVAL"
-    | "APPLICATION_SUBMITTED";
+    | "APPLICATION_SUBMITTED"
+    | "DOCUMENT_EXPIRY";
 
 interface CreateNotificationParams {
     userId: string;

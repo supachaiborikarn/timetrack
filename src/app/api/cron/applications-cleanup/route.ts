@@ -3,10 +3,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStorage } from "@/lib/storage";
 import { createNotifications } from "@/lib/notifications";
+import { deleteAsset } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 
 const STALE_SUBMITTED_DAYS = 7;
+/** How long an unattached upload is left alone before it counts as abandoned. */
+const ORPHAN_ASSET_GRACE_MS = 24 * 60 * 60 * 1000;
 
 function hasValidCronSecret(request: NextRequest): boolean {
     const cronSecret = process.env.CRON_SECRET;
@@ -59,7 +62,31 @@ async function run() {
         where: { id: { in: expiredApplications.map((a) => a.id) } },
     });
 
-    // 3. Nudge HR about applications sitting untouched in SUBMITTED for too long.
+    // 3. Uploads that never became anything: either their purge deadline passed, or
+    //    whatever referenced them was deleted and the SET NULL left them unreachable.
+    const assetCutoff = new Date(now.getTime() - ORPHAN_ASSET_GRACE_MS);
+    const orphanAssets = await prisma.storedAsset.findMany({
+        where: {
+            OR: [
+                { purgeAfter: { lt: now } },
+                {
+                    kind: { in: ["REQUEST_ATTACHMENT", "ANNOUNCEMENT_IMAGE"] },
+                    createdAt: { lt: assetCutoff },
+                    timeCorrections: { none: {} },
+                    advances: { none: {} },
+                    announcements: { none: {} },
+                },
+                // Rows stuck mid-upload: createAsset writes the row first and only
+                // then the bytes, so a process that died in between leaves a row that
+                // still says "pending" and points at nothing.
+                { storageDriver: "pending", createdAt: { lt: assetCutoff } },
+            ],
+        },
+        select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true },
+    });
+    for (const asset of orphanAssets) await deleteAsset(asset);
+
+    // 4. Nudge HR about applications sitting untouched in SUBMITTED for too long.
     const staleCutoff = new Date(now.getTime() - STALE_SUBMITTED_DAYS * 24 * 60 * 60 * 1000);
     const staleCount = await prisma.jobApplication.count({
         where: { status: "SUBMITTED", createdAt: { lt: staleCutoff } },
@@ -89,6 +116,7 @@ async function run() {
         orphanStorageDeleted,
         applicationsPurged: expiredDeleted.count,
         purgedStorageDeleted: expiredStorageDeleted,
+        orphanAssetsDeleted: orphanAssets.length,
         staleSubmittedCount: staleCount,
         notifiedUsers: notified,
     };

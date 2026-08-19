@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assetUrl } from "@/lib/asset-kinds";
+import { deleteAsset } from "@/lib/assets";
 
 // GET: Get a single announcement with comments
 export async function GET(
@@ -56,6 +58,7 @@ export async function GET(
 
         const enrichedAnnouncement = {
             ...announcement,
+            imageUrl: announcement.imageAssetId ? assetUrl(announcement.imageAssetId) : null,
             author: {
                 ...announcement.author,
                 image: announcement.author.photoUrl,
@@ -99,7 +102,10 @@ export async function PUT(
         // Check if announcement exists
         const existing = await prisma.announcement.findUnique({
             where: { id },
-            select: { authorId: true },
+            select: {
+                authorId: true,
+                image: { select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true } },
+            },
         });
 
         if (!existing) {
@@ -149,6 +155,7 @@ export async function PUT(
         return NextResponse.json({
             announcement: {
                 ...updated,
+                imageUrl: updated.imageAssetId ? assetUrl(updated.imageAssetId) : null,
                 author: {
                     ...updated.author,
                     image: updated.author.photoUrl,
@@ -176,7 +183,10 @@ export async function DELETE(
 
         const existing = await prisma.announcement.findUnique({
             where: { id },
-            select: { authorId: true },
+            select: {
+                authorId: true,
+                image: { select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true } },
+            },
         });
 
         if (!existing) {
@@ -196,6 +206,10 @@ export async function DELETE(
         }
 
         await prisma.announcement.delete({ where: { id } });
+
+        // The FK is SET NULL, so the image would otherwise survive its only
+        // reference and sit in Cloudinary forever.
+        if (existing.image) await deleteAsset(existing.image);
 
         return NextResponse.json({ success: true });
     } catch (error) {

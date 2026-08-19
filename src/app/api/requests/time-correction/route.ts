@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDayBangkok } from "@/lib/date-utils";
+import { claimUploadedAsset } from "@/lib/assets";
+import { assetUrl } from "@/lib/asset-kinds";
 
 export async function GET() {
     try {
@@ -24,6 +26,7 @@ export async function GET() {
                 requestedTime: r.requestedTime.toISOString(),
                 reason: r.reason,
                 status: r.status,
+                attachmentUrl: r.attachmentId ? assetUrl(r.attachmentId) : null,
                 createdAt: r.createdAt.toISOString(),
             })),
         });
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { date, requestType, requestedTime, reason } = body;
+        const { date, requestType, requestedTime, reason, attachmentId } = body;
 
         if (!date || !requestType || !requestedTime || !reason) {
             return NextResponse.json(
@@ -61,6 +64,16 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Claim the evidence photo before the request row is written — a bad or
+        // already-used attachment should fail the whole request, not create a
+        // correction that silently lost its evidence.
+        let claimedAttachmentId: string | null;
+        try {
+            claimedAttachmentId = await claimUploadedAsset(attachmentId, session.user.id, "REQUEST_ATTACHMENT");
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "ไฟล์แนบไม่ถูกต้อง" }, { status: 400 });
+        }
+
         // Create time correction request
         const correction = await prisma.timeCorrection.create({
             data: {
@@ -71,6 +84,7 @@ export async function POST(request: NextRequest) {
                 reason,
                 originalCheckIn: attendance?.checkInTime,
                 originalCheckOut: attendance?.checkOutTime,
+                attachmentId: claimedAttachmentId,
             },
         });
 

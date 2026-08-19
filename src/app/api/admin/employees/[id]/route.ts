@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { deleteAsset } from "@/lib/assets";
 
 // GET: Get single employee
 export async function GET(
@@ -188,6 +189,14 @@ export async function DELETE(
         if (!existing) {
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
         }
+
+        // Their stored images cascade with the row, but the bytes sit in Cloudinary and
+        // would be orphaned there — remove them before the row that points at them.
+        const assets = await prisma.storedAsset.findMany({
+            where: { ownerUserId: id },
+            select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true },
+        });
+        for (const asset of assets) await deleteAsset(asset);
 
         // Hard delete - permanently remove from database
         await prisma.user.delete({

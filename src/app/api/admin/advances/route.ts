@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assetUrl } from "@/lib/asset-kinds";
 
 function parseAmount(value: unknown, allowZero = true): number | null {
     const amount = Number(value);
@@ -85,7 +86,10 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json({
-            advances,
+            advances: advances.map((a) => ({
+                ...a,
+                attachmentUrl: a.attachmentId ? assetUrl(a.attachmentId) : null,
+            })),
             summary: {
                 totalCount: advances.length,
                 totalAmount,

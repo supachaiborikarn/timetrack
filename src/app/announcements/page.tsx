@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
+import { AssetAttachmentField, type PendingAsset } from "@/components/media/asset-fields";
 import {
     Breadcrumb,
     BreadcrumbList,
@@ -41,6 +42,7 @@ interface Announcement {
     isRead: boolean;
     readCount: number;
     targetDepartmentIds: string | null;
+    imageUrl: string | null;
     createdAt: string;
     author: {
         id: string;
@@ -68,6 +70,7 @@ export default function AnnouncementsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostTitle, setNewPostTitle] = useState("");
+    const [newPostImage, setNewPostImage] = useState<PendingAsset | null>(null);
     const [isPosting, setIsPosting] = useState(false);
     const [isPinned, setIsPinned] = useState(false);
     const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
@@ -128,12 +131,14 @@ export default function AnnouncementsPage() {
                     content: newPostContent,
                     isPinned,
                     targetDepartmentIds: selectedDeptIds.length > 0 ? selectedDeptIds : undefined,
+                    imageAssetId: newPostImage?.id ?? null,
                 }),
             });
 
             if (res.ok) {
                 setNewPostContent("");
                 setNewPostTitle("");
+                setNewPostImage(null);
                 setIsPinned(false);
                 setSelectedDeptIds([]);
                 toast.success("โพสต์เรียบร้อยแล้ว");
@@ -319,6 +324,14 @@ export default function AnnouncementsPage() {
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
                                 className="min-h-[140px] resize-none rounded-xl"
+                            />
+
+                            <AssetAttachmentField
+                                kind="ANNOUNCEMENT_IMAGE"
+                                value={newPostImage}
+                                onChange={setNewPostImage}
+                                buttonLabel="แนบรูปประกอบ"
+                                helpText="รูปเดียวต่อประกาศ เช่น ตารางกะ โปสเตอร์ หรือรูปกิจกรรม"
                             />
 
                             {/* Admin/Manager controls */}
@@ -536,10 +549,19 @@ export default function AnnouncementsPage() {
                                                     )}
                                                 </div>
                                             </CardHeader>
-                                            <CardContent className="pb-4">
+                                            <CardContent className="space-y-3 pb-4">
                                                 <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
                                                     {post.content}
                                                 </p>
+                                                {post.imageUrl && (
+                                                    // eslint-disable-next-line @next/next/no-img-element -- authenticated route, not a static asset
+                                                    <img
+                                                        src={post.imageUrl}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        className="max-h-72 w-full rounded-2xl border object-cover"
+                                                    />
+                                                )}
                                             </CardContent>
                                             <CardFooter className="flex flex-col gap-3 border-t bg-slate-50/70 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
                                                 <Button
