@@ -26,6 +26,17 @@ export function isHousingStatus(value: unknown): value is HousingStatus {
 
 export type SelfReportedHousingStatus = Extract<HousingStatus, "COMPANY_DORM" | "OWN_HOUSING">;
 
+/**
+ * Did the employee enter this themselves, rather than HR recording it for them?
+ *
+ * Matters because the same field decides a monthly payment: an employee can set
+ * themselves to OWN_HOUSING and become eligible, so whoever runs the payout needs
+ * to see which rows are self-reported rather than confirmed by HR.
+ */
+export function isSelfReportedHousing(userId: string, housingUpdatedById: string | null): boolean {
+    return housingUpdatedById !== null && housingUpdatedById === userId;
+}
+
 /** Statuses an employee may choose for their own current accommodation. */
 export function isSelfReportedHousingStatus(value: unknown): value is SelfReportedHousingStatus {
     return value === "COMPANY_DORM" || value === "OWN_HOUSING";

@@ -42,6 +42,9 @@ export async function PATCH(request: Request) {
                 housingStatus,
                 dormitoryId: resolvedDormitoryId,
                 housingUpdatedAt: new Date(),
+                // Stamped with the employee's own id, which is what marks the row as
+                // self-reported in the admin roster and the allowance preview.
+                housingUpdatedById: session.user.id,
             },
         });
 

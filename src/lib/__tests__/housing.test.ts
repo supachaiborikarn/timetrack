@@ -6,6 +6,7 @@ import {
     findHousingIssues,
     isEligibleForHousingAllowance,
     isHousingStatus,
+    isSelfReportedHousing,
     isSelfReportedHousingStatus,
     monthRange,
 } from "../housing";
@@ -120,5 +121,21 @@ describe("isSelfReportedHousingStatus", () => {
     it("does not let an employee submit the unanswered survey status", () => {
         expect(isSelfReportedHousingStatus("UNKNOWN")).toBe(false);
         expect(isSelfReportedHousingStatus("anything-else")).toBe(false);
+    });
+});
+
+describe("isSelfReportedHousing", () => {
+    it("is self-reported when the employee stamped their own record", () => {
+        expect(isSelfReportedHousing("u1", "u1")).toBe(true);
+    });
+
+    it("is not self-reported when HR recorded it", () => {
+        expect(isSelfReportedHousing("u1", "hr1")).toBe(false);
+    });
+
+    it("treats a record from before this was tracked as not self-reported", () => {
+        // Rows written before housingUpdatedById existed have null, and must not be
+        // labelled as employee-entered on no evidence.
+        expect(isSelfReportedHousing("u1", null)).toBe(false);
     });
 });

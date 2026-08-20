@@ -9,6 +9,7 @@ import {
     findHousingIssues,
     isEligibleForHousingAllowance,
     isHousingStatus,
+    isSelfReportedHousing,
 } from "@/lib/housing";
 import type { Role } from "@prisma/client";
 
@@ -52,6 +53,8 @@ export async function GET(request: NextRequest) {
                     housingAllowance: true,
                     housingNote: true,
                     housingUpdatedAt: true,
+                    housingUpdatedById: true,
+                    housingUpdatedBy: { select: { id: true, name: true } },
                     dormitoryId: true,
                     dormitory: { select: { id: true, name: true, code: true, stationId: true, station: { select: { id: true, name: true } } } },
                 },
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
                 dormitoryStationId: e.dormitory?.stationId ?? null,
             });
             const eligible = isEligibleForHousingAllowance(e.housingStatus);
+            const selfReported = isSelfReportedHousing(e.id, e.housingUpdatedById);
 
             return {
                 id: e.id,
@@ -80,6 +84,8 @@ export async function GET(request: NextRequest) {
                 dormitory: e.dormitory ? { id: e.dormitory.id, name: e.dormitory.name, code: e.dormitory.code, station: e.dormitory.station } : null,
                 housingNote: e.housingNote,
                 housingUpdatedAt: e.housingUpdatedAt,
+                selfReported,
+                updatedByName: e.housingUpdatedBy?.name ?? null,
                 housingAllowance: e.housingAllowance == null ? null : Number(e.housingAllowance),
                 effectiveAllowance: eligible
                     ? effectiveHousingAllowance(e.housingAllowance == null ? null : Number(e.housingAllowance), companyDefault)
@@ -97,6 +103,7 @@ export async function GET(request: NextRequest) {
                 companyDorm: rows.filter((r) => r.housingStatus === "COMPANY_DORM").length,
                 ownHousing: rows.filter((r) => r.housingStatus === "OWN_HOUSING").length,
                 withIssues: rows.filter((r) => r.issues.length > 0).length,
+                selfReported: rows.filter((r) => r.selfReported).length,
                 monthlyAllowanceTotal: rows.reduce((sum, r) => sum + r.effectiveAllowance, 0),
             },
         });
@@ -153,6 +160,7 @@ export async function PATCH(request: NextRequest) {
                 housingAllowance: parsedAllowance,
                 housingNote: housingNote?.trim() || null,
                 housingUpdatedAt: new Date(),
+                housingUpdatedById: session.user.id,
             },
         });
 

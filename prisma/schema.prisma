@@ -55,6 +55,9 @@ model User {
   housingAllowance           Decimal?
   housingNote                String?
   housingUpdatedAt           DateTime?
+  /// ใครเป็นคนบันทึกล่าสุด — ถ้าเท่ากับตัวพนักงานเองแปลว่าเจ้าตัวแจ้งมา
+  /// ซึ่งคนกดจ่ายค่าที่พักควรเห็น เพราะเป็นข้อมูลที่ผู้รับเงินกรอกเอง
+  housingUpdatedById         String?
   registeredStationId        String?
   socialSecurityNumber       String?
   startDate                  DateTime?              @default(now())
@@ -92,6 +95,8 @@ model User {
   ownedAssets                StoredAsset[]          @relation("AssetOwner")
   uploadedAssets             StoredAsset[]          @relation("AssetUploader")
   dormitory                  Dormitory?             @relation("EmployeeDormitory", fields: [dormitoryId], references: [id], onDelete: SetNull)
+  housingUpdatedBy           User?                  @relation("HousingUpdatedBy", fields: [housingUpdatedById], references: [id], onDelete: SetNull)
+  housingUpdatesMade         User[]                 @relation("HousingUpdatedBy")
 
   @@index([stationId])
   @@index([departmentId])

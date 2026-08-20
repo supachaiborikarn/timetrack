@@ -64,6 +64,8 @@ interface HousingRow {
     dormitory: { id: string; name: string; code: string; station: { id: string; name: string } | null } | null;
     housingNote: string | null;
     housingUpdatedAt: string | null;
+    selfReported: boolean;
+    updatedByName: string | null;
     housingAllowance: number | null;
     effectiveAllowance: number;
     issues: HousingIssue[];
@@ -75,13 +77,14 @@ interface RosterSummary {
     companyDorm: number;
     ownHousing: number;
     withIssues: number;
+    selfReported: number;
     monthlyAllowanceTotal: number;
 }
 
 interface AllowancePreview {
     monthLabel: string;
     effectiveDate: string;
-    summary: { eligible: number; pending: number; alreadyIssued: number; pendingAmount: number; zeroAmount: number };
+    summary: { eligible: number; pending: number; alreadyIssued: number; pendingAmount: number; zeroAmount: number; selfReported: number };
 }
 
 const money = (n: number) => `฿${n.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -117,6 +120,9 @@ export default function HousingPage() {
     const [dormDialogOpen, setDormDialogOpen] = useState(false);
     const [editingDorm, setEditingDorm] = useState<Dormitory | null>(null);
     const [dormForm, setDormForm] = useState({ name: "", code: "", address: "", stationId: "none", capacity: "", note: "" });
+    // Set when the dormitory dialog was opened from inside the assignment dialog, so
+    // the user lands back on the employee they were editing instead of an empty page.
+    const [resumeRow, setResumeRow] = useState<HousingRow | null>(null);
 
     // Allowance
     const now = new Date();
@@ -214,6 +220,10 @@ export default function HousingPage() {
     }
 
     function openDormDialog(dorm?: Dormitory) {
+        if (editingRow) {
+            setResumeRow(editingRow);
+            setEditingRow(null);
+        }
         setEditingDorm(dorm || null);
         setDormForm({
             name: dorm?.name || "",
@@ -246,7 +256,16 @@ export default function HousingPage() {
             if (res.ok) {
                 toast.success(editingDorm ? "แก้ไขที่พักแล้ว" : "เพิ่มที่พักแล้ว");
                 setDormDialogOpen(false);
-                fetchAll();
+                await fetchAll();
+                if (resumeRow) {
+                    // Preselect the dormitory that was just created — it is almost
+                    // always the one they interrupted themselves to add.
+                    if (!editingDorm && data.dormitory?.id) {
+                        setAssignForm((f) => ({ ...f, dormitoryId: data.dormitory.id }));
+                    }
+                    setEditingRow(resumeRow);
+                    setResumeRow(null);
+                }
             } else {
                 toast.error(data.error || "บันทึกไม่สำเร็จ");
             }
@@ -344,6 +363,25 @@ export default function HousingPage() {
 
                 {/* ── Roster ─────────────────────────────────────────────── */}
                 <TabsContent value="roster" className="space-y-4 pt-4">
+                    {activeDormitories.length === 0 && (
+                        <Card className="border-amber-500/30 bg-amber-500/5">
+                            <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                                    <div>
+                                        <p className="text-sm font-medium">ยังไม่ได้เพิ่มบ้านพักเข้าระบบ</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            จนกว่าจะเพิ่ม จะเลือก &ldquo;อยู่บ้านพักบริษัท&rdquo; ไม่ได้ ทั้งฝั่งนี้และฝั่งที่พนักงานกรอกเอง
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button onClick={() => openDormDialog()} className="shrink-0">
+                                    <Plus className="mr-2 h-4 w-4" /> เพิ่มบ้านพัก
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card>
                         <CardContent className="flex flex-col gap-3 py-4 md:flex-row md:items-center">
                             <div className="relative flex-1">
@@ -409,6 +447,15 @@ export default function HousingPage() {
                                                         <AlertTriangle className="h-3 w-3" /> {HOUSING_ISSUE_LABELS[issue]}
                                                     </div>
                                                 ))}
+                                                {row.housingStatus !== "UNKNOWN" && (
+                                                    <div className="mt-1 text-xs text-muted-foreground">
+                                                        {row.selfReported
+                                                            ? "พนักงานแจ้งเอง — ยังไม่ได้ตรวจสอบ"
+                                                            : row.updatedByName
+                                                                ? `บันทึกโดย ${row.updatedByName}`
+                                                                : null}
+                                                    </div>
+                                                )}
                                                 {row.housingNote && <div className="mt-1 text-xs text-muted-foreground">{row.housingNote}</div>}
                                             </TableCell>
                                             <TableCell className="hidden lg:table-cell text-right">
@@ -532,6 +579,15 @@ export default function HousingPage() {
                                         <p>รวมเป็นเงิน <strong className="text-emerald-600">{money(preview.summary.pendingAmount)}</strong></p>
                                     </div>
                                     <p className="mt-2 text-xs text-muted-foreground">ลงวันที่ {preview.effectiveDate} (วันสุดท้ายของเดือน)</p>
+                                    {preview.summary.selfReported > 0 && (
+                                        <p className="mt-2 flex items-start gap-1 text-xs text-amber-600">
+                                            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                                            <span>
+                                                ในจำนวนนี้ {preview.summary.selfReported} คนเป็นข้อมูลที่พนักงานแจ้งเอง ยังไม่มีใครตรวจสอบ
+                                                — ดูรายชื่อได้ที่แท็บผังพนักงาน
+                                            </span>
+                                        </p>
+                                    )}
                                     {preview.summary.zeroAmount > 0 && (
                                         <p className="mt-2 flex items-center gap-1 text-xs text-amber-600">
                                             <AlertTriangle className="h-3 w-3" />
@@ -575,8 +631,14 @@ export default function HousingPage() {
                         {assignForm.housingStatus === "COMPANY_DORM" && (
                             <div className="space-y-1.5">
                                 <Label>อยู่บ้านพักหลังไหน</Label>
-                                <Select value={assignForm.dormitoryId} onValueChange={(v) => setAssignForm((f) => ({ ...f, dormitoryId: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="เลือกที่พัก" /></SelectTrigger>
+                                <Select
+                                    value={assignForm.dormitoryId}
+                                    onValueChange={(v) => setAssignForm((f) => ({ ...f, dormitoryId: v }))}
+                                    disabled={activeDormitories.length === 0}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={activeDormitories.length === 0 ? "ยังไม่มีบ้านพักในระบบ" : "เลือกที่พัก"} />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         {activeDormitories.map((d) => (
                                             <SelectItem key={d.id} value={d.id}>
@@ -585,7 +647,14 @@ export default function HousingPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {activeDormitories.length === 0 && <p className="text-xs text-destructive">ยังไม่ได้เพิ่มที่พัก — ไปที่แท็บ &ldquo;ที่พัก&rdquo; ก่อน</p>}
+                                {activeDormitories.length === 0 && (
+                                    <div className="rounded-lg border border-dashed p-3 text-center">
+                                        <p className="text-xs text-muted-foreground">ยังไม่ได้เพิ่มบ้านพักเข้าระบบ จึงยังไม่มีให้เลือก</p>
+                                        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => openDormDialog()}>
+                                            <Plus className="mr-2 h-4 w-4" /> เพิ่มบ้านพักตอนนี้
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -618,7 +687,16 @@ export default function HousingPage() {
             </Dialog>
 
             {/* ── Dormitory dialog ───────────────────────────────────────── */}
-            <Dialog open={dormDialogOpen} onOpenChange={setDormDialogOpen}>
+            <Dialog
+                open={dormDialogOpen}
+                onOpenChange={(open) => {
+                    setDormDialogOpen(open);
+                    if (!open && resumeRow) {
+                        setEditingRow(resumeRow);
+                        setResumeRow(null);
+                    }
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{editingDorm ? "แก้ไขที่พัก" : "เพิ่มที่พัก"}</DialogTitle>
@@ -663,7 +741,7 @@ export default function HousingPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDormDialogOpen(false)}>ยกเลิก</Button>
+                        <Button variant="ghost" onClick={() => { setDormDialogOpen(false); if (resumeRow) { setEditingRow(resumeRow); setResumeRow(null); } }}>ยกเลิก</Button>
                         <Button onClick={saveDormitory} disabled={isSaving || !dormForm.name.trim() || !dormForm.code.trim()}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}บันทึก
                         </Button>

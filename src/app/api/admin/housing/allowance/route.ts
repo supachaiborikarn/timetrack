@@ -9,6 +9,7 @@ import {
     effectiveHousingAllowance,
     formatMonthLabel,
     HOUSING_ALLOWANCE_INCOME_TYPE,
+    isSelfReportedHousing,
     monthRange,
 } from "@/lib/housing";
 import type { Role } from "@prisma/client";
@@ -30,6 +31,8 @@ type Candidate = {
     stationName: string | null;
     amount: number;
     alreadyIssued: boolean;
+    /** The employee set their own status, so nobody at HR has confirmed it yet. */
+    selfReported: boolean;
 };
 
 function parsePeriod(request: NextRequest): { year: number; month: number } | null {
@@ -53,6 +56,7 @@ async function collect(year: number, month: number): Promise<{ candidates: Candi
             name: true,
             stationId: true,
             housingAllowance: true,
+            housingUpdatedById: true,
             station: { select: { name: true } },
         },
     });
@@ -79,6 +83,7 @@ async function collect(year: number, month: number): Promise<{ candidates: Candi
             stationName: e.station?.name ?? null,
             amount: effectiveHousingAllowance(e.housingAllowance == null ? null : Number(e.housingAllowance), companyDefault),
             alreadyIssued: issuedUserIds.has(e.id),
+            selfReported: isSelfReportedHousing(e.id, e.housingUpdatedById),
         })),
     };
 }
@@ -110,6 +115,7 @@ export async function GET(request: NextRequest) {
                 alreadyIssued: candidates.length - pending.length,
                 pendingAmount: pending.reduce((sum, c) => sum + c.amount, 0),
                 zeroAmount: pending.filter((c) => c.amount <= 0).length,
+                selfReported: pending.filter((c) => c.selfReported).length,
             },
         });
     } catch (error) {
