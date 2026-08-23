@@ -255,6 +255,8 @@ export function FeedbackForm() {
     const [dangerStatus, setDangerStatus] = useState<"YES" | "NO" | "UNSURE" | null>(null);
     const [noDetail, setNoDetail] = useState(false);
     const startedAtRef = useRef<number>(Date.now());
+    // จำหน้าที่ลูกค้ากดลิงก์แจ้งเหตุเพื่อกลับมาต่อได้ถูกต้อง (§7 รักษาร่างเดิมไว้)
+    const [preIncidentScreen, setPreIncidentScreen] = useState<Screen>("resolve");
     const headingRef = useRef<HTMLHeadingElement>(null);
 
     // โหลด token จาก URL fragment แล้ว resolve + ลบ fragment
@@ -293,7 +295,9 @@ export function FeedbackForm() {
                 body: JSON.stringify(token ? { token } : { manualCode: code }),
             });
             if (!res.ok) {
-                setResolveError(DICT[lang].resolveFail);
+                // ใช้ข้อความจริงจาก server (เช่น ระบบยังไม่เปิด / rate limit) แล้วจึง fallback
+                const data = await res.json().catch(() => null);
+                setResolveError(typeof data?.error === "string" ? data.error : DICT[lang].resolveFail);
                 return;
             }
             const data: ResolveResult = await res.json();
@@ -528,11 +532,14 @@ export function FeedbackForm() {
         </header>
     );
 
-    const incidentFooter = !["incident-type", "incident-danger", "incident-detail", "done", "incident-done"].includes(screen) ? (
+    const incidentFooter = !["incident-intro", "incident-type", "incident-danger", "incident-detail", "done", "incident-done"].includes(screen) ? (
         <div className="px-4 pb-8 pt-2">
             <button
                 type="button"
-                onClick={() => setScreen("incident-intro")}
+                onClick={() => {
+                    setPreIncidentScreen(screen);
+                    setScreen("incident-intro");
+                }}
                 className="w-full min-h-[44px] rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600"
             >
                 {t.incidentLink}
@@ -949,7 +956,7 @@ export function FeedbackForm() {
                 <a href="tel:1669" className="flex min-h-[44px] items-center justify-center rounded-lg border border-neutral-300 px-4 py-2 font-semibold">1669</a>
                 {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
                 {primaryBtn(t.incidentGo, () => void startIncident())}
-                {result && secondaryBtn(t.incidentBack, () => setScreen("confirm-target"))}
+                {secondaryBtn(t.incidentBack, () => setScreen(preIncidentScreen))}
             </div>
         );
     }

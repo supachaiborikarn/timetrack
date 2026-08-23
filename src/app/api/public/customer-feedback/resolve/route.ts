@@ -53,6 +53,36 @@ async function recordResolve(resolverType: "TOKEN" | "MANUAL_CODE", result: "SUC
     }).catch(() => undefined);
 }
 
+/**
+ * แจ้ง ADMIN ครั้งเดียวต่อหน้าต่างนาทีที่ invalid-resolve breaker ทำงาน
+ * กันซ้ำด้วย Notification.eventKey (partial unique) + AlertLog (unique ต่อ window)
+ */
+async function alertInvalidResolveBreaker(now: Date): Promise<void> {
+    try {
+        const admins = await prisma.user.findMany({
+            where: { role: "ADMIN", isActive: true },
+            select: { id: true },
+        });
+        const windowKey = `${Math.floor(now.getTime() / 60_000)}`;
+        if (admins.length > 0) {
+            await prisma.notification.createMany({
+                data: admins.map((a) => ({
+                    userId: a.id,
+                    type: "CUSTOMER_FEEDBACK",
+                    title: "พบจำนวนการ resolve ที่ไม่สำเร็จผิดปกติ",
+                    message: "ระบบตรวจพบความพยายามเปิดแบบประเมินเกินเพดานของทั้งระบบ — อาจมีการสแกน/ทดลองรหัสแบบอัตโนมัติ",
+                    link: "/admin/customer-feedback",
+                    eventKey: `feedback-breaker:invalid-resolve:${windowKey}`,
+                })),
+                skipDuplicates: true,
+            }).catch(() => undefined);
+        }
+    } catch {
+        // แจ้งเตือนพังไม่ควรทำให้ request หลักพัง — log ไว้ที่ server เท่านั้น
+        console.error("Failed to alert invalid-resolve breaker");
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
@@ -127,9 +157,15 @@ export async function POST(request: NextRequest) {
         }
 
         // circuit breaker ชั้นนอกสุด — คำขอที่ resolve ไม่ผ่านทั้งระบบต่อนาที
+        // §14.1: เมื่อ breaker ทำงานต้องแจ้งผู้ดูแล — eventKey กันส่งซ้ำต่อหน้าต่างเดียวกัน
         const rejectInvalid = async (result: "INVALID" | "INACTIVE") => {
             await recordResolve(resolverType, result);
-            await checkGlobalLimit("global-invalid-resolve", GLOBAL_LIMITS.invalidResolvePerMinute, 60 * 1000);
+            const breaker = await checkGlobalLimit(
+                "global-invalid-resolve", GLOBAL_LIMITS.invalidResolvePerMinute, 60 * 1000
+            );
+            if (!breaker.allowed) {
+                await alertInvalidResolveBreaker(now);
+            }
             return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 404 }));
         };
 
