@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
-import { getFeedbackAccessContext } from "@/lib/customer-feedback/access";
+import { getFeedbackAccessContext, getStationScope } from "@/lib/customer-feedback/access";
 import { buildQrSecrets, buildFeedbackUrl, buildManualEntryUrl } from "@/lib/customer-feedback/token";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 import { resolveEmployeePublicLabel, duplicateLabelWarning } from "@/lib/customer-feedback/public-identity";
@@ -22,24 +22,37 @@ export async function GET(request: NextRequest) {
     const perm = await hasPermission(access.ctx.role, "customer_feedback.manage");
     if (!perm) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
 
+    // MANAGER ต้องเห็นเฉพาะสถานีตัวเอง — เดิมไม่ได้ scope ทำให้เห็น QR ทุกสถานี
+    const scope = await getStationScope(access.ctx);
+    if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
+
     const url = request.nextUrl;
     const targetType = url.searchParams.get("targetType") === "STATION" ? "STATION" : url.searchParams.get("targetType") === "EMPLOYEE" ? "EMPLOYEE" : undefined;
-    const stationId = url.searchParams.get("stationId") ?? undefined;
+    const requestedStationId = url.searchParams.get("stationId") ?? undefined;
+    const stationId = scope.stationId ?? requestedStationId;
     const search = url.searchParams.get("search") ?? undefined;
+
+    // เงื่อนไขสถานีกับเงื่อนไขค้นหาต่างก็เป็น OR ต้องรวมด้วย AND
+    // ไม่งั้นคีย์ OR ตัวหลังทับตัวหน้า แล้ว scope ของ MANAGER จะหายไปเงียบ ๆ ตอนมีคำค้น
+    const conditions: import("@prisma/client").Prisma.CustomerFeedbackQrWhereInput[] = [];
+    if (stationId) {
+        // QR พนักงานผูกกับคน ไม่ใช่สถานี จึงกรองผ่านสถานีของพนักงานด้วย
+        conditions.push({ OR: [{ stationId }, { employee: { stationId } }] });
+    }
+    if (search) {
+        conditions.push({
+            OR: [
+                { publicLabel: { contains: search } },
+                { employee: { name: { contains: search } } },
+                { employee: { employeeId: { contains: search } } },
+                { station: { name: { contains: search } } },
+            ],
+        });
+    }
 
     const where: import("@prisma/client").Prisma.CustomerFeedbackQrWhereInput = {
         ...(targetType ? { targetType } : {}),
-        ...(stationId ? { stationId } : {}),
-        ...(search
-            ? {
-                  OR: [
-                      { publicLabel: { contains: search } },
-                      { employee: { name: { contains: search } } },
-                      { employee: { employeeId: { contains: search } } },
-                      { station: { name: { contains: search } } },
-                  ],
-              }
-            : {}),
+        ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
     const qrs = await prisma.customerFeedbackQr.findMany({

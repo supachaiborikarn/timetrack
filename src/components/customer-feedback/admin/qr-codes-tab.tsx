@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Printer, RefreshCcw, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
+import { EmployeePickerDialog } from "./employee-picker-dialog";
 
 interface QrRow {
     id: string;
@@ -35,6 +36,7 @@ export function QrCodesTab() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [targetType, setTargetType] = useState<"EMPLOYEE" | "STATION">("EMPLOYEE");
+    const [pickerOpen, setPickerOpen] = useState(false);
 
     const load = useCallback(async () => {
         const res = await fetch(`/api/admin/customer-feedback/qr-codes?targetType=${targetType}${search ? `&search=${encodeURIComponent(search)}` : ""}`);
@@ -99,9 +101,7 @@ export function QrCodesTab() {
         });
     };
 
-    const createForEmployee = async () => {
-        const employeeCode = window.prompt("รหัสพนักงาน (employeeId) ที่ต้องการสร้าง QR:");
-        if (!employeeCode) return;
+    const createForEmployee = async (employeeCode: string) => {
         const res = await fetch("/api/admin/customer-feedback/qr-codes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -154,7 +154,7 @@ export function QrCodesTab() {
                     <Button size="sm" onClick={() => void load()}><Loader2 className={isLoading ? "mr-2 h-4 w-4 animate-spin" : "hidden"} />ค้นหา</Button>
                     <div className="ml-auto flex gap-1">
                         {targetType === "EMPLOYEE" ? (
-                            <Button size="sm" variant="outline" onClick={() => void createForEmployee()}><QrCode className="mr-1 h-4 w-4" />สร้าง QR พนักงาน</Button>
+                            <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR พนักงาน</Button>
                         ) : (
                             <Button size="sm" variant="outline" onClick={() => void createForStation()}><QrCode className="mr-1 h-4 w-4" />สร้าง QR สถานี</Button>
                         )}
@@ -244,6 +244,12 @@ export function QrCodesTab() {
                     </Table>
                 </CardContent>
             </Card>
+
+            <EmployeePickerDialog
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
+                onSelect={createForEmployee}
+            />
         </div>
     );
 }
