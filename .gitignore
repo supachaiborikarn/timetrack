@@ -63,3 +63,6 @@ credentials*.json
 
 # ไฟล์ SQL ที่ npm run db:diff สร้างขึ้นมาดูเฉย ๆ
 prisma/migrations-preview.sql
+
+# ป้าย QR ที่มีรหัสจริงอยู่ข้างใน — ห้าม commit
+tmp/employee-feedback-badges.html

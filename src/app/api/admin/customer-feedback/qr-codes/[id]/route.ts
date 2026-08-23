@@ -111,7 +111,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     await tx.customerFeedbackQr.update({
                         where: { id },
                         data: {
-                            ...secrets,
+                            ...secrets.columns,
                             version: { increment: 1 },
                             isActive: false,
                             needsReprint: true,

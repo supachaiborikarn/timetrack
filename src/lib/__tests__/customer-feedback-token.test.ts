@@ -16,6 +16,7 @@ import {
     hashManualCode,
     manualCodeMatches,
     buildFeedbackUrl,
+    buildQrSecrets,
 } from "@/lib/customer-feedback/token";
 import { networkHashDaily, clientHashWeekly, computeAbuseScore } from "@/lib/customer-feedback/anti-abuse";
 
@@ -98,5 +99,36 @@ describe("abuse score", () => {
     it("คำตอบปกติได้คะแนนต่ำ", () => {
         const result = computeAbuseScore({ durationSeconds: 45, sameNetworkSameQrCount: 0 });
         expect(result.score).toBe(0);
+    });
+});
+
+describe("buildQrSecrets", () => {
+    /**
+     * regression: เดิมคืน token/manualCode ปนกับคอลัมน์ ทำให้มีที่เรียก `data: { ...secrets }`
+     * แล้ว Prisma ตายตอน runtime — สร้างและ rotate QR พังทุกเส้น แต่ tsc จับไม่ได้
+     */
+    it("columns มีเฉพาะฟิลด์ที่เป็นคอลัมน์จริงในตาราง", () => {
+        const secrets = buildQrSecrets();
+        expect(Object.keys(secrets.columns).sort()).toEqual([
+            "manualCodeCiphertext",
+            "manualCodeHash",
+            "manualCodeHint",
+            "tokenCiphertext",
+            "tokenHash",
+            "tokenHint",
+        ]);
+    });
+
+    it("ค่า plaintext ต้องไม่หลุดเข้าไปใน columns", () => {
+        const secrets = buildQrSecrets();
+        const values = Object.values(secrets.columns);
+        expect(values).not.toContain(secrets.token);
+        expect(values).not.toContain(secrets.manualCode);
+    });
+
+    it("hint เป็นท้ายของค่าจริง ใช้ตรวจป้ายได้", () => {
+        const secrets = buildQrSecrets();
+        expect(secrets.token.endsWith(secrets.columns.tokenHint)).toBe(true);
+        expect(secrets.manualCode.endsWith(secrets.columns.manualCodeHint)).toBe(true);
     });
 });

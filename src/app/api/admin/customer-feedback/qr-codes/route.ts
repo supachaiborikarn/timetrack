@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
             const qr = await prisma.$transaction(async (tx) => {
                 const created = await tx.customerFeedbackQr.create({
                     data: {
-                        ...secrets,
+                        ...secrets.columns,
                         targetType: "EMPLOYEE",
                         employeeId: employee.id,
                         stationId: null,
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         const qr = await prisma.$transaction(async (tx) => {
             const created = await tx.customerFeedbackQr.create({
                 data: {
-                    ...secrets,
+                    ...secrets.columns,
                     targetType: "STATION",
                     employeeId: null,
                     stationId: station.id,

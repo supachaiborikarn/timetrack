@@ -47,18 +47,30 @@ export function manualCodeMatches(code: string, storedHash: string): boolean {
 }
 
 /** เก็บ token/รหัสกรอกเองลง CustomerFeedbackQr — คืนค่าที่ต้องใช้ตอนสร้าง */
+/**
+ * สร้างรหัสลับของ QR ใบใหม่
+ *
+ * `token` กับ `manualCode` เป็นค่า plaintext สำหรับพิมพ์ป้ายครั้งเดียว **ไม่ใช่คอลัมน์ในตาราง**
+ * ส่วนที่ลงฐานข้อมูลได้อยู่ใน `columns` เท่านั้น — เขียน `data: { ...secrets.columns }`
+ *
+ * แยกออกมาเพราะเดิมรวมอยู่ก้อนเดียวแล้วมีที่เรียก `data: { ...secrets }` ซึ่ง Prisma
+ * ปฏิเสธตอน runtime ("Unknown argument `token`") และ TypeScript จับไม่ได้
+ * (การ spread ตัวแปรลง object literal ปิด excess property check)
+ */
 export function buildQrSecrets() {
     const token = generateFeedbackToken();
     const manualCode = generateManualCode();
     return {
         token,
         manualCode,
-        tokenHash: sha256Hex(token),
-        tokenCiphertext: encryptField(token),
-        tokenHint: token.slice(-6),
-        manualCodeHash: hashManualCode(manualCode),
-        manualCodeCiphertext: encryptField(manualCode),
-        manualCodeHint: manualCode.slice(-2),
+        columns: {
+            tokenHash: sha256Hex(token),
+            tokenCiphertext: encryptField(token),
+            tokenHint: token.slice(-6),
+            manualCodeHash: hashManualCode(manualCode),
+            manualCodeCiphertext: encryptField(manualCode),
+            manualCodeHint: manualCode.slice(-2),
+        },
     };
 }
 
