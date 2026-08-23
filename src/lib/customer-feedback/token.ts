@@ -70,7 +70,15 @@ export function revealQrManualCode(manualCodeCiphertext: string): string {
     return decryptField(manualCodeCiphertext);
 }
 
-const BLOCKED_HOST_PATTERNS = [/^localhost$/i, /\.local$/i, /(^|\.)vercel\.app$/i, /^127\.0\.0\.1$/, /^0\.0\.0\.0$/, /^\[::1\]$/];
+/**
+ * โฮสต์ที่ห้ามใช้สร้าง URL ใน QR ตอน production — สแกนแล้วไปไม่ถึงไหน
+ *
+ * เดิมบล็อก `*.vercel.app` ด้วย เจ้าของตัดสิน (23 ส.ค. 2569) ให้ใช้โดเมน vercel.app
+ * ไปก่อนจนกว่าจะมีโดเมนบริษัท จึงถอดออก ข้อแลกเปลี่ยนที่รับไว้แล้ว:
+ * ลูกค้าที่สแกนจะเห็นโดเมน vercel.app ซึ่งดูไม่น่าเชื่อถือ และถ้าย้ายโดเมนภายหลัง
+ * ป้ายที่พิมพ์ไปแล้วทุกใบต้องพิมพ์ใหม่ทั้งหมด (rotate ไม่ช่วย เพราะโดเมนอยู่ในตัว URL)
+ */
+const BLOCKED_HOST_PATTERNS = [/^localhost$/i, /\.local$/i, /^127\.0\.0\.1$/, /^0\.0\.0\.0$/, /^\[::1\]$/];
 
 function baseUrl(): string {
     const raw = process.env.APP_BASE_URL;

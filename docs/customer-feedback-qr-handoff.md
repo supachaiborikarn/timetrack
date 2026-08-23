@@ -159,8 +159,8 @@ npx tsx prisma/seed-customer-feedback-permissions.ts   # 4. permission additive 
 4. กฎแจ้งเตือน §18.6 ส่วนใหญ่ยังไม่ทำ (มีแค่ AlertLog ตอนเคส URGENT)
 5. ตรวจ "พนักงานล็อกอินประเมิน QR ตัวเอง" ยังไม่ทำ (spec บอก best-effort)
 6. retention บางส่วนยังไม่อยู่ใน cron: comment→null ที่ 12 เดือน, ลบ Response/Answer ที่ 24 เดือน
-7. Phase 0 ยังค้าง: ~~ชื่อสาธารณะพนักงาน~~ **ตัดสินแล้ว = ชื่อเล่น (ดูหัวข้อ 9)** ·
-   สถานี pilot, PDPA retention, ผู้รับ alert ยังไม่มีใครตอบ
+7. Phase 0: ~~ชื่อสาธารณะพนักงาน~~ · ~~สถานี pilot~~ **ตัดสินแล้ว (ดูหัวข้อ 9, 10)** ·
+   PDPA retention กับผู้รับ alert เคส URGENT ยังไม่มีใครตอบ
 
 **ตัดสินใจเอง (เจ้าของอาจอยากเปลี่ยน):**
 - export ทำเฉพาะ CSV (แผนบอก CSV หรือ XLSX)
@@ -296,3 +296,49 @@ regression test อยู่ที่ `src/lib/__tests__/customer-feedback-rate-
 **ถ้าจะออก QR ให้คนกลุ่มนี้ ต้องกรอกชื่อเล่นก่อน**
 
 `/feedback/privacy` ระบุนโยบายนี้ให้ลูกค้าเห็นแล้ว
+
+---
+
+## 10. สถานะ deploy (23 ส.ค. 2569 หลังเจ้าของยืนยัน)
+
+### ลงกับ production แล้ว
+
+| ขั้นตอน | ผล |
+|---|---|
+| `npm run db:push` | **57 ตาราง** (เดิม 43 +14) ข้อมูลเดิมครบ: User 74 · Attendance 6,816 · JobApplication 24 |
+| CHECK constraint + partial index | 13/13 (`scripts/apply-feedback-constraints.cjs` รันซ้ำได้) |
+| seed permission | Permission 28 → 39 · RolePermission 82 → 108 |
+| env ใน Vercel production | ครบ 5 ตัว |
+
+SQL ที่ลงเป็น additive ล้วน ไม่มี DROP/TRUNCATE/DELETE คอลัมน์ที่เพิ่มในตารางเดิม
+(`Station.publicEmergencyPhone`, `Notification.eventKey`, `ReviewPeriod.closedAt/closedById`)
+เป็น nullable ทั้งหมด
+
+### การตัดสินใจของเจ้าของ
+
+**เปิดใช้พร้อมกันทุกสถานี** ไม่ทำ pilot ทีละแห่ง
+
+**โดเมน: ใช้ `timetrack-lake.vercel.app` ไปก่อน** — จึงถอด `*.vercel.app` ออกจาก
+`BLOCKED_HOST_PATTERNS` ใน `token.ts` (`localhost` / loopback / `.local` ยังบล็อกอยู่)
+
+> ⚠ ข้อแลกเปลี่ยนที่รับไว้แล้ว: ลูกค้าที่สแกน QR ที่ปั๊มจะเห็นโดเมน `vercel.app`
+> ซึ่งหน้าตาเหมือนลิงก์หลอกลวง อาจกดออกโดยไม่กรอก
+> และ **โดเมนอยู่ในตัว URL ที่พิมพ์ลงป้าย** ถ้าย้ายไปโดเมนบริษัทภายหลัง
+> ป้ายทุกใบต้องพิมพ์ใหม่ทั้งหมด (rotate QR ไม่ช่วย)
+> ยิ่งเปิดพร้อมกันทุกสถานี ยิ่งต้องพิมพ์ใหม่เยอะ — ถ้ามีโดเมนอยู่แล้วควรตั้งก่อนพิมพ์
+
+**พนักงาน 8 คนที่ไม่มีชื่อเล่น: ปล่อยไว้** — คนกลุ่มนี้ (admin / ผู้จัดการ / บัญชีระบบ)
+จะออก EMPLOYEE QR ไม่ได้จนกว่าจะกรอกชื่อเล่น ซึ่งตรงกับที่ตั้งใจ
+
+### ยังไม่ได้ทำ — ต้องทำต่อตามลำดับนี้
+
+1. **merge branch `fix/prisma-production-guardrails` เข้า main** — ตอนนี้ production ยังรันโค้ดเก่า
+   ที่ไม่มีฟีเจอร์นี้ (schema ล้ำหน้าโค้ดอยู่ ซึ่งไม่พังเพราะ additive)
+2. รอ Vercel deploy แล้วเข้า `/admin/customer-feedback` ตรวจว่าโหลดได้
+3. ตั้ง `publicEmergencyPhone` ให้ครบทั้ง 4 สถานี — **STATION QR ที่ไม่มีเบอร์นี้ activate ไม่ได้**
+4. สร้าง QR `isTest` ทดสอบ flow ให้จบก่อน แล้วค่อยสร้าง QR จริง
+5. พิมพ์ป้าย → บันทึกการรับทราบข้อมูลสาธารณะของพนักงานแต่ละคน → activate
+6. **ค่อยเปิด `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=true` เป็นขั้นตอนสุดท้าย**
+   (ตอนนี้ตั้ง `false` ไว้ เพราะเปิดก่อนมี QR = เปิดฟอร์มที่ไม่มีใครเข้าถึงได้)
+7. ตัดสินใจเรื่องผู้รับ alert เคส URGENT (SLA 2 ชม.) และให้ผู้รับผิดชอบ PDPA
+   ยืนยันค่า retention ใน `retention.ts` ที่ cron บังคับใช้อยู่แล้ว
