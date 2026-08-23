@@ -73,7 +73,41 @@ function checkVisitState(visit: { disposition: string; formExpiresAt: Date; star
     return null;
 }
 
-async function findAlertRecipients(stationId: string | null): Promise<string[]> {
+/**
+ * ผู้รับ escalation ของเคส URGENT
+ *
+ * ตั้งเป็นรหัสพนักงานคั่นด้วยจุลภาคใน `CUSTOMER_FEEDBACK_URGENT_ALERT_EMPLOYEE_IDS`
+ * ไม่ตั้ง = ADMIN ที่ยัง active ทุกคน
+ */
+async function findUrgentEscalationRecipients(): Promise<string[]> {
+    const configured = (process.env.CUSTOMER_FEEDBACK_URGENT_ALERT_EMPLOYEE_IDS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    if (configured.length > 0) {
+        const users = await prisma.user.findMany({
+            where: { employeeId: { in: configured }, isActive: true },
+            select: { id: true },
+        });
+        if (users.length > 0) return users.map((u) => u.id);
+        // ตั้งรหัสไว้แต่หาไม่เจอ (ลาออก/พิมพ์ผิด) — ห้ามเงียบ ตกไปใช้ ADMIN แทน
+        console.error(
+            "CUSTOMER_FEEDBACK_URGENT_ALERT_EMPLOYEE_IDS ไม่ตรงกับพนักงานที่ active คนใดเลย — ส่งให้ ADMIN แทน"
+        );
+    }
+
+    const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true },
+        select: { id: true },
+    });
+    return admins.map((a) => a.id);
+}
+
+async function findAlertRecipients(
+    stationId: string | null,
+    severity: "NORMAL" | "HIGH" | "URGENT"
+): Promise<string[]> {
     const userIds = new Set<string>();
     if (stationId) {
         const managers = await prisma.user.findMany({
@@ -90,6 +124,14 @@ async function findAlertRecipients(stationId: string | null): Promise<string[]> 
         });
         admins.forEach((a) => userIds.add(a.id));
     }
+
+    // เหตุอันตราย SLA 2 ชม. ต้องถึงผู้รับผิดชอบเสมอ ไม่ใช่แค่ผู้จัดการสถานี
+    // (สถานีที่มีผู้จัดการอยู่แล้วจะไม่เข้า fallback ข้างบน ผู้บริหารจึงไม่เคยรู้)
+    if (severity === "URGENT") {
+        const escalation = await findUrgentEscalationRecipients();
+        escalation.forEach((id) => userIds.add(id));
+    }
+
     return [...userIds];
 }
 
@@ -113,7 +155,7 @@ async function createCaseWithNotifications(
         },
         select: { id: true },
     });
-    const recipients = await findAlertRecipients(params.stationId);
+    const recipients = await findAlertRecipients(params.stationId, params.severity);
     if (recipients.length > 0) {
         await tx.notification.createMany({
             data: recipients.map((userId) => ({
