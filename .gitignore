@@ -60,3 +60,6 @@ next-env.d.ts
 /staff*.csv
 credentials*.json
 *credentials*.txt
+
+# ไฟล์ SQL ที่ npm run db:diff สร้างขึ้นมาดูเฉย ๆ
+prisma/migrations-preview.sql
