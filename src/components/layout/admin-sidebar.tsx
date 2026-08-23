@@ -46,6 +46,7 @@ import {
     Megaphone,
     Scale,
     BedDouble,
+    MessageSquareHeart,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -155,6 +156,13 @@ const navItems: NavItem[] = [
         requiredPermissions: ["report.view"],
     },
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
+    {
+        title: "เสียงลูกค้า",
+        href: "/admin/customer-feedback",
+        icon: MessageSquareHeart,
+        roles: ["ADMIN", "HR", "MANAGER"],
+        requiredPermissions: ["customer_feedback.view_dashboard"],
+    },
     { title: "Overtime", href: "/admin/overtime", icon: BriefcaseBusiness, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "Profile Requests", href: "/admin/profile-requests", icon: UserRoundSearch, roles: ["ADMIN", "HR"] },
     {

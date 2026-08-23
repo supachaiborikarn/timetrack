@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
+import { CustomerFeedbackSelfSummary } from "@/components/customer-feedback/self-summary";
 import { ReviewPeriod, ReviewSubmission } from "@/types/performance";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 
@@ -121,6 +122,8 @@ export default function PerformancePage() {
                     <h1 className="text-2xl font-bold text-slate-900">การประเมินผลงาน</h1>
                     <p className="text-slate-500">แบบประเมินตนเองตามรอบการประเมิน</p>
                 </div>
+
+                <CustomerFeedbackSelfSummary />
 
                 {periods.length === 0 ? (
                     <Card>

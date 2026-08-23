@@ -19,6 +19,7 @@ export async function findEmployeeActivity(userId: string): Promise<EmployeeActi
         announcements, comments, swapsRequested, swapsTargeted, profileEditRequests,
         oneOnOneAsUser, oneOnOneAsSupervisor, happinessLogs, stationTransfers,
         approvedAttendances, approvedLeaves, jobOpeningsCreated, applicationsReviewed, auditLogs,
+        feedbackResponses, openFeedbackReviewRequests,
     ] = await Promise.all([
         prisma.attendance.count({ where: { userId } }),
         prisma.payrollRecord.count({ where: { userId } }),
@@ -44,10 +45,16 @@ export async function findEmployeeActivity(userId: string): Promise<EmployeeActi
         prisma.jobOpening.count({ where: { createdById: userId } }),
         prisma.jobApplication.count({ where: { reviewedById: userId } }),
         prisma.auditLog.count({ where: { userId } }),
+        prisma.customerFeedbackResponse.count({ where: { employeeId: userId } }),
+        prisma.customerFeedbackReviewRequest.count({
+            where: { employeeId: userId, status: { in: ["OPEN", "IN_REVIEW"] } },
+        }),
     ]);
 
     return [
         { label: "การลงเวลา", count: attendance },
+        { label: "คำตอบประเมินจากลูกค้า", count: feedbackResponses },
+        { label: "คำขอทบทวนเสียงลูกค้าที่ยังไม่ปิด", count: openFeedbackReviewRequests },
         { label: "เงินเดือน", count: payrollRecords },
         { label: "การเบิกค่าแรง", count: advances },
         { label: "ตารางกะ", count: shiftAssignments },

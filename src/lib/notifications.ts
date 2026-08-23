@@ -8,7 +8,8 @@ type NotificationType =
     | "SWAP_REQUEST"
     | "APPROVAL"
     | "APPLICATION_SUBMITTED"
-    | "DOCUMENT_EXPIRY";
+    | "DOCUMENT_EXPIRY"
+    | "CUSTOMER_FEEDBACK";
 
 interface CreateNotificationParams {
     userId: string;
@@ -16,6 +17,8 @@ interface CreateNotificationParams {
     title: string;
     message: string;
     link?: string;
+    /// กันส่งซ้ำต่อ event เดียวกัน (partial unique index เฉพาะค่าไม่ null)
+    eventKey?: string;
 }
 
 /**
@@ -30,6 +33,7 @@ export async function createNotification(params: CreateNotificationParams) {
                 title: params.title,
                 message: params.message,
                 link: params.link || null,
+                eventKey: params.eventKey || null,
             },
         });
     } catch (error) {
