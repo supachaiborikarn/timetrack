@@ -183,6 +183,21 @@ export async function DELETE(
 
         const { id } = await params;
 
+        // Guard เดียวกับ src/lib/employee-removal.ts — ห้าม hard delete เมื่อมี
+        // feedback response หรือคำขอทบทวนที่ยังไม่ปิด
+        const [feedbackResponseCount, openReviewRequestCount] = await Promise.all([
+            prisma.customerFeedbackResponse.count({ where: { employeeId: id } }),
+            prisma.customerFeedbackReviewRequest.count({
+                where: { employeeId: id, status: { in: ["OPEN", "IN_REVIEW"] } },
+            }),
+        ]);
+        if (feedbackResponseCount > 0 || openReviewRequestCount > 0) {
+            return NextResponse.json(
+                { error: "พนักงานคนนี้มีคำตอบประเมินจากลูกค้าหรือคำขอทบทวนที่ยังไม่ปิด จึงลบถาวรไม่ได้ ให้ปิดใช้งานแทน" },
+                { status: 400 }
+            );
+        }
+
         // Check if employee exists
         const existing = await prisma.user.findUnique({ where: { id } });
         if (!existing) {

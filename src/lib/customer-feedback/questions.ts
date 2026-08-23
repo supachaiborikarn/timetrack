@@ -1,0 +1,170 @@
+/**
+ * Question registry ของแบบประเมินเสียงลูกค้า
+ *
+ * กติกาสำคัญ (docs/customer-feedback-qr-evaluation-plan.md §3.3):
+ * - question key ที่เผยแพร่แล้วห้ามเปลี่ยนความหมาย
+ * - ถ้าจะแก้คำถาม ให้เพิ่ม survey version ใหม่และเก็บ version เดิมไว้
+ * - คะแนน 1–2 ต้องเลือกสาเหตุอย่างน้อยหนึ่งข้อหรือ "ไม่สะดวกระบุ"
+ */
+
+export type SurveyVersion = "employee-v1" | "station-v1" | "incident-v1";
+export type QuestionOwner = "EMPLOYEE" | "SYSTEM" | "STATION" | "UNKNOWN";
+
+export interface LocalizedText {
+    th: string;
+    en: string;
+}
+
+export interface ReasonOption {
+    key: string;
+    label: LocalizedText;
+    owner: QuestionOwner;
+}
+
+export interface ServiceAreaOption {
+    key: string;
+    label: LocalizedText;
+}
+
+export interface SurveyDefinition {
+    version: SurveyVersion;
+    maxReasons: number;
+    commentMaxLength: number;
+    reasonOptions: ReasonOption[];
+}
+
+export const RATING_OPTIONS: { value: number; label: LocalizedText }[] = [
+    { value: 1, label: { th: "ไม่พอใจมาก", en: "Very dissatisfied" } },
+    { value: 2, label: { th: "ไม่พอใจ", en: "Dissatisfied" } },
+    { value: 3, label: { th: "ปานกลาง", en: "Neutral" } },
+    { value: 4, label: { th: "พอใจ", en: "Satisfied" } },
+    { value: 5, label: { th: "พอใจมาก", en: "Very satisfied" } },
+];
+
+/** ตัวเลือกที่เป็น "ตัวเลือกเดี่ยว" — เลือกแล้วยกเลิกตัวอื่นทันที */
+export const SINGLETON_CHOICE_KEYS = new Set(["unspecified", "unsure"]);
+/** ตัวเลือกที่ตรึงไว้ท้ายรายการเสมอ */
+export const PINNED_TAIL_KEYS = new Set(["other", "unspecified", "unsure"]);
+
+export const TARGET_CONFIRMATION_QUESTION: LocalizedText = {
+    th: "วันนี้ {target} เป็นผู้ให้บริการคุณใช่ไหม",
+    en: "Did {target} serve you today",
+};
+
+export const EMPLOYEE_REASON_OPTIONS: ReasonOption[] = [
+    { key: "employee_courtesy", label: { th: "การพูดจาและความสุภาพ", en: "Courtesy and politeness" }, owner: "EMPLOYEE" },
+    { key: "employee_clarity", label: { th: "ความชัดเจนของข้อมูล", en: "Clarity of information" }, owner: "EMPLOYEE" },
+    { key: "employee_accuracy", label: { th: "ความถูกต้องของบริการ", en: "Accuracy of service" }, owner: "EMPLOYEE" },
+    { key: "employee_helpfulness", label: { th: "การใส่ใจและช่วยแก้ปัญหา", en: "Helpfulness" }, owner: "EMPLOYEE" },
+    { key: "employee_safety", label: { th: "การปฏิบัติตามขั้นตอนความปลอดภัยขณะให้บริการ", en: "Safety procedure compliance" }, owner: "EMPLOYEE" },
+    { key: "employee_fairness", label: { th: "ความเท่าเทียมในการให้บริการ", en: "Fairness of service" }, owner: "EMPLOYEE" },
+    { key: "system_wait", label: { th: "เวลารอหรือจำนวนพนักงาน", en: "Waiting time or staffing" }, owner: "SYSTEM" },
+    { key: "system_process", label: { th: "ขั้นตอนหรือระบบชำระเงิน", en: "Process or payment system" }, owner: "SYSTEM" },
+    { key: "system_availability", label: { th: "สินค้าหรืออุปกรณ์ไม่พร้อม", en: "Product or equipment unavailable" }, owner: "SYSTEM" },
+    { key: "other", label: { th: "อื่น ๆ", en: "Other" }, owner: "UNKNOWN" },
+    { key: "unspecified", label: { th: "ไม่สะดวกระบุ", en: "Prefer not to say" }, owner: "UNKNOWN" },
+];
+
+export const STATION_REASON_OPTIONS: ReasonOption[] = [
+    { key: "station_cleanliness", label: { th: "ความสะอาด", en: "Cleanliness" }, owner: "STATION" },
+    { key: "station_orderliness", label: { th: "ความเป็นระเบียบ", en: "Orderliness" }, owner: "STATION" },
+    { key: "station_wait", label: { th: "เวลารอ", en: "Waiting time" }, owner: "STATION" },
+    { key: "station_signage", label: { th: "ป้ายและข้อมูล", en: "Signage and information" }, owner: "STATION" },
+    { key: "station_facilities", label: { th: "ความพร้อมของอุปกรณ์หรือจุดบริการ", en: "Facility readiness" }, owner: "STATION" },
+    { key: "station_access", label: { th: "ความสะดวกในการเข้าใช้", en: "Ease of access" }, owner: "STATION" },
+    { key: "station_safety", label: { th: "ความปลอดภัย", en: "Safety" }, owner: "STATION" },
+    { key: "station_staff_service", label: { th: "การบริการของพนักงานโดยรวม", en: "Overall staff service" }, owner: "STATION" },
+    { key: "station_process", label: { th: "ขั้นตอนการให้บริการ", en: "Service process" }, owner: "STATION" },
+    { key: "station_availability", label: { th: "สินค้าหรือบริการพร้อมใช้งาน", en: "Product or service availability" }, owner: "STATION" },
+    { key: "other", label: { th: "อื่น ๆ", en: "Other" }, owner: "UNKNOWN" },
+    { key: "unspecified", label: { th: "ไม่สะดวกระบุ", en: "Prefer not to say" }, owner: "UNKNOWN" },
+];
+
+export const SERVICE_AREAS: ServiceAreaOption[] = [
+    { key: "fuel_service", label: { th: "จุดเติมน้ำมันหรือดูแลรถ", en: "Fuel or car service" } },
+    { key: "payment_shop", label: { th: "จุดชำระเงินหรือร้านค้า", en: "Payment counter or shop" } },
+    { key: "food_beverage", label: { th: "อาหารหรือเครื่องดื่ม", en: "Food or beverage" } },
+    { key: "information_help", label: { th: "จุดข้อมูลหรือขอความช่วยเหลือ", en: "Information or help desk" } },
+    { key: "restroom", label: { th: "ห้องน้ำ", en: "Restroom" } },
+    { key: "parking_access", label: { th: "ทางเข้า ทางออก หรือที่จอดรถ", en: "Entrance, exit, or parking" } },
+    { key: "other", label: { th: "อื่น ๆ", en: "Other" } },
+    { key: "unsure", label: { th: "ไม่แน่ใจ", en: "Not sure" } },
+];
+
+export const INCIDENT_TYPES: { key: string; label: LocalizedText; severity: "HIGH" | "URGENT" }[] = [
+    { key: "safety_accident", label: { th: "ความปลอดภัยหรืออุบัติเหตุ", en: "Safety or accident" }, severity: "URGENT" },
+    { key: "violence_threat", label: { th: "การข่มขู่หรือใช้ความรุนแรง", en: "Threat or violence" }, severity: "URGENT" },
+    { key: "harassment_discrimination", label: { th: "การคุกคามหรือเลือกปฏิบัติ", en: "Harassment or discrimination" }, severity: "URGENT" },
+    { key: "fraud_wrong_charge", label: { th: "การทุจริตหรือเรียกเก็บเงินผิด", en: "Fraud or wrong charge" }, severity: "URGENT" },
+    { key: "hazardous_area", label: { th: "อุปกรณ์หรือพื้นที่ที่เป็นอันตราย", en: "Hazardous equipment or area" }, severity: "URGENT" },
+    { key: "privacy", label: { th: "ข้อมูลส่วนบุคคลหรือความเป็นส่วนตัว", en: "Personal data or privacy" }, severity: "HIGH" },
+    { key: "other", label: { th: "อื่น ๆ", en: "Other" }, severity: "HIGH" },
+];
+
+export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
+    "employee-v1": {
+        version: "employee-v1",
+        maxReasons: 2,
+        commentMaxLength: 500,
+        reasonOptions: EMPLOYEE_REASON_OPTIONS,
+    },
+    "station-v1": {
+        version: "station-v1",
+        maxReasons: 3,
+        commentMaxLength: 300,
+        reasonOptions: STATION_REASON_OPTIONS,
+    },
+    // incident ไม่มี reason ให้เลือก — ใช้ incidentKey แทน
+    "incident-v1": {
+        version: "incident-v1",
+        maxReasons: 0,
+        commentMaxLength: 1000,
+        reasonOptions: [],
+    },
+};
+
+export function getSurvey(version: string): SurveyDefinition | undefined {
+    return SURVEYS[version as SurveyVersion];
+}
+
+export function isValidReasonKey(version: SurveyVersion, key: string): boolean {
+    return SURVEYS[version].reasonOptions.some((o) => o.key === key);
+}
+
+export function isValidServiceArea(key: string): boolean {
+    return SERVICE_AREAS.some((a) => a.key === key);
+}
+
+export function isValidIncidentKey(key: string): boolean {
+    return INCIDENT_TYPES.some((t) => t.key === key);
+}
+
+export function getReasonOwner(key: string): QuestionOwner {
+    const found =
+        EMPLOYEE_REASON_OPTIONS.find((o) => o.key === key) ??
+        STATION_REASON_OPTIONS.find((o) => o.key === key);
+    return found?.owner ?? "UNKNOWN";
+}
+
+/** หมุนลำดับตัวเลือกตาม visitId เพื่อลด bias ตำแหน่ง โดยตรึง other/unspecified/unsure ไว้ท้าย */
+export function shuffledOptionOrder(allKeys: string[], visitSeed: string): string[] {
+    let hash = 0;
+    for (let i = 0; i < visitSeed.length; i++) {
+        hash = (hash * 31 + visitSeed.charCodeAt(i)) >>> 0;
+    }
+    const head = allKeys.filter((k) => !PINNED_TAIL_KEYS.has(k));
+    const tail = allKeys.filter((k) => PINNED_TAIL_KEYS.has(k));
+    const rotated = head
+        .map((k, i) => {
+            // mix ตำแหน่งเข้ากับ seed แบบ avalanche เพื่อไม่ให้ seed ใกล้กันได้ลำดับเดียวกัน
+            let h = (hash ^ Math.imul(i + 1, 0x9e3779b9)) >>> 0;
+            h ^= h >>> 16;
+            h = Math.imul(h, 0x85ebca6b) >>> 0;
+            h ^= h >>> 13;
+            return { k, r: h % 1009 };
+        })
+        .sort((a, b) => a.r - b.r);
+    return [...rotated.map((x) => x.k), ...tail];
+}
+
+export const PRIVACY_NOTICE_VERSION = "privacy-v1";

@@ -12,7 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Public applicant-facing pages: standalone, with their own layout and bottom action bar.
   // They must never show the employee nav — a job applicant isn't an employee, and even when an
   // admin opens them to preview, the fixed nav would cover the form's own next/submit buttons.
-  const noShellPrefixes = ["/apply", "/jobs"];
+  const noShellPrefixes = ["/apply", "/jobs", "/f", "/feedback"];
   const isNoShellPage = noShellPaths.includes(pathname)
     || noShellPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 

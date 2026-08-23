@@ -53,6 +53,7 @@ interface Station {
     radius: number;
     qrCode: string | null;
     wifiSSID: string | null;
+    publicEmergencyPhone: string | null;
     isActive: boolean;
     departments: { id: string; name: string; code: string }[];
     employeeCount: number;
@@ -79,6 +80,7 @@ export default function StationsPage() {
         radius: 100,
         qrCode: "",
         wifiSSID: "",
+        publicEmergencyPhone: "",
     });
 
     useEffect(() => {
@@ -114,6 +116,7 @@ export default function StationsPage() {
             radius: station.radius,
             qrCode: station.qrCode || "",
             wifiSSID: station.wifiSSID || "",
+            publicEmergencyPhone: station.publicEmergencyPhone || "",
         });
         setDialogOpen(true);
     };
@@ -130,6 +133,7 @@ export default function StationsPage() {
             radius: 100,
             qrCode: "",
             wifiSSID: "",
+            publicEmergencyPhone: "",
         });
         setDialogOpen(true);
     };
@@ -490,6 +494,14 @@ export default function StationsPage() {
                                     value={formData.wifiSSID}
                                     onChange={(e) => setFormData({ ...formData, wifiSSID: e.target.value })}
                                     placeholder="ชื่อ Wi-Fi"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>หมายเลขฉุกเฉินสาธารณะ (เสียงลูกค้า)</Label>
+                                <Input
+                                    value={formData.publicEmergencyPhone}
+                                    onChange={(e) => setFormData({ ...formData, publicEmergencyPhone: e.target.value })}
+                                    placeholder="เช่น 02xxx xxxx — ต้องมีก่อนเปิด QR ประเมินสถานี"
                                 />
                             </div>
                         </div>

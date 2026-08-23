@@ -35,6 +35,7 @@ export async function GET() {
                 qrCode: s.qrCode,
                 wifiSSID: s.wifiSSID,
                 isActive: s.isActive,
+                publicEmergencyPhone: s.publicEmergencyPhone,
                 departments: s.departments,
                 employeeCount: s._count.employees,
             })),
@@ -54,7 +55,7 @@ export async function PUT(request: Request) {
         }
 
         const body = await request.json();
-        const { id, name, code, address, latitude, longitude, radius, qrCode, wifiSSID, isActive } = body;
+        const { id, name, code, address, latitude, longitude, radius, qrCode, wifiSSID, isActive, publicEmergencyPhone, deactivateFeedbackQr } = body;
 
         if (!id) {
             return NextResponse.json({ error: "Missing station ID" }, { status: 400 });
@@ -70,6 +71,39 @@ export async function PUT(request: Request) {
             }
         }
 
+        // กติกา customer feedback (§12.1): ห้ามล้าง publicEmergencyPhone หรือปิดสถานี
+        // ที่มี feedback QR ที่ยัง active จนกว่าจะส่ง deactivateFeedbackQr = true
+        const clearingPhone = publicEmergencyPhone !== undefined && !publicEmergencyPhone;
+        const deactivating = isActive === false;
+        if (clearingPhone || deactivating) {
+            const activeQrCount = await prisma.customerFeedbackQr.count({
+                where: { stationId: id, isActive: true },
+            });
+            if (activeQrCount > 0 && !deactivateFeedbackQr) {
+                return NextResponse.json(
+                    { error: "สถานีนี้ยังมี QR เสียงลูกค้าที่เปิดใช้งานอยู่ ต้องยืนยันการปิด QR ทุกใบก่อน" },
+                    { status: 400 }
+                );
+            }
+            if (activeQrCount > 0 && deactivateFeedbackQr) {
+                await prisma.$transaction([
+                    prisma.customerFeedbackQr.updateMany({
+                        where: { stationId: id, isActive: true },
+                        data: { isActive: false, revokedAt: new Date() },
+                    }),
+                    prisma.auditLog.create({
+                        data: {
+                            action: "CUSTOMER_FEEDBACK_QR_DEACTIVATED",
+                            entity: "Station",
+                            entityId: id,
+                            details: `Closed ${activeQrCount} active feedback QR(s) while updating station`,
+                            userId: session.user.id,
+                        },
+                    }),
+                ]);
+            }
+        }
+
         const station = await prisma.station.update({
             where: { id },
             data: {
@@ -82,6 +116,7 @@ export async function PUT(request: Request) {
                 qrCode,
                 wifiSSID,
                 isActive: isActive ?? undefined,
+                publicEmergencyPhone: publicEmergencyPhone === undefined ? undefined : (publicEmergencyPhone || null),
             },
         });
 
@@ -111,7 +146,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, code, type, address, latitude, longitude, radius } = body;
+        const { name, code, type, address, latitude, longitude, radius, publicEmergencyPhone } = body;
 
         if (!name || !code) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -133,6 +168,7 @@ export async function POST(request: Request) {
                 longitude: longitude || 0,
                 radius: radius || 100,
                 qrCode: `${code}-${new Date().getFullYear()}`,
+                publicEmergencyPhone: publicEmergencyPhone || null,
             },
         });
 

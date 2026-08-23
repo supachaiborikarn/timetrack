@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { setEmployeeInactive } from "@/lib/customer-feedback/employee-status";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 
@@ -213,15 +214,10 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Invalid request" }, { status: 400 });
         }
 
-        await prisma.user.updateMany({
-            where: {
-                id: { in: ids },
-            },
-            data: {
-                isActive: false,
-                employeeStatus: "RESIGNED",
-            },
-        });
+        // ปิด EMPLOYEE feedback QR ใน transaction เดียวกับเปลี่ยนสถานะ (helper กลาง)
+        for (const id of ids) {
+            await setEmployeeInactive(id, { isActive: false, employeeStatus: "RESIGNED" });
+        }
 
         return NextResponse.json({ success: true, count: ids.length });
     } catch (error) {

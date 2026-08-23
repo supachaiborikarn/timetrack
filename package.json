@@ -11,10 +11,13 @@
     "test:run": "vitest run",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "db:push": "node scripts/prisma-guard.cjs db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "discord:register": "node scripts/register-discord-commands.mjs"
+    "discord:register": "node scripts/register-discord-commands.mjs",
+    "db:diff": "node scripts/db-diff.cjs",
+    "prisma": "node scripts/prisma-guard.cjs",
+    "db:diff:migrations": "node scripts/db-diff-migrations.cjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { setEmployeeInactive } from "@/lib/customer-feedback/employee-status";
 
 export async function POST(request: NextRequest) {
     try {
@@ -42,10 +43,20 @@ export async function POST(request: NextRequest) {
                 if (typeof data?.isActive !== "boolean") {
                     return NextResponse.json({ error: "Status required" }, { status: 400 });
                 }
-                result = await prisma.user.updateMany({
-                    where: { id: { in: ids } },
-                    data: { isActive: data.isActive },
-                });
+                if (data.isActive) {
+                    result = await prisma.user.updateMany({
+                        where: { id: { in: ids } },
+                        data: { isActive: true },
+                    });
+                } else {
+                    // หยุดงานต้องผ่าน helper เพื่อปิด EMPLOYEE feedback QR ใน transaction เดียวกัน
+                    let count = 0;
+                    for (const id of ids) {
+                        await setEmployeeInactive(id, { isActive: false, employeeStatus: "SUSPENDED" });
+                        count++;
+                    }
+                    result = { count };
+                }
                 break;
 
             case "change-role":

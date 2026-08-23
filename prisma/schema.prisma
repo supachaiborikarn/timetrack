@@ -8,95 +8,106 @@ datasource db {
 }
 
 model User {
-  id                         String                 @id @default(cuid())
-  employeeId                 String                 @unique
-  username                   String?                @unique
-  name                       String
-  email                      String?                @unique
-  phone                      String?                @unique
-  pin                        String
-  password                   String?
-  role                       Role                   @default(EMPLOYEE)
-  stationId                  String?
-  departmentId               String?
-  deviceId                   String?
-  deviceFingerprint          String?
-  photoUrl                   String?
-  hourlyRate                 Decimal                @default(0)
-  dailyRate                  Decimal                @default(0)
-  baseSalary                 Decimal                @default(0)
-  otherExpenses              Decimal                @default(0)
-  otRateMultiplier           Decimal                @default(1.5)
-  isActive                   Boolean                @default(true)
-  failedLoginAttempts        Int                    @default(0)
-  failedLoginFirstAt         DateTime?
-  loginLockedUntil           DateTime?
-  employeeStatus             EmployeeStatus         @default(ACTIVE)
-  createdAt                  DateTime               @default(now())
-  updatedAt                  DateTime               @updatedAt
-  address                    String?
-  bankAccountNumber          String?
-  bankName                   String?
-  birthDate                  DateTime?
-  citizenId                  String?
-  emergencyContactName       String?
-  emergencyContactPhone      String?
-  emergencyContactRelation   String?
-  gender                     String?
-  isSocialSecurityRegistered Boolean                @default(false)
-  nickName                   String?
-  probationEndDate           DateTime?
+  id                             String                           @id @default(cuid())
+  employeeId                     String                           @unique
+  username                       String?                          @unique
+  name                           String
+  email                          String?                          @unique
+  phone                          String?                          @unique
+  pin                            String
+  password                       String?
+  role                           Role                             @default(EMPLOYEE)
+  stationId                      String?
+  departmentId                   String?
+  deviceId                       String?
+  deviceFingerprint              String?
+  photoUrl                       String?
+  hourlyRate                     Decimal                          @default(0)
+  dailyRate                      Decimal                          @default(0)
+  baseSalary                     Decimal                          @default(0)
+  otherExpenses                  Decimal                          @default(0)
+  otRateMultiplier               Decimal                          @default(1.5)
+  isActive                       Boolean                          @default(true)
+  failedLoginAttempts            Int                              @default(0)
+  failedLoginFirstAt             DateTime?
+  loginLockedUntil               DateTime?
+  employeeStatus                 EmployeeStatus                   @default(ACTIVE)
+  createdAt                      DateTime                         @default(now())
+  updatedAt                      DateTime                         @updatedAt
+  address                        String?
+  bankAccountNumber              String?
+  bankName                       String?
+  birthDate                      DateTime?
+  citizenId                      String?
+  emergencyContactName           String?
+  emergencyContactPhone          String?
+  emergencyContactRelation       String?
+  gender                         String?
+  isSocialSecurityRegistered     Boolean                          @default(false)
+  nickName                       String?
+  probationEndDate               DateTime?
   // Daily rate paid on/before probationEndDate. Null = no separate probation rate,
   // so payroll uses dailyRate for every day exactly as it did before this field existed.
-  probationDailyRate         Decimal?
-  housingStatus              HousingStatus          @default(UNKNOWN)
-  dormitoryId                String?
+  probationDailyRate             Decimal?
+  housingStatus                  HousingStatus                    @default(UNKNOWN)
+  dormitoryId                    String?
   /// ค่าที่พักรายเดือนเฉพาะคนนี้ — null = ใช้ค่าเริ่มต้นของบริษัท
-  housingAllowance           Decimal?
-  housingNote                String?
-  housingUpdatedAt           DateTime?
+  housingAllowance               Decimal?
+  housingNote                    String?
+  housingUpdatedAt               DateTime?
   /// ใครเป็นคนบันทึกล่าสุด — ถ้าเท่ากับตัวพนักงานเองแปลว่าเจ้าตัวแจ้งมา
   /// ซึ่งคนกดจ่ายค่าที่พักควรเห็น เพราะเป็นข้อมูลที่ผู้รับเงินกรอกเอง
-  housingUpdatedById         String?
-  registeredStationId        String?
-  socialSecurityNumber       String?
-  startDate                  DateTime?              @default(now())
-  advances                   Advance[]
-  announcements              Announcement[]
-  approvedAttendances        Attendance[]           @relation("AttendanceApprover")
-  attendances                Attendance[]
-  auditLogs                  AuditLog[]
-  authenticators             Authenticator[]
-  comments                   Comment[]
-  dailyPayrollOverrides      DailyPayrollOverride[]
-  approvedLeaves             Leave[]                @relation("LeaveApprover")
-  leaves                     Leave[]
-  notifications              Notification[]
-  overtimeRequests           OvertimeRequest[]      @relation("OvertimeRequests")
-  payrollRecords             PayrollRecord[]
-  profileEditRequests        ProfileEditRequest[]
-  pushSubscriptions          PushSubscription[]
-  reviewSubmissions          ReviewSubmission[]
-  shiftAssignments           ShiftAssignment[]
-  swapRequestsSent           ShiftSwap[]            @relation("SwapRequester")
-  swapRequestsReceived       ShiftSwap[]            @relation("SwapTarget")
-  specialIncomes             SpecialIncome[]
-  stationTransfers           StationTransfer[]
-  timeCorrections            TimeCorrection[]
-  department                 Department?            @relation(fields: [departmentId], references: [id])
-  registeredStation          Station?               @relation("RegisteredStation", fields: [registeredStationId], references: [id])
-  station                    Station?               @relation("WorkStation", fields: [stationId], references: [id])
-  happinessLogs              HappinessLog[]
-  oneOnOneLogs               OneOnOneLog[]          @relation("OneOnOneUser")
-  supervisedOneOnOneLogs     OneOnOneLog[]          @relation("OneOnOneSupervisor")
-  reviewedApplications       JobApplication[]       @relation("ApplicationReviewer")
-  createdJobOpenings         JobOpening[]           @relation("JobOpeningCreator")
-  hiredFromApplication       JobApplication?        @relation("ApplicationHire")
-  ownedAssets                StoredAsset[]          @relation("AssetOwner")
-  uploadedAssets             StoredAsset[]          @relation("AssetUploader")
-  dormitory                  Dormitory?             @relation("EmployeeDormitory", fields: [dormitoryId], references: [id], onDelete: SetNull)
-  housingUpdatedBy           User?                  @relation("HousingUpdatedBy", fields: [housingUpdatedById], references: [id], onDelete: SetNull)
-  housingUpdatesMade         User[]                 @relation("HousingUpdatedBy")
+  housingUpdatedById             String?
+  registeredStationId            String?
+  socialSecurityNumber           String?
+  startDate                      DateTime?                        @default(now())
+  advances                       Advance[]
+  announcements                  Announcement[]
+  approvedAttendances            Attendance[]                     @relation("AttendanceApprover")
+  attendances                    Attendance[]
+  auditLogs                      AuditLog[]
+  authenticators                 Authenticator[]
+  comments                       Comment[]
+  dailyPayrollOverrides          DailyPayrollOverride[]
+  approvedLeaves                 Leave[]                          @relation("LeaveApprover")
+  leaves                         Leave[]
+  notifications                  Notification[]
+  overtimeRequests               OvertimeRequest[]                @relation("OvertimeRequests")
+  payrollRecords                 PayrollRecord[]
+  profileEditRequests            ProfileEditRequest[]
+  pushSubscriptions              PushSubscription[]
+  reviewSubmissions              ReviewSubmission[]
+  shiftAssignments               ShiftAssignment[]
+  swapRequestsSent               ShiftSwap[]                      @relation("SwapRequester")
+  swapRequestsReceived           ShiftSwap[]                      @relation("SwapTarget")
+  specialIncomes                 SpecialIncome[]
+  stationTransfers               StationTransfer[]
+  timeCorrections                TimeCorrection[]
+  department                     Department?                      @relation(fields: [departmentId], references: [id])
+  registeredStation              Station?                         @relation("RegisteredStation", fields: [registeredStationId], references: [id])
+  station                        Station?                         @relation("WorkStation", fields: [stationId], references: [id])
+  happinessLogs                  HappinessLog[]
+  oneOnOneLogs                   OneOnOneLog[]                    @relation("OneOnOneUser")
+  supervisedOneOnOneLogs         OneOnOneLog[]                    @relation("OneOnOneSupervisor")
+  reviewedApplications           JobApplication[]                 @relation("ApplicationReviewer")
+  createdJobOpenings             JobOpening[]                     @relation("JobOpeningCreator")
+  hiredFromApplication           JobApplication?                  @relation("ApplicationHire")
+  ownedAssets                    StoredAsset[]                    @relation("AssetOwner")
+  uploadedAssets                 StoredAsset[]                    @relation("AssetUploader")
+  dormitory                      Dormitory?                       @relation("EmployeeDormitory", fields: [dormitoryId], references: [id], onDelete: SetNull)
+  housingUpdatedBy               User?                            @relation("HousingUpdatedBy", fields: [housingUpdatedById], references: [id], onDelete: SetNull)
+  housingUpdatesMade             User[]                           @relation("HousingUpdatedBy")
+  feedbackQrs                    CustomerFeedbackQr[]             @relation("FeedbackQrEmployee")
+  feedbackQrsCreated             CustomerFeedbackQr[]             @relation("FeedbackQrCreatedBy")
+  feedbackQrsApproved            CustomerFeedbackQr[]             @relation("FeedbackQrApprovedBy")
+  feedbackQrsPrinted             CustomerFeedbackQr[]             @relation("FeedbackQrLastPrintedBy")
+  feedbackResponses              CustomerFeedbackResponse[]       @relation("FeedbackResponseEmployee")
+  feedbackCasesAssigned          CustomerFeedbackCase[]           @relation("FeedbackCaseAssignee")
+  feedbackReviewSnapshots        CustomerFeedbackReviewSnapshot[] @relation("ReviewSnapshotEmployee")
+  feedbackReviewSnapshotsMade    CustomerFeedbackReviewSnapshot[] @relation("ReviewSnapshotGeneratedBy")
+  feedbackReviewRequests         CustomerFeedbackReviewRequest[]  @relation("ReviewRequestEmployee")
+  feedbackReviewRequestsReviewed CustomerFeedbackReviewRequest[]  @relation("ReviewRequestReviewedBy")
+  feedbackPeriodsClosed          ReviewPeriod[]                   @relation("ReviewPeriodClosedBy")
 
   @@index([stationId])
   @@index([departmentId])
@@ -161,14 +172,18 @@ model AnnouncementRead {
 }
 
 model ReviewPeriod {
-  id          String             @id @default(cuid())
-  title       String
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  submissions ReviewSubmission[]
+  id                String                           @id @default(cuid())
+  title             String
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean                          @default(true)
+  closedAt          DateTime?
+  closedById        String?
+  closedBy          User?                            @relation("ReviewPeriodClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+  submissions       ReviewSubmission[]
+  feedbackSnapshots CustomerFeedbackReviewSnapshot[]
 }
 
 model ReviewSubmission {
@@ -267,30 +282,35 @@ model OvertimeRequest {
 }
 
 model Station {
-  id                  String            @id @default(cuid())
-  name                String
-  code                String            @unique
-  type                StationType
-  address             String
-  latitude            Decimal
-  longitude           Decimal
-  radius              Int               @default(100)
-  wifiSSID            String?
-  qrCode              String?
-  isActive            Boolean           @default(true)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  departments         Department[]
-  shifts              Shift[]
-  registeredEmployees User[]            @relation("RegisteredStation")
-  employees           User[]            @relation("WorkStation")
-  attendances         Attendance[]      @relation("AttendanceCheckInStation")
-  checkOutAttendances Attendance[]      @relation("AttendanceCheckOutStation")
-  transfersFrom       StationTransfer[] @relation("TransferFrom")
-  transfersTo         StationTransfer[] @relation("TransferTo")
-  jobApplications     JobApplication[]
-  jobOpenings         JobOpening[]
-  dormitories         Dormitory[]
+  id                   String                     @id @default(cuid())
+  name                 String
+  code                 String                     @unique
+  type                 StationType
+  address              String
+  latitude             Decimal
+  longitude            Decimal
+  radius               Int                        @default(100)
+  wifiSSID             String?
+  qrCode               String?
+  isActive             Boolean                    @default(true)
+  /// หมายเลขฉุกเฉินที่เปิดเผยต่อสาธารณะบนหน้าแจ้งเหตุเร่งด่วนของ customer feedback
+  /// ห้ามนำ emergencyContactPhone ของพนักงานมาใช้แทน
+  publicEmergencyPhone String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  feedbackQrs          CustomerFeedbackQr[]
+  feedbackResponses    CustomerFeedbackResponse[] @relation("FeedbackStationResponse")
+  departments          Department[]
+  shifts               Shift[]
+  registeredEmployees  User[]                     @relation("RegisteredStation")
+  employees            User[]                     @relation("WorkStation")
+  attendances          Attendance[]               @relation("AttendanceCheckInStation")
+  checkOutAttendances  Attendance[]               @relation("AttendanceCheckOutStation")
+  transfersFrom        StationTransfer[]          @relation("TransferFrom")
+  transfersTo          StationTransfer[]          @relation("TransferTo")
+  jobApplications      JobApplication[]
+  jobOpenings          JobOpening[]
+  dormitories          Dormitory[]
 
   @@index([code])
 }
@@ -668,11 +688,15 @@ model Notification {
   message   String
   link      String?
   isRead    Boolean  @default(false)
+  /// กันส่งซ้ำต่อ event เดียวกัน เช่น feedback-case:{caseId}:{eventType}
+  /// partial unique index (userId, type, eventKey) สร้างใน migration เฉพาะแถวที่ไม่ null
+  eventKey  String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([eventKey])
 }
 
 model AttendanceAlertLog {
@@ -1104,4 +1128,473 @@ enum HousingStatus {
   COMPANY_DORM
   /// อยู่ที่พักของตัวเอง — เป็นกลุ่มเดียวที่ได้เงินค่าที่พัก
   OWN_HOUSING
+}
+
+// ============================================================
+// Customer Feedback QR (ระบบประเมินพนักงานและสถานีผ่าน QR)
+// แยกจาก Station.qrCode ของระบบลงเวลาทั้งหมด — ดูแผนงาน
+// docs/customer-feedback-qr-evaluation-plan.md
+// ============================================================
+
+enum FeedbackTargetType {
+  EMPLOYEE
+  STATION
+  UNKNOWN
+}
+
+enum FeedbackResponseKind {
+  STANDARD
+  INCIDENT
+}
+
+enum FeedbackVisitKind {
+  STANDARD
+  INCIDENT
+}
+
+enum FeedbackVisitDisposition {
+  OPEN
+  SUBMITTED
+  TARGET_REJECTED
+  SWITCHED_TO_INCIDENT
+  ABANDONED
+  BOT_BLOCKED
+  EXPIRED
+}
+
+enum FeedbackQrPlacement {
+  EMPLOYEE_BADGE
+  STATION_MAIN
+  CASHIER
+  PUMP
+  RESTROOM
+  SHOP
+  OTHER
+}
+
+enum FeedbackValidity {
+  VALID
+  SUSPECTED
+  HIDDEN
+  TEST
+}
+
+enum FeedbackCaseStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+enum FeedbackCaseSeverity {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum FeedbackContactChannel {
+  PHONE
+  EMAIL
+}
+
+enum FeedbackDangerStatus {
+  YES
+  NO
+  UNSURE
+}
+
+enum FeedbackAnswerState {
+  ANSWERED
+  SKIPPED
+  NOT_SHOWN
+}
+
+enum FeedbackReviewRequestStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+/// QR ประเมินลูกค้า — ไม่เกี่ยวกับ Station.qrCode ที่ใช้ลงเวลา
+model CustomerFeedbackQr {
+  id                        String              @id @default(cuid())
+  /// SHA-256 ของ token ใช้ค้นหาตอน resolve
+  tokenHash                 String              @unique
+  /// token เข้ารหัสไว้เพื่อถอดกลับตอนพิมพ์ซ้ำเท่านั้น
+  tokenCiphertext           String
+  /// suffix 6 ตัวท้ายสำหรับตรวจป้ายในหน้า admin
+  tokenHint                 String
+  /// HMAC-SHA-256 ของรหัสกรอกเอง 8 ตัวด้วย server pepper
+  manualCodeHash            String              @unique
+  manualCodeCiphertext      String
+  /// 2 ตัวท้ายของรหัสกรอกเองสำหรับตรวจป้าย
+  manualCodeHint            String
+  targetType                FeedbackTargetType
+  /// มีค่าเมื่อ targetType เป็น EMPLOYEE (check constraint ใน migration)
+  employeeId                String?
+  /// มีค่าเมื่อ targetType เป็น STATION
+  stationId                 String?
+  /// ชื่อที่อนุญาตให้แสดงต่อสาธารณะ
+  publicLabel               String
+  /// ตำแหน่งสาธารณะ เช่น "พนักงานบริการ" — null ได้สำหรับ STATION
+  publicPosition            String?
+  /// วันที่ HR/ADMIN บันทึกว่าพนักงานรับทราบข้อมูลที่จะแสดง — ต้องมีก่อน activate EMPLOYEE QR
+  publicProfileApprovedAt   DateTime?
+  publicProfileApprovedById String?
+  placement                 FeedbackQrPlacement
+  /// เช่น MAIN, CASHIER_01, PUMP_03, EMPLOYEE_PRIMARY
+  placementKey              String
+  /// ส่วนบริการที่ QR จุดย่อยเลือกไว้ล่วงหน้า
+  serviceAreaKey            String?
+  isPrimary                 Boolean             @default(false)
+  isActive                  Boolean             @default(false)
+  /// โหมดทดสอบ — Visit snapshot ค่านี้ตอน resolve และห้ามสลับเมื่อมี Visit แล้ว
+  isTest                    Boolean             @default(false)
+  /// ต้องพิมพ์ป้ายใหม่ก่อน activate หลังสร้างหรือหมุนรหัส
+  needsReprint              Boolean             @default(true)
+  version                   Int                 @default(1)
+  createdById               String?
+  rotatedAt                 DateTime?
+  revokedAt                 DateTime?
+  lastResolvedAt            DateTime?
+  lastPrintedAt             DateTime?
+  lastPrintedById           String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  employee                User?                      @relation("FeedbackQrEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  station                 Station?                   @relation(fields: [stationId], references: [id])
+  createdBy               User?                      @relation("FeedbackQrCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  publicProfileApprovedBy User?                      @relation("FeedbackQrApprovedBy", fields: [publicProfileApprovedById], references: [id], onDelete: SetNull)
+  lastPrintedBy           User?                      @relation("FeedbackQrLastPrintedBy", fields: [lastPrintedById], references: [id], onDelete: SetNull)
+  visits                  CustomerFeedbackVisit[]
+  responses               CustomerFeedbackResponse[]
+
+  @@index([employeeId])
+  @@index([stationId])
+  @@index([targetType, isActive])
+}
+
+/// หนึ่งครั้งที่ลูกค้าเปิดแบบประเมินจาก QR — ใช้คำนวณ funnel และ drop-off
+model CustomerFeedbackVisit {
+  id                   String                   @id @default(cuid())
+  /// null ได้เฉพาะ incident ที่เริ่มก่อน resolve
+  qrCodeId             String?
+  /// visit เดิมเมื่อผู้ใช้สลับไปแจ้งเหตุ (child INCIDENT หนึ่งตัวต่อ parent)
+  parentVisitId        String?                  @unique
+  qrVersionAtOpen      Int?
+  visitKind            FeedbackVisitKind
+  /// employee-v1 | station-v1 | incident-v1
+  surveyVersion        String
+  disposition          FeedbackVisitDisposition @default(OPEN)
+  blockedReason        String?
+  isTestAtOpen         Boolean                  @default(false)
+  /// hash ของ signed visit token ใช้ตรวจ token ทุกครั้งที่ส่ง
+  sessionTokenHash     String               @unique
+  /// HMAC ของ network signal เปลี่ยน secret ทุกวัน ไม่เก็บ IP ดิบ
+  networkHashDaily     String?
+  /// HMAC ของ client signal เปลี่ยน secret ทุกสัปดาห์
+  clientHashWeekly     String?
+  /// HMAC ของ clientNonce สำหรับ idempotency และ cooldown ของแท็บ
+  resolveNonceHash     String?
+  hashKeyVersion       String?
+  targetType           FeedbackTargetType
+  employeeId           String?
+  stationIdAtOpen      String?
+  stationIdSelected    String?
+  /// TOKEN | CURRENT_TRANSFER | CURRENT_ATTENDANCE | USER_STATION | CUSTOMER_SELECTED | UNKNOWN
+  stationContextSource String
+  departmentIdAtOpen   String?
+  shiftIdAtOpen        String?
+  deviceClass          String?
+  language             String                   @default("th")
+  variantKey           String?
+  optionOrder          Json?
+  /// YES | NO | UNSURE
+  targetConfirmation   String?
+  openedAt             DateTime                 @default(now())
+  startedAt            DateTime?
+  submittedAt          DateTime?
+  lastStep             String?
+  formExpiresAt        DateTime
+  /// ลบ Visit หลังทำ aggregate ตาม retention
+  purgeAfter           DateTime
+
+  qrCode      CustomerFeedbackQr?        @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  parentVisit CustomerFeedbackVisit?     @relation("VisitParent", fields: [parentVisitId], references: [id], onDelete: SetNull)
+  children    CustomerFeedbackVisit[]    @relation("VisitParent")
+  responses   CustomerFeedbackResponse[]
+
+  @@index([qrCodeId])
+  @@index([parentVisitId])
+  @@index([disposition])
+  @@index([openedAt])
+}
+
+model CustomerFeedbackResponse {
+  id                      String                @id @default(cuid())
+  refCode                 String                @unique
+  visitId                 String?               @unique
+  qrCodeId                String?
+  qrVersionAtSubmit       Int?
+  kind                    FeedbackResponseKind
+  targetType              FeedbackTargetType
+  employeeId              String?
+  stationId               String?
+  departmentIdAtSubmit    String?
+  shiftIdAtSubmit         String?
+  departmentLabelSnapshot String?
+  shiftLabelSnapshot      String?
+  stationContextSource    String
+  employeeLabelSnapshot   String?
+  stationLabelSnapshot    String?
+  surveyVersion           String
+  privacyNoticeVersion    String
+  language                String                @default("th")
+  serviceAreas            String[]
+  overallRating           Int?
+  reasonKeys              String[]
+  incidentKey             String?
+  dangerStatus            FeedbackDangerStatus?
+  occurredAt              DateTime?
+  noDetail                Boolean               @default(false)
+  comment                 String?
+  wantsFollowUp           Boolean               @default(false)
+  validity                FeedbackValidity      @default(VALID)
+  abuseScore              Int                   @default(0)
+  abuseReasons            String[]
+  idempotencyKeyHash      String                @unique
+  idempotencyPayloadHash  String
+  durationSeconds         Int
+  reportDate              DateTime              @db.Date
+  submittedAt             DateTime
+  createdAt               DateTime              @default(now())
+
+  visit    CustomerFeedbackVisit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  qrCode   CustomerFeedbackQr?      @relation(fields: [qrCodeId], references: [id])
+  employee User?                    @relation("FeedbackResponseEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  station  Station?                 @relation("FeedbackStationResponse", fields: [stationId], references: [id])
+  contact  CustomerFeedbackContact?
+  answers  CustomerFeedbackAnswer[]
+  case     CustomerFeedbackCase?
+
+  @@index([stationId, submittedAt])
+  @@index([employeeId, submittedAt])
+  @@index([overallRating, submittedAt])
+  @@index([validity, submittedAt])
+  @@index([reportDate, validity])
+  @@index([kind, submittedAt])
+}
+
+/// ข้อมูลติดต่อกลับ — แยกจากคำตอบทั่วไปและเข้ารหัสทุกฟิลด์
+model CustomerFeedbackContact {
+  id             String                 @id @default(cuid())
+  responseId     String                 @unique
+  channel        FeedbackContactChannel
+  nameEncrypted  String?
+  valueEncrypted String
+  preferredTime  String?
+  consentAt      DateTime
+  /// createdAt + 120 วัน ลดได้ตามวันปิดเคส แต่ห้ามขยาย
+  purgeAfter     DateTime
+  createdAt      DateTime               @default(now())
+
+  response CustomerFeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([purgeAfter])
+}
+
+model CustomerFeedbackCase {
+  id              String               @id @default(cuid())
+  responseId      String               @unique
+  /// null ได้ก่อน ADMIN/HR ระบุสถานี — เคสแบบนั้นแสดงเฉพาะ ADMIN และ HR
+  stationId       String?
+  severity        FeedbackCaseSeverity
+  /// incident key หรือ follow-up
+  category        String
+  status          FeedbackCaseStatus   @default(OPEN)
+  assignedToId    String?
+  dueAt           DateTime
+  acknowledgedAt  DateTime?
+  resolutionNote  String?
+  dismissedReason String?
+  resolvedAt      DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  response   CustomerFeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  assignedTo User?                    @relation("FeedbackCaseAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([status, severity])
+  @@index([stationId])
+  @@index([assignedToId])
+  @@index([dueAt])
+}
+
+/// คำตอบแบบ normalized แยก ANSWERED / SKIPPED / NOT_SHOWN ตาม branching
+model CustomerFeedbackAnswer {
+  id            String              @id @default(cuid())
+  responseId    String
+  surveyVersion String
+  questionKey   String
+  state         FeedbackAnswerState
+  numberValue   Int?
+  textValue     String?
+  choiceValues  String[]
+
+  response CustomerFeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, questionKey])
+  @@index([questionKey])
+}
+
+/// persistent rate limit เมื่อยังไม่มี Redis — atomic increment
+model CustomerFeedbackRateBucket {
+  id          String   @id @default(cuid())
+  action      String
+  keyHash     String
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+
+  @@unique([action, keyHash, windowStart])
+  @@index([expiresAt])
+}
+
+/// alert ที่ส่งแล้ว กันส่งซ้ำภายใน window เดียวกัน
+model CustomerFeedbackAlertLog {
+  id          String             @id @default(cuid())
+  ruleCode    String
+  ruleVersion Int                @default(1)
+  targetType  FeedbackTargetType
+  /// กฎระดับทั้งระบบใช้ GLOBAL ห้าม null
+  targetId    String
+  windowStart DateTime
+  windowEnd   DateTime
+  status      String             @default("SENT")
+  notifiedAt  DateTime           @default(now())
+  resolvedAt  DateTime?
+  details     Json?
+
+  @@unique([ruleCode, ruleVersion, targetId, windowStart])
+  @@index([targetId, ruleCode])
+}
+
+/// funnel aggregate ต่อวัน — ข้อมูลถาวรหลังลบ Visit
+model CustomerFeedbackDailyAggregate {
+  id                    String             @id @default(cuid())
+  reportDate            DateTime           @db.Date
+  stationKey            String
+  targetType            FeedbackTargetType
+  placementKey          String
+  language              String
+  surveyVersion         String
+  isTest                Boolean
+  openedCount           Int                @default(0)
+  startedCount          Int                @default(0)
+  confirmedCount        Int                @default(0)
+  targetRejectedCount   Int                @default(0)
+  submittedCount        Int                @default(0)
+  switchedIncidentCount Int                @default(0)
+  abandonedCount        Int                @default(0)
+  botBlockedCount       Int                @default(0)
+  expiredCount          Int                @default(0)
+  validCount            Int                @default(0)
+  suspectedCount        Int                @default(0)
+  ratingSum             Int                @default(0)
+  ratingCount           Int                @default(0)
+
+  @@unique([reportDate, stationKey, targetType, placementKey, language, surveyVersion, isTest])
+  @@index([reportDate])
+}
+
+/// ผล resolve ที่เกิดก่อนรู้ QR — แยกจาก funnel ของ Visit
+model CustomerFeedbackResolveDailyAggregate {
+  id           String   @id @default(cuid())
+  reportDate   DateTime @db.Date
+  /// TOKEN | MANUAL_CODE | STANDALONE_INCIDENT
+  resolverType String
+  /// SUCCESS | INVALID | INACTIVE | RATE_LIMITED
+  result       String
+  count        Int      @default(0)
+
+  @@unique([reportDate, resolverType, result])
+}
+
+/// แนวโน้ม reason key หลังลบ Response รายรายการ
+model CustomerFeedbackDailyReasonAggregate {
+  id             String             @id @default(cuid())
+  reportDate     DateTime           @db.Date
+  stationKey     String
+  targetType     FeedbackTargetType
+  reasonKey      String
+  surveyVersion  String
+  isTest         Boolean
+  validCount     Int                @default(0)
+  suspectedCount Int                @default(0)
+
+  @@unique([reportDate, stationKey, targetType, reasonKey, surveyVersion, isTest])
+  @@index([reportDate])
+}
+
+/// หลักฐานสรุปเมื่อปิด ReviewPeriod — ไม่เก็บ comment ดิบ
+model CustomerFeedbackReviewSnapshot {
+  id                     String   @id @default(cuid())
+  reviewPeriodId         String
+  employeeId             String?
+  employeeLabelSnapshot  String
+  dateFrom               DateTime
+  dateTo                 DateTime
+  validCount             Int
+  ratingAverage          Decimal  @db.Decimal(4, 2)
+  positiveRate           Decimal  @db.Decimal(5, 2)
+  negativeRate           Decimal  @db.Decimal(5, 2)
+  suspectedExcludedCount Int      @default(0)
+  topReasonKeys          String[]
+  generatedAt            DateTime @default(now())
+  generatedById          String?
+
+  reviewPeriod ReviewPeriod @relation(fields: [reviewPeriodId], references: [id])
+  employee     User?        @relation("ReviewSnapshotEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  generatedBy  User?        @relation("ReviewSnapshotGeneratedBy", fields: [generatedById], references: [id], onDelete: SetNull)
+
+  @@unique([reviewPeriodId, employeeId])
+}
+
+/// คำขอทบทวนของพนักงานเมื่อสงสัยว่าคำตอบไม่เป็นธรรม
+model CustomerFeedbackReviewRequest {
+  id                    String                      @id @default(cuid())
+  employeeId            String?
+  employeeLabelSnapshot String
+  reviewPeriodId        String?
+  /// ReviewPeriod.id หรือ GENERAL
+  scopeKey              String
+  reason                String                      @db.VarChar(500)
+  status                FeedbackReviewRequestStatus @default(OPEN)
+  reviewedById          String?
+  resolutionNote        String?
+  submittedAt           DateTime                    @default(now())
+  resolvedAt            DateTime?
+  updatedAt             DateTime                    @updatedAt
+
+  employee   User? @relation("ReviewRequestEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("ReviewRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([employeeId, status])
+}
+
+/// จำนวน request เพื่อ health alert โดยไม่เก็บตัวระบุผู้ใช้
+model CustomerFeedbackOperationalMetricBucket {
+  id          String   @id @default(cuid())
+  minuteStart DateTime
+  metricCode  String
+  /// SUCCESS | CLIENT_ERROR | SERVER_ERROR | RATE_LIMITED
+  outcome     String
+  statusClass Int
+  count       Int      @default(0)
+
+  @@unique([minuteStart, metricCode, outcome, statusClass])
+  @@index([minuteStart])
 }
