@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { getFeedbackAccessContext } from "@/lib/customer-feedback/access";
 import { buildQrSecrets, buildFeedbackUrl, buildManualEntryUrl, revealQrToken, revealQrManualCode } from "@/lib/customer-feedback/token";
 import { isStationFeedbackEnabled } from "@/lib/customer-feedback/station-context";
+import { resolveEmployeePublicLabel } from "@/lib/customer-feedback/public-identity";
 
 /**
  * PATCH /api/admin/customer-feedback/qr-codes/[id]
@@ -161,6 +162,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             case "update-label": {
                 if (!body.publicLabel || !body.publicLabel.trim()) {
                     return NextResponse.json({ error: "ต้องระบุชื่อ" }, { status: 400 });
+                }
+                // ป้ายพนักงานต้องเป็นชื่อเล่นเสมอ แก้ทีหลังก็เปลี่ยนกลับไปเป็นชื่อจริงไม่ได้
+                if (qr.targetType === "EMPLOYEE") {
+                    const owner = qr.employeeId
+                        ? await prisma.user.findUnique({
+                            where: { id: qr.employeeId },
+                            select: { nickName: true, name: true },
+                        })
+                        : null;
+                    const labelResult = resolveEmployeePublicLabel(
+                        owner?.nickName ?? null,
+                        owner?.name ?? "",
+                        body.publicLabel
+                    );
+                    if (!labelResult.ok) {
+                        return NextResponse.json(
+                            { error: labelResult.message, reason: labelResult.reason },
+                            { status: 400 }
+                        );
+                    }
                 }
                 // แก้ label ต้องปิด QR ล้าง approval และต้องพิมพ์ป้ายใหม่
                 await prisma.$transaction([

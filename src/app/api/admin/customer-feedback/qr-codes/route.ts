@@ -5,6 +5,8 @@ import { hasPermission } from "@/lib/permissions";
 import { getFeedbackAccessContext } from "@/lib/customer-feedback/access";
 import { buildQrSecrets, buildFeedbackUrl, buildManualEntryUrl } from "@/lib/customer-feedback/token";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
+import { resolveEmployeePublicLabel, duplicateLabelWarning } from "@/lib/customer-feedback/public-identity";
+import { resolveEmployeeCurrentStation } from "@/lib/customer-feedback/station-context";
 
 /**
  * GET  /api/admin/customer-feedback/qr-codes — รายการ QR
@@ -131,8 +133,28 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: "พนักงานคนนี้มี QR ที่ยังใช้งานอยู่แล้ว" }, { status: 409 });
             }
 
-            // ชื่อ draft: เสนอเล่นหรือชื่อจริงส่วนแรก แต่ห้ามเผยแพร่ทันที
-            const draftLabel = (body.publicLabel ?? employee.nickName ?? employee.name.split(" ")[0]).trim();
+            // ป้ายพนักงานใช้ชื่อเล่นเท่านั้น ไม่มี fallback ไปชื่อจริง
+            const labelResult = resolveEmployeePublicLabel(employee.nickName, employee.name, body.publicLabel);
+            if (!labelResult.ok) {
+                return NextResponse.json({ error: labelResult.message, reason: labelResult.reason }, { status: 400 });
+            }
+            const draftLabel = labelResult.label;
+
+            // ชื่อเล่นซ้ำในสถานีเดียวกัน = ลูกค้าแยกไม่ออกว่าให้คะแนนใคร
+            const { stationId: employeeStationId } = await resolveEmployeeCurrentStation(employee.id);
+            const stationPeers = employeeStationId
+                ? await prisma.customerFeedbackQr.findMany({
+                    where: {
+                        targetType: "EMPLOYEE",
+                        isActive: true,
+                        employeeId: { not: employee.id },
+                        employee: { isActive: true, stationId: employeeStationId },
+                    },
+                    select: { publicLabel: true },
+                })
+                : [];
+            const labelWarning = duplicateLabelWarning(draftLabel, stationPeers.map((p) => p.publicLabel));
+
             const approved = body.approvePublicProfile === true;
 
             const qr = await prisma.$transaction(async (tx) => {
@@ -169,6 +191,7 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({
                 qrCode: { id: qr.id, publicLabel: qr.publicLabel, needsApproval: !approved },
+                warning: labelWarning,
                 // ส่งกลับเฉพาะตอนสร้างเพื่อพิมพ์ป้ายแรก
                 token: secrets.token,
                 manualCode: secrets.manualCode,

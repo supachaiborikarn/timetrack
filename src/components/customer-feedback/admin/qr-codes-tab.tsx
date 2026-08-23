@@ -109,7 +109,11 @@ export function QrCodesTab() {
         });
         const data = await res.json();
         if (res.ok) {
-            toast.success("สร้าง QR แล้ว — ยังไม่เปิดใช้งานจนกว่าจะบันทึกการรับทราบข้อมูลสาธารณะ");
+            toast.success(
+                `สร้าง QR ชื่อ "${data.qrCode?.publicLabel ?? ""}" แล้ว — ยังไม่เปิดใช้งานจนกว่าจะบันทึกการรับทราบข้อมูลสาธารณะ`
+            );
+            // ชื่อเล่นซ้ำกับเพื่อนร่วมสถานี ลูกค้าอาจให้คะแนนผิดคน
+            if (data.warning) toast.warning(data.warning, { duration: 10000 });
             void load();
         } else {
             toast.error(data.error ?? "สร้างไม่สำเร็จ");
