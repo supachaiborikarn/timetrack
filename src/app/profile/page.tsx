@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -193,7 +193,7 @@ export default function ProfilePage() {
     const [newPin, setNewPin] = useState("");
     const [confirmPin, setConfirmPin] = useState("");
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         const res = await fetch("/api/profile");
         if (res.ok) {
             const d = await res.json();
@@ -207,22 +207,28 @@ export default function ProfilePage() {
                         : "",
             );
         }
-    };
-    const fetchRequests = async () => {
+    }, []);
+    const fetchRequests = useCallback(async () => {
         const res = await fetch("/api/profile/edit-request");
         if (res.ok) { const d = await res.json(); setRequests(d.requests || []); }
-    };
-    const fetchPayslips = async () => {
+    }, []);
+    const fetchPayslips = useCallback(async () => {
         const res = await fetch("/api/payslip");
         if (res.ok) { const d = await res.json(); setPayslips(d.payslips || []); }
-    };
+    }, []);
 
     useEffect(() => {
         if (session?.user?.id) {
             setIsLoading(true);
             Promise.all([fetchProfile(), fetchRequests(), fetchPayslips()]).finally(() => setIsLoading(false));
         }
-    }, [session?.user?.id]);
+    }, [fetchPayslips, fetchProfile, fetchRequests, session?.user?.id]);
+
+    useEffect(() => {
+        const handleHousingUpdated = () => { void fetchProfile(); };
+        window.addEventListener("timetrack:housing-updated", handleHousingUpdated);
+        return () => window.removeEventListener("timetrack:housing-updated", handleHousingUpdated);
+    }, [fetchProfile]);
 
     const handlePhotoUploaded = () => {
         // Re-read the profile so photoUrl flips from null to the avatar route the

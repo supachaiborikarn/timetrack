@@ -33,7 +33,11 @@ interface Announcement {
 const PENDING_ANNOUNCEMENT_KEY = "timetrack.pendingMandatoryAnnouncement";
 const LAST_EMPTY_CHECK_KEY = "timetrack.lastEmptyMandatoryAnnouncementCheck";
 
-export function GlobalAnnouncementModal() {
+type GlobalAnnouncementModalProps = {
+    onBlockingChange?: (isBlocking: boolean) => void;
+};
+
+export function GlobalAnnouncementModal({ onBlockingChange }: GlobalAnnouncementModalProps = {}) {
     const { data: session } = useSession();
     const router = useRouter();
     const pathname = usePathname();
@@ -43,6 +47,10 @@ export function GlobalAnnouncementModal() {
 
     // Disable checking if user is on login/register pages
     const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+
+    useEffect(() => {
+        onBlockingChange?.(isLoading || Boolean(announcement));
+    }, [announcement, isLoading, onBlockingChange]);
 
     const fetchUnreadMandatory = useCallback(async () => {
         setIsLoading(true);

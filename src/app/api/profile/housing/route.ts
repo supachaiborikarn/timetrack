@@ -1,8 +1,78 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isSelfReportedHousingStatus } from "@/lib/housing";
+import {
+    isHousingConfirmationRequired,
+    isHousingConfirmationRole,
+    isSelfReportedHousingStatus,
+    parseHousingConfirmationStartedAt,
+} from "@/lib/housing";
 import { logActivity } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+
+/** Data needed by the global popup, limited to the signed-in employee. */
+export async function GET() {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+                id: true,
+                role: true,
+                isActive: true,
+                employeeStatus: true,
+                housingStatus: true,
+                dormitoryId: true,
+                housingUpdatedAt: true,
+                housingUpdatedById: true,
+            },
+        });
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        const confirmationStartedAt = parseHousingConfirmationStartedAt(
+            process.env.HOUSING_CONFIRMATION_STARTED_AT,
+        );
+        const isAudience = user.isActive
+            && user.employeeStatus === "ACTIVE"
+            && isHousingConfirmationRole(user.role);
+        const confirmationRequired = isAudience && isHousingConfirmationRequired(
+            user.id,
+            user.housingUpdatedById,
+            user.housingUpdatedAt,
+            confirmationStartedAt,
+        );
+
+        const dormitories = confirmationRequired
+            ? await prisma.dormitory.findMany({
+                where: { isActive: true },
+                orderBy: [{ station: { name: "asc" } }, { name: "asc" }],
+                select: {
+                    id: true,
+                    name: true,
+                    station: { select: { id: true, name: true, code: true } },
+                },
+            })
+            : [];
+
+        return NextResponse.json({
+            confirmationRequired,
+            confirmationStartedAt: confirmationStartedAt.toISOString(),
+            currentHousing: {
+                housingStatus: user.housingStatus,
+                dormitoryId: user.dormitoryId,
+            },
+            dormitories,
+        });
+    } catch (error) {
+        console.error("Error loading employee housing confirmation:", error);
+        return NextResponse.json({ error: "โหลดข้อมูลที่พักไม่สำเร็จ" }, { status: 500 });
+    }
+}
 
 /** Let the signed-in employee report only their own current accommodation. */
 export async function PATCH(request: Request) {

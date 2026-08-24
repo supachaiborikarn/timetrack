@@ -13,6 +13,14 @@ export const HOUSING_STATUS_LABELS: Record<HousingStatus, string> = {
 
 export const HOUSING_STATUS_ORDER: HousingStatus[] = ["UNKNOWN", "COMPANY_DORM", "OWN_HOUSING"];
 
+/**
+ * The current company-wide confirmation round. Anyone whose own confirmation is
+ * older than this is asked once more. The environment variable lets a later
+ * round start without changing the database or deleting the previous answer.
+ */
+export const DEFAULT_HOUSING_CONFIRMATION_STARTED_AT = "2026-08-24T10:45:00+07:00";
+export const HOUSING_CONFIRMATION_ROLES = ["HR", "MANAGER", "CASHIER", "EMPLOYEE"] as const;
+
 /** SystemConfig key holding the company-wide monthly allowance. */
 export const HOUSING_ALLOWANCE_SETTING_KEY = "housing_allowance_monthly";
 export const DEFAULT_HOUSING_ALLOWANCE = 0;
@@ -35,6 +43,39 @@ export type SelfReportedHousingStatus = Extract<HousingStatus, "COMPANY_DORM" | 
  */
 export function isSelfReportedHousing(userId: string, housingUpdatedById: string | null): boolean {
     return housingUpdatedById !== null && housingUpdatedById === userId;
+}
+
+/** Roles that are employees for housing and payroll purposes. ADMIN is excluded. */
+export function isHousingConfirmationRole(role: unknown): boolean {
+    return typeof role === "string" && (HOUSING_CONFIRMATION_ROLES as readonly string[]).includes(role);
+}
+
+/** Parse the configured round start and safely fall back to the built-in round. */
+export function parseHousingConfirmationStartedAt(value: string | null | undefined): Date {
+    const fallback = new Date(DEFAULT_HOUSING_CONFIRMATION_STARTED_AT);
+    if (!value?.trim()) return fallback;
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+/**
+ * A round is complete only when this employee personally confirmed on or after
+ * it started. An HR edit remains useful as the current value, but the employee
+ * still has to review it in the popup.
+ */
+export function isHousingConfirmationRequired(
+    userId: string,
+    housingUpdatedById: string | null,
+    housingUpdatedAt: Date | null,
+    confirmationStartedAt: Date,
+    now: Date = new Date(),
+): boolean {
+    if (Number.isNaN(confirmationStartedAt.getTime()) || Number.isNaN(now.getTime())) return true;
+    if (now < confirmationStartedAt) return false;
+    if (!isSelfReportedHousing(userId, housingUpdatedById) || !housingUpdatedAt) return true;
+    if (Number.isNaN(housingUpdatedAt.getTime())) return true;
+    return housingUpdatedAt < confirmationStartedAt;
 }
 
 /** Statuses an employee may choose for their own current accommodation. */

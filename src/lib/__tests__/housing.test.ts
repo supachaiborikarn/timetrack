@@ -5,10 +5,13 @@ import {
     effectiveHousingAllowance,
     findHousingIssues,
     isEligibleForHousingAllowance,
+    isHousingConfirmationRequired,
+    isHousingConfirmationRole,
     isHousingStatus,
     isSelfReportedHousing,
     isSelfReportedHousingStatus,
     monthRange,
+    parseHousingConfirmationStartedAt,
 } from "../housing";
 
 describe("isEligibleForHousingAllowance", () => {
@@ -137,5 +140,59 @@ describe("isSelfReportedHousing", () => {
         // Rows written before housingUpdatedById existed have null, and must not be
         // labelled as employee-entered on no evidence.
         expect(isSelfReportedHousing("u1", null)).toBe(false);
+    });
+});
+
+describe("housing confirmation round", () => {
+    const roundStartedAt = new Date("2026-08-24T03:45:00.000Z");
+
+    it("asks again when the employee's answer is older than the round", () => {
+        expect(isHousingConfirmationRequired(
+            "u1",
+            "u1",
+            new Date("2026-08-24T03:44:59.000Z"),
+            roundStartedAt,
+        )).toBe(true);
+    });
+
+    it("accepts the employee's own answer made during the round", () => {
+        expect(isHousingConfirmationRequired(
+            "u1",
+            "u1",
+            new Date("2026-08-24T03:45:00.000Z"),
+            roundStartedAt,
+        )).toBe(false);
+    });
+
+    it("still asks the employee when HR entered the current value", () => {
+        expect(isHousingConfirmationRequired(
+            "u1",
+            "hr1",
+            new Date("2026-08-24T04:00:00.000Z"),
+            roundStartedAt,
+        )).toBe(true);
+    });
+
+    it("waits until the configured round has started", () => {
+        expect(isHousingConfirmationRequired(
+            "u1",
+            "u1",
+            new Date("2026-08-24T03:30:00.000Z"),
+            new Date("2026-08-24T04:00:00.000Z"),
+            new Date("2026-08-24T03:59:59.000Z"),
+        )).toBe(false);
+    });
+
+    it("includes payroll employees and excludes the system admin", () => {
+        expect(isHousingConfirmationRole("EMPLOYEE")).toBe(true);
+        expect(isHousingConfirmationRole("CASHIER")).toBe(true);
+        expect(isHousingConfirmationRole("MANAGER")).toBe(true);
+        expect(isHousingConfirmationRole("HR")).toBe(true);
+        expect(isHousingConfirmationRole("ADMIN")).toBe(false);
+    });
+
+    it("uses the built-in round when the configured date is invalid", () => {
+        expect(parseHousingConfirmationStartedAt("invalid").toISOString())
+            .toBe("2026-08-24T03:45:00.000Z");
     });
 });

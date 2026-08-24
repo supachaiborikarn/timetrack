@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNavigation } from "./BottomNavigation";
 import { GlobalAnnouncementModal } from "@/components/notifications/GlobalAnnouncementModal";
+import { HousingConfirmationModal } from "@/components/housing/HousingConfirmationModal";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isAnnouncementBlocking, setIsAnnouncementBlocking] = useState(true);
   
   // Pages that should not display the app navigation shell
   const noShellPaths = ["/login", "/register", "/forgot-password"];
@@ -23,24 +26,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main>{children}</main>;
   }
 
-  if (isAdminPage) {
-    return (
-      <>
-        <GlobalAnnouncementModal />
-        {children}
-      </>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background relative pb-[100px]">
-      <GlobalAnnouncementModal />
-      <main className="w-full h-full relative">
-        {children}
-      </main>
-      
-      {/* Mobile Bottom Navigation — only for employee-facing pages */}
-      <BottomNavigation />
-    </div>
+    <>
+      <GlobalAnnouncementModal onBlockingChange={setIsAnnouncementBlocking} />
+      <HousingConfirmationModal suspended={isAnnouncementBlocking} />
+      {isAdminPage ? children : (
+        <div className="min-h-screen bg-background relative pb-[100px]">
+          <main className="w-full h-full relative">
+            {children}
+          </main>
+
+          {/* Mobile Bottom Navigation — only for employee-facing pages */}
+          <BottomNavigation />
+        </div>
+      )}
+    </>
   );
 }
