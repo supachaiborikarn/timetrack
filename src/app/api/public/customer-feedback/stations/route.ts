@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isCustomerFeedbackPublicEnabled } from "@/lib/customer-feedback/feature-flags";
+import { isCustomerFeedbackPublicEnabled, assertPublicSecrets } from "@/lib/customer-feedback/feature-flags";
 import { loadVisitFromHeaders } from "@/lib/customer-feedback/submit";
 import { searchEligibleStations } from "@/lib/customer-feedback/station-context";
 import { checkRateLimit } from "@/lib/customer-feedback/anti-abuse";
@@ -12,11 +12,17 @@ import { publicError } from "@/lib/customer-feedback/public-errors";
  * publicEmergencyPhone ไม่เกิน 20 รายการ
  */
 
+function noStore(response: NextResponse): NextResponse {
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+}
+
 export async function GET(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
             return publicError("PUBLIC_DISABLED", 404);
         }
+        assertPublicSecrets();
 
         const loaded = await loadVisitFromHeaders(request.headers);
         if ("error" in loaded) {
@@ -26,7 +32,7 @@ export async function GET(request: NextRequest) {
 
         // STATION STANDARD Visit ล็อกสถานีจาก QR — ไม่เปิด station search
         if (visit.visitKind === "STANDARD" && visit.targetType === "STATION") {
-            return NextResponse.json({ stations: [] });
+            return noStore(NextResponse.json({ stations: [] }));
         }
 
         const limit = await checkRateLimit("station-search", sha256Hex(visit.id), 30, 60 * 1000);
@@ -34,9 +40,12 @@ export async function GET(request: NextRequest) {
             return publicError("SEARCH_RATE_LIMITED", 429, { "Retry-After": "60" });
         }
 
-        const q = request.nextUrl.searchParams.get("q") ?? "";
-        if (q.trim().length < 2) {
-            return NextResponse.json({ stations: [] });
+        const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
+        if (q.length > 100) {
+            return noStore(NextResponse.json({ error: "Search query is too long" }, { status: 400 }));
+        }
+        if (q.length < 2) {
+            return noStore(NextResponse.json({ stations: [] }));
         }
 
         // EMPLOYEE STANDARD และ INCIDENT ใช้ isEmployeeFeedbackStationEligible
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
             name: s.name,
             publicEmergencyPhone: s.publicEmergencyPhone,
         }));
-        return NextResponse.json({ stations: result });
+        return noStore(NextResponse.json({ stations: result }));
     } catch (error) {
         console.error("Error searching stations:", error);
         return publicError("SERVER_ERROR", 500);

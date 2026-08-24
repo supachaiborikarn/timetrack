@@ -7,7 +7,7 @@ import {
 } from "@/lib/customer-feedback/validation";
 import { shuffledOptionOrder, SURVEYS, EMPLOYEE_REASON_OPTIONS, STATION_REASON_OPTIONS } from "@/lib/customer-feedback/questions";
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, SEVERITY_SLA_HOURS } from "@/lib/customer-feedback/cases";
-import { summarizeRatings, meetsMinimumSample } from "@/lib/customer-feedback/metrics";
+import { summarizeRatingDistribution, summarizeRatings, meetsMinimumSample } from "@/lib/customer-feedback/metrics";
 
 describe("question registry", () => {
     it("question key ไม่ซ้ำในแต่ละ survey", () => {
@@ -107,6 +107,54 @@ describe("standard payload validation", () => {
         expect(validateStandardPayload({ ...base, serviceAreas: ["swimming_pool"] }).ok).toBe(false);
         expect(validateStandardPayload({ ...base, serviceAreas: ["unsure", "restroom"] }).ok).toBe(false);
     });
+
+    it("บังคับชนิดของรายการ ภาษา และสถานี แทนการเปลี่ยนค่าผิดเป็นค่าว่าง", () => {
+        expect(validateStandardPayload({ ...base, reasonKeys: "employee_courtesy" }).ok).toBe(false);
+        expect(validateStandardPayload({ ...base, serviceAreas: "restroom" }).ok).toBe(false);
+        expect(validateStandardPayload({ ...base, language: "jp" }).ok).toBe(false);
+        expect(validateStandardPayload({ ...base, selectedStationId: 123 }).ok).toBe(false);
+    });
+
+    it("แยกกติกาส่วนบริการของแบบพนักงานและสถานี", () => {
+        expect(validateStandardPayload({ ...base, serviceAreas: ["restroom"] }, "employee-v1").ok).toBe(false);
+        expect(validateStandardPayload({
+            ...base,
+            reasonKeys: ["station_cleanliness"],
+            serviceAreas: [],
+        }, "station-v1").ok).toBe(false);
+        expect(validateStandardPayload({
+            ...base,
+            reasonKeys: ["station_cleanliness"],
+            serviceAreas: ["restroom"],
+        }, "station-v1").ok).toBe(true);
+    });
+
+    it("ใช้ reason registry และเพดานของ station-v1", () => {
+        const station = validateStandardPayload({
+            ...base,
+            overallRating: 2,
+            reasonKeys: ["station_cleanliness", "station_wait", "station_safety"],
+            serviceAreas: ["restroom"],
+        }, "station-v1");
+        expect(station.ok).toBe(true);
+
+        const employee = validateStandardPayload({
+            ...base,
+            reasonKeys: ["station_cleanliness"],
+        }, "employee-v1");
+        expect(employee.ok).toBe(false);
+    });
+
+    it("ใช้ความยาว comment ของ survey ที่ Visit ระบุ", () => {
+        const comment = "ก".repeat(301);
+        expect(validateStandardPayload({ ...base, comment }, "employee-v1").ok).toBe(true);
+        expect(validateStandardPayload({ ...base, comment }, "station-v1").ok).toBe(false);
+    });
+
+    it("ปฏิเสธ durationSeconds จาก client เพราะ server เป็นผู้คำนวณ", () => {
+        const result = validateStandardPayload({ ...base, durationSeconds: 999_999 });
+        expect(result.ok).toBe(false);
+    });
 });
 
 describe("incident payload validation", () => {
@@ -134,8 +182,18 @@ describe("incident payload validation", () => {
         expect(validateIncidentPayload({ ...base, incidentKey: "not_a_key" }).ok).toBe(false);
     });
 
+    it("บังคับชนิด noDetail ภาษา และสถานีของ incident", () => {
+        expect(validateIncidentPayload({ ...base, noDetail: "false" }).ok).toBe(false);
+        expect(validateIncidentPayload({ ...base, language: "jp" }).ok).toBe(false);
+        expect(validateIncidentPayload({ ...base, selectedStationId: 123 }).ok).toBe(false);
+    });
+
     it("occurredAt อนาคตถูกปฏิเสธ", () => {
         expect(validateIncidentPayload({ ...base, occurredAt: new Date(Date.now() + 3600 * 1000).toISOString() }).ok).toBe(false);
+    });
+
+    it("ปฏิเสธ durationSeconds จาก client เพราะ server เป็นผู้คำนวณ", () => {
+        expect(validateIncidentPayload({ ...base, durationSeconds: 120 }).ok).toBe(false);
     });
 });
 
@@ -195,6 +253,16 @@ describe("metrics", () => {
 
     it("ข้อมูลว่างไม่มีค่าเฉลี่ย", () => {
         expect(summarizeRatings([]).average).toBeNull();
+    });
+
+    it("สร้างสัดส่วนคะแนนย้อนหลังจากยอดแยกคะแนนรายวัน", () => {
+        expect(summarizeRatingDistribution({ 1: 2, 2: 1, 3: 2, 4: 3, 5: 2 })).toEqual({
+            count: 10,
+            average: 3.2,
+            positiveRate: 50,
+            negativeRate: 30,
+            distribution: { 1: 2, 2: 1, 3: 2, 4: 3, 5: 2 },
+        });
     });
 
     it("minimum sample 10 ข้อ", () => {

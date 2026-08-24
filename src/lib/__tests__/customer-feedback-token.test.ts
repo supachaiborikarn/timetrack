@@ -100,6 +100,19 @@ describe("abuse score", () => {
         const result = computeAbuseScore({ durationSeconds: 45, sameNetworkSameQrCount: 0 });
         expect(result.score).toBe(0);
     });
+
+    it("network และ client ที่มี IP ร่วมกันนับความเสี่ยงเพียงชั้นเดียว", () => {
+        const result = computeAbuseScore({
+            durationSeconds: 45,
+            sameNetworkSameQrCount: 3,
+            sameClientSameTargetCount: 3,
+        });
+        expect(result.score).toBe(2);
+        expect(result.reasons).toEqual(expect.arrayContaining([
+            "same-network-same-qr",
+            "same-client-same-target",
+        ]));
+    });
 });
 
 describe("buildQrSecrets", () => {

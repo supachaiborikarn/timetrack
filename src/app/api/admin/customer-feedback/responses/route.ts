@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getFeedbackAccessContext, getStationScope, requireFeedbackPermission } from "@/lib/customer-feedback/access";
+import {
+    canViewFeedbackIncident,
+    getFeedbackAccessContext,
+    getStationScope,
+    parseFeedbackDateRange,
+    parseFeedbackPagination,
+    parseOptionalFeedbackFilter,
+    requireFeedbackPermission,
+    resolveFeedbackStationId,
+} from "@/lib/customer-feedback/access";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 
 /**
@@ -22,27 +31,37 @@ export async function GET(request: NextRequest) {
         if (!perm.ok) return NextResponse.json({ error: perm.message }, { status: perm.status });
         const scope = await getStationScope(access.ctx);
         if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
-        const { hasPermission } = await import("@/lib/permissions");
-        const canViewIncident = access.ctx.role === "ADMIN" || (await hasPermission(access.ctx.role, "customer_feedback.view_incident"));
+        const canViewIncident = await canViewFeedbackIncident(access.ctx);
 
         const url = request.nextUrl;
-        const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
-        const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(url.searchParams.get("pageSize") ?? 20)));
-        const stationId = url.searchParams.get("stationId") ?? scope.stationId ?? undefined;
-        const kind = url.searchParams.get("kind");
-        const validity = url.searchParams.get("validity");
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
+        const pagination = parseFeedbackPagination(url.searchParams.get("page"), url.searchParams.get("pageSize"), {
+            pageSize: 20,
+            maxPageSize: MAX_PAGE_SIZE,
+        });
+        if (!pagination.ok) return NextResponse.json({ error: pagination.message }, { status: 400 });
+        const kind = parseOptionalFeedbackFilter(url.searchParams.get("kind"), ["STANDARD", "INCIDENT"] as const, "kind");
+        if (!kind.ok) return NextResponse.json({ error: kind.message }, { status: 400 });
+        const validity = parseOptionalFeedbackFilter(
+            url.searchParams.get("validity"),
+            ["VALID", "SUSPECTED", "HIDDEN", "TEST"] as const,
+            "validity"
+        );
+        if (!validity.ok) return NextResponse.json({ error: validity.message }, { status: 400 });
+        const dateRange = parseFeedbackDateRange(url.searchParams.get("from"), url.searchParams.get("to"));
+        if (!dateRange.ok) return NextResponse.json({ error: dateRange.message }, { status: 400 });
+
+        const { page, pageSize } = pagination.value;
+        const stationId = resolveFeedbackStationId(scope.stationId, url.searchParams.get("stationId"));
 
         const where: import("@prisma/client").Prisma.CustomerFeedbackResponseWhereInput = {
             ...(stationId ? { stationId } : {}),
-            ...(kind === "STANDARD" || kind === "INCIDENT" ? { kind } : {}),
-            ...(validity && ["VALID", "SUSPECTED", "HIDDEN", "TEST"].includes(validity) ? { validity: validity as "VALID" | "SUSPECTED" | "HIDDEN" | "TEST" } : {}),
-            ...(from || to
+            ...(kind.value ? { kind: kind.value } : {}),
+            ...(validity.value ? { validity: validity.value } : {}),
+            ...(dateRange.value.from || dateRange.value.toExclusive
                 ? {
                       submittedAt: {
-                          ...(from ? { gte: new Date(from) } : {}),
-                          ...(to ? { lte: new Date(`${to}T23:59:59+07:00`) } : {}),
+                          ...(dateRange.value.from ? { gte: dateRange.value.from } : {}),
+                          ...(dateRange.value.toExclusive ? { lt: dateRange.value.toExclusive } : {}),
                       },
                   }
                 : {}),

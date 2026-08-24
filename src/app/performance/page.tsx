@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +13,6 @@ import { ReviewPeriod, ReviewSubmission } from "@/types/performance";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 
 export default function PerformancePage() {
-    const { data: session } = useSession();
     const [periods, setPeriods] = useState<ReviewPeriod[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<ReviewPeriod | null>(null);
     const [submission, setSubmission] = useState<ReviewSubmission | null>(null);
@@ -27,19 +25,22 @@ export default function PerformancePage() {
     }, []);
 
     useEffect(() => {
-        if (selectedPeriod) {
-            fetchSubmission(selectedPeriod.id);
-        }
+        if (!selectedPeriod) return;
+        const controller = new AbortController();
+        setSubmission(null);
+        setSelfReview("");
+        void fetchSubmission(selectedPeriod.id, controller.signal);
+        return () => controller.abort();
     }, [selectedPeriod]);
 
     const fetchPeriods = async () => {
         try {
-            const res = await fetch("/api/performance/periods?active=true");
+            const res = await fetch("/api/performance/periods", { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
                 setPeriods(data.periods);
                 if (data.periods.length > 0) {
-                    setSelectedPeriod(data.periods[0]);
+                    setSelectedPeriod(data.periods.find((period: ReviewPeriod) => period.isActive) ?? data.periods[0]);
                 }
             }
         } catch (error) {
@@ -49,11 +50,12 @@ export default function PerformancePage() {
         }
     };
 
-    const fetchSubmission = async (periodId: string) => {
+    const fetchSubmission = async (periodId: string, signal?: AbortSignal) => {
         try {
-            const res = await fetch(`/api/performance/submissions?periodId=${periodId}`);
-            if (res.ok) {
+            const res = await fetch(`/api/performance/submissions?periodId=${periodId}`, { signal });
+            if (res.ok && !signal?.aborted) {
                 const data = await res.json();
+                if (signal?.aborted) return;
                 setSubmission(data.submission);
                 if (data.submission) {
                     setSelfReview(data.submission.selfReview);
@@ -62,12 +64,13 @@ export default function PerformancePage() {
                 }
             }
         } catch (error) {
+            if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
             console.error(error);
         }
     };
 
     const handleSubmit = async () => {
-        if (!selectedPeriod || !selfReview.trim()) return;
+        if (!selectedPeriod?.isActive || !selfReview.trim()) return;
 
         setIsSubmitting(true);
         try {
@@ -123,7 +126,7 @@ export default function PerformancePage() {
                     <p className="text-slate-500">แบบประเมินตนเองตามรอบการประเมิน</p>
                 </div>
 
-                <CustomerFeedbackSelfSummary />
+                <CustomerFeedbackSelfSummary reviewPeriodId={selectedPeriod?.id} />
 
                 {periods.length === 0 ? (
                     <Card>
@@ -133,7 +136,26 @@ export default function PerformancePage() {
                     </Card>
                 ) : (
                     <div className="space-y-6">
-                        {/* Period Selector (if multiple) - Simplified to assume latest for now */}
+                        {periods.length > 1 && selectedPeriod && (
+                            <div className="space-y-1">
+                                <label htmlFor="review-period" className="text-sm font-semibold text-slate-700">เลือกรอบประเมิน</label>
+                                <select
+                                    id="review-period"
+                                    value={selectedPeriod.id}
+                                    onChange={(event) => {
+                                        const next = periods.find((period) => period.id === event.target.value);
+                                        if (next) setSelectedPeriod(next);
+                                    }}
+                                    className="min-h-10 w-full rounded-md border bg-white px-3 text-sm"
+                                >
+                                    {periods.map((period) => (
+                                        <option key={period.id} value={period.id}>
+                                            {period.title} — {period.isActive ? "เปิดอยู่" : "ปิดแล้ว"}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         {selectedPeriod && (
                             <Card className="border-indigo-100 shadow-md overflow-hidden">
                                 <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-4 text-white">
@@ -144,7 +166,9 @@ export default function PerformancePage() {
                                                 {formatThaiDate(new Date(selectedPeriod.startDate), "d MMM")} - {formatThaiDate(new Date(selectedPeriod.endDate), "d MMM yyyy")}
                                             </p>
                                         </div>
-                                        {submission?.status === "SUBMITTED" || submission?.status === "COMPLETED" ? (
+                                        {!selectedPeriod.isActive ? (
+                                            <Badge className="border-none bg-slate-600 text-white hover:bg-slate-600">ปิดรอบแล้ว</Badge>
+                                        ) : submission?.status === "SUBMITTED" || submission?.status === "COMPLETED" ? (
                                             <Badge className="bg-white/20 hover:bg-white/30 text-white border-none">
                                                 <CheckCircle2 className="w-3 h-3 mr-1" /> ส่งแล้ว
                                             </Badge>
@@ -168,21 +192,21 @@ export default function PerformancePage() {
                                             onChange={(e) => setSelfReview(e.target.value)}
                                             placeholder="พิมพ์รายละเอียดผลงาน..."
                                             className="min-h-[200px] text-base leading-relaxed"
-                                            disabled={!!submission}
+                                            disabled={!!submission || !selectedPeriod.isActive}
                                         />
                                     </div>
                                 </CardContent>
                                 <CardFooter className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t">
                                     <p className="text-xs text-slate-500">
-                                        * กรุณาตรวจสอบความถูกต้องก่อนกดส่ง
+                                        {selectedPeriod.isActive ? "* กรุณาตรวจสอบความถูกต้องก่อนกดส่ง" : "รอบนี้ปิดแล้ว ข้อมูลคะแนนลูกค้าใช้ snapshot ณ วันปิดรอบ"}
                                     </p>
                                     <Button
                                         onClick={handleSubmit}
-                                        disabled={isSubmitting || !selfReview.trim() || !!submission}
+                                        disabled={isSubmitting || !selfReview.trim() || !!submission || !selectedPeriod.isActive}
                                         className="bg-indigo-600 hover:bg-indigo-700"
                                     >
                                         {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                        {submission ? "ส่งแบบประเมินแล้ว" : "ส่งแบบประเมิน"}
+                                        {!selectedPeriod.isActive ? "รอบปิดแล้ว" : submission ? "ส่งแบบประเมินแล้ว" : "ส่งแบบประเมิน"}
                                     </Button>
                                 </CardFooter>
                             </Card>

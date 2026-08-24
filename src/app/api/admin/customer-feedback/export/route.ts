@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getFeedbackAccessContext, getStationScope, requireFeedbackPermission } from "@/lib/customer-feedback/access";
+import {
+    canViewFeedbackIncident,
+    getFeedbackAccessContext,
+    getStationScope,
+    parseFeedbackDateRange,
+    parseOptionalFeedbackFilter,
+    requireFeedbackPermission,
+    resolveFeedbackStationId,
+} from "@/lib/customer-feedback/access";
+import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 
 /**
  * GET /api/admin/customer-feedback/export — export CSV ที่ตัดข้อมูลติดต่อ
@@ -18,26 +27,43 @@ function escapeCsvValue(value: string): string {
 
 export async function GET(request: NextRequest) {
     try {
+        if (!isCustomerFeedbackEnabled()) {
+            return NextResponse.json({ error: "ระบบเสียงลูกค้ายังไม่เปิดใช้งาน" }, { status: 404 });
+        }
         const access = await getFeedbackAccessContext();
         if (!access.ok) return NextResponse.json({ error: access.message }, { status: access.status });
         const perm = await requireFeedbackPermission(access.ctx, "customer_feedback.export");
         if (!perm.ok) return NextResponse.json({ error: perm.message }, { status: perm.status });
         const scope = await getStationScope(access.ctx);
         if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
+        const canViewIncident = await canViewFeedbackIncident(access.ctx);
 
         const url = request.nextUrl;
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
-        const stationId = url.searchParams.get("stationId") ?? scope.stationId ?? undefined;
+        const dateRange = parseFeedbackDateRange(url.searchParams.get("from"), url.searchParams.get("to"));
+        if (!dateRange.ok) return NextResponse.json({ error: dateRange.message }, { status: 400 });
+        const kind = parseOptionalFeedbackFilter(url.searchParams.get("kind"), ["STANDARD", "INCIDENT"] as const, "kind");
+        if (!kind.ok) return NextResponse.json({ error: kind.message }, { status: 400 });
+        const validity = parseOptionalFeedbackFilter(
+            url.searchParams.get("validity"),
+            ["VALID", "SUSPECTED", "HIDDEN", "TEST"] as const,
+            "validity"
+        );
+        if (!validity.ok) return NextResponse.json({ error: validity.message }, { status: 400 });
+        if (kind.value === "INCIDENT" && !canViewIncident) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูเหตุเร่งด่วน" }, { status: 403 });
+        }
+        const stationId = resolveFeedbackStationId(scope.stationId, url.searchParams.get("stationId"));
 
         const responses = await prisma.customerFeedbackResponse.findMany({
             where: {
                 submittedAt: {
-                    ...(from ? { gte: new Date(from) } : { gte: new Date(Date.now() - 90 * 86400 * 1000) }),
-                    ...(to ? { lte: new Date(`${to}T23:59:59+07:00`) } : {}),
+                    gte: dateRange.value.from ?? new Date(Date.now() - 90 * 86400 * 1000),
+                    ...(dateRange.value.toExclusive ? { lt: dateRange.value.toExclusive } : {}),
                 },
                 ...(stationId ? { stationId } : {}),
-                validity: { in: ["VALID", "SUSPECTED", "HIDDEN"] },
+                validity: validity.value ?? { in: ["VALID", "SUSPECTED", "HIDDEN"] },
+                ...(kind.value ? { kind: kind.value } : {}),
+                ...(canViewIncident ? {} : { kind: "STANDARD" as const }),
             },
             orderBy: { submittedAt: "desc" },
             take: 10000,

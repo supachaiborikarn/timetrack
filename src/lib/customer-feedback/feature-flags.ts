@@ -23,6 +23,7 @@ export function isCustomerFeedbackPublicEnabled(): boolean {
  */
 export function assertPublicSecrets(): void {
     const missing: string[] = [];
+    if (!process.env.AUTH_SECRET) missing.push("AUTH_SECRET");
     if (!process.env.CUSTOMER_FEEDBACK_MANUAL_CODE_HMAC_KEY) missing.push("CUSTOMER_FEEDBACK_MANUAL_CODE_HMAC_KEY");
     if (!process.env.CUSTOMER_FEEDBACK_ABUSE_HMAC_KEY) missing.push("CUSTOMER_FEEDBACK_ABUSE_HMAC_KEY");
     if (!process.env.FIELD_ENCRYPTION_KEY) missing.push("FIELD_ENCRYPTION_KEY");

@@ -1,6 +1,12 @@
 # Task: ระบบประเมินพนักงานและสถานีผ่าน QR
 
-สถานะ: พร้อมส่งต่อให้ AI ทำงานต่อ
+สถานะ: เอกสารออกแบบย้อนหลัง
+
+สถานะ implementation และขั้นตอนทำงานต่อให้อ่าน [customer-feedback-qr-handoff.md](customer-feedback-qr-handoff.md)
+
+เกณฑ์โบนัสตรุษจีนยังเป็นร่างภายในและไม่รวมใน repository สาธารณะ
+
+รายการ `[ ]` ในไฟล์นี้คือ requirement เดิมและห้ามใช้เป็นสถานะว่างานยังไม่ทำโดยไม่เทียบ handoff กับโค้ดปัจจุบัน
 
 วันที่จัดทำ: 23 สิงหาคม 2569
 
@@ -122,9 +128,9 @@ Production ต้องปฏิเสธ APP_BASE_URL ที่เป็น loc
 
 QR พนักงานแสดงชื่อเรียก ตำแหน่ง และสถานีเท่าที่จำเป็น
 
-หน้า admin เสนอชื่อเล่นหรือชื่อจริงส่วนแรกเป็นค่า draft และห้ามเผยแพร่ทันที
+หน้า admin ใช้ชื่อเล่นเป็นค่า draft และห้าม fallback ไปชื่อจริง
 
-พนักงานเลือกใช้ชื่อเล่น ชื่อจริงส่วนแรก หรือรหัสเรียกสาธารณะที่ HR กำหนดได้
+พนักงานเลือกใช้ชื่อเล่นหรือรหัสเรียกสาธารณะที่ HR กำหนดได้
 
 ตำแหน่งสาธารณะเป็นข้อความแยกใน QR และใช้ “พนักงานบริการ” ได้เมื่อระบบเดิมไม่มีชื่อตำแหน่ง
 
@@ -723,15 +729,13 @@ comment และข้อมูลติดต่ออยู่ในหน่
 
 มีส่วนพนักงานและสถานีแยกกัน
 
-ค้นหาพนักงานตามชื่อ สาขา แผนก และสถานะ QR ได้
+สถานะปัจจุบันค้นหาและสร้าง QR รายพนักงานหรือสถานีได้ทีละรายการ
 
-สร้าง QR รายคนและแบบกลุ่มได้
+การสร้างแบบกลุ่มและ filter แผนกหลายเงื่อนไขเป็น backlog
 
-ดาวน์โหลด SVG, PNG และ PDF พร้อมพิมพ์ได้
+สถานะปัจจุบันสร้าง SVG ในหน้าพิมพ์และผู้ใช้บันทึก PDF ผ่าน browser ได้
 
-พิมพ์ QR พนักงานเป็นขนาดป้ายชื่อ
-
-พิมพ์ QR สถานีเป็น A5 และ A4
+ไฟล์ PNG และ template ป้ายชื่อ/A5/A4 สำเร็จรูปเป็น backlog
 
 ป้ายทุกแบบแสดงข้อความว่า QR พาไปทำอะไรและมี URL /f พร้อมรหัสกรอกเองใต้ QR
 
@@ -745,7 +749,7 @@ client เรียก MARK_PRINTED หลังสร้างไฟล์ SVG,
 
 หน้าแสดง lastResolvedAt เพื่อรู้ว่า QR ยังสแกนได้จริง
 
-หน้าเตือน QR ที่สร้างแล้วไม่มีการสแกนภายใน 7 วัน
+การเตือน QR ที่สร้างแล้วไม่มีการสแกนภายใน 7 วันเป็น backlog
 
 Overview แสดง invalid resolve และ inactive resolve เป็นยอดรวมตามวันเพราะ request ที่หารหัสไม่พบผูกกลับไปยัง QR รายแผ่นไม่ได้
 
@@ -879,7 +883,7 @@ QR ที่มีคำตอบห้ามถูก hard delete ผ่าน 
 
 เมื่อเปิดพนักงานกลับมาให้ผู้ดูแล activate QR ด้วยตนเองหลังตรวจ public profile และป้าย
 
-การแก้ publicLabel หรือ publicPosition ต้องปิด QR ล้าง publicProfileApprovedAt และ publicProfileApprovedById ตั้ง needsReprint เป็น true และสร้าง AuditLog ใน transaction เดียวกัน
+การแก้ publicLabel หรือ publicPosition ต้องปิด QR ล้าง publicProfileApprovedAt และ publicProfileApprovedById หมุน token กับ manual code เพิ่ม version ตั้ง needsReprint เป็น true และสร้าง AuditLog ใน transaction เดียวกัน
 
 การ rotate token หรือ manual code ต้องปิด QR และตั้ง needsReprint เป็น true
 
@@ -1133,7 +1137,7 @@ details ห้ามเก็บ comment ข้อมูลติดต่อ to
 
 มิติหลักมี reportDate, stationKey แบบ snapshot, targetType, placementKey แบบ String, language, surveyVersion และ isTest แบบ Boolean
 
-ค่าหลักมี openedCount, startedCount, confirmedCount, targetRejectedCount, submittedCount, switchedIncidentCount, abandonedCount, botBlockedCount, expiredCount, validCount, suspectedCount, ratingSum และ ratingCount
+ค่าหลักมี openedCount, startedCount, confirmedCount, targetRejectedCount, submittedCount, switchedIncidentCount, abandonedCount, botBlockedCount, expiredCount, validCount, suspectedCount, ratingSum, ratingCount และ rating1Count ถึง rating5Count
 
 ทุกมิติเป็น non-null กำหนด unique ตามมิติทั้งหมดและใช้ UNKNOWN หรือ NO_QR ในมิติ String ที่ไม่มีข้อมูล
 
@@ -1174,6 +1178,8 @@ relation employee ใช้ onDelete SetNull, reviewPeriod ใช้ onDelete Re
 เพิ่ม closedAt และ closedById แบบ nullable ใน ReviewPeriod โดย closedBy ใช้ onDelete SetNull
 
 การปิดรอบต้อง set isActive เป็น false และสร้าง ReviewSnapshot ใน transaction เดียวกัน
+
+พนักงาน active ที่มี EMPLOYEE QR อยู่ในช่วงรอบต้องมี snapshot แม้ validCount เป็นศูนย์ เพื่อแยกคนที่ไม่มีข้อมูลออกจากคนที่ตกหล่นจากรายงาน
 
 ### 12.14 CustomerFeedbackReviewRequest
 
@@ -1523,7 +1529,7 @@ Response validity เป็น TEST เมื่อ Visit.isTestAtOpen เป็
 
 isTestAtOpen และ Response validity ห้ามแก้ย้อนหลัง
 
-QR ที่มี Visit แล้วห้ามสลับ isTest และต้องสร้าง QR ทดสอบหรือ production แยก
+QR ทดสอบสร้าง production ได้เฉพาะตอน inactive ผ่าน action `promote-test` ที่ตรวจ expectedVersion ปิดและหมุนรหัสรายการทดสอบเดิม แล้วสร้างรายการ production ใหม่พร้อม token กับ manual code ใหม่ ป้าย production ต้องพิมพ์ก่อนเปิดใช้งาน และข้อมูลทดสอบยังอยู่กับรายการเดิม
 
 HIDDEN เกิดจากการกลั่นกรองพร้อมเหตุผลและ AuditLog เท่านั้น
 
@@ -1709,6 +1715,8 @@ Dashboard ต้องบอกว่าแบบประเมิน QR เป
 หลัง pilot 30 วันให้ใช้ baseline แยกสถานีและกำหนด target รอบถัดไป
 
 ### 18.5 ชั้นข้อมูลสำหรับรายงาน
+
+รายการ view ในหัวข้อนี้เป็น **future data contract** ปัจจุบัน dashboard ใช้ admin summary route, ตารางข้อมูลดิบที่ยังอยู่ใน retention และ daily aggregate โดยตรง
 
 สร้าง customer_feedback_response_fact_v1 เป็นหนึ่งแถวต่อ valid response
 
@@ -2107,7 +2115,7 @@ rollback migration ใช้การหยุดอ่าน model ใหม่
 
 | เรื่อง | ค่าเริ่มต้น |
 |---|---|
-| ชื่อ public พนักงาน | เสนอ nickName หรือชื่อจริงส่วนแรกเป็น draft และ block activation จนพนักงานรับทราบ |
+| ชื่อ public พนักงาน | ใช้ nickName หรือรหัสเรียกสาธารณะ ห้าม fallback ไปชื่อจริง และ block activation จนพนักงานรับทราบ |
 | ตำแหน่ง public | เสนอ “พนักงานบริการ” เป็น draft และ block activation จนพนักงานรับทราบ |
 | รูป public | ไม่แสดง |
 | ภาษา | ไทยและอังกฤษ |
@@ -2120,7 +2128,7 @@ rollback migration ใช้การหยุดอ่าน model ใหม่
 | ไฟล์แนบเหตุเร่งด่วน | ปิด |
 | ข้อมูลติดต่อ | ไม่บังคับและเข้ารหัส |
 | retention | ใช้ค่าที่เสนอในหัวข้อ 17 จนกว่าจะยืนยัน |
-| pilot | 1–2 สถานีเป็นเวลา 30 วัน |
+| rollout | เจ้าของเลือกเปิดทุกสถานีหลังทดสอบ QR แบบ isTest และยังต้องเปิด public flag เป็นขั้นตอนสุดท้าย |
 
 ## 26. งานที่ยังไม่รวมใน MVP
 

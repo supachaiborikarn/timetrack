@@ -1,5 +1,7 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { deleteAsset } from "@/lib/assets";
+import { setEmployeeInactive } from "@/lib/customer-feedback/employee-status";
 
 /**
  * Removing an employee account entirely is only safe when the account has never been used for
@@ -12,6 +14,39 @@ import { deleteAsset } from "@/lib/assets";
  */
 export type EmployeeActivity = { label: string; count: number };
 
+export async function tryDeleteEmployeeAccount(userId: string): Promise<{
+    deleted: boolean;
+    feedbackActivity: EmployeeActivity[];
+}> {
+    return prisma.$transaction(async (tx) => {
+        // QR create/resolve/submit ใช้ลำดับ User -> QR เหมือนกัน จึงไม่มี QR/Visit แทรกก่อน delete ได้
+        await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`);
+        const [feedbackQrs, feedbackVisits, feedbackResponses, feedbackReviewRequests] = await Promise.all([
+            tx.customerFeedbackQr.count({ where: { employeeId: userId } }),
+            tx.customerFeedbackVisit.count({
+                where: {
+                    OR: [
+                        { employeeId: userId },
+                        { qrCode: { employeeId: userId } },
+                    ],
+                },
+            }),
+            tx.customerFeedbackResponse.count({ where: { employeeId: userId } }),
+            tx.customerFeedbackReviewRequest.count({ where: { employeeId: userId } }),
+        ]);
+        const feedbackActivity = [
+            { label: "QR ประเมินพนักงาน", count: feedbackQrs },
+            { label: "การเปิดแบบประเมินจากลูกค้า", count: feedbackVisits },
+            { label: "คำตอบประเมินจากลูกค้า", count: feedbackResponses },
+            { label: "คำขอทบทวนเสียงลูกค้า", count: feedbackReviewRequests },
+        ].filter((item) => item.count > 0);
+        if (feedbackActivity.length > 0) return { deleted: false, feedbackActivity };
+
+        await tx.user.delete({ where: { id: userId } });
+        return { deleted: true, feedbackActivity: [] };
+    });
+}
+
 export async function findEmployeeActivity(userId: string): Promise<EmployeeActivity[]> {
     const [
         attendance, payrollRecords, advances, shiftAssignments, leaves, specialIncomes,
@@ -19,7 +54,7 @@ export async function findEmployeeActivity(userId: string): Promise<EmployeeActi
         announcements, comments, swapsRequested, swapsTargeted, profileEditRequests,
         oneOnOneAsUser, oneOnOneAsSupervisor, happinessLogs, stationTransfers,
         approvedAttendances, approvedLeaves, jobOpeningsCreated, applicationsReviewed, auditLogs,
-        feedbackResponses, openFeedbackReviewRequests,
+        feedbackQrs, feedbackVisits, feedbackResponses, openFeedbackReviewRequests,
     ] = await Promise.all([
         prisma.attendance.count({ where: { userId } }),
         prisma.payrollRecord.count({ where: { userId } }),
@@ -45,6 +80,15 @@ export async function findEmployeeActivity(userId: string): Promise<EmployeeActi
         prisma.jobOpening.count({ where: { createdById: userId } }),
         prisma.jobApplication.count({ where: { reviewedById: userId } }),
         prisma.auditLog.count({ where: { userId } }),
+        prisma.customerFeedbackQr.count({ where: { employeeId: userId } }),
+        prisma.customerFeedbackVisit.count({
+            where: {
+                OR: [
+                    { employeeId: userId },
+                    { qrCode: { employeeId: userId } },
+                ],
+            },
+        }),
         prisma.customerFeedbackResponse.count({ where: { employeeId: userId } }),
         prisma.customerFeedbackReviewRequest.count({
             where: { employeeId: userId, status: { in: ["OPEN", "IN_REVIEW"] } },
@@ -53,6 +97,8 @@ export async function findEmployeeActivity(userId: string): Promise<EmployeeActi
 
     return [
         { label: "การลงเวลา", count: attendance },
+        { label: "QR ประเมินพนักงาน", count: feedbackQrs },
+        { label: "การเปิดแบบประเมินจากลูกค้า", count: feedbackVisits },
         { label: "คำตอบประเมินจากลูกค้า", count: feedbackResponses },
         { label: "คำขอทบทวนเสียงลูกค้าที่ยังไม่ปิด", count: openFeedbackReviewRequests },
         { label: "เงินเดือน", count: payrollRecords },
@@ -86,21 +132,21 @@ export async function removeEmployeeAccount(userId: string): Promise<{ deleted: 
     const activity = await findEmployeeActivity(userId);
 
     if (activity.length > 0) {
-        await prisma.user.update({
-            where: { id: userId },
-            data: { isActive: false, employeeStatus: "RESIGNED" },
-        });
+        await setEmployeeInactive(userId, { isActive: false, employeeStatus: "RESIGNED" });
         return { deleted: false, activity };
     }
 
-    // StoredAsset rows cascade with the user, but the bytes live in Cloudinary and
-    // would be left behind paying for storage nobody can reach — delete them first.
+    // เก็บตำแหน่งไฟล์ไว้ก่อนลบแถว แล้วค่อยลบ bytes หลัง transaction สำเร็จ
     const assets = await prisma.storedAsset.findMany({
         where: { ownerUserId: userId },
         select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true },
     });
-    for (const asset of assets) await deleteAsset(asset);
+    const deletion = await tryDeleteEmployeeAccount(userId);
+    if (!deletion.deleted) {
+        await setEmployeeInactive(userId, { isActive: false, employeeStatus: "RESIGNED" });
+        return { deleted: false, activity: deletion.feedbackActivity };
+    }
 
-    await prisma.user.delete({ where: { id: userId } });
+    for (const asset of assets) await deleteAsset(asset);
     return { deleted: true, activity };
 }

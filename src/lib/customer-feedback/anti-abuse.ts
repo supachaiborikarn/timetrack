@@ -82,6 +82,22 @@ export async function checkGlobalLimit(
     return checkRateLimit(action, "GLOBAL", limit, windowMs);
 }
 
+/** อ่านสถานะ bucket ปัจจุบันโดยไม่เพิ่ม counter ใช้ short-circuit circuit breaker */
+export async function isRateLimitExceeded(
+    action: string,
+    keyHash: string,
+    limit: number,
+    windowMs: number,
+    now: Date = new Date()
+): Promise<boolean> {
+    const windowStart = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
+    const bucket = await prisma.customerFeedbackRateBucket.findUnique({
+        where: { action_keyHash_windowStart: { action, keyHash, windowStart } },
+        select: { count: true },
+    });
+    return (bucket?.count ?? 0) > limit;
+}
+
 /**
  * เพดานตาม spec §14.1 — ใช้เป็น circuit breaker ชั้นนอกสุด
  * ต่อนาที: สร้าง visit สำเร็จ 10,000 · คำขอที่ resolve ไม่ผ่าน 3,000
@@ -149,6 +165,7 @@ export async function checkRateLimit(
 export interface AbuseSignalInput {
     durationSeconds: number;
     sameNetworkSameQrCount: number;
+    sameClientSameTargetCount?: number;
 }
 
 export interface AbuseScoreResult {
@@ -164,14 +181,44 @@ export function computeAbuseScore(input: AbuseSignalInput): AbuseScoreResult {
         score += 2;
         reasons.push("fill-time-too-short");
     }
+    let networkRisk = 0;
     if (input.sameNetworkSameQrCount >= 3) {
-        score += 2;
+        networkRisk = 2;
         reasons.push("same-network-same-qr");
     } else if (input.sameNetworkSameQrCount === 2) {
-        score += 1;
+        networkRisk = 1;
         reasons.push("repeat-network-same-qr");
     }
+    let clientRisk = 0;
+    if ((input.sameClientSameTargetCount ?? 0) >= 3) {
+        clientRisk = 2;
+        reasons.push("same-client-same-target");
+    } else if ((input.sameClientSameTargetCount ?? 0) === 2) {
+        clientRisk = 1;
+        reasons.push("repeat-client-same-target");
+    }
+    // clientHashWeekly มี IP เป็นส่วนประกอบ จึงเป็นหลักฐานกลุ่มเดียวกับ networkHashDaily
+    // ใช้ความเสี่ยงที่สูงกว่าเพียงครั้งเดียวเพื่อไม่ลงโทษลูกค้าหลายคนหลัง CGNAT ซ้ำสองชั้น
+    score += Math.max(networkRisk, clientRisk);
     return { score, reasons };
 }
 
 export const ABUSE_SUSPECT_THRESHOLD = 3;
+
+/** เวลาใช้งานที่เชื่อถือได้ต้อง derive จาก timestamp ฝั่ง server เท่านั้น */
+export function serverDerivedDurationSeconds(
+    openedAt: Date,
+    startedAt: Date | null | undefined,
+    now: Date = new Date()
+): number {
+    const base = startedAt && startedAt.getTime() <= now.getTime() ? startedAt : openedAt;
+    return Math.max(0, Math.floor((now.getTime() - base.getTime()) / 1000));
+}
+
+/** ตรวจ self-evaluation ได้เฉพาะกรณี browser มี session พนักงานที่รู้ตัวตน */
+export function isKnownSelfEvaluation(
+    authenticatedUserId: string | null | undefined,
+    targetEmployeeUserId: string | null | undefined
+): boolean {
+    return Boolean(authenticatedUserId && targetEmployeeUserId && authenticatedUserId === targetEmployeeUserId);
+}

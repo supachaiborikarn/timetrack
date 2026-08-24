@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { deleteAsset } from "@/lib/assets";
+import { updateEmployeeAndCloseQr } from "@/lib/customer-feedback/employee-status";
+import { tryDeleteEmployeeAccount } from "@/lib/employee-removal";
 
 // GET: Get single employee
 export async function GET(
@@ -149,8 +151,11 @@ export async function PUT(
         if (pin && pin.length === 6) {
             updateData.pin = await bcrypt.hash(pin, 10);
         }
+        if (isActive === true) {
+            updateData.employeeStatus = "ACTIVE";
+        }
 
-        const employee = await prisma.user.update({
+        const updateEmployee = (client: Pick<typeof prisma, "user">) => client.user.update({
             where: { id },
             data: updateData,
             include: {
@@ -158,6 +163,9 @@ export async function PUT(
                 department: { select: { id: true, name: true } },
             },
         });
+        const employee = isActive === false
+            ? (await updateEmployeeAndCloseQr(id, updateEmployee)).employee
+            : await updateEmployee(prisma);
 
         return NextResponse.json({ employee });
     } catch (error) {
@@ -185,15 +193,24 @@ export async function DELETE(
 
         // Guard เดียวกับ src/lib/employee-removal.ts — ห้าม hard delete เมื่อมี
         // feedback response หรือคำขอทบทวนที่ยังไม่ปิด
-        const [feedbackResponseCount, openReviewRequestCount] = await Promise.all([
+        const [feedbackQrCount, feedbackVisitCount, feedbackResponseCount, openReviewRequestCount] = await Promise.all([
+            prisma.customerFeedbackQr.count({ where: { employeeId: id } }),
+            prisma.customerFeedbackVisit.count({
+                where: {
+                    OR: [
+                        { employeeId: id },
+                        { qrCode: { employeeId: id } },
+                    ],
+                },
+            }),
             prisma.customerFeedbackResponse.count({ where: { employeeId: id } }),
             prisma.customerFeedbackReviewRequest.count({
                 where: { employeeId: id, status: { in: ["OPEN", "IN_REVIEW"] } },
             }),
         ]);
-        if (feedbackResponseCount > 0 || openReviewRequestCount > 0) {
+        if (feedbackQrCount > 0 || feedbackVisitCount > 0 || feedbackResponseCount > 0 || openReviewRequestCount > 0) {
             return NextResponse.json(
-                { error: "พนักงานคนนี้มีคำตอบประเมินจากลูกค้าหรือคำขอทบทวนที่ยังไม่ปิด จึงลบถาวรไม่ได้ ให้ปิดใช้งานแทน" },
+                { error: "พนักงานคนนี้มี QR การเปิดแบบประเมิน คำตอบจากลูกค้า หรือคำขอทบทวนที่ยังไม่ปิด จึงลบถาวรไม่ได้ ให้ปิดใช้งานแทน" },
                 { status: 400 }
             );
         }
@@ -204,18 +221,19 @@ export async function DELETE(
             return NextResponse.json({ error: "Employee not found" }, { status: 404 });
         }
 
-        // Their stored images cascade with the row, but the bytes sit in Cloudinary and
-        // would be orphaned there — remove them before the row that points at them.
+        // เก็บตำแหน่งไฟล์ไว้ก่อนลบแถว แล้วค่อยลบ bytes หลัง transaction สำเร็จ
         const assets = await prisma.storedAsset.findMany({
             where: { ownerUserId: id },
             select: { id: true, mimeType: true, sizeBytes: true, storageDriver: true, storageKey: true },
         });
+        const deletion = await tryDeleteEmployeeAccount(id);
+        if (!deletion.deleted) {
+            return NextResponse.json(
+                { error: "มีการสร้าง QR การเปิดแบบประเมิน หรือข้อมูลเสียงลูกค้าระหว่างทำรายการ กรุณาปิดใช้งานพนักงานแทน" },
+                { status: 409 }
+            );
+        }
         for (const asset of assets) await deleteAsset(asset);
-
-        // Hard delete - permanently remove from database
-        await prisma.user.delete({
-            where: { id },
-        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

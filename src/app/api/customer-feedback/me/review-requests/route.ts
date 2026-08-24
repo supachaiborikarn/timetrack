@@ -11,6 +11,9 @@ import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags
  */
 
 export async function GET() {
+    if (!isCustomerFeedbackEnabled()) {
+        return NextResponse.json({ error: "ระบบเสียงลูกค้ายังไม่เปิดใช้งาน" }, { status: 404 });
+    }
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true, isActive: true } });
@@ -37,11 +40,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await auth();
-        if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!isCustomerFeedbackEnabled()) {
             return NextResponse.json({ error: "ระบบเสียงลูกค้ายังไม่เปิดใช้งาน" }, { status: 404 });
         }
+        const session = await auth();
+        if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
             select: { role: true, isActive: true, name: true },
@@ -50,8 +53,11 @@ export async function POST(request: NextRequest) {
         const allowed = await hasPermission(user.role, "customer_feedback.review_request");
         if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const body = (await request.json()) as { reason?: string; reviewPeriodId?: string };
-        const reason = body.reason?.trim();
+        const body = (await request.json()) as { reason?: unknown; reviewPeriodId?: unknown };
+        if (body.reason !== undefined && typeof body.reason !== "string") {
+            return NextResponse.json({ error: "reason ไม่ถูกต้อง" }, { status: 400 });
+        }
+        const reason = typeof body.reason === "string" ? body.reason.trim() : undefined;
         if (!reason || reason.length < 10) {
             return NextResponse.json({ error: "กรุณาอธิบายเหตุผลอย่างน้อย 10 ตัวอักษร" }, { status: 400 });
         }
@@ -59,7 +65,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "เหตุผลยาวไม่เกิน 500 ตัวอักษร" }, { status: 400 });
         }
 
-        const scopeKey = body.reviewPeriodId ?? "GENERAL";
+        let reviewPeriodId: string | null = null;
+        if (body.reviewPeriodId !== undefined && body.reviewPeriodId !== null) {
+            if (typeof body.reviewPeriodId !== "string" || !body.reviewPeriodId.trim() || body.reviewPeriodId.length > 100) {
+                return NextResponse.json({ error: "reviewPeriodId ไม่ถูกต้อง" }, { status: 400 });
+            }
+            reviewPeriodId = body.reviewPeriodId.trim();
+            const period = await prisma.reviewPeriod.findUnique({
+                where: { id: reviewPeriodId },
+                select: { id: true },
+            });
+            if (!period) return NextResponse.json({ error: "ไม่พบรอบประเมิน" }, { status: 404 });
+        }
+
+        const scopeKey = reviewPeriodId ?? "GENERAL";
         // partial unique: หนึ่งคำขอ OPEN/IN_REVIEW ต่อ scopeKey
         const existing = await prisma.customerFeedbackReviewRequest.findFirst({
             where: { employeeId: session.user.id, scopeKey, status: { in: ["OPEN", "IN_REVIEW"] } },
@@ -72,13 +91,16 @@ export async function POST(request: NextRequest) {
             data: {
                 employeeId: session.user.id,
                 employeeLabelSnapshot: user.name,
-                reviewPeriodId: body.reviewPeriodId ?? null,
+                reviewPeriodId,
                 scopeKey,
                 reason,
             },
         });
         return NextResponse.json({ request: { id: created.id } });
     } catch (error) {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+            return NextResponse.json({ error: "คุณมีคำขอทบทวนที่ยังไม่ปิดในขอบเขตนี้อยู่แล้ว" }, { status: 409 });
+        }
         console.error("Error creating review request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }

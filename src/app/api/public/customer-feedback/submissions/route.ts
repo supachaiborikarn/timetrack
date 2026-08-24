@@ -1,33 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isCustomerFeedbackPublicEnabled } from "@/lib/customer-feedback/feature-flags";
+import { isCustomerFeedbackPublicEnabled, assertPublicSecrets } from "@/lib/customer-feedback/feature-flags";
 import { validateStandardPayload } from "@/lib/customer-feedback/validation";
-import { submitStandardResponse } from "@/lib/customer-feedback/submit";
+import { loadVisitFromHeaders, submitStandardResponse } from "@/lib/customer-feedback/submit";
 import { publicError, STANDARD_FAILURE_CODES } from "@/lib/customer-feedback/public-errors";
+import { isJsonRequest, isSameOriginRequest, readJsonBody } from "../_request";
+import { checkPublicVisitRateLimit } from "../_visit-rate-limit";
 
 /**
  * POST /api/public/customer-feedback/submissions
  * validate และบันทึกคำตอบแบบปกติ (STANDARD)
  */
 
-const MAX_BODY_BYTES = 16 * 1024;
-
 function noStore(response: NextResponse): NextResponse {
     response.headers.set("Cache-Control", "no-store");
     return response;
-}
-
-function checkOrigin(request: NextRequest): boolean {
-    const site = request.headers.get("sec-fetch-site");
-    if (site && site !== "same-origin" && site !== "none") return false;
-    const origin = request.headers.get("origin");
-    if (origin) {
-        try {
-            if (new URL(origin).host !== request.headers.get("host")) return false;
-        } catch {
-            return false;
-        }
-    }
-    return true;
 }
 
 export async function POST(request: NextRequest) {
@@ -35,25 +21,42 @@ export async function POST(request: NextRequest) {
         if (!isCustomerFeedbackPublicEnabled()) {
             return publicError("PUBLIC_DISABLED", 404);
         }
-        if (!checkOrigin(request)) {
+        assertPublicSecrets();
+        if (!isSameOriginRequest(request)) {
             return noStore(NextResponse.json({ error: "Invalid origin" }, { status: 403 }));
         }
-        const contentType = request.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) {
+        if (!isJsonRequest(request)) {
             return noStore(NextResponse.json({ error: "Unsupported content type" }, { status: 415 }));
-        }
-        const contentLength = Number(request.headers.get("content-length") ?? 0);
-        if (contentLength > MAX_BODY_BYTES) {
-            return publicError("PAYLOAD_TOO_LARGE", 413);
         }
 
         const idempotencyKey = request.headers.get("idempotency-key");
-        if (!idempotencyKey || idempotencyKey.length < 8) {
+        if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 200) {
             return noStore(NextResponse.json({ error: "Missing Idempotency-Key" }, { status: 400 }));
         }
 
-        const body = await request.json().catch(() => null);
-        const validated = validateStandardPayload(body);
+        const loaded = await loadVisitFromHeaders(request.headers, { enforceMinimumFill: true });
+        if ("error" in loaded) {
+            const status = loaded.error === "VISIT_NOT_FOUND" ? 404 : loaded.error === "FORM_TOO_FAST" ? 429 : 401;
+            return publicError(STANDARD_FAILURE_CODES[loaded.error] ?? "SUBMIT_FAILED", status);
+        }
+        const surveyVersion = loaded.visit.surveyVersion;
+        if (loaded.visit.visitKind !== "STANDARD" || (surveyVersion !== "employee-v1" && surveyVersion !== "station-v1")) {
+            return publicError("SESSION_EXPIRED", 401);
+        }
+        const visitLimit = await checkPublicVisitRateLimit("submission", loaded.visit.id);
+        if (!visitLimit.allowed) {
+            return publicError("REQUEST_RATE_LIMITED", 429, {
+                "Retry-After": String(visitLimit.retryAfterSec),
+            });
+        }
+
+        const body = await readJsonBody(request);
+        if (!body.ok) {
+            return body.reason === "PAYLOAD_TOO_LARGE"
+                ? publicError("PAYLOAD_TOO_LARGE", 413)
+                : noStore(NextResponse.json({ error: "Invalid JSON" }, { status: 400 }));
+        }
+        const validated = validateStandardPayload(body.value, surveyVersion);
         if (!validated.ok) {
             return noStore(NextResponse.json({ errors: validated.errors }, { status: 400 }));
         }
@@ -62,6 +65,7 @@ export async function POST(request: NextRequest) {
             headers: request.headers,
             idempotencyKey,
             payload: validated.value,
+            loaded,
         });
 
         if ("failure" in result) {
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest) {
             refCode: result.refCode,
             caseRef: result.caseId,
             severity: result.severity ?? null,
-            duplicate: result.duplicate ?? false,
+            duplicate: "duplicate" in result ? result.duplicate : false,
         }));
     } catch (error) {
         console.error("Error submitting customer feedback:", error);

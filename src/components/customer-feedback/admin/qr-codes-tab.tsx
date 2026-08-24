@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Printer, RefreshCcw, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { EmployeePickerDialog } from "./employee-picker-dialog";
+import { StationPickerDialog } from "./station-picker-dialog";
 
 interface QrRow {
     id: string;
@@ -19,6 +21,8 @@ interface QrRow {
     publicLabel: string;
     publicPosition: string | null;
     publicProfileApprovedAt: string | null;
+    placement: string;
+    placementKey: string | null;
     isActive: boolean;
     isTest: boolean;
     needsReprint: boolean;
@@ -31,12 +35,27 @@ interface QrRow {
     createdAt: string;
 }
 
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>'"]/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+    })[character]!);
+}
+
 export function QrCodesTab() {
     const [rows, setRows] = useState<QrRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [targetType, setTargetType] = useState<"EMPLOYEE" | "STATION">("EMPLOYEE");
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [stationPickerOpen, setStationPickerOpen] = useState(false);
+    const [createAsTest, setCreateAsTest] = useState(true);
+    const [editing, setEditing] = useState<QrRow | null>(null);
+    const [editLabel, setEditLabel] = useState("");
+    const [editPosition, setEditPosition] = useState("");
 
     const load = useCallback(async () => {
         const res = await fetch(`/api/admin/customer-feedback/qr-codes?targetType=${targetType}${search ? `&search=${encodeURIComponent(search)}` : ""}`);
@@ -52,6 +71,71 @@ export function QrCodesTab() {
         return () => clearTimeout(timer);
     }, [load]);
 
+    async function markPrinted(id: string, expectedVersion: number): Promise<void> {
+        const response = await fetch(`/api/admin/customer-feedback/qr-codes/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "MARK_PRINTED", expectedVersion }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+            toast.success("สร้างป้ายสำหรับ QR เวอร์ชันนี้แล้ว");
+        } else if (response.status === 409) {
+            toast.error("QR ถูกหมุนรหัสระหว่างสร้างป้าย รายการถูกโหลดใหม่แล้ว");
+        } else {
+            toast.error(data.error ?? "บันทึกเวอร์ชันป้ายไม่สำเร็จ");
+        }
+        await load();
+    }
+
+    async function openPrintWindow(
+        qrUrl: string,
+        manualEntryUrl: string,
+        manualCode: string,
+        row: QrRow,
+        expectedVersion: number
+    ): Promise<boolean> {
+        try {
+            const { generateQRCodeSVG } = await import("@/lib/qr-code");
+            const svg = generateQRCodeSVG(qrUrl, 240);
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) {
+                toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up");
+                return false;
+            }
+            const targetLabel = escapeHtml(row.publicLabel || row.station?.name || "QR เสียงลูกค้า");
+            const subtitle = escapeHtml(
+                row.targetType === "EMPLOYEE"
+                    ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
+                    : [row.station?.name, row.placementKey ?? row.placement].filter(Boolean).join(" · ")
+            );
+            printWindow.document.write(`<!doctype html><html lang="th"><head><title>ป้าย QR ${targetLabel}</title><style>
+                body{font-family:sans-serif;display:flex;justify-content:center;padding:24px;color:#111}
+                .badge{border:2px solid #111;padding:16px 24px;text-align:center;max-width:340px}
+                .target{font-weight:700;font-size:22px;margin-top:8px}.subtitle{font-size:14px;color:#333;margin-top:4px}
+                .code{background:#fff;padding:12px;margin:8px auto;width:240px}
+                .manual{font-family:monospace;font-size:20px;letter-spacing:4px;margin-top:8px}
+                @media print{body{padding:0}.badge{break-inside:avoid}}
+            </style></head><body><div class="badge">
+                <div style="font-weight:700;font-size:18px">สแกนเพื่อประเมินการบริการ</div>
+                ${row.isTest ? '<div style="margin:8px 0;padding:6px;background:#fee2e2;color:#991b1b;font-weight:700">แบบทดสอบ — ไม่นำคะแนนไปใช้</div>' : ""}
+                <div class="target">${targetLabel}</div><div class="subtitle">${subtitle}</div>
+                <div style="font-size:13px;color:#444;margin-top:6px">ใช้เวลาประมาณ 1 นาที ไม่ต้องระบุชื่อ</div>
+                <div class="code">${svg}</div>
+                <div>สแกนไม่ได้? ไปที่ ${escapeHtml(manualEntryUrl)}</div>
+                <div>แล้วกรอกรหัส: <span class="manual">${escapeHtml(manualCode)}</span></div>
+                <div style="font-size:10px;color:#666;margin-top:8px">QR version ${expectedVersion}</div>
+            </div></body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+            return window.confirm("พิมพ์ป้ายหรือบันทึกเป็น PDF สำเร็จแล้วใช่หรือไม่?");
+        } catch {
+            toast.error("สร้างป้าย QR ไม่สำเร็จ");
+            return false;
+        }
+    }
+
     const act = async (id: string, body: Record<string, unknown>, confirmMsg?: string) => {
         if (confirmMsg && !window.confirm(confirmMsg)) return;
         const res = await fetch(`/api/admin/customer-feedback/qr-codes/${id}`, {
@@ -63,54 +147,42 @@ export function QrCodesTab() {
         if (res.ok) {
             if (data.qrUrl) {
                 toast.success(data.message ?? "สำเร็จ — กำลังเปิดหน้าพิมพ์ป้าย");
-                openPrintWindow(data.qrUrl, data.manualEntryUrl, data.manualCode);
+                const row = rows.find((item) => item.id === id);
+                if (row) {
+                    const printableQrId = typeof data.qrCode?.id === "string" ? data.qrCode.id : id;
+                    const expectedVersion = typeof data.version === "number" ? data.version : row.version;
+                    const printRow = {
+                        ...row,
+                        ...(body.action === "promote-test" ? { isTest: false } : {}),
+                        ...(typeof data.publicLabel === "string" ? { publicLabel: data.publicLabel } : {}),
+                        ...(data.publicPosition === null || typeof data.publicPosition === "string"
+                            ? { publicPosition: data.publicPosition }
+                            : {}),
+                    };
+                    const created = await openPrintWindow(data.qrUrl, data.manualEntryUrl, data.manualCode, printRow, expectedVersion);
+                    if (created) await markPrinted(printableQrId, expectedVersion);
+                    else toast.info("ยังไม่บันทึกว่าพิมพ์สำเร็จ สามารถเปิดพิมพ์ใหม่ได้");
+                }
             } else {
                 toast.success(data.message ?? "สำเร็จ");
             }
             void load();
         } else {
             toast.error(data.error ?? "ทำรายการไม่สำเร็จ");
+            if (res.status === 409) void load();
         }
-    };
-
-    // ป้ายพิมพ์: QR URL + รหัสกรอกเอง 8 ตัวใต้ QR (สร้าง QR ด้วย qrcode-generator ฝั่ง client)
-    const openPrintWindow = (qrUrl: string, manualEntryUrl: string, manualCode: string) => {
-        import("@/lib/qr-code").then(({ generateQRCodeSVG }) => {
-            const svg = generateQRCodeSVG(qrUrl, 240);
-            const w = window.open("", "_blank");
-            if (!w) {
-                toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up");
-                return;
-            }
-            w.document.write(`<!doctype html><html><head><title>ป้าย QR เสียงลูกค้า</title><style>
-                body{font-family:sans-serif;display:flex;justify-content:center;padding:24px;color:#111}
-                .badge{border:2px solid #111;padding:16px 24px;text-align:center;max-width:340px}
-                .code{background:#fff;padding:12px;margin:8px auto;width:240px}
-                .manual{font-family:monospace;font-size:20px;letter-spacing:4px;margin-top:8px}
-                .url{font-size:12px;color:#333;margin-top:6px}
-            </style></head><body>
-                <div class="badge">
-                    <div style="font-weight:700;font-size:18px">สแกนเพื่อประเมินการบริการ</div>
-                    <div style="font-size:13px;color:#444">ใช้เวลาประมาณ 1 นาที ไม่ต้องระบุชื่อ</div>
-                    <div class="code">${svg}</div>
-                    <div>สแกนไม่ได้? ไปที่ ${manualEntryUrl}</div>
-                    <div>แล้วกรอกรหัส: <span class="manual">${manualCode}</span></div>
-                </div>
-            </body></html>`);
-            w.document.close();
-        });
     };
 
     const createForEmployee = async (employeeCode: string) => {
         const res = await fetch("/api/admin/customer-feedback/qr-codes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ targetType: "EMPLOYEE", employeeCode }),
+            body: JSON.stringify({ targetType: "EMPLOYEE", employeeCode, isTest: createAsTest }),
         });
         const data = await res.json();
         if (res.ok) {
             toast.success(
-                `สร้าง QR ชื่อ "${data.qrCode?.publicLabel ?? ""}" แล้ว — ยังไม่เปิดใช้งานจนกว่าจะบันทึกการรับทราบข้อมูลสาธารณะ`
+                `สร้าง QR ชื่อ "${data.qrCode?.publicLabel ?? ""}" แล้ว${createAsTest ? "ในโหมดทดสอบ" : ""} — ยังไม่เปิดใช้งานจนกว่าจะบันทึกการรับทราบข้อมูลสาธารณะ`
             );
             // ชื่อเล่นซ้ำกับเพื่อนร่วมสถานี ลูกค้าอาจให้คะแนนผิดคน
             if (data.warning) toast.warning(data.warning, { duration: 10000 });
@@ -120,17 +192,15 @@ export function QrCodesTab() {
         }
     };
 
-    const createForStation = async () => {
-        const stationName = window.prompt("ชื่อสถานี (หรือชื่อบางส่วน) ที่ต้องการสร้าง QR หลัก:");
-        if (!stationName) return;
+    const createForStation = async (stationId: string) => {
         const res = await fetch("/api/admin/customer-feedback/qr-codes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ targetType: "STATION", stationName }),
+            body: JSON.stringify({ targetType: "STATION", stationId, isTest: createAsTest }),
         });
         const data = await res.json();
         if (res.ok) {
-            toast.success("สร้าง QR สถานีแล้ว — ต้องพิมพ์ป้ายก่อนเปิดใช้งาน");
+            toast.success(`สร้าง QR สถานีแล้ว${createAsTest ? "ในโหมดทดสอบ" : ""} — ต้องพิมพ์ป้ายก่อนเปิดใช้งาน`);
             void load();
         } else {
             toast.error(data.error ?? "สร้างไม่สำเร็จ");
@@ -151,12 +221,16 @@ export function QrCodesTab() {
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-64"
                     />
-                    <Button size="sm" onClick={() => void load()}><Loader2 className={isLoading ? "mr-2 h-4 w-4 animate-spin" : "hidden"} />ค้นหา</Button>
+                    <Button size="sm" onClick={() => void load()}><Loader2 className={isLoading ? "mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" : "hidden"} />ค้นหา</Button>
+                    <label className="flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm">
+                        <input type="checkbox" checked={createAsTest} onChange={(event) => setCreateAsTest(event.target.checked)} />
+                        สร้างเป็น QR ทดสอบ
+                    </label>
                     <div className="ml-auto flex gap-1">
                         {targetType === "EMPLOYEE" ? (
                             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR พนักงาน</Button>
                         ) : (
-                            <Button size="sm" variant="outline" onClick={() => void createForStation()}><QrCode className="mr-1 h-4 w-4" />สร้าง QR สถานี</Button>
+                            <Button size="sm" variant="outline" onClick={() => setStationPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR สถานี</Button>
                         )}
                     </div>
                 </CardContent>
@@ -164,7 +238,7 @@ export function QrCodesTab() {
 
             <Card>
                 <CardContent className="pt-6">
-                    <Table>
+                    <div className="overflow-x-auto"><Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>เป้าหมาย</TableHead>
@@ -177,7 +251,7 @@ export function QrCodesTab() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin motion-reduce:animate-none" /></TableCell></TableRow>
                             ) : rows.length === 0 ? (
                                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">ยังไม่มี QR — สร้างจากปุ่มด้านบน</TableCell></TableRow>
                             ) : (
@@ -215,33 +289,44 @@ export function QrCodesTab() {
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
                                                 {q.targetType === "EMPLOYEE" && !q.publicProfileApprovedAt && (
-                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "approve-public-profile" }, "ยืนยันว่าพนักงานรับทราบและยินยอมให้แสดงชื่อ/ตำแหน่งนี้ต่อสาธารณะ?")}>
+                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "approve-public-profile", expectedVersion: q.version }, "ยืนยันว่าพนักงานรับทราบและยินยอมให้แสดงชื่อ/ตำแหน่งนี้ต่อสาธารณะ?")}>
                                                         บันทึกรับทราบ
                                                     </Button>
                                                 )}
-                                                <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "reveal" })}>
-                                                    <Printer className="mr-1 h-4 w-4" />พิมพ์ป้าย
-                                                </Button>
+                                                {(q.targetType !== "EMPLOYEE" || q.publicProfileApprovedAt) && (
+                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
+                                                        <Printer className="mr-1 h-4 w-4" />พิมพ์ป้าย
+                                                    </Button>
+                                                )}
                                                 {q.isActive ? (
-                                                    <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate" }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
+                                                    <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
                                                 ) : (
-                                                    <Button size="sm" onClick={() => void act(q.id, { action: "activate" })}>เปิดใช้งาน</Button>
+                                                    <Button size="sm" onClick={() => void act(q.id, { action: "activate", expectedVersion: q.version })}>เปิดใช้งาน</Button>
+                                                )}
+                                                {q.isTest && !q.isActive && (
+                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "promote-test", expectedVersion: q.version }, "สร้าง QR ใช้งานจริงแยกจาก QR ทดสอบใบนี้? ต้องพิมพ์ป้ายใหม่ก่อนเปิดใช้")}>เปลี่ยนเป็นใช้งานจริง</Button>
+                                                )}
+                                                {!q.isActive && (
+                                                    <Button size="sm" variant="ghost" onClick={() => {
+                                                        setEditing(q);
+                                                        setEditLabel(q.publicLabel);
+                                                        setEditPosition(q.publicPosition ?? "");
+                                                    }}>แก้ข้อมูลบนป้าย</Button>
                                                 )}
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => void act(q.id, { action: "rotate" }, "หมุนรหัสแล้วป้ายเก่าจะใช้ไม่ได้ทันที ต้องพิมพ์ป้ายใหม่ — ยืนยัน?")}
+                                                    onClick={() => void act(q.id, { action: "rotate", expectedVersion: q.version }, "หมุนรหัสแล้วป้ายเก่าจะใช้ไม่ได้ทันที ต้องพิมพ์ป้ายใหม่ — ยืนยัน?")}
                                                 >
                                                     <RefreshCcw className="mr-1 h-4 w-4" />หมุนรหัส
                                                 </Button>
-                                                <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "MARK_PRINTED" })}>บันทึกว่าพิมพ์แล้ว</Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
-                    </Table>
+                    </Table></div>
                 </CardContent>
             </Card>
 
@@ -250,6 +335,48 @@ export function QrCodesTab() {
                 onOpenChange={setPickerOpen}
                 onSelect={createForEmployee}
             />
+            <StationPickerDialog
+                open={stationPickerOpen}
+                onOpenChange={setStationPickerOpen}
+                onSelect={createForStation}
+            />
+            <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>แก้ข้อมูลบนป้าย QR</DialogTitle>
+                        <DialogDescription>ระบบจะหมุนรหัสและปิด QR ใบเดิม จากนั้นต้องพิมพ์ป้ายใหม่ก่อนเปิดใช้งาน</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="space-y-1">
+                            <label htmlFor="qr-public-label" className="text-sm font-semibold">ชื่อสาธารณะ</label>
+                            <Input id="qr-public-label" value={editLabel} onChange={(event) => setEditLabel(event.target.value)} maxLength={100} />
+                        </div>
+                        {editing?.targetType === "EMPLOYEE" && (
+                            <div className="space-y-1">
+                                <label htmlFor="qr-public-position" className="text-sm font-semibold">ตำแหน่งสาธารณะ</label>
+                                <Input id="qr-public-position" value={editPosition} onChange={(event) => setEditPosition(event.target.value)} maxLength={100} />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditing(null)}>ยกเลิก</Button>
+                        <Button
+                            disabled={!editing || !editLabel.trim() || (editing?.targetType === "EMPLOYEE" && !editPosition.trim())}
+                            onClick={() => {
+                                if (!editing) return;
+                                const row = editing;
+                                setEditing(null);
+                                void act(row.id, {
+                                    action: "update-label",
+                                    expectedVersion: row.version,
+                                    publicLabel: editLabel.trim(),
+                                    ...(row.targetType === "EMPLOYEE" ? { publicPosition: editPosition.trim() } : {}),
+                                });
+                            }}
+                        >บันทึกและพิมพ์ป้ายใหม่</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -1330,6 +1330,7 @@ model CustomerFeedbackVisit {
   @@index([parentVisitId])
   @@index([disposition])
   @@index([openedAt])
+  @@unique([resolveNonceHash, qrCodeId, visitKind])
 }
 
 model CustomerFeedbackResponse {
@@ -1504,6 +1505,11 @@ model CustomerFeedbackDailyAggregate {
   suspectedCount        Int                @default(0)
   ratingSum             Int                @default(0)
   ratingCount           Int                @default(0)
+  rating1Count          Int                @default(0)
+  rating2Count          Int                @default(0)
+  rating3Count          Int                @default(0)
+  rating4Count          Int                @default(0)
+  rating5Count          Int                @default(0)
 
   @@unique([reportDate, stationKey, targetType, placementKey, language, surveyVersion, isTest])
   @@index([reportDate])

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPermission } from "@/lib/permissions";
-import { getFeedbackAccessContext, getStationScope } from "@/lib/customer-feedback/access";
+import {
+    getFeedbackAccessContext,
+    getStationScope,
+    parseOptionalFeedbackFilter,
+    requireFeedbackPermission,
+    resolveFeedbackStationId,
+} from "@/lib/customer-feedback/access";
 import { buildQrSecrets, buildFeedbackUrl, buildManualEntryUrl } from "@/lib/customer-feedback/token";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 import { resolveEmployeePublicLabel, duplicateLabelWarning } from "@/lib/customer-feedback/public-identity";
-import { resolveEmployeeCurrentStation } from "@/lib/customer-feedback/station-context";
+import { isValidServiceArea } from "@/lib/customer-feedback/questions";
 
 /**
  * GET  /api/admin/customer-feedback/qr-codes — รายการ QR
@@ -17,20 +23,26 @@ import { resolveEmployeeCurrentStation } from "@/lib/customer-feedback/station-c
  */
 
 export async function GET(request: NextRequest) {
+    if (!isCustomerFeedbackEnabled()) {
+        return NextResponse.json({ error: "ระบบเสียงลูกค้ายังไม่เปิดใช้งาน" }, { status: 404 });
+    }
     const access = await getFeedbackAccessContext();
     if (!access.ok) return NextResponse.json({ error: access.message }, { status: access.status });
-    const perm = await hasPermission(access.ctx.role, "customer_feedback.manage");
-    if (!perm) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
+    const perm = await requireFeedbackPermission(access.ctx, "customer_feedback.manage");
+    if (!perm.ok) return NextResponse.json({ error: perm.message }, { status: perm.status });
 
     // MANAGER ต้องเห็นเฉพาะสถานีตัวเอง — เดิมไม่ได้ scope ทำให้เห็น QR ทุกสถานี
     const scope = await getStationScope(access.ctx);
     if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
 
     const url = request.nextUrl;
-    const targetType = url.searchParams.get("targetType") === "STATION" ? "STATION" : url.searchParams.get("targetType") === "EMPLOYEE" ? "EMPLOYEE" : undefined;
-    const requestedStationId = url.searchParams.get("stationId") ?? undefined;
-    const stationId = scope.stationId ?? requestedStationId;
-    const search = url.searchParams.get("search") ?? undefined;
+    const targetType = parseOptionalFeedbackFilter(url.searchParams.get("targetType"), ["EMPLOYEE", "STATION"] as const, "targetType");
+    if (!targetType.ok) return NextResponse.json({ error: targetType.message }, { status: 400 });
+    const stationId = resolveFeedbackStationId(scope.stationId, url.searchParams.get("stationId"));
+    const search = url.searchParams.get("search")?.trim() || undefined;
+    if (search && search.length > 100) {
+        return NextResponse.json({ error: "search ยาวเกิน 100 ตัวอักษร" }, { status: 400 });
+    }
 
     // เงื่อนไขสถานีกับเงื่อนไขค้นหาต่างก็เป็น OR ต้องรวมด้วย AND
     // ไม่งั้นคีย์ OR ตัวหลังทับตัวหน้า แล้ว scope ของ MANAGER จะหายไปเงียบ ๆ ตอนมีคำค้น
@@ -51,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     const where: import("@prisma/client").Prisma.CustomerFeedbackQrWhereInput = {
-        ...(targetType ? { targetType } : {}),
+        ...(targetType.value ? { targetType: targetType.value } : {}),
         ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
@@ -116,23 +128,78 @@ export async function POST(request: NextRequest) {
         if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const access = await getFeedbackAccessContext();
         if (!access.ok) return NextResponse.json({ error: access.message }, { status: access.status });
-        const perm = await hasPermission(access.ctx.role, "customer_feedback.manage");
-        if (!perm) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
+        const perm = await requireFeedbackPermission(access.ctx, "customer_feedback.manage");
+        if (!perm.ok) return NextResponse.json({ error: perm.message }, { status: perm.status });
+        const scope = await getStationScope(access.ctx);
+        if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
 
         const body = (await request.json()) as CreateBody;
         if (body.targetType !== "EMPLOYEE" && body.targetType !== "STATION") {
             return NextResponse.json({ error: "targetType ไม่ถูกต้อง" }, { status: 400 });
+        }
+        const stringFields: Array<[string, unknown, number]> = [
+            ["employeeId", body.employeeId, 100],
+            ["employeeCode", body.employeeCode, 100],
+            ["stationId", body.stationId, 100],
+            ["stationName", body.stationName, 200],
+            ["publicLabel", body.publicLabel, 100],
+            ["publicPosition", body.publicPosition, 100],
+        ];
+        for (const [field, value, maxLength] of stringFields) {
+            if (
+                value !== undefined &&
+                (typeof value !== "string" || !value.trim() || value.trim().length > maxLength)
+            ) {
+                return NextResponse.json({ error: `${field} ต้องเป็นข้อความยาว 1–${maxLength} ตัวอักษร` }, { status: 400 });
+            }
+        }
+        if (body.approvePublicProfile !== undefined && typeof body.approvePublicProfile !== "boolean") {
+            return NextResponse.json({ error: "approvePublicProfile ต้องเป็น true หรือ false" }, { status: 400 });
+        }
+        if (body.isTest !== undefined && typeof body.isTest !== "boolean") {
+            return NextResponse.json({ error: "isTest ต้องเป็น true หรือ false" }, { status: 400 });
+        }
+        if (
+            body.targetType === "EMPLOYEE" &&
+            (body.placement !== undefined || body.placementKey !== undefined || body.serviceAreaKey !== undefined)
+        ) {
+            return NextResponse.json({ error: "ข้อมูลจุดติดตั้งใช้กับ QR สถานีเท่านั้น" }, { status: 400 });
+        }
+        const stationPlacements = ["STATION_MAIN", "CASHIER", "PUMP", "RESTROOM", "SHOP", "OTHER"] as const;
+        if (
+            body.targetType === "STATION" &&
+            body.placement !== undefined &&
+            !stationPlacements.includes(body.placement)
+        ) {
+            return NextResponse.json({ error: "placement ไม่ถูกต้อง" }, { status: 400 });
+        }
+        if (
+            body.targetType === "STATION" &&
+            body.placementKey !== undefined &&
+            (typeof body.placementKey !== "string" || !body.placementKey.trim() || body.placementKey.trim().length > 100)
+        ) {
+            return NextResponse.json({ error: "placementKey ต้องยาว 1–100 ตัวอักษร" }, { status: 400 });
+        }
+        if (
+            body.targetType === "STATION" &&
+            body.serviceAreaKey !== undefined &&
+            (typeof body.serviceAreaKey !== "string" || !isValidServiceArea(body.serviceAreaKey))
+        ) {
+            return NextResponse.json({ error: "serviceAreaKey ไม่ถูกต้อง" }, { status: 400 });
         }
 
         const secrets = buildQrSecrets();
         const now = new Date();
 
         if (body.targetType === "EMPLOYEE") {
+            if (body.employeeId && body.employeeCode) {
+                return NextResponse.json({ error: "ระบุ employeeId หรือ employeeCode อย่างใดอย่างหนึ่ง" }, { status: 400 });
+            }
             let employee;
             if (body.employeeCode) {
-                employee = await prisma.user.findUnique({ where: { employeeId: body.employeeCode } });
+                employee = await prisma.user.findUnique({ where: { employeeId: body.employeeCode.trim() } });
             } else if (body.employeeId) {
-                employee = await prisma.user.findUnique({ where: { id: body.employeeId } });
+                employee = await prisma.user.findUnique({ where: { id: body.employeeId.trim() } });
             }
             if (!body.employeeId && !body.employeeCode) return NextResponse.json({ error: "ต้องระบุ employeeId หรือ employeeCode" }, { status: 400 });
             if (!employee) return NextResponse.json({ error: "ไม่พบพนักงาน" }, { status: 404 });
@@ -154,7 +221,11 @@ export async function POST(request: NextRequest) {
             const draftLabel = labelResult.label;
 
             // ชื่อเล่นซ้ำในสถานีเดียวกัน = ลูกค้าแยกไม่ออกว่าให้คะแนนใคร
-            const { stationId: employeeStationId } = await resolveEmployeeCurrentStation(employee.id);
+            // สิทธิ์จัดการ QR ยึดสถานีหลักของพนักงานให้ตรงกันทั้งหน้าเลือก รายการ และหน้าแก้ไข
+            const employeeStationId = employee.stationId;
+            if (scope.stationId && employeeStationId !== scope.stationId) {
+                return NextResponse.json({ error: "ไม่มีสิทธิ์สร้าง QR ให้พนักงานของสถานีอื่น" }, { status: 403 });
+            }
             const stationPeers = employeeStationId
                 ? await prisma.customerFeedbackQr.findMany({
                     where: {
@@ -170,7 +241,29 @@ export async function POST(request: NextRequest) {
 
             const approved = body.approvePublicProfile === true;
 
-            const qr = await prisma.$transaction(async (tx) => {
+            const creation = await prisma.$transaction(async (tx) => {
+                // ล็อก User ก่อน QR ให้เรียงลำดับเดียวกับ deactivate/submit และอ่านสิทธิ์ซ้ำหลังได้ lock
+                await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${employee.id} FOR UPDATE`);
+                const currentEmployee = await tx.user.findUnique({
+                    where: { id: employee.id },
+                    select: { isActive: true, stationId: true },
+                });
+                if (!currentEmployee?.isActive) return { status: "TARGET_INACTIVE" as const };
+                if (scope.stationId && currentEmployee.stationId !== scope.stationId) {
+                    return { status: "OUT_OF_SCOPE" as const };
+                }
+                if (body.isTest !== true) {
+                    const existingProduction = await tx.customerFeedbackQr.findFirst({
+                        where: { targetType: "EMPLOYEE", employeeId: employee.id, isTest: false },
+                        select: { id: true },
+                    });
+                    if (existingProduction) return { status: "PRODUCTION_EXISTS" as const };
+                }
+                const currentActive = await tx.customerFeedbackQr.findFirst({
+                    where: { employeeId: employee.id, targetType: "EMPLOYEE", isActive: true },
+                    select: { id: true },
+                });
+                if (currentActive) return { status: "ACTIVE_EXISTS" as const };
                 const created = await tx.customerFeedbackQr.create({
                     data: {
                         ...secrets.columns,
@@ -178,7 +271,7 @@ export async function POST(request: NextRequest) {
                         employeeId: employee.id,
                         stationId: null,
                         publicLabel: draftLabel,
-                        publicPosition: body.publicPosition ?? "พนักงานบริการ",
+                        publicPosition: body.publicPosition?.trim() ?? "พนักงานบริการ",
                         publicProfileApprovedAt: approved ? now : null,
                         publicProfileApprovedById: approved ? session.user!.id : null,
                         placement: "EMPLOYEE_BADGE",
@@ -199,8 +292,24 @@ export async function POST(request: NextRequest) {
                         userId: session.user!.id,
                     },
                 });
-                return created;
+                return { status: "CREATED" as const, qr: created };
             });
+            if (creation.status === "TARGET_INACTIVE") {
+                return NextResponse.json({ error: "พนักงานไม่อยู่ในสถานะทำงาน" }, { status: 400 });
+            }
+            if (creation.status === "OUT_OF_SCOPE") {
+                return NextResponse.json({ error: "ไม่มีสิทธิ์สร้าง QR ให้พนักงานของสถานีอื่น" }, { status: 403 });
+            }
+            if (creation.status === "ACTIVE_EXISTS") {
+                return NextResponse.json({ error: "พนักงานคนนี้มี QR ที่ยังใช้งานอยู่แล้ว" }, { status: 409 });
+            }
+            if (creation.status === "PRODUCTION_EXISTS") {
+                return NextResponse.json(
+                    { error: "เป้าหมายนี้มี QR ใช้งานจริงอยู่แล้ว กรุณาใช้รายการเดิม" },
+                    { status: 409 }
+                );
+            }
+            const qr = creation.qr;
 
             return NextResponse.json({
                 qrCode: { id: qr.id, publicLabel: qr.publicLabel, needsApproval: !approved },
@@ -214,14 +323,20 @@ export async function POST(request: NextRequest) {
         }
 
         // STATION
+        if (body.stationId && body.stationName) {
+            return NextResponse.json({ error: "ระบุ stationId หรือ stationName อย่างใดอย่างหนึ่ง" }, { status: 400 });
+        }
         let station;
         if (body.stationName) {
-            station = await prisma.station.findFirst({ where: { name: { contains: body.stationName } }, orderBy: { name: "asc" } });
+            station = await prisma.station.findFirst({ where: { name: body.stationName.trim() }, orderBy: { name: "asc" } });
         } else if (body.stationId) {
-            station = await prisma.station.findUnique({ where: { id: body.stationId } });
+            station = await prisma.station.findUnique({ where: { id: body.stationId.trim() } });
         }
         if (!body.stationId && !body.stationName) return NextResponse.json({ error: "ต้องระบุ stationId หรือ stationName" }, { status: 400 });
         if (!station) return NextResponse.json({ error: "ไม่พบสถานี" }, { status: 404 });
+        if (scope.stationId && station.id !== scope.stationId) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์สร้าง QR ให้สถานีอื่น" }, { status: 403 });
+        }
         if (!station.isActive) return NextResponse.json({ error: "สถานีนี้ปิดใช้งานอยู่" }, { status: 400 });
         if (!station.publicEmergencyPhone) {
             return NextResponse.json(
@@ -231,17 +346,39 @@ export async function POST(request: NextRequest) {
         }
 
         const placement = body.placement ?? "STATION_MAIN";
-        const placementKey = body.placementKey ?? "MAIN";
+        const placementKey = body.placementKey?.trim() ?? "MAIN";
         const isPrimary = placement === "STATION_MAIN";
 
-        const qr = await prisma.$transaction(async (tx) => {
+        const creation = await prisma.$transaction(async (tx) => {
+            // ล็อก Station ก่อน QR ให้สถานะสถานีกับการสร้างรหัสเป็นเหตุการณ์เดียวกัน
+            await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Station" WHERE "id" = ${station.id} FOR UPDATE`);
+            const currentStation = await tx.station.findUnique({
+                where: { id: station.id },
+                select: { name: true, isActive: true, publicEmergencyPhone: true },
+            });
+            if (!currentStation?.isActive) return { status: "STATION_INACTIVE" as const };
+            if (!currentStation.publicEmergencyPhone) return { status: "PHONE_MISSING" as const };
+            if (scope.stationId && station.id !== scope.stationId) return { status: "OUT_OF_SCOPE" as const };
+            if (body.isTest !== true) {
+                const existingProduction = await tx.customerFeedbackQr.findFirst({
+                    where: {
+                        targetType: "STATION",
+                        stationId: station.id,
+                        placement,
+                        placementKey,
+                        isTest: false,
+                    },
+                    select: { id: true },
+                });
+                if (existingProduction) return { status: "PRODUCTION_EXISTS" as const };
+            }
             const created = await tx.customerFeedbackQr.create({
                 data: {
                     ...secrets.columns,
                     targetType: "STATION",
                     employeeId: null,
                     stationId: station.id,
-                    publicLabel: station.name,
+                    publicLabel: currentStation.name,
                     publicPosition: null,
                     placement,
                     placementKey,
@@ -262,8 +399,27 @@ export async function POST(request: NextRequest) {
                     userId: session.user!.id,
                 },
             });
-            return created;
+            return { status: "CREATED" as const, qr: created };
         });
+        if (creation.status === "STATION_INACTIVE") {
+            return NextResponse.json({ error: "สถานีนี้ปิดใช้งานอยู่" }, { status: 400 });
+        }
+        if (creation.status === "PHONE_MISSING") {
+            return NextResponse.json(
+                { error: "สถานีนี้ยังไม่มีหมายเลขฉุกเฉินสาธารณะ กรุณาตั้งค่าก่อนสร้าง QR ประเมินสถานี" },
+                { status: 400 }
+            );
+        }
+        if (creation.status === "OUT_OF_SCOPE") {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์สร้าง QR ให้สถานีอื่น" }, { status: 403 });
+        }
+        if (creation.status === "PRODUCTION_EXISTS") {
+            return NextResponse.json(
+                { error: "เป้าหมายนี้มี QR ใช้งานจริงอยู่แล้ว กรุณาใช้รายการเดิม" },
+                { status: 409 }
+            );
+        }
+        const qr = creation.qr;
 
         return NextResponse.json({
             qrCode: { id: qr.id },

@@ -19,17 +19,27 @@ export interface RatingSummary {
 
 export function summarizeRatings(ratings: number[]): RatingSummary {
     const distribution: RatingSummary["distribution"] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let sum = 0;
-    let positive = 0;
-    let negative = 0;
     for (const r of ratings) {
         if (r < 1 || r > 5 || !Number.isInteger(r)) continue;
         distribution[r as 1 | 2 | 3 | 4 | 5]++;
-        sum += r;
-        if (r >= 4) positive++;
-        if (r <= 2) negative++;
     }
+    return summarizeRatingDistribution(distribution);
+}
+
+export function summarizeRatingDistribution(
+    input: Partial<Record<1 | 2 | 3 | 4 | 5, number>>
+): RatingSummary {
+    const distribution: RatingSummary["distribution"] = {
+        1: Math.max(0, Math.trunc(input[1] ?? 0)),
+        2: Math.max(0, Math.trunc(input[2] ?? 0)),
+        3: Math.max(0, Math.trunc(input[3] ?? 0)),
+        4: Math.max(0, Math.trunc(input[4] ?? 0)),
+        5: Math.max(0, Math.trunc(input[5] ?? 0)),
+    };
     const count = Object.values(distribution).reduce((a, b) => a + b, 0);
+    const sum = distribution[1] + distribution[2] * 2 + distribution[3] * 3 + distribution[4] * 4 + distribution[5] * 5;
+    const positive = distribution[4] + distribution[5];
+    const negative = distribution[1] + distribution[2];
     return {
         count,
         average: count > 0 ? sum / count : null,

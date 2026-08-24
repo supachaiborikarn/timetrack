@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { decryptField } from "@/lib/crypto-field";
-import { getFeedbackAccessContext, getStationScope, requireFeedbackPermission } from "@/lib/customer-feedback/access";
+import { canViewFeedbackIncident, getFeedbackAccessContext, getStationScope, requireFeedbackPermission } from "@/lib/customer-feedback/access";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 
 /**
@@ -16,23 +15,25 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         if (!isCustomerFeedbackEnabled()) {
             return NextResponse.json({ error: "ระบบเสียงลูกค้ายังไม่เปิดใช้งาน" }, { status: 404 });
         }
-        const session = await auth();
-        if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const access = await getFeedbackAccessContext();
         if (!access.ok) return NextResponse.json({ error: access.message }, { status: access.status });
         const perm = await requireFeedbackPermission(access.ctx, "customer_feedback.view_contact");
         if (!perm.ok) return NextResponse.json({ error: perm.message }, { status: perm.status });
         const scope = await getStationScope(access.ctx);
         if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
+        const canViewIncident = await canViewFeedbackIncident(access.ctx);
 
         const { id } = await params;
         const response = await prisma.customerFeedbackResponse.findUnique({
             where: { id },
-            select: { id: true, stationId: true, contact: true },
+            select: { id: true, stationId: true, kind: true, contact: true },
         });
         if (!response) return NextResponse.json({ error: "ไม่พบคำตอบ" }, { status: 404 });
         if (scope.stationId && response.stationId !== scope.stationId) {
             return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
+        }
+        if (response.kind === "INCIDENT" && !canViewIncident) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูเหตุเร่งด่วน" }, { status: 403 });
         }
         if (!response.contact) {
             return NextResponse.json({ error: "คำตอบนี้ไม่มีข้อมูลติดต่อ" }, { status: 404 });
@@ -45,7 +46,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
                     action: "CUSTOMER_FEEDBACK_CONTACT_VIEWED",
                     entity: "CustomerFeedbackResponse",
                     entityId: id,
-                    userId: session.user.id,
+                    userId: access.ctx.userId,
                 },
             });
         } catch {

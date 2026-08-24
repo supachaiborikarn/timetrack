@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getFeedbackAccessContext, requireFeedbackPermission, getStationScope } from "@/lib/customer-feedback/access";
+import {
+    getFeedbackAccessContext,
+    requireFeedbackPermission,
+    getStationScope,
+    parseOptionalFeedbackFilter,
+} from "@/lib/customer-feedback/access";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 import { resolveEmployeePublicLabel } from "@/lib/customer-feedback/public-identity";
 
@@ -32,6 +37,56 @@ export async function GET(request: NextRequest) {
         if (!scope.ok) return NextResponse.json({ error: scope.message }, { status: scope.status });
 
         const search = (request.nextUrl.searchParams.get("search") ?? "").trim();
+        if (search.length > 100) {
+            return NextResponse.json({ error: "search ยาวเกิน 100 ตัวอักษร" }, { status: 400 });
+        }
+        const targetType = parseOptionalFeedbackFilter(
+            request.nextUrl.searchParams.get("targetType"),
+            ["EMPLOYEE", "STATION"] as const,
+            "targetType"
+        );
+        if (!targetType.ok) return NextResponse.json({ error: targetType.message }, { status: 400 });
+
+        if (targetType.value === "STATION") {
+            const stations = await prisma.station.findMany({
+                where: {
+                    ...(scope.stationId ? { id: scope.stationId } : {}),
+                    ...(search
+                        ? {
+                              OR: [
+                                  { name: { contains: search } },
+                                  { code: { contains: search } },
+                              ],
+                          }
+                        : {}),
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    isActive: true,
+                    publicEmergencyPhone: true,
+                    feedbackQrs: {
+                        where: { targetType: "STATION", placement: "STATION_MAIN", isPrimary: true },
+                        select: { id: true, isActive: true, publicLabel: true },
+                        orderBy: { createdAt: "desc" },
+                        take: 1,
+                    },
+                },
+                orderBy: { name: "asc" },
+                take: MAX_RESULTS + 1,
+            });
+            const visibleStations = stations.slice(0, MAX_RESULTS);
+            return NextResponse.json({
+                stations: visibleStations.map((station) => ({
+                    id: station.id,
+                    name: station.name,
+                    isActive: station.isActive,
+                    publicEmergencyPhone: station.publicEmergencyPhone,
+                    existingQr: station.feedbackQrs[0] ?? null,
+                })),
+                truncated: stations.length > MAX_RESULTS,
+            });
+        }
 
         const employees = await prisma.user.findMany({
             where: {
@@ -61,11 +116,12 @@ export async function GET(request: NextRequest) {
                 },
             },
             orderBy: [{ nickName: "asc" }, { name: "asc" }],
-            take: MAX_RESULTS,
+            take: MAX_RESULTS + 1,
         });
+        const visibleEmployees = employees.slice(0, MAX_RESULTS);
 
         return NextResponse.json({
-            candidates: employees.map((e) => {
+            candidates: visibleEmployees.map((e) => {
                 const existing = e.feedbackQrs[0] ?? null;
                 const label = resolveEmployeePublicLabel(e.nickName, e.name);
                 return {
@@ -81,7 +137,7 @@ export async function GET(request: NextRequest) {
                         : null,
                 };
             }),
-            truncated: employees.length === MAX_RESULTS,
+            truncated: employees.length > MAX_RESULTS,
         });
     } catch (error) {
         console.error("Error listing QR candidates:", error);

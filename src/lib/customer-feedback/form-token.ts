@@ -22,20 +22,41 @@ export interface VisitTokenPayload {
     issuedAt: number;
 }
 
+export function isStandardIncidentParent(
+    payload: VisitTokenPayload,
+    visit: { id: string; visitKind: string; targetType: string; surveyVersion: string }
+): boolean {
+    return payload.visitId === visit.id
+        && payload.visitKind === "STANDARD"
+        && visit.visitKind === "STANDARD"
+        && payload.targetType === visit.targetType
+        && payload.surveyVersion === visit.surveyVersion;
+}
+
+export function canStartIncidentFromParentDisposition(disposition: string): boolean {
+    return disposition === "OPEN" || disposition === "TARGET_REJECTED" || disposition === "SUBMITTED";
+}
+
 function sign(payload: string): string {
     const secret = process.env.AUTH_SECRET;
     if (!secret) throw new Error("AUTH_SECRET is not set");
     return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-export function createVisitToken(payload: Omit<VisitTokenPayload, "issuedAt">): { token: string; issuedAt: number; tokenHash: string } {
-    const full: VisitTokenPayload = { ...payload, issuedAt: Date.now() };
+export function createVisitToken(
+    payload: Omit<VisitTokenPayload, "issuedAt">,
+    issuedAt: number = Date.now()
+): { token: string; issuedAt: number; tokenHash: string } {
+    const full: VisitTokenPayload = { ...payload, issuedAt };
     const encoded = Buffer.from(JSON.stringify(full), "utf8").toString("base64url");
     const token = `${encoded}.${sign(encoded)}`;
     return { token, issuedAt: full.issuedAt, tokenHash: sha256Hex(token) };
 }
 
-export function verifyVisitToken(token: unknown): { valid: boolean; reason?: string; payload?: VisitTokenPayload } {
+export function verifyVisitToken(
+    token: unknown,
+    options: { enforceMinimumFill?: boolean; nowMs?: number } = {}
+): { valid: boolean; reason?: string; payload?: VisitTokenPayload } {
     if (typeof token !== "string") return { valid: false, reason: "missing" };
     const [encoded, signature] = token.split(".");
     if (!encoded || !signature) return { valid: false, reason: "malformed" };
@@ -49,8 +70,8 @@ export function verifyVisitToken(token: unknown): { valid: boolean; reason?: str
     } catch {
         return { valid: false, reason: "malformed" };
     }
-    const age = Date.now() - payload.issuedAt;
-    if (age < MIN_FILL_TIME_MS) return { valid: false, reason: "too-fast" };
+    const age = (options.nowMs ?? Date.now()) - payload.issuedAt;
+    if (options.enforceMinimumFill && age < MIN_FILL_TIME_MS) return { valid: false, reason: "too-fast" };
     if (age > MAX_TOKEN_AGE_MS) return { valid: false, reason: "expired" };
     return { valid: true, payload };
 }

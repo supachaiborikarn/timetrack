@@ -17,7 +17,8 @@
     "discord:register": "node scripts/register-discord-commands.mjs",
     "db:diff": "node scripts/db-diff.cjs",
     "prisma": "node scripts/prisma-guard.cjs",
-    "db:diff:migrations": "node scripts/db-diff-migrations.cjs"
+    "db:diff:migrations": "node scripts/db-diff-migrations.cjs",
+    "db:feedback-constraints:check": "node scripts/apply-feedback-constraints.cjs --dry-run"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

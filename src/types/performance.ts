@@ -4,6 +4,7 @@ export interface ReviewPeriod {
     startDate: string;
     endDate: string;
     isActive: boolean;
+    closedAt?: string | null;
 }
 
 export interface ReviewSubmission {

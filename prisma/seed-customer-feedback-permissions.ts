@@ -42,7 +42,13 @@ const grants: { role: Role; codes: string[] }[] = [
             "customer_feedback.view_response",
             "customer_feedback.view_incident",
             "customer_feedback.case_manage",
+            "customer_feedback.self_view",
+            "customer_feedback.review_request",
         ],
+    },
+    {
+        role: "CASHIER",
+        codes: ["customer_feedback.self_view", "customer_feedback.review_request"],
     },
     {
         role: "EMPLOYEE",

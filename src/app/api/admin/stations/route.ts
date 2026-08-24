@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -71,54 +72,61 @@ export async function PUT(request: Request) {
             }
         }
 
-        // กติกา customer feedback (§12.1): ห้ามล้าง publicEmergencyPhone หรือปิดสถานี
-        // ที่มี feedback QR ที่ยัง active จนกว่าจะส่ง deactivateFeedbackQr = true
+        const stationData = {
+            name,
+            code,
+            address,
+            latitude: latitude ? Number(latitude) : undefined,
+            longitude: longitude ? Number(longitude) : undefined,
+            radius: radius ? Number(radius) : undefined,
+            qrCode,
+            wifiSSID,
+            isActive: isActive ?? undefined,
+            publicEmergencyPhone: publicEmergencyPhone === undefined ? undefined : (publicEmergencyPhone || null),
+        };
+
+        // กติกา customer feedback (§12.1): ล็อก Station ก่อน QR แล้วเปลี่ยนทั้งสองอย่างใน transaction เดียว
         const clearingPhone = publicEmergencyPhone !== undefined && !publicEmergencyPhone;
         const deactivating = isActive === false;
+        let station;
         if (clearingPhone || deactivating) {
-            const activeQrCount = await prisma.customerFeedbackQr.count({
-                where: { stationId: id, isActive: true },
+            const result = await prisma.$transaction(async (tx) => {
+                await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Station" WHERE "id" = ${id} FOR UPDATE`);
+                const activeQrCount = await tx.customerFeedbackQr.count({
+                    where: { stationId: id, isActive: true },
+                });
+                if (activeQrCount > 0 && !deactivateFeedbackQr) {
+                    return { blocked: true as const, station: null };
+                }
+
+                const updatedStation = await tx.station.update({ where: { id }, data: stationData });
+                if (activeQrCount > 0) {
+                    const closed = await tx.customerFeedbackQr.updateMany({
+                        where: { stationId: id, isActive: true },
+                        data: { isActive: false, revokedAt: new Date() },
+                    });
+                    await tx.auditLog.create({
+                        data: {
+                            action: "CUSTOMER_FEEDBACK_QR_DEACTIVATED",
+                            entity: "Station",
+                            entityId: id,
+                            details: `Closed ${closed.count} active feedback QR(s) while updating station`,
+                            userId: session.user.id,
+                        },
+                    });
+                }
+                return { blocked: false as const, station: updatedStation };
             });
-            if (activeQrCount > 0 && !deactivateFeedbackQr) {
+            if (result.blocked) {
                 return NextResponse.json(
                     { error: "สถานีนี้ยังมี QR เสียงลูกค้าที่เปิดใช้งานอยู่ ต้องยืนยันการปิด QR ทุกใบก่อน" },
                     { status: 400 }
                 );
             }
-            if (activeQrCount > 0 && deactivateFeedbackQr) {
-                await prisma.$transaction([
-                    prisma.customerFeedbackQr.updateMany({
-                        where: { stationId: id, isActive: true },
-                        data: { isActive: false, revokedAt: new Date() },
-                    }),
-                    prisma.auditLog.create({
-                        data: {
-                            action: "CUSTOMER_FEEDBACK_QR_DEACTIVATED",
-                            entity: "Station",
-                            entityId: id,
-                            details: `Closed ${activeQrCount} active feedback QR(s) while updating station`,
-                            userId: session.user.id,
-                        },
-                    }),
-                ]);
-            }
+            station = result.station;
+        } else {
+            station = await prisma.station.update({ where: { id }, data: stationData });
         }
-
-        const station = await prisma.station.update({
-            where: { id },
-            data: {
-                name,
-                code,
-                address,
-                latitude: latitude ? Number(latitude) : undefined,
-                longitude: longitude ? Number(longitude) : undefined,
-                radius: radius ? Number(radius) : undefined,
-                qrCode,
-                wifiSSID,
-                isActive: isActive ?? undefined,
-                publicEmergencyPhone: publicEmergencyPhone === undefined ? undefined : (publicEmergencyPhone || null),
-            },
-        });
 
         return NextResponse.json({
             station: {

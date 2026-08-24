@@ -13,6 +13,8 @@ interface QuestionsData {
         questions: { key: string; required: string | boolean; label: { th: string; en: string }; branching: string }[];
         reasonOptions: { key: string; label: { th: string; en: string }; owner: string }[];
     }[];
+    serviceAreas?: { key: string; label: { th: string; en: string } }[];
+    incidentTypes?: { key: string; label: { th: string; en: string }; severity: string }[];
     note: string;
 }
 
@@ -43,21 +45,35 @@ export function QuestionsTab() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-1">
-                            {s.questions.map((q) => (
+                            {s.questions.filter((q) => s.version !== "incident-v1" || q.key !== "target_confirmation").map((q) => (
                                 <div key={q.key} className="flex flex-wrap items-center gap-2 text-sm">
                                     <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{q.key}</code>
-                                    <span>{q.label.th}</span>
+                                    <span><span lang="th">{q.label.th}</span><span className="text-muted-foreground" lang="en"> / {q.label.en}</span></span>
                                     <Badge variant="outline">{typeof q.required === "boolean" ? (q.required ? "บังคับ" : "ไม่บังคับ") : q.required}</Badge>
                                     <span className="text-xs text-muted-foreground">{q.branching}</span>
                                 </div>
                             ))}
                         </div>
                         {s.reasonOptions.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="space-y-1">
                                 {s.reasonOptions.map((o) => (
-                                    <Badge key={o.key} variant={o.owner === "EMPLOYEE" ? "default" : o.owner === "SYSTEM" ? "secondary" : "outline"}>
-                                        {o.key}
-                                    </Badge>
+                                    <div key={o.key} className="flex flex-wrap items-center gap-2 text-sm">
+                                        <Badge variant={o.owner === "EMPLOYEE" ? "default" : o.owner === "SYSTEM" ? "secondary" : "outline"}>{o.owner}</Badge>
+                                        <code className="text-xs">{o.key}</code>
+                                        <span lang="th">{o.label.th}</span><span lang="en" className="text-muted-foreground">/ {o.label.en}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {s.version === "incident-v1" && data.incidentTypes && (
+                            <div className="space-y-1 border-t pt-3">
+                                <p className="text-sm font-semibold">ประเภทเหตุ / Incident types</p>
+                                {data.incidentTypes.map((item) => (
+                                    <div key={item.key} className="flex flex-wrap items-center gap-2 text-sm">
+                                        <Badge variant={item.severity === "URGENT" ? "destructive" : "secondary"}>{item.severity}</Badge>
+                                        <code className="text-xs">{item.key}</code>
+                                        <span lang="th">{item.label.th}</span><span lang="en" className="text-muted-foreground">/ {item.label.en}</span>
+                                    </div>
                                 ))}
                             </div>
                         )}

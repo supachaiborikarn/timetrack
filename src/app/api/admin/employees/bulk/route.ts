@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
                 if (data.isActive) {
                     result = await prisma.user.updateMany({
                         where: { id: { in: ids } },
-                        data: { isActive: true },
+                        data: { isActive: true, employeeStatus: "ACTIVE" },
                     });
                 } else {
                     // หยุดงานต้องผ่าน helper เพื่อปิด EMPLOYEE feedback QR ใน transaction เดียวกัน

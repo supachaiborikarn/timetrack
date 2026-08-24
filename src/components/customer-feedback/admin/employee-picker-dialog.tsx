@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search } from "lucide-react";
 
@@ -68,7 +67,7 @@ export function EmployeePickerDialog({ open, onOpenChange, onSelect }: Props) {
     }, [open, search, load]);
 
     const choose = async (c: Candidate) => {
-        if (c.blockedReason) return;
+        if (c.blockedReason || c.existingQr) return;
         setSubmitting(c.employeeCode);
         try {
             await onSelect(c.employeeCode);
@@ -119,7 +118,7 @@ export function EmployeePickerDialog({ open, onOpenChange, onSelect }: Props) {
 
                     {!isLoading &&
                         candidates.map((c) => {
-                            const disabled = Boolean(c.blockedReason) || submitting !== null;
+                            const disabled = Boolean(c.blockedReason) || Boolean(c.existingQr) || submitting !== null;
                             return (
                                 <button
                                     key={c.employeeCode}
@@ -148,11 +147,9 @@ export function EmployeePickerDialog({ open, onOpenChange, onSelect }: Props) {
                                         )}
                                     </div>
                                     {submitting === c.employeeCode ? (
-                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />
                                     ) : (
-                                        <Button size="sm" variant="outline" tabIndex={-1} disabled={disabled} asChild>
-                                            <span>สร้าง</span>
-                                        </Button>
+                                        <span className="inline-flex min-h-8 items-center rounded-md border px-3 text-xs font-medium">สร้าง</span>
                                     )}
                                 </button>
                             );

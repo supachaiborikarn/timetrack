@@ -3,6 +3,7 @@ import {
     isValidReasonKey,
     isValidServiceArea,
     isValidIncidentKey,
+    type SurveyVersion,
 } from "./questions";
 
 /**
@@ -33,7 +34,6 @@ export interface StandardPayload {
     wantsFollowUp: boolean;
     contact?: ContactInput;
     language: string;
-    durationSeconds?: number;
 }
 
 export interface IncidentPayload {
@@ -46,10 +46,10 @@ export interface IncidentPayload {
     wantsFollowUp: boolean;
     contact?: ContactInput;
     language: string;
-    durationSeconds?: number;
 }
 
 export type ValidationError = { field: string; message: string };
+export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
 
 const ALLOWED_STANDARD_KEYS = new Set([
     "targetConfirmation",
@@ -61,7 +61,6 @@ const ALLOWED_STANDARD_KEYS = new Set([
     "wantsFollowUp",
     "contact",
     "language",
-    "durationSeconds",
 ]);
 
 const ALLOWED_INCIDENT_KEYS = new Set([
@@ -74,7 +73,6 @@ const ALLOWED_INCIDENT_KEYS = new Set([
     "wantsFollowUp",
     "contact",
     "language",
-    "durationSeconds",
 ]);
 
 const ALLOWED_CONTACT_KEYS = new Set(["consent", "channel", "value", "name", "preferredTime"]);
@@ -114,7 +112,7 @@ export function validateContact(input: unknown): { ok: true; value: ContactInput
         }
     }
     const channel = raw.channel;
-    const value = typeof raw.value === "string" ? raw.value : "";
+    const value = typeof raw.value === "string" ? raw.value.trim() : "";
     if (raw.consent !== true) errors.push({ field: "contact.consent", message: "ต้องยินยอมให้ติดต่อกลับก่อนส่งข้อมูลติดต่อ" });
     if (channel !== "PHONE" && channel !== "EMAIL") errors.push({ field: "contact.channel", message: "ช่องทางติดต่อไม่ถูกต้อง" });
     if (channel === "PHONE" && !validatePhone(value)) errors.push({ field: "contact.value", message: "หมายเลขโทรศัพท์ไม่ถูกต้อง" });
@@ -132,7 +130,7 @@ export function validateContact(input: unknown): { ok: true; value: ContactInput
             consent: true,
             channel: channel as "PHONE" | "EMAIL",
             value,
-            name: typeof raw.name === "string" ? raw.name : undefined,
+            name: typeof raw.name === "string" ? raw.name.trim() : undefined,
             preferredTime: raw.preferredTime as ContactInput["preferredTime"],
         },
     };
@@ -165,7 +163,10 @@ function validateSharedFollowUp(
     return { wantsFollowUp: false };
 }
 
-export function validateStandardPayload(body: unknown): { ok: true; value: StandardPayload } | { ok: false; errors: ValidationError[] } {
+export function validateStandardPayload(
+    body: unknown,
+    surveyVersion: StandardSurveyVersion = "employee-v1"
+): { ok: true; value: StandardPayload } | { ok: false; errors: ValidationError[] } {
     const errors: ValidationError[] = [];
     if (typeof body !== "object" || body === null) return { ok: false, errors: [{ field: "body", message: "ข้อมูลไม่ถูกต้อง" }] };
     const raw = body as Record<string, unknown>;
@@ -181,13 +182,15 @@ export function validateStandardPayload(body: unknown): { ok: true; value: Stand
         errors.push({ field: "overallRating", message: "คะแนนต้องเป็น 1–5" });
     }
 
-    const survey = getSurvey("employee-v1")!;
+    const survey = getSurvey(surveyVersion)!;
     const reasonKeys = Array.isArray(raw.reasonKeys) ? (raw.reasonKeys as unknown[]) : [];
-    if (reasonKeys.some((k) => typeof k !== "string")) {
+    if (!Array.isArray(raw.reasonKeys)) {
+        errors.push({ field: "reasonKeys", message: "สาเหตุต้องเป็นรายการ" });
+    } else if (reasonKeys.some((k) => typeof k !== "string")) {
         errors.push({ field: "reasonKeys", message: "สาเหตุไม่ถูกต้อง" });
     } else {
         const keys = reasonKeys as string[];
-        const invalid = keys.find((k) => !isValidReasonKey("employee-v1", k));
+        const invalid = keys.find((k) => !isValidReasonKey(surveyVersion, k));
         if (invalid) errors.push({ field: "reasonKeys", message: "สาเหตุไม่อยู่ในรายการ" });
         if (keys.length > survey.maxReasons) errors.push({ field: "reasonKeys", message: `เลือกได้ไม่เกิน ${survey.maxReasons} ข้อ` });
         if (keys.includes("unspecified") && keys.length > 1) {
@@ -200,7 +203,9 @@ export function validateStandardPayload(body: unknown): { ok: true; value: Stand
     }
 
     const serviceAreas = Array.isArray(raw.serviceAreas) ? (raw.serviceAreas as unknown[]) : [];
-    if (serviceAreas.some((k) => typeof k !== "string")) {
+    if (!Array.isArray(raw.serviceAreas)) {
+        errors.push({ field: "serviceAreas", message: "ส่วนบริการต้องเป็นรายการ" });
+    } else if (serviceAreas.some((k) => typeof k !== "string")) {
         errors.push({ field: "serviceAreas", message: "ส่วนบริการไม่ถูกต้อง" });
     } else {
         const keys = serviceAreas as string[];
@@ -210,6 +215,19 @@ export function validateStandardPayload(body: unknown): { ok: true; value: Stand
             errors.push({ field: "serviceAreas", message: "ไม่แน่ใจส่งร่วมกับค่าอื่นไม่ได้" });
         }
         if (new Set(keys).size !== keys.length) errors.push({ field: "serviceAreas", message: "ส่วนบริการซ้ำไม่ได้" });
+        if (surveyVersion === "employee-v1" && keys.length > 0) {
+            errors.push({ field: "serviceAreas", message: "แบบประเมินพนักงานไม่รับส่วนบริการ" });
+        }
+        if (surveyVersion === "station-v1" && keys.length === 0) {
+            errors.push({ field: "serviceAreas", message: "กรุณาเลือกส่วนบริการอย่างน้อยหนึ่งข้อ" });
+        }
+    }
+
+    if (
+        raw.selectedStationId !== undefined &&
+        (typeof raw.selectedStationId !== "string" || raw.selectedStationId.length < 1 || raw.selectedStationId.length > 100)
+    ) {
+        errors.push({ field: "selectedStationId", message: "สถานีที่เลือกไม่ถูกต้อง" });
     }
 
     if (raw.comment !== undefined && typeof raw.comment !== "string") {
@@ -220,7 +238,8 @@ export function validateStandardPayload(body: unknown): { ok: true; value: Stand
     }
 
     const followUp = validateSharedFollowUp(raw.wantsFollowUp, raw.contact, (e) => errors.push(e));
-    const language = validateLanguage(raw.language) ?? "th";
+    const language = validateLanguage(raw.language);
+    if (!language) errors.push({ field: "language", message: "ภาษาไม่ถูกต้อง" });
 
     if (errors.length > 0) return { ok: false, errors };
     return {
@@ -234,8 +253,7 @@ export function validateStandardPayload(body: unknown): { ok: true; value: Stand
             comment: typeof raw.comment === "string" ? raw.comment : undefined,
             wantsFollowUp: followUp.wantsFollowUp,
             contact: followUp.contact,
-            language,
-            durationSeconds: typeof raw.durationSeconds === "number" ? Math.floor(raw.durationSeconds) : undefined,
+            language: language!,
         },
     };
 }
@@ -252,6 +270,15 @@ export function validateIncidentPayload(body: unknown): { ok: true; value: Incid
     }
     if (raw.dangerStatus !== "YES" && raw.dangerStatus !== "NO" && raw.dangerStatus !== "UNSURE") {
         errors.push({ field: "dangerStatus", message: "สถานะอันตรายไม่ถูกต้อง" });
+    }
+    if (typeof raw.noDetail !== "boolean") {
+        errors.push({ field: "noDetail", message: "สถานะรายละเอียดไม่ถูกต้อง" });
+    }
+    if (
+        raw.selectedStationId !== undefined &&
+        (typeof raw.selectedStationId !== "string" || raw.selectedStationId.length < 1 || raw.selectedStationId.length > 100)
+    ) {
+        errors.push({ field: "selectedStationId", message: "สถานีที่เลือกไม่ถูกต้อง" });
     }
 
     let occurredAt: Date | undefined;
@@ -276,7 +303,8 @@ export function validateIncidentPayload(body: unknown): { ok: true; value: Incid
     }
 
     const followUp = validateSharedFollowUp(raw.wantsFollowUp, raw.contact, (e) => errors.push(e));
-    const language = validateLanguage(raw.language) ?? "th";
+    const language = validateLanguage(raw.language);
+    if (!language) errors.push({ field: "language", message: "ภาษาไม่ถูกต้อง" });
 
     if (errors.length > 0) return { ok: false, errors };
     return {
@@ -290,8 +318,7 @@ export function validateIncidentPayload(body: unknown): { ok: true; value: Incid
             comment,
             wantsFollowUp: followUp.wantsFollowUp,
             contact: followUp.contact,
-            language,
-            durationSeconds: typeof raw.durationSeconds === "number" ? Math.floor(raw.durationSeconds) : undefined,
+            language: language!,
         },
     };
 }
