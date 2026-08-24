@@ -3,7 +3,7 @@
 เอกสารนี้สำหรับ AI ตัวถัดไปที่รับงานต่อ อ่านให้จบก่อนทำอะไร
 อัปเดตล่าสุด: 24 สิงหาคม 2569
 
-**สถานะปัจจุบันให้อ่านหัวข้อ 2 และ 11 เป็นหลัก** หัวข้อ 8–10 เป็นบันทึกย้อนหลังเพื่ออธิบายว่าเคยทำอะไรกับ production ไปแล้ว
+**สถานะปัจจุบันให้อ่านหัวข้อ 2, 6 และ 12 เป็นหลัก** หัวข้อ 8–11 เป็นบันทึกย้อนหลังเพื่ออธิบายว่าเคยทำอะไรกับ production ไปแล้ว
 ห้ามนำข้อความย้อนหลังไปสั่งรันฐานข้อมูลซ้ำโดยไม่ตรวจสถานะและขออนุญาตเจ้าของก่อน
 
 ---
@@ -26,19 +26,21 @@
 
 ---
 
-## 2. สถานะปัจจุบัน (ตรวจแบบออฟไลน์ 24 สิงหาคม 2569)
+## 2. สถานะปัจจุบัน (production 24 สิงหาคม 2569 เวลาไทย)
 
-- อยู่บน branch `main` และงานรอบตรวจแก้ยังอยู่ใน working tree โดยยังไม่ commit หรือ deploy
-- `npx tsc --noEmit --incremental false` ผ่านหลังแก้รอบสุดท้าย
-- `npx vitest run` ผ่าน **56 ไฟล์ 348 tests**
-- `npm run lint` ผ่านด้วย 0 error; warning เดิมนอกชุด Customer Feedback 150 รายการยังเป็นงานของระบบเดิม
-- `npm run build` ผ่าน 179 หน้าและมี `/f`, `/feedback/privacy`, `/admin/customer-feedback` กับ API ที่เกี่ยวข้องใน route list
-- `npm run db:diff` ผ่านแบบไม่ต่อฐานข้อมูลและสร้าง preview สำหรับการเปลี่ยนแปลงล่าสุด
-- `npm run db:feedback-constraints:check` ผ่านแบบไม่ต่อฐานข้อมูล โดยอ่าน base constraints 13 คำสั่งและ hardening 4 คำสั่ง
-- `git diff --check` ผ่าน
-- บันทึกย้อนหลังในหัวข้อ 10 ระบุว่า schema หลัก, base constraints, permission seed และ env เคยลง production แล้วเมื่อ 23 สิงหาคม 2569
-- รอบตรวจนี้ **ไม่ได้เชื่อม อ่าน หรือแก้ production** จึงยังไม่ยืนยันว่า hardening 4 คำสั่งและคอลัมน์ rating distribution อยู่บน production แล้ว
-- `CUSTOMER_FEEDBACK_PUBLIC_ENABLED` ยังควรปิดจนกว่าจะลงโค้ดและ schema ล่าสุด ทดสอบ QR แบบทดสอบ และยืนยันป้ายจริงครบ
+- release commit `21141f51aa40fbea0c700771c6499b8e3b6e38bc` อยู่บน `main` และ push ไป GitHub แล้ว
+- Vercel production ใช้ deployment `dpl_HC6E78rXBBu5mNz1rKmtFoeUGsfH` สถานะ Ready
+- `https://timetrack-lake.vercel.app/admin/customer-feedback` ใช้โค้ดใหม่และผู้ดูแลเปิดครบทั้ง 6 แท็บได้
+- `CUSTOMER_FEEDBACK_ENABLED=true` และ `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=false`
+- `/f` ตอบ 404 ตามสวิตช์ปิด ส่วน `/feedback/privacy` ตอบ 200 และ admin API ตอบ 401 เมื่อไม่มี session
+- hardening constraints, rating distribution columns, composite nonce index และ permission seed ลง production แล้ว
+- live schema diff หลังลงระบบเป็น empty migration
+- permission ที่ตรวจได้คือ ADMIN 11, HR 9, MANAGER 6, CASHIER 2 และ EMPLOYEE 2
+- production มี Visit 0 และ Response 0 จึงยังไม่มีคะแนนลูกค้าเข้าระบบ
+- มี EMPLOYEE QR จริง 48 รายการ ทุกใบยังปิดและรอพิมพ์/รับทราบข้อมูลสาธารณะ
+- ยังไม่มี TEST QR และ STATION QR
+- สถานี active ทั้ง 4 แห่งยังไม่มี `publicEmergencyPhone`
+- public ต้องปิดต่อจนกว่าจะทำรายการในหัวข้อ 6 ครบ
 - แผนต้นทางเป็นเอกสารออกแบบย้อนหลังที่ [customer-feedback-qr-evaluation-plan.md](customer-feedback-qr-evaluation-plan.md)
 - ร่างเกณฑ์โบนัสและคำสั่งพนักงานเก็บเป็นเอกสารภายในที่ไม่รวมใน repository สาธารณะ และยังห้ามใช้ตัดโบนัสจนเจ้าของอนุมัติ
 
@@ -136,7 +138,9 @@ Admin (ทุกตัวผ่าน `access.ts` + permission code + MANAGER �
 
 ---
 
-## 5. ขั้นตอนลงการแก้รอบล่าสุด (ต้องรอเจ้าของยืนยันก่อน — AI ห้ามรันเอง)
+## 5. ขั้นตอนลงการแก้รอบล่าสุด
+
+เจ้าของยืนยันและดำเนินการตามลำดับนี้แล้วเมื่อ 24 สิงหาคม 2569 รายละเอียดผลอยู่หัวข้อ 12
 
 ลำดับนี้ใช้กับ production ที่มีตาราง CustomerFeedback อยู่แล้วตามบันทึกหัวข้อ 10
 ก่อนรันต้องแจ้งชื่อ host, branch, คำสั่ง และแผนสำรองให้เจ้าของเห็นก่อน
@@ -160,17 +164,21 @@ npx tsx prisma/seed-customer-feedback-permissions.ts  # 6. seed permission แ�
 
 ---
 
-## 6. งานที่ยังเหลือและต้องรอเจ้าของ
+## 6. งานที่ยังเหลือก่อนเปิดให้ลูกค้า
 
-1. ยังไม่ได้ทดสอบ integration กับ production หลังการแก้รอบ 24 สิงหาคม 2569
-2. hardening 4 คำสั่งและคอลัมน์ rating distribution ยังไม่ได้ยืนยันบน production
-3. กฎแจ้งเตือนเชิงคุณภาพบางข้อในแผน §18.6 ยังเป็น backlog เช่น QR ไม่เคยถูกสแกนและอัตราคำตอบผิดปกติรายช่วง
-4. การตรวจพนักงานที่ล็อกอินแล้วพยายามประเมิน QR ของตนเองยังเป็น best-effort เพราะหน้าลูกค้าไม่บังคับ login
-5. export มี CSV และงานพิมพ์ QR มีแบบ SVG ผ่านหน้าพิมพ์ขนาดเดียว ส่วน PNG, ป้ายชื่อ, A5/A4 สำเร็จรูป และสร้างหลายคนพร้อมกันยังเป็น backlog
-6. data views ชื่อ `customer_feedback_*_fact_v1` ในแผนเป็นสัญญาข้อมูลอนาคต ปัจจุบัน dashboard อ่าน route และ daily aggregate โดยตรง
-7. ต้องทดสอบงานพิมพ์จริง แสงจริง อินเทอร์เน็ตช้า keyboard โปรแกรมอ่านหน้าจอ และข้อความขยาย 200 เปอร์เซ็นต์
-8. สูตรโบนัสตรุษจีนยังเป็น DRAFT และระบบปัจจุบันเก็บ Customer Feedback เป็นหลักฐานของรอบประเมินเท่านั้น
-9. รอเจ้าของอนุมัติการลง schema/constraint ล่าสุด, deploy, smoke test และเปิด public flag
+1. เจ้าของต้องแจ้งเบอร์ฉุกเฉินสาธารณะของ GASP, PAP, SPC และ WKO เพื่อบันทึกในสถานี
+2. สร้าง STATION QR แบบ TEST แล้วพิมพ์ ยืนยันการพิมพ์ และเปิดใช้
+3. เปิด public บน candidate ชั่วคราวและส่งแบบปกติกับเหตุเร่งด่วนโดยใช้ข้อมูลจำลอง
+4. ตรวจว่าคำตอบเป็น `TEST` และไม่มี Case, Notification หรือ Alert จริง แล้วปิด candidate ทดสอบ
+5. พนักงานแต่ละคนต้องเห็นชื่อเล่นกับตำแหน่งบนป้ายและให้ผู้ดูแลบันทึกการรับทราบ
+6. พิมพ์ QR จริงครบ ตรวจรหัสบนป้าย แล้วกด `MARK_PRINTED` ก่อน activate
+7. เปิด QR จริงเมื่อป้ายถูกนำไปติดแล้วเท่านั้น
+8. เปิด `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=true` สร้าง deployment ใหม่ และ smoke test production อีกครั้ง
+9. กฎแจ้งเตือนเชิงคุณภาพบางข้อในแผน §18.6 ยังเป็น backlog เช่น QR ไม่เคยถูกสแกนและอัตราคำตอบผิดปกติรายช่วง
+10. การตรวจพนักงานที่ล็อกอินแล้วพยายามประเมิน QR ของตนเองยังเป็น best-effort เพราะหน้าลูกค้าไม่บังคับ login
+11. export มี CSV และงานพิมพ์ QR มีแบบ SVG ผ่านหน้าพิมพ์ขนาดเดียว ส่วน PNG, ป้ายชื่อ, A5/A4 สำเร็จรูป และสร้างหลายคนพร้อมกันยังเป็น backlog
+12. ต้องทดสอบงานพิมพ์จริง แสงจริง อินเทอร์เน็ตช้า keyboard โปรแกรมอ่านหน้าจอ และข้อความขยาย 200 เปอร์เซ็นต์
+13. สูตรโบนัสตรุษจีนยังเป็น DRAFT และระบบปัจจุบันเก็บ Customer Feedback เป็นหลักฐานของรอบประเมินเท่านั้น
 
 ---
 
@@ -179,7 +187,7 @@ npx tsx prisma/seed-customer-feedback-permissions.ts  # 6. seed permission แ�
 ตรวจสถานะเบื้องต้น (ทำได้ทั้งหมดโดยไม่แตะฐานข้อมูล):
 
 ```bash
-git status --porcelain          # ควรเห็นไฟล์งาน 28 กลุ่มตามหัวข้อ 3
+git status --porcelain          # ควรว่าง ยกเว้นเอกสารสถานะที่กำลังอัปเดตโดยตั้งใจ
 npx tsc --noEmit                # ต้องผ่าน
 npx vitest run                  # ทุก test ต้องผ่าน
 npm run lint                    # ต้อง 0 error
@@ -430,3 +438,43 @@ SQL ที่ลงเป็น additive ล้วน ไม่มี DROP/TRUNC
 
 ผลตรวจทั้งหมดใช้ `DATABASE_URL` ปลอมที่ชี้ localhost และ secret สำหรับทดสอบเท่านั้น
 ไม่มีคำสั่งในรอบนี้เชื่อม production หรือเปลี่ยนข้อมูล production
+
+---
+
+## 12. บันทึก release production 24 สิงหาคม 2569
+
+เจ้าของยืนยันให้ดำเนินการ production หลังได้รับชื่อฐานข้อมูล คำสั่งเขียนข้อมูล และแผนกู้คืนแล้ว
+
+### จุดกู้คืน
+
+- Neon project `shiny-flower-73333021`, parent branch `production`
+- recovery branch `pre-feedback-launch-2026-08-24-2051-ict`
+- recovery branch id `br-empty-wildflower-a16ylj9s`
+- snapshot parent time `2026-08-24T13:50:36Z` หรือ 20:50:36 เวลาไทย
+- deployment ก่อนหน้า `dpl_6Q8dZzdw53JLa3Jrg8GqmWao7q9G`
+
+### ผลฐานข้อมูล
+
+- preflight พบ User 74, Visit 0, Response 0 และ nonce ซ้ำ 0 กลุ่ม
+- live diff ก่อนลงมีเฉพาะ rating bucket 5 คอลัมน์กับ composite unique index 1 รายการ
+- `node scripts/apply-feedback-constraints.cjs` ผ่านโดยไม่มี failure
+- `npm run db:push` ผ่านโดยไม่มี data-loss warning
+- rerun constraint ผ่าน และ live diff หลังลงเป็น empty migration
+- permission seed ผ่านและจำนวนสิทธิ์ต่อ role ตรงตามหัวข้อ 2
+
+### ผลโค้ดและ Vercel
+
+- test ผ่าน 56 ไฟล์ 348 tests, type check ผ่าน, lint 0 error และ build ผ่าน 179 หน้า
+- commit `21141f51aa40fbea0c700771c6499b8e3b6e38bc` push ไป `main`
+- Vercel project นี้เป็น sourceless จึงไม่ deploy อัตโนมัติจาก Git push รอบนี้
+- candidate build ผ่านและ promote เป็น production deployment `dpl_HC6E78rXBBu5mNz1rKmtFoeUGsfH`
+- หลัง promote `/f` = 404, `/feedback/privacy` = 200 และ admin summary = 401 เมื่อไม่ล็อกอิน
+- บัญชี ADMIN เปิด `/admin/customer-feedback` และโหลดแท็บภาพรวม คำตอบ เคส QR Codes คำถาม และคำขอทบทวนได้ครบ
+
+### เหตุที่ยังไม่เปิด public
+
+- สถานี active 4 แห่งยังไม่มีเบอร์ฉุกเฉิน จึงสร้างหรือ activate STATION QR ไม่ได้
+- พนักงานที่มีชื่อเล่น 48 คนมี QR จริงรอเปิดใช้แล้ว จึงสร้าง TEST QR ซ้ำไม่ได้
+- การกดรับทราบแทนพนักงานหรือบันทึกเบอร์ฉุกเฉินที่เดาเองจะทำให้หลักฐานใช้งานจริงผิด
+- public flag เปิดทั้งแบบ QR และ standalone incident พร้อมกัน จึงห้ามเปิดเพื่อทดลองก่อน TEST QR พร้อม
+- ระบบถูกทิ้งไว้ในสภาพปลอดภัย: admin เปิดใช้, public ปิด, QR ทั้งหมดปิด และข้อมูลลูกค้าเป็นศูนย์
