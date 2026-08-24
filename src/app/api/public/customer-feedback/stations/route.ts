@@ -4,6 +4,7 @@ import { loadVisitFromHeaders } from "@/lib/customer-feedback/submit";
 import { searchEligibleStations } from "@/lib/customer-feedback/station-context";
 import { checkRateLimit } from "@/lib/customer-feedback/anti-abuse";
 import { sha256Hex } from "@/lib/customer-feedback/token";
+import { publicError } from "@/lib/customer-feedback/public-errors";
 
 /**
  * GET /api/public/customer-feedback/stations?q=...
@@ -14,12 +15,12 @@ import { sha256Hex } from "@/lib/customer-feedback/token";
 export async function GET(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
-            return NextResponse.json({ error: "ระบบยังไม่เปิดรับความคิดเห็น" }, { status: 404 });
+            return publicError("PUBLIC_DISABLED", 404);
         }
 
         const loaded = await loadVisitFromHeaders(request.headers);
         if ("error" in loaded) {
-            return NextResponse.json({ error: "เซสชันหมดอายุ กรุณาสแกน QR อีกครั้ง" }, { status: 401 });
+            return publicError("SESSION_EXPIRED", 401);
         }
         const { visit } = loaded;
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 
         const limit = await checkRateLimit("station-search", sha256Hex(visit.id), 30, 60 * 1000);
         if (!limit.allowed) {
-            return NextResponse.json({ error: "ค้นหาบ่อยเกินไป" }, { status: 429, headers: { "Retry-After": "60" } });
+            return publicError("SEARCH_RATE_LIMITED", 429, { "Retry-After": "60" });
         }
 
         const q = request.nextUrl.searchParams.get("q") ?? "";
@@ -49,6 +50,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ stations: result });
     } catch (error) {
         console.error("Error searching stations:", error);
-        return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+        return publicError("SERVER_ERROR", 500);
     }
 }

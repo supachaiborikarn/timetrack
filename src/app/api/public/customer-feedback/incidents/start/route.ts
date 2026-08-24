@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isCustomerFeedbackPublicEnabled, assertPublicSecrets } from "@/lib/customer-feedback/feature-flags";
 import { createVisitToken, verifyVisitToken, extractBearerToken } from "@/lib/customer-feedback/form-token";
 import { sha256Hex } from "@/lib/customer-feedback/token";
+import { publicError } from "@/lib/customer-feedback/public-errors";
 import {
     networkHashDaily,
     clientHashWeekly,
@@ -37,7 +38,7 @@ function noStore(response: NextResponse): NextResponse {
 export async function POST(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
-            return NextResponse.json({ error: "ระบบยังไม่เปิดรับความคิดเห็น" }, { status: 404 });
+            return publicError("PUBLIC_DISABLED", 404);
         }
         assertPublicSecrets();
 
@@ -52,13 +53,13 @@ export async function POST(request: NextRequest) {
         if (bearer) {
             const verified = verifyVisitToken(bearer);
             if (!verified.valid) {
-                return NextResponse.json({ error: "เซสชันหมดอายุ กรุณาสแกน QR อีกครั้ง" }, { status: 401 });
+                return publicError("SESSION_EXPIRED", 401);
             }
             const parent = await prisma.customerFeedbackVisit.findUnique({
                 where: { sessionTokenHash: sha256Hex(bearer) },
             });
             if (!parent || parent.formExpiresAt.getTime() < now.getTime()) {
-                return NextResponse.json({ error: "แบบประเมินหมดอายุ" }, { status: 410 });
+                return publicError("FORM_EXPIRED", 410);
             }
 
             // คืน child เดิมถ้ามี
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
                     where: { id: existingChild.id },
                     data: { sessionTokenHash: sha256Hex(childToken) },
                 });
-                return NextResponse.json({ visitToken: childToken, surveyVersion: "incident-v1", targetType: existingChild.targetType });
+                return noStore(NextResponse.json({ visitToken: childToken, surveyVersion: "incident-v1", targetType: existingChild.targetType }));
             }
 
             const child = await prisma.customerFeedbackVisit.create({
@@ -119,12 +120,12 @@ export async function POST(request: NextRequest) {
                 where: { id: child.id },
                 data: { sessionTokenHash: sha256Hex(childToken) },
             });
-            return NextResponse.json({
+            return noStore(NextResponse.json({
                 visitToken: childToken,
                 surveyVersion: "incident-v1",
                 targetType: child.targetType,
                 inheritedStation: child.stationIdAtOpen ? { id: child.stationIdAtOpen } : null,
-            });
+            }));
         }
 
         // standalone: targetType UNKNOWN — เส้นนี้ไม่ต้องมี QR หรือ token ใด ๆ
@@ -134,20 +135,14 @@ export async function POST(request: NextRequest) {
             "standalone-incident-network", networkKey, PER_NETWORK_STANDALONE_INCIDENT_PER_HOUR, 3600 * 1000
         );
         if (!limit.allowed) {
-            return noStore(NextResponse.json(
-                { error: "เปิดแบบประเมินบ่อยเกินไป กรุณารอสักครู่" },
-                { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
-            ));
+            return publicError("RESOLVE_RATE_LIMITED", 429, { "Retry-After": String(limit.retryAfterSec) });
         }
 
         const globalLimit = await checkGlobalLimit(
             "global-visit-create", GLOBAL_LIMITS.visitCreatePerMinute, 60 * 1000
         );
         if (!globalLimit.allowed) {
-            return noStore(NextResponse.json(
-                { error: "ระบบมีผู้ใช้งานหนาแน่น กรุณาลองใหม่อีกครั้ง" },
-                { status: 429, headers: { "Retry-After": String(globalLimit.retryAfterSec) } }
-            ));
+            return publicError("SERVER_BUSY", 429, { "Retry-After": String(globalLimit.retryAfterSec) });
         }
 
         const visit = await prisma.customerFeedbackVisit.create({
@@ -181,9 +176,9 @@ export async function POST(request: NextRequest) {
             where: { id: visit.id },
             data: { sessionTokenHash: sha256Hex(visitToken) },
         });
-        return NextResponse.json({ visitToken: visitToken, surveyVersion: "incident-v1", targetType: "UNKNOWN" });
+        return noStore(NextResponse.json({ visitToken: visitToken, surveyVersion: "incident-v1", targetType: "UNKNOWN" }));
     } catch (error) {
         console.error("Error starting incident visit:", error);
-        return NextResponse.json({ error: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง" }, { status: 500 });
+        return publicError("SERVER_ERROR", 500);
     }
 }

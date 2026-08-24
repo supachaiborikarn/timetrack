@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCustomerFeedbackPublicEnabled } from "@/lib/customer-feedback/feature-flags";
 import { loadVisitFromHeaders } from "@/lib/customer-feedback/submit";
+import { publicError } from "@/lib/customer-feedback/public-errors";
 
 /**
  * POST /api/public/customer-feedback/visits/progress
@@ -12,7 +13,7 @@ import { loadVisitFromHeaders } from "@/lib/customer-feedback/submit";
 export async function POST(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
-            return NextResponse.json({ error: "ระบบยังไม่เปิดรับความคิดเห็น" }, { status: 404 });
+            return publicError("PUBLIC_DISABLED", 404);
         }
 
         const body = await request.json().catch(() => null);
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         const loaded = await loadVisitFromHeaders(request.headers);
         if ("error" in loaded) {
-            return NextResponse.json({ error: "เซสชันหมดอายุ กรุณาสแกน QR อีกครั้ง" }, { status: 401 });
+            return publicError("SESSION_EXPIRED", 401);
         }
         const { visit } = loaded;
 
@@ -59,6 +60,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ disposition: data.disposition ?? visit.disposition });
     } catch (error) {
         console.error("Error updating visit progress:", error);
-        return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+        return publicError("SERVER_ERROR", 500);
     }
 }

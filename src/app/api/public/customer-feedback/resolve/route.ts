@@ -20,14 +20,13 @@ import {
 import { resolveEmployeeCurrentStation } from "@/lib/customer-feedback/station-context";
 import { shuffledOptionOrder, getSurvey } from "@/lib/customer-feedback/questions";
 import { visitPurgeAfter, FORM_EXPIRY_MS } from "@/lib/customer-feedback/retention";
+import { publicError } from "@/lib/customer-feedback/public-errors";
 
 /**
  * POST /api/public/customer-feedback/resolve
  * รับ token หรือรหัสกรอกเองใน body (ไม่ใช่ URL) สร้าง Visit และคืน signed form token
  * พร้อมข้อมูลสาธารณะขั้นต่ำ
  */
-
-const GENERIC_INVALID_MESSAGE = "ไม่พบแบบประเมินนี้ โปรดสแกน QR ที่จุดบริการอีกครั้ง";
 
 function clientIp(request: NextRequest): string {
     // Vercel ให้ x-forwarded-for ที่ platform เท่านั้นที่เขียนได้
@@ -86,7 +85,7 @@ async function alertInvalidResolveBreaker(now: Date): Promise<void> {
 export async function POST(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
-            return noStore(NextResponse.json({ error: "ระบบยังไม่เปิดรับความคิดเห็น" }, { status: 404 }));
+            return publicError("PUBLIC_DISABLED", 404);
         }
         assertPublicSecrets();
 
@@ -97,11 +96,11 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json().catch(() => null);
         if (typeof body !== "object" || body === null) {
-            return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 400 }));
+            return publicError("INVALID_QR", 400);
         }
         const { token, manualCode } = body as { token?: unknown; manualCode?: unknown };
         if (typeof token !== "string" && typeof manualCode !== "string") {
-            return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 400 }));
+            return publicError("INVALID_QR", 400);
         }
 
         const resolverType: "TOKEN" | "MANUAL_CODE" = typeof token === "string" ? "TOKEN" : "MANUAL_CODE";
@@ -118,10 +117,7 @@ export async function POST(request: NextRequest) {
 
         const tooManyRequests = (retryAfterSec: number) => {
             void recordResolve(resolverType, "RATE_LIMITED");
-            return noStore(NextResponse.json(
-                { error: "เปิดแบบประเมินบ่อยเกินไป กรุณารอสักครู่" },
-                { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
-            ));
+            return publicError("RESOLVE_RATE_LIMITED", 429, { "Retry-After": String(retryAfterSec) });
         };
 
         // ชั้นที่ 1 — เพดานต่อเครือข่าย (กว้าง เพราะ CGNAT)
@@ -146,10 +142,7 @@ export async function POST(request: NextRequest) {
             );
             if (!guessLimit.allowed) {
                 await recordResolve("MANUAL_CODE", "RATE_LIMITED");
-                return noStore(NextResponse.json(
-                    { error: "ลองรหัสบ่อยเกินไป กรุณารอ 1 นาที" },
-                    { status: 429, headers: { "Retry-After": "60" } }
-                ));
+                return publicError("MANUAL_CODE_RATE_LIMITED", 429, { "Retry-After": "60" });
             }
             qr = await prisma.customerFeedbackQr.findUnique({
                 where: { manualCodeHash: hashManualCode(code) },
@@ -166,7 +159,7 @@ export async function POST(request: NextRequest) {
             if (!breaker.allowed) {
                 await alertInvalidResolveBreaker(now);
             }
-            return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 404 }));
+            return publicError("INVALID_QR", 404);
         };
 
         if (!qr) return rejectInvalid("INVALID");
@@ -187,7 +180,7 @@ export async function POST(request: NextRequest) {
             });
             if (!target?.isActive) {
                 await recordResolve(resolverType, "INACTIVE");
-                return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 404 }));
+                return publicError("INVALID_QR", 404);
             }
             stationContext = await resolveEmployeeCurrentStation(qr.employeeId!);
         } else if (qr.targetType === "STATION") {
@@ -197,7 +190,7 @@ export async function POST(request: NextRequest) {
             });
             if (!station?.isActive || !station.publicEmergencyPhone) {
                 await recordResolve(resolverType, "INACTIVE");
-                return noStore(NextResponse.json({ error: GENERIC_INVALID_MESSAGE }, { status: 404 }));
+                return publicError("INVALID_QR", 404);
             }
             stationContext = { stationId: qr.stationId!, source: "TOKEN" };
         }
@@ -295,6 +288,6 @@ export async function POST(request: NextRequest) {
         }));
     } catch (error) {
         console.error("Error resolving customer feedback QR:", error);
-        return noStore(NextResponse.json({ error: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง" }, { status: 500 }));
+        return publicError("SERVER_ERROR", 500);
     }
 }

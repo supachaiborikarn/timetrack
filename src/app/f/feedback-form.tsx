@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Phone, Search } from "lucide-react";
+import type { PublicErrorCode } from "@/lib/customer-feedback/public-errors";
 
 /**
  * แบบประเมินเสียงลูกค้าฝั่ง client — mobile-first, ไม่มีการเปลี่ยนหน้าอัตโนมัติ
@@ -80,6 +81,10 @@ const DICT = {
         dangerQ: "ตอนนี้มีใครอยู่ในอันตรายหรือไม่",
         dangerWarn: "ออกจากพื้นที่เสี่ยงและติดต่อผู้ดูแลหรือหมายเลขฉุกเฉินทันที",
         emergencyNote: "หากมีอันตรายทันที ให้โทรขอความช่วยเหลือก่อนส่งแบบฟอร์ม",
+        callPolice: "ตำรวจ",
+        callMedical: "การแพทย์ฉุกเฉิน",
+        callStation: "เบอร์ฉุกเฉินของสถานี",
+        callAria: (label: string, number: string) => `โทร ${label} ${number}`,
         detailQ: "เกิดอะไรขึ้น",
         noDetail: "ไม่สะดวกให้รายละเอียด",
         contactPhone: "เบอร์โทรศัพท์",
@@ -133,6 +138,10 @@ const DICT = {
         dangerQ: "Is anyone in danger right now",
         dangerWarn: "Leave the risky area and contact the manager or emergency number immediately.",
         emergencyNote: "If there is immediate danger, call for help before submitting this form.",
+        callPolice: "Police",
+        callMedical: "Medical emergency",
+        callStation: "Station emergency line",
+        callAria: (label: string, number: string) => `Call ${label} ${number}`,
         detailQ: "What happened",
         noDetail: "Prefer not to give details",
         contactPhone: "Phone number",
@@ -151,6 +160,61 @@ const DICT = {
         selected: (n: number, max: number) => `Selected ${n}/${max}`,
     },
 } as const;
+
+/**
+ * ข้อความ error ตามรหัสจาก API สาธารณะ — Record<PublicErrorCode> บังคับให้
+ * เพิ่มรหัสฝั่ง server แล้วต้องเพิ่มคำแปลที่นี่ด้วย ไม่งั้น build ไม่ผ่าน
+ */
+const ERROR_DICT: Record<PublicErrorCode, { th: string; en: string }> = {
+    PUBLIC_DISABLED: { th: "ระบบยังไม่เปิดรับความคิดเห็น", en: "Customer feedback is not open yet." },
+    INVALID_QR: {
+        th: "ไม่พบแบบประเมินนี้ โปรดสแกน QR ที่จุดบริการอีกครั้ง",
+        en: "Survey not found. Please scan the QR code at the service point again.",
+    },
+    RESOLVE_RATE_LIMITED: { th: "เปิดแบบประเมินบ่อยเกินไป กรุณารอสักครู่", en: "Too many attempts. Please wait a moment." },
+    MANUAL_CODE_RATE_LIMITED: { th: "ลองรหัสบ่อยเกินไป กรุณารอ 1 นาที", en: "Too many code attempts. Please wait 1 minute." },
+    SEARCH_RATE_LIMITED: { th: "ค้นหาบ่อยเกินไป", en: "Too many searches. Please wait a moment." },
+    SERVER_BUSY: { th: "ระบบมีผู้ใช้งานหนาแน่น กรุณาลองใหม่อีกครั้ง", en: "The system is busy. Please try again." },
+    SESSION_EXPIRED: { th: "เซสชันหมดอายุ กรุณาสแกน QR อีกครั้ง", en: "Your session expired. Please scan the QR code again." },
+    INCIDENT_SESSION_EXPIRED: { th: "เซสชันหมดอายุ กรุณาเริ่มใหม่อีกครั้ง", en: "Your session expired. Please start again." },
+    FORM_EXPIRED: { th: "แบบประเมินหมดอายุ กรุณาสแกน QR ใหม่อีกครั้ง", en: "This survey expired. Please scan the QR code again." },
+    INCIDENT_FORM_EXPIRED: { th: "แบบแจ้งเหตุหมดอายุ กรุณาเริ่มใหม่อีกครั้ง", en: "This report expired. Please start again." },
+    INCIDENT_NOT_FOUND: { th: "ไม่พบแบบแจ้งเหตุนี้ กรุณาเริ่มใหม่อีกครั้ง", en: "Report not found. Please start again." },
+    ALREADY_SUBMITTED: { th: "เราได้รับความคิดเห็นนี้แล้ว", en: "We have already received this feedback." },
+    QR_ROTATED: { th: "ป้ายนี้ถูกเปลี่ยนรหัสแล้ว กรุณาสแกนป้ายใหม่", en: "This badge has a new code. Please scan it again." },
+    QR_INACTIVE: { th: "แบบประเมินนี้ปิดใช้งานแล้ว", en: "This survey has been deactivated." },
+    STATION_NOT_ELIGIBLE: { th: "สถานีที่เลือกไม่พร้อมรับแบบประเมิน", en: "The selected station is not accepting feedback." },
+    INCIDENT_STATION_NOT_ELIGIBLE: { th: "สถานีที่เลือกไม่พร้อมรับแบบแจ้งเหตุ", en: "The selected station is not accepting reports." },
+    DUPLICATE_MISMATCH: { th: "คำขอซ้ำไม่ตรงกัน", en: "This repeated request does not match the original." },
+    PAYLOAD_TOO_LARGE: { th: "ข้อมูลใหญ่เกินไป", en: "Your message is too long." },
+    SUBMIT_FAILED: { th: "ส่งไม่สำเร็จ", en: "Could not submit." },
+    SUBMIT_ERROR: {
+        th: "ยังส่งความคิดเห็นไม่ได้ คำตอบของคุณยังอยู่ในหน้านี้",
+        en: "Could not submit yet. Your answers are still on this page.",
+    },
+    SERVER_ERROR: { th: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง", en: "Something went wrong. Please try again." },
+};
+
+type DictErrorKey = "resolveFail" | "submitFail" | "required";
+
+/**
+ * เก็บ error เป็น "ตัวระบุ" ไม่ใช่ข้อความสำเร็จรูป เพื่อให้กดสลับภาษาแล้ว
+ * ข้อความที่ค้างบนจอเปลี่ยนตามด้วย — raw ใช้เฉพาะข้อความที่ไม่มีรหัสกำกับ
+ */
+type UiError =
+    | { kind: "code"; code: PublicErrorCode }
+    | { kind: "dict"; key: DictErrorKey }
+    | { kind: "raw"; text: string }
+    | null;
+
+function toUiError(data: unknown, fallback: DictErrorKey): UiError {
+    const body = data as { code?: unknown; error?: unknown } | null;
+    if (typeof body?.code === "string" && body.code in ERROR_DICT) {
+        return { kind: "code", code: body.code as PublicErrorCode };
+    }
+    if (typeof body?.error === "string" && body.error.length > 0) return { kind: "raw", text: body.error };
+    return { kind: "dict", key: fallback };
+}
 
 const REASONS = {
     employee_courtesy: { th: "การพูดจาและความสุภาพ", en: "Courtesy and politeness" },
@@ -229,7 +293,7 @@ export function FeedbackForm() {
     const t = DICT[lang];
     const [screen, setScreen] = useState<Screen>("resolve");
     const [manualCode, setManualCode] = useState("");
-    const [resolveError, setResolveError] = useState<string | null>(null);
+    const [resolveError, setResolveError] = useState<UiError>(null);
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState<ResolveResult | null>(null);
     const [selectedStation, setSelectedStation] = useState<{ id: string; name: string; emergencyPhone: string | null } | null>(null);
@@ -246,7 +310,7 @@ export function FeedbackForm() {
     const [contactValue, setContactValue] = useState("");
     const [contactName, setContactName] = useState("");
     const [preferredTime, setPreferredTime] = useState("ANYTIME");
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<UiError>(null);
     const [refCode, setRefCode] = useState<string | null>(null);
     const [caseSeverity, setCaseSeverity] = useState<string | null>(null);
     // incident state
@@ -258,6 +322,12 @@ export function FeedbackForm() {
     // จำหน้าที่ลูกค้ากดลิงก์แจ้งเหตุเพื่อกลับมาต่อได้ถูกต้อง (§7 รักษาร่างเดิมไว้)
     const [preIncidentScreen, setPreIncidentScreen] = useState<Screen>("resolve");
     const headingRef = useRef<HTMLHeadingElement>(null);
+
+    // คืนภาษาที่ลูกค้าเลือกไว้ — ตั้งใน effect ไม่ใช่ initial state เพื่อไม่ให้ hydrate ไม่ตรงกับ SSR
+    useEffect(() => {
+        const saved = sessionStorage.getItem("cf_lang");
+        if (saved === "th" || saved === "en") setLang(saved);
+    }, []);
 
     // โหลด token จาก URL fragment แล้ว resolve + ลบ fragment
     useEffect(() => {
@@ -297,7 +367,7 @@ export function FeedbackForm() {
             if (!res.ok) {
                 // ใช้ข้อความจริงจาก server (เช่น ระบบยังไม่เปิด / rate limit) แล้วจึง fallback
                 const data = await res.json().catch(() => null);
-                setResolveError(typeof data?.error === "string" ? data.error : DICT[lang].resolveFail);
+                setResolveError(toUiError(data, "resolveFail"));
                 return;
             }
             const data: ResolveResult = await res.json();
@@ -307,11 +377,10 @@ export function FeedbackForm() {
             startedAtRef.current = Date.now();
             setScreen("confirm-target");
         } catch {
-            setResolveError(DICT[lang].submitFail);
+            setResolveError({ kind: "dict", key: "submitFail" });
         } finally {
             setBusy(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lang]);
 
     const postProgress = useCallback(
@@ -391,7 +460,7 @@ export function FeedbackForm() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setError(data.error ?? DICT[lang].submitFail);
+                setError(toUiError(data, "submitFail"));
                 setScreen("reasons");
                 return;
             }
@@ -400,12 +469,11 @@ export function FeedbackForm() {
             setScreen("done");
             sessionStorage.removeItem("cf_visit_token");
         } catch {
-            setError(DICT[lang].submitFail);
+            setError({ kind: "dict", key: "submitFail" });
             setScreen("reasons");
         } finally {
             setBusy(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [result, rating, reasonKeys, serviceAreas, comment, wantsFollowUp, selectedStation, contactChannel, contactValue, contactName, preferredTime, lang]);
 
     const startIncident = useCallback(async () => {
@@ -423,14 +491,14 @@ export function FeedbackForm() {
                 body: "{}",
             });
             if (!res.ok) {
-                setError((await res.json()).error ?? DICT[lang].submitFail);
+                setError(toUiError(await res.json().catch(() => null), "submitFail"));
                 return;
             }
             const data = await res.json();
             setIncidentToken(data.visitToken);
             setScreen("incident-type");
         } catch {
-            setError(DICT[lang].submitFail);
+            setError({ kind: "dict", key: "submitFail" });
         } finally {
             setBusy(false);
         }
@@ -471,7 +539,7 @@ export function FeedbackForm() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setError(data.error ?? DICT[lang].submitFail);
+                setError(toUiError(data, "submitFail"));
                 setScreen("incident-detail");
                 return;
             }
@@ -480,12 +548,11 @@ export function FeedbackForm() {
             setScreen("incident-done");
             sessionStorage.removeItem("cf_visit_token");
         } catch {
-            setError(DICT[lang].submitFail);
+            setError({ kind: "dict", key: "submitFail" });
             setScreen("incident-detail");
         } finally {
             setBusy(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [incidentKey, dangerStatus, noDetail, comment, wantsFollowUp, selectedStation, contactChannel, contactValue, contactName, preferredTime, lang, incidentToken]);
 
     const emergencyPhone = selectedStation?.emergencyPhone ?? result?.station?.emergencyPhone ?? null;
@@ -502,6 +569,16 @@ export function FeedbackForm() {
             {busy ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : label}
         </button>
     );
+
+    const errorLabel = (e: UiError): string | null => {
+        if (!e) return null;
+        if (e.kind === "code") return ERROR_DICT[e.code][lang];
+        if (e.kind === "dict") return t[e.key];
+        return e.text;
+    };
+
+    const errorBox = (e: UiError) =>
+        e ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{errorLabel(e)}</p> : null;
 
     const secondaryBtn = (label: string, onClick: () => void) => (
         <button
@@ -522,7 +599,11 @@ export function FeedbackForm() {
             <div className="flex items-center gap-2">
                 <button
                     type="button"
-                    onClick={() => setLang(lang === "th" ? "en" : "th")}
+                    onClick={() => {
+                        const next = lang === "th" ? "en" : "th";
+                        setLang(next);
+                        sessionStorage.setItem("cf_lang", next);
+                    }}
                     className="rounded-lg border border-neutral-900/20 px-3 py-1.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
                     aria-label="Change language"
                 >
@@ -550,17 +631,32 @@ export function FeedbackForm() {
             {emergencyPhone && (
                 <a
                     href={`tel:${emergencyPhone}`}
+                    aria-label={t.callAria(t.callStation, emergencyPhone)}
                     className="mb-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700"
                 >
-                    <Phone className="h-4 w-4" aria-hidden /> {emergencyPhone}
+                    <Phone className="h-4 w-4" aria-hidden /> {t.callStation} {emergencyPhone}
                 </a>
             )}
             <div className="grid grid-cols-2 gap-2">
-                <a href="tel:191" className="flex min-h-[44px] items-center justify-center rounded-lg border border-neutral-300 px-2 py-2 text-sm font-semibold text-neutral-700">
-                    <Phone className="mr-1 h-4 w-4" aria-hidden /> 191
+                <a
+                    href="tel:191"
+                    aria-label={t.callAria(t.callPolice, "191")}
+                    className="flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-neutral-300 px-2 py-2 text-neutral-700"
+                >
+                    <span className="flex items-center text-sm font-semibold">
+                        <Phone className="mr-1 h-4 w-4" aria-hidden /> 191
+                    </span>
+                    <span className="text-xs text-neutral-500">{t.callPolice}</span>
                 </a>
-                <a href="tel:1669" className="flex min-h-[44px] items-center justify-center rounded-lg border border-neutral-300 px-2 py-2 text-sm font-semibold text-neutral-700">
-                    <Phone className="mr-1 h-4 w-4" aria-hidden /> 1669
+                <a
+                    href="tel:1669"
+                    aria-label={t.callAria(t.callMedical, "1669")}
+                    className="flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-neutral-300 px-2 py-2 text-neutral-700"
+                >
+                    <span className="flex items-center text-sm font-semibold">
+                        <Phone className="mr-1 h-4 w-4" aria-hidden /> 1669
+                    </span>
+                    <span className="text-xs text-neutral-500">{t.callMedical}</span>
                 </a>
             </div>
         </div>
@@ -587,7 +683,7 @@ export function FeedbackForm() {
             <div className="space-y-6">
                 <H>{t.header}</H>
                 <p className="text-neutral-600">{t.intro}</p>
-                {resolveError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{resolveError}</p>}
+                {errorBox(resolveError)}
                 <div className="space-y-2">
                     <label htmlFor="manual-code" className="text-sm font-semibold">
                         {t.manualCode}
@@ -666,10 +762,10 @@ export function FeedbackForm() {
                         </label>
                     ))}
                 </fieldset>
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
                 {primaryBtn(t.next, async () => {
                     if (!confirmation) {
-                        setError(t.required);
+                        setError({ kind: "dict", key: "required" });
                         return;
                     }
                     await postProgress({ targetConfirmation: confirmation, startedAt: true, lastStep: "confirm-target" });
@@ -773,14 +869,14 @@ export function FeedbackForm() {
                 </div>
                 {primaryBtn(t.next, () => {
                     if (serviceAreas.length === 0) {
-                        setError(t.required);
+                        setError({ kind: "dict", key: "required" });
                         return;
                     }
                     setError(null);
                     void postProgress({ lastStep: "service-areas" });
                     setScreen("rating");
                 })}
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
             </div>
         );
     }
@@ -810,7 +906,7 @@ export function FeedbackForm() {
                 </fieldset>
                 {primaryBtn(t.next, () => {
                     if (rating === null) {
-                        setError(t.required);
+                        setError({ kind: "dict", key: "required" });
                         return;
                     }
                     setError(null);
@@ -818,7 +914,7 @@ export function FeedbackForm() {
                     setReasonKeys([]);
                     setScreen("reasons");
                 })}
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
             </div>
         );
     }
@@ -916,7 +1012,7 @@ export function FeedbackForm() {
                     </div>
                 )}
                 {rating <= 2 && <p role="note" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{t.incidentCaseNote}</p>}
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
                 {primaryBtn(t.submit, () => void submitStandard())}
                 {secondaryBtn(t.back, () => setScreen(result.targetType === "STATION" && !result.serviceAreaKey ? "service-areas" : "rating"))}
             </div>
@@ -951,10 +1047,9 @@ export function FeedbackForm() {
         return card(
             <div className="space-y-4">
                 <H>{t.incidentLink}</H>
+                {/* เบอร์ฉุกเฉินอยู่ในแถบล่างของทุกหน้าแจ้งเหตุแล้ว — ไม่ซ้ำที่นี่ */}
                 <p className="text-neutral-600">{t.emergencyNote}</p>
-                <a href="tel:191" className="flex min-h-[44px] items-center justify-center rounded-lg border border-neutral-300 px-4 py-2 font-semibold">191</a>
-                <a href="tel:1669" className="flex min-h-[44px] items-center justify-center rounded-lg border border-neutral-300 px-4 py-2 font-semibold">1669</a>
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
                 {primaryBtn(t.incidentGo, () => void startIncident())}
                 {secondaryBtn(t.incidentBack, () => setScreen(preIncidentScreen))}
             </div>
@@ -1062,7 +1157,7 @@ export function FeedbackForm() {
                     </div>
                 )}
                 <p role="note" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{t.incidentCaseNote}</p>
-                {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                {errorBox(error)}
                 {primaryBtn(t.submit, () => void submitIncident())}
             </div>
         );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isCustomerFeedbackPublicEnabled } from "@/lib/customer-feedback/feature-flags";
 import { validateStandardPayload } from "@/lib/customer-feedback/validation";
 import { submitStandardResponse } from "@/lib/customer-feedback/submit";
+import { publicError, STANDARD_FAILURE_CODES } from "@/lib/customer-feedback/public-errors";
 
 /**
  * POST /api/public/customer-feedback/submissions
@@ -32,7 +33,7 @@ function checkOrigin(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
     try {
         if (!isCustomerFeedbackPublicEnabled()) {
-            return noStore(NextResponse.json({ error: "ระบบยังไม่เปิดรับความคิดเห็น" }, { status: 404 }));
+            return publicError("PUBLIC_DISABLED", 404);
         }
         if (!checkOrigin(request)) {
             return noStore(NextResponse.json({ error: "Invalid origin" }, { status: 403 }));
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
         }
         const contentLength = Number(request.headers.get("content-length") ?? 0);
         if (contentLength > MAX_BODY_BYTES) {
-            return noStore(NextResponse.json({ error: "ข้อมูลใหญ่เกินไป" }, { status: 413 }));
+            return publicError("PAYLOAD_TOO_LARGE", 413);
         }
 
         const idempotencyKey = request.headers.get("idempotency-key");
@@ -64,21 +65,10 @@ export async function POST(request: NextRequest) {
         });
 
         if ("failure" in result) {
-            const messages: Record<string, string> = {
-                TOKEN_INVALID: "เซสชันหมดอายุ กรุณาสแกน QR อีกครั้ง",
-                VISIT_NOT_FOUND: "ไม่พบแบบประเมินนี้ โปรดสแกน QR ที่จุดบริการอีกครั้ง",
-                VISIT_NOT_OPEN: "เราได้รับความคิดเห็นนี้แล้ว",
-                FORM_EXPIRED: "แบบประเมินหมดอายุ กรุณาสแกน QR ใหม่อีกครั้ง",
-                QR_ROTATED: "ป้ายนี้ถูกเปลี่ยนรหัสแล้ว กรุณาสแกนป้ายใหม่",
-                QR_INACTIVE: "แบบประเมินนี้ปิดใช้งานแล้ว",
-                TARGET_INACTIVE: "แบบประเมินนี้ปิดใช้งานแล้ว",
-                STATION_NOT_ELIGIBLE: "สถานีที่เลือกไม่พร้อมรับแบบประเมิน",
-                ALREADY_SUBMITTED: "เราได้รับความคิดเห็นนี้แล้ว",
-            };
-            return noStore(NextResponse.json({ error: messages[result.failure as string] ?? "ส่งไม่สำเร็จ" }, { status: result.status }));
+            return publicError(STANDARD_FAILURE_CODES[result.failure as string] ?? "SUBMIT_FAILED", result.status ?? 400);
         }
         if ("conflict" in result) {
-            return noStore(NextResponse.json({ error: "คำขอซ้ำไม่ตรงกัน" }, { status: 409 }));
+            return publicError("DUPLICATE_MISMATCH", 409);
         }
 
         return noStore(NextResponse.json({
@@ -89,6 +79,6 @@ export async function POST(request: NextRequest) {
         }));
     } catch (error) {
         console.error("Error submitting customer feedback:", error);
-        return noStore(NextResponse.json({ error: "ยังส่งความคิดเห็นไม่ได้ คำตอบของคุณยังอยู่ในหน้านี้" }, { status: 500 }));
+        return publicError("SUBMIT_ERROR", 500);
     }
 }
