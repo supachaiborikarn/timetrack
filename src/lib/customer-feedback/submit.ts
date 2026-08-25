@@ -357,7 +357,9 @@ async function lockAbuseSignals(
     params: Parameters<typeof abuseSignalLockKeys>[0]
 ): Promise<void> {
     for (const key of abuseSignalLockKeys(params)) {
-        await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+        // PostgreSQL คืนชนิด void จาก advisory lock ซึ่ง Prisma แปลงค่าไม่ได้
+        // cast เป็น text เพื่อให้ query รอ lock ตามเดิมและอ่านผลลัพธ์ได้ทุก runtime
+        await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text`);
     }
 }
 
