@@ -1,9 +1,9 @@
 # Handoff: ระบบเสียงลูกค้า (Customer Feedback QR) — สถานะหลัง implement
 
 เอกสารนี้สำหรับ AI ตัวถัดไปที่รับงานต่อ อ่านให้จบก่อนทำอะไร
-อัปเดตล่าสุด: 24 สิงหาคม 2569
+อัปเดตล่าสุด: 25 สิงหาคม 2569
 
-**สถานะปัจจุบันให้อ่านหัวข้อ 2, 6 และ 12 เป็นหลัก** หัวข้อ 8–11 เป็นบันทึกย้อนหลังเพื่ออธิบายว่าเคยทำอะไรกับ production ไปแล้ว
+**สถานะปัจจุบันให้อ่านหัวข้อ 2, 6 และ 13 เป็นหลัก** หัวข้อ 8–12 เป็นบันทึกย้อนหลังเพื่ออธิบายว่าเคยทำอะไรกับ production ไปแล้ว
 ห้ามนำข้อความย้อนหลังไปสั่งรันฐานข้อมูลซ้ำโดยไม่ตรวจสถานะและขออนุญาตเจ้าของก่อน
 
 ---
@@ -26,23 +26,21 @@
 
 ---
 
-## 2. สถานะปัจจุบัน (production 24 สิงหาคม 2569 เวลาไทย)
+## 2. สถานะปัจจุบัน (production 25 สิงหาคม 2569 เวลาไทย)
 
-- release commit `21141f51aa40fbea0c700771c6499b8e3b6e38bc` อยู่บน `main` และ push ไป GitHub แล้ว
-- Vercel production ใช้ deployment `dpl_HC6E78rXBBu5mNz1rKmtFoeUGsfH` สถานะ Ready
-- `https://timetrack-lake.vercel.app/admin/customer-feedback` ใช้โค้ดใหม่และผู้ดูแลเปิดครบทั้ง 6 แท็บได้
+- Vercel production ใช้ deployment `dpl_8adxsv5GvCbWwWWATFwG14yd6nuD` สถานะ Ready และทำงานที่ Singapore (`sin1`)
 - `CUSTOMER_FEEDBACK_ENABLED=true` และ `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=false`
-- `/f` ตอบ 404 ตามสวิตช์ปิด ส่วน `/feedback/privacy` ตอบ 200 และ admin API ตอบ 401 เมื่อไม่มี session
-- hardening constraints, rating distribution columns, composite nonce index และ permission seed ลง production แล้ว
-- live schema diff หลังลงระบบเป็น empty migration
-- permission ที่ตรวจได้คือ ADMIN 11, HR 9, MANAGER 6, CASHIER 2 และ EMPLOYEE 2
-- production มี Visit 0 และ Response 0 จึงยังไม่มีคะแนนลูกค้าเข้าระบบ
-- มี EMPLOYEE QR จริง 48 รายการ ทุกใบยังปิดและรอพิมพ์/รับทราบข้อมูลสาธารณะ
-- ยังไม่มี TEST QR และ STATION QR
-- สถานี active ทั้ง 4 แห่งยังไม่มี `publicEmergencyPhone`
+- `/` และ `/login` ตอบ 200, `/f` ตอบ 404, `/feedback/privacy` ตอบ 200 และ admin summary ตอบ 401 เมื่อไม่มี session
+- เบอร์ฉุกเฉินสาธารณะของ GASP, PAP, SPC และ WKO เป็น `055773003` ครบทุกสถานี
+- TEST QR ของ SPC ผ่านการส่งแบบปกติและแบบแจ้งเหตุแล้ว โดยข้อมูลทั้งสองรายการเป็น `TEST`
+- TEST response ไม่มี Case, Notification หรือ Alert จริง และ TEST QR เดิมถูกปิดพร้อมหมุนรหัสแล้ว
+- มี STATION QR จริง 4 ใบสำหรับ `STATION_MAIN/MAIN` เป็น version 1 ทุกใบ
+- QR จริงทั้ง 4 ใบยังปิดและมี `needsReprint=true` เพื่อรอการพิมพ์กับการติดป้ายจริง
+- ไฟล์ PDF ขนาด A5 ของทั้ง 4 สถานีสร้างแล้ว ตรวจภาพแล้ว และถอด QR จากภาพได้ตรงกับข้อมูล production ทุกใบ
+- QR มีพื้นที่ขาวรอบรหัสอย่างน้อย 4 ช่องเพื่อให้โทรศัพท์อ่านได้เสถียรขึ้น
+- มี EMPLOYEE QR จริง 48 รายการ ทุกใบยังปิดและรอพิมพ์กับการรับทราบชื่อสาธารณะจากพนักงาน
+- สูตรโบนัสตรุษจีนยังเป็น DRAFT และระบบยังไม่ส่งคะแนนเข้า payroll อัตโนมัติ
 - public ต้องปิดต่อจนกว่าจะทำรายการในหัวข้อ 6 ครบ
-- แผนต้นทางเป็นเอกสารออกแบบย้อนหลังที่ [customer-feedback-qr-evaluation-plan.md](customer-feedback-qr-evaluation-plan.md)
-- ร่างเกณฑ์โบนัสและคำสั่งพนักงานเก็บเป็นเอกสารภายในที่ไม่รวมใน repository สาธารณะ และยังห้ามใช้ตัดโบนัสจนเจ้าของอนุมัติ
 
 ---
 
@@ -166,19 +164,15 @@ npx tsx prisma/seed-customer-feedback-permissions.ts  # 6. seed permission แ�
 
 ## 6. งานที่ยังเหลือก่อนเปิดให้ลูกค้า
 
-1. เจ้าของต้องแจ้งเบอร์ฉุกเฉินสาธารณะของ GASP, PAP, SPC และ WKO เพื่อบันทึกในสถานี
-2. สร้าง STATION QR แบบ TEST แล้วพิมพ์ ยืนยันการพิมพ์ และเปิดใช้
-3. เปิด public บน candidate ชั่วคราวและส่งแบบปกติกับเหตุเร่งด่วนโดยใช้ข้อมูลจำลอง
-4. ตรวจว่าคำตอบเป็น `TEST` และไม่มี Case, Notification หรือ Alert จริง แล้วปิด candidate ทดสอบ
-5. พนักงานแต่ละคนต้องเห็นชื่อเล่นกับตำแหน่งบนป้ายและให้ผู้ดูแลบันทึกการรับทราบ
-6. พิมพ์ QR จริงครบ ตรวจรหัสบนป้าย แล้วกด `MARK_PRINTED` ก่อน activate
-7. เปิด QR จริงเมื่อป้ายถูกนำไปติดแล้วเท่านั้น
-8. เปิด `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=true` สร้าง deployment ใหม่ และ smoke test production อีกครั้ง
-9. กฎแจ้งเตือนเชิงคุณภาพบางข้อในแผน §18.6 ยังเป็น backlog เช่น QR ไม่เคยถูกสแกนและอัตราคำตอบผิดปกติรายช่วง
-10. การตรวจพนักงานที่ล็อกอินแล้วพยายามประเมิน QR ของตนเองยังเป็น best-effort เพราะหน้าลูกค้าไม่บังคับ login
-11. export มี CSV และงานพิมพ์ QR มีแบบ SVG ผ่านหน้าพิมพ์ขนาดเดียว ส่วน PNG, ป้ายชื่อ, A5/A4 สำเร็จรูป และสร้างหลายคนพร้อมกันยังเป็น backlog
-12. ต้องทดสอบงานพิมพ์จริง แสงจริง อินเทอร์เน็ตช้า keyboard โปรแกรมอ่านหน้าจอ และข้อความขยาย 200 เปอร์เซ็นต์
-13. สูตรโบนัสตรุษจีนยังเป็น DRAFT และระบบปัจจุบันเก็บ Customer Feedback เป็นหลักฐานของรอบประเมินเท่านั้น
+1. พิมพ์ PDF สถานีทั้ง 4 ใบแบบ Actual size หรือ 100% โดยไม่ใช้ Fit to page
+2. ติดป้ายให้ตรงรหัส GASP, PAP, SPC และ WKO
+3. ใช้โทรศัพท์สแกนป้ายที่พิมพ์จริงทุกใบและตรวจว่าชื่อสถานีบนหน้าจอตรงกับจุดติดตั้ง
+4. หลังตรวจป้ายจริงแล้วจึงบันทึก `MARK_PRINTED` และ activate QR ทั้ง 4 ใบ
+5. เปิด `CUSTOMER_FEEDBACK_PUBLIC_ENABLED=true` ด้วย deployment ใหม่และ smoke test production หนึ่งรายการ
+6. ลบ deployment ทดสอบที่เปิด public หลังได้รับอนุญาตให้ลบ เพื่อปิด URL ชั่วคราวที่ใช้ทดสอบ
+7. พนักงานแต่ละคนต้องเห็นชื่อเล่นกับตำแหน่งบนป้ายและให้ผู้ดูแลบันทึกการรับทราบก่อนเปิด EMPLOYEE QR
+8. สูตรโบนัสตรุษจีนต้องอนุมัติเกณฑ์ จำนวนตัวอย่างขั้นต่ำ และวิธีรับเรื่องโต้แย้งก่อนผูกกับ payroll
+9. ทดสอบงานพิมพ์ในแสงจริง อินเทอร์เน็ตช้า โปรแกรมอ่านหน้าจอ และข้อความขยาย 200 เปอร์เซ็นต์
 
 ---
 
@@ -478,3 +472,52 @@ SQL ที่ลงเป็น additive ล้วน ไม่มี DROP/TRUNC
 - การกดรับทราบแทนพนักงานหรือบันทึกเบอร์ฉุกเฉินที่เดาเองจะทำให้หลักฐานใช้งานจริงผิด
 - public flag เปิดทั้งแบบ QR และ standalone incident พร้อมกัน จึงห้ามเปิดเพื่อทดลองก่อน TEST QR พร้อม
 - ระบบถูกทิ้งไว้ในสภาพปลอดภัย: admin เปิดใช้, public ปิด, QR ทั้งหมดปิด และข้อมูลลูกค้าเป็นศูนย์
+
+---
+
+## 13. บันทึกเตรียมเปิดใช้งาน 25 สิงหาคม 2569
+
+เจ้าของยืนยันให้ดำเนินการ production และกำหนดให้ทุกสถานีใช้เบอร์ `055773003`
+
+### การทดสอบก่อนสร้าง QR จริง
+
+- สร้าง TEST QR ที่ SPC แล้วบันทึกการพิมพ์และเปิดใช้เฉพาะช่วงทดสอบ
+- candidate ที่เปิด public ผ่าน flow คะแนนต่ำแบบปกติ อ้างอิง `FB-LM2SX42L`
+- candidate ผ่าน flow แจ้งอุบัติเหตุพร้อมระดับอันตราย อ้างอิง `FB-XQWTEHR5`
+- ตรวจฐานข้อมูลแล้วทั้งสองรายการเป็น `TEST` และไม่มี Case, Notification หรือ Alert จริง
+- หน้าทดสอบแสดงเบอร์โทรสถานี `055773003` ถูกต้อง
+- TEST QR ถูกปิด หมุนรหัส และเก็บข้อมูลทดสอบไว้เป็นประวัติ
+
+### ปัญหาที่พบและแก้แล้ว
+
+- คำสั่งล็อกแถวของ PostgreSQL คืนชนิด `void` ซึ่ง Prisma อ่านไม่ได้ จึง cast ผลลัพธ์เป็น text
+- การเขียนข้อมูลข้ามภูมิภาคเกินเวลาที่กำหนด จึงย้ายการทำงานของ Vercel ไป `sin1`
+- เพิ่มเวลาสำหรับ transaction ที่บันทึกแบบประเมินเป็น 20 วินาที
+- เพิ่มพื้นที่ขาวมาตรฐาน 4 ช่องรอบ QR สำหรับงานพิมพ์
+- test ล่าสุดผ่าน 57 ไฟล์ 349 tests, lint ไม่มี error และ build ผ่าน 179 หน้า
+
+### QR สถานีจริงและไฟล์พิมพ์
+
+| สถานี | QR id | สถานะ | ไฟล์ |
+|---|---|---|---|
+| GASP | `cmt8gclx0000211qxb1vl5ycs` | inactive, needsReprint, version 1 | `PROD-GASP-customer-feedback-qr-v1.pdf` |
+| PAP | `cmt8gcm9b000711qxssefnkh3` | inactive, needsReprint, version 1 | `PROD-PAP-customer-feedback-qr-v1.pdf` |
+| SPC | `cmt8gcn2i000f11qx5hpl70j4` | inactive, needsReprint, version 1 | `PROD-SPC-customer-feedback-qr-v1.pdf` |
+| WKO | `cmt8gcnfm000k11qx8nhq01zu` | inactive, needsReprint, version 1 | `PROD-WKO-customer-feedback-qr-v1.pdf` |
+
+- PDF ทุกไฟล์เป็น A5 หนึ่งหน้า สิทธิ์ไฟล์ `0600` และโฟลเดอร์ `0700`
+- ตรวจภาพ PDF ที่ 180 DPI แล้วไม่มีข้อความล้นหรือตัดขอบ
+- ถอด QR จากภาพที่ render แล้วตรงกับ production token, host และ path ทุกใบ
+- ตรวจ hash ของ token และรหัสกรอกเองตรงกับฐานข้อมูลทุกใบโดยไม่เขียนรหัสลง log
+- บันทึก `CUSTOMER_FEEDBACK_QR_REVEALED` ครบทุกใบที่เปิดรหัสเพื่อสร้างไฟล์
+- ยังไม่บันทึก `CUSTOMER_FEEDBACK_QR_PRINTED` เพราะยังไม่มีหลักฐานว่าพิมพ์และติดป้ายจริง
+
+### Production ที่ใช้อยู่
+
+- commit แก้ Prisma lock `513ef74`
+- commit ปรับ transaction กับภูมิภาค Vercel `7e03c4c`
+- commit เพิ่มพื้นที่ขาวรอบ QR `8cf97ca`
+- deployment `dpl_8adxsv5GvCbWwWWATFwG14yd6nuD` ถูก promote ไป `timetrack-lake.vercel.app`
+- `/` และ `/login` ตอบ 200, `/f` ตอบ 404, `/feedback/privacy` ตอบ 200 และ admin summary ตอบ 401 เมื่อไม่มี session
+- ฟังก์ชันหลักทำงานที่ `sin1` ซึ่งอยู่ภูมิภาคเดียวกับฐานข้อมูล Singapore
+- public ยังปิดเพื่อรอการพิมพ์ ติดป้าย และตรวจด้วยโทรศัพท์จริงครบ 4 สถานี
