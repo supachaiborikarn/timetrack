@@ -703,7 +703,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
         }
 
             return { responseId: created.id, caseId, severity };
-        });
+        }, { maxWait: 5_000, timeout: 20_000 });
 
         return { refCode, caseId: result.caseId, severity: result.severity } as const;
     } catch (error) {
@@ -920,7 +920,7 @@ export async function submitIncidentResponse(args: SubmitIncidentArgs) {
         }
 
             return { responseId: created.id, caseId, validity };
-        });
+        }, { maxWait: 5_000, timeout: 20_000 });
 
         return { refCode, caseId: result.caseId, severity: result.validity === "TEST" ? null : severity } as const;
     } catch (error) {
