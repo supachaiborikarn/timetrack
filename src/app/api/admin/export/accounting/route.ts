@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         const negativeAdjustments = sum((calculation) => Math.max(0, -calculation.adjustment));
         const sso = sum((calculation) => calculation.socialSecurity);
         const advances = sum((calculation) => calculation.advanceDeduction);
-        const otherDeductions = roundMoney(sum((calculation) => calculation.latePenalty + calculation.otherExpenses) + negativeAdjustments);
+        const otherDeductions = roundMoney(sum((calculation) => calculation.latePenalty + calculation.earlyLeavePenalty + calculation.otherExpenses) + negativeAdjustments);
         const netPay = sum((calculation) => calculation.totalPay);
         const reference = `PAYROLL-${endDate.slice(5, 7)}${endDate.slice(2, 4)}`;
 

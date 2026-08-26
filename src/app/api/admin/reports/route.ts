@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
                     (record) => (record.attendance?.lateMinutes || 0) > 0,
                 ).length,
                 latePenalty: calculation.latePenalty,
+                earlyLeavePenalty: calculation.earlyLeavePenalty,
             }));
 
         // Summary
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
             totalOT: roundMoney(employees.reduce((sum, e) => sum + e.overtimeHours, 0)),
             totalLateDays: employees.reduce((sum, e) => sum + e.lateDays, 0),
             totalLatePenalty: roundMoney(employees.reduce((sum, e) => sum + e.latePenalty, 0)),
+            totalEarlyLeavePenalty: roundMoney(employees.reduce((sum, e) => sum + e.earlyLeavePenalty, 0)),
         };
 
         return NextResponse.json({

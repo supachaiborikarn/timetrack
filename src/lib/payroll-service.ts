@@ -38,7 +38,7 @@ const employeeSelect = {
     departmentId: true,
     bankName: true,
     bankAccountNumber: true,
-    station: { select: { name: true } },
+    station: { select: { name: true, code: true } },
     department: { select: { name: true } },
 } satisfies Prisma.UserSelect;
 
@@ -155,6 +155,7 @@ export async function loadPayrollCalculations(
                 startDate: filters.startDate,
                 endDate: filters.endDate,
                 dailyRate: employee.dailyRate,
+                stationCode: employee.station?.code || null,
                 probationDailyRate: employee.probationDailyRate,
                 probationEndDate: employee.probationEndDate,
                 isSocialSecurityRegistered: employee.isSocialSecurityRegistered,
@@ -196,6 +197,7 @@ export function summarizePayroll(results: PayrollEmployeeResult[]) {
         totalAdjustment: sum((calculation) => calculation.adjustment),
         totalSpecialIncome: sum((calculation) => calculation.specialIncome),
         totalLatePenalty: sum((calculation) => calculation.latePenalty),
+        totalEarlyLeavePenalty: sum((calculation) => calculation.earlyLeavePenalty),
         totalAdvanceDeduction: sum((calculation) => calculation.advanceDeduction),
         totalOtherExpenses: sum((calculation) => calculation.otherExpenses),
         totalSocialSecurity: sum((calculation) => calculation.socialSecurity),

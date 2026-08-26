@@ -40,6 +40,7 @@ interface DailyRecord {
     breakMinutes: number | null;
     lateMinutes: number | null;
     latePenalty: number;
+    earlyLeavePenalty: number;
     isLatePenaltyOverridden: boolean;
     dailyWage: number;
     isWageOverridden: boolean;
@@ -74,6 +75,7 @@ interface EmployeePayrollData {
         totalWage: number;
         totalOT: number;
         totalLatePenalty: number;
+        totalEarlyLeavePenalty: number;
         totalAdjustment: number;
         totalSpecialIncome: number;
         totalEarnings: number;
@@ -169,9 +171,10 @@ export default function EmployeePayrollDetailPage() {
         const totalWage = updatedRecords.reduce((sum, d) => sum + d.dailyWage, 0);
         const totalOT = updatedRecords.reduce((sum, d) => sum + d.otAmount, 0);
         const totalLatePenalty = updatedRecords.reduce((sum, d) => sum + d.latePenalty, 0);
+        const totalEarlyLeavePenalty = updatedRecords.reduce((sum, d) => sum + d.earlyLeavePenalty, 0);
         const totalAdjustment = updatedRecords.reduce((sum, d) => sum + d.adjustment, 0);
         const totalSpecialIncome = updatedRecords.reduce((sum, d) => sum + d.specialIncome, 0);
-        const totalDeductions = totalLatePenalty + (data.summary.advanceDeduction || 0) + (data.summary.otherExpenses || 0) + (data.summary.socialSecurity || 0);
+        const totalDeductions = totalLatePenalty + totalEarlyLeavePenalty + (data.summary.advanceDeduction || 0) + (data.summary.otherExpenses || 0) + (data.summary.socialSecurity || 0);
 
         const workDayTypes = countWorkDayTypes(updatedRecords);
         const summary = {
@@ -183,6 +186,7 @@ export default function EmployeePayrollDetailPage() {
             totalWage,
             totalOT,
             totalLatePenalty,
+            totalEarlyLeavePenalty,
             totalAdjustment,
             totalSpecialIncome,
             totalEarnings: totalWage + totalOT + totalAdjustment + totalSpecialIncome,
@@ -219,40 +223,8 @@ export default function EmployeePayrollDetailPage() {
                 });
 
                 if (res.ok) {
-                    const json = await res.json();
-                    const result = json.data;
-                    // Optimistic update for time
-                    const record = data.dailyRecords.find(r => r.date === date);
-                    if (record) {
-                        const actualHours = result.actualHours;
-                        const otHours = result.overtimeHours ?? 0;
-                        const otAmount = record.isOTOverridden
-                            ? record.otAmount
-                            : 0;
-                        const latePenalty = record.isLatePenaltyOverridden
-                            ? record.latePenalty
-                            : Number(result.latePenaltyAmount || 0);
-                        const { dailyWage, dayFactor } = calculatePayrollDay({
-                            hasCheckIn: !!result.checkInTime,
-                            actualHours,
-                            dailyRate: data.employee.defaultDailyRate,
-                            overrideDailyWage: record.isWageOverridden ? record.dailyWage : null,
-                        });
-
-                        const total = dailyWage + otAmount + record.adjustment + record.specialIncome - latePenalty;
-
-                        updateLocalRecord(date, {
-                            checkInTime: result.checkInTime,
-                            checkOutTime: result.checkOutTime,
-                            actualHours,
-                            dayFactor,
-                            otHours: Math.round(otHours * 100) / 100,
-                            otAmount: Math.round(otAmount * 100) / 100,
-                            latePenalty,
-                            dailyWage,
-                            total: Math.round(total * 100) / 100,
-                        });
-                    }
+                    // Re-fetch so time edits use the same station OT/penalty calculation as payroll, wallet and exports.
+                    await fetchData();
                 } else {
                     toast.error("บันทึกเวลาไม่สำเร็จ");
                     await fetchData();
@@ -305,7 +277,7 @@ export default function EmployeePayrollDetailPage() {
                             updatedRecord.adjustment = numValue;
                         }
                         updatedRecord.total = Math.round(
-                            (updatedRecord.dailyWage + updatedRecord.otAmount + updatedRecord.adjustment + updatedRecord.specialIncome - updatedRecord.latePenalty) * 100
+                            (updatedRecord.dailyWage + updatedRecord.otAmount + updatedRecord.adjustment + updatedRecord.specialIncome - updatedRecord.latePenalty - updatedRecord.earlyLeavePenalty) * 100
                         ) / 100;
                         updateLocalRecord(date, updatedRecord);
                     }
@@ -538,11 +510,17 @@ export default function EmployeePayrollDetailPage() {
                     </div>
 
                     {/* Deduction Breakdown */}
-                    <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                         <Card>
                             <CardContent className="py-3 text-center">
                                 <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
                                 <p className="text-xs text-muted-foreground">หักสาย</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(data.summary.totalEarlyLeavePenalty)}</p>
+                                <p className="text-xs text-muted-foreground">หักกลับก่อนเกณฑ์</p>
                             </CardContent>
                         </Card>
                         <Card className="cursor-pointer hover:border-primary/50 transition"
@@ -659,6 +637,7 @@ export default function EmployeePayrollDetailPage() {
                                     <TableHead className="text-center w-28">ค่าแรง/วัน</TableHead>
                                     <TableHead className="text-center w-28">ค่า OT</TableHead>
                                     <TableHead className="text-center w-28">หักสาย</TableHead>
+                                    <TableHead className="text-center w-28">กลับก่อน</TableHead>
                                     <TableHead className="text-center w-28">รายได้พิเศษ</TableHead>
                                     <TableHead className="text-center w-28">ปรับเงิน</TableHead>
                                     <TableHead className="text-right">รวม</TableHead>
@@ -835,6 +814,10 @@ export default function EmployeePayrollDetailPage() {
                                                         {record.latePenalty > 0 ? `- ${formatCurrency(record.latePenalty)} ` : "-"}
                                                     </button>
                                                 )}
+                                            </TableCell>
+
+                                            <TableCell className="text-center text-red-600 dark:text-red-400">
+                                                {record.earlyLeavePenalty > 0 ? `- ${formatCurrency(record.earlyLeavePenalty)}` : "-"}
                                             </TableCell>
 
                                             <TableCell className="text-center text-emerald-600 dark:text-emerald-400">

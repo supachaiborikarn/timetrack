@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays } from "@/lib/date-utils";
+import { toBangkokDateKey } from "@/lib/payroll-calculation";
+import { calculateStationTimePay } from "@/lib/station-pay-rules";
 
 // Helper to create Bangkok midnight from date string (YYYY-MM-DD)
 // For startDate: we want the beginning of that day in Bangkok
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
                 checkInStation: { select: { name: true } },
                 user: {
                     include: {
-                        station: { select: { name: true } },
+                        station: { select: { name: true, code: true } },
                         department: { select: { name: true } },
                     },
                 },
@@ -83,15 +85,25 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({
-            records: records.map((r) => ({
+            records: records.map((r) => {
+                const actualHours = r.actualHours == null ? null : Number(r.actualHours);
+                const stationTimePay = calculateStationTimePay({
+                    dateKey: toBangkokDateKey(r.date),
+                    stationCode: r.user.station?.code || null,
+                    actualHours,
+                    hasCompletedShift: !!r.checkInTime && !!r.checkOutTime && actualHours != null,
+                });
+                return {
                 id: r.id,
                 date: r.date.toISOString(),
                 checkInTime: r.checkInTime?.toISOString() || null,
                 checkInStation: r.checkInStation?.name || null,
                 checkOutTime: r.checkOutTime?.toISOString() || null,
                 lateMinutes: r.lateMinutes,
-                actualHours: r.actualHours ? Number(r.actualHours) : null,
-                overtimeHours: r.overtimeHours ? Number(r.overtimeHours) : null,
+                actualHours,
+                overtimeHours: stationTimePay.thresholdHours != null
+                    ? stationTimePay.overtimeHours
+                    : (r.overtimeHours ? Number(r.overtimeHours) : null),
                 status: r.status,
                 breakStartTime: r.breakStartTime?.toISOString() || null,
                 breakEndTime: r.breakEndTime?.toISOString() || null,
@@ -105,7 +117,8 @@ export async function GET(request: NextRequest) {
                     station: r.user.station?.name || "-",
                     department: r.user.department?.name || "-",
                 },
-            })),
+            };
+            }),
         });
     } catch (error) {
         console.error("Error fetching attendance:", error);

@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
                 "โบนัส/ปรับเงิน": calculation.adjustment,
                 "รายได้พิเศษอนุมัติ": calculation.specialIncome,
                 "หักมาสาย": calculation.latePenalty,
+                "หักกลับก่อนเกณฑ์": calculation.earlyLeavePenalty,
                 "หักเบิกล่วงหน้า": calculation.advanceDeduction,
                 "หักอื่นงวดนี้": calculation.otherExpenses,
                 "ประกันสังคม": calculation.socialSecurity,
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         const worksheet = XLSX.utils.json_to_sheet(rows);
         worksheet["!cols"] = [
             { wch: 14 }, { wch: 28 }, { wch: 24 }, { wch: 20 },
-            ...Array.from({ length: 13 }, () => ({ wch: 18 })),
+            ...Array.from({ length: 14 }, () => ({ wch: 18 })),
         ];
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll");

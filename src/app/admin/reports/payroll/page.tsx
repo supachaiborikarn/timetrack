@@ -40,6 +40,7 @@ interface PayrollEmployee {
     regularPay: number;
     overtimePay: number;
     latePenalty: number;
+    earlyLeavePenalty: number;
     advanceDeduction: number;
     otherExpenses: number;
     socialSecurity: number;
@@ -51,6 +52,7 @@ interface PayrollSummary {
     totalRegularPay: number;
     totalOvertimePay: number;
     totalLatePenalty: number;
+    totalEarlyLeavePenalty: number;
     totalAdvanceDeduction: number;
     totalOtherExpenses: number;
     totalSocialSecurity: number;
@@ -245,11 +247,17 @@ export default function PayrollReportPage() {
                     </div>
 
                     {/* KPI Cards - Row 2: Deduction breakdown */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                         <Card>
                             <CardContent className="py-3 text-center">
                                 <p className="text-xs text-muted-foreground mb-1">หักสาย</p>
                                 <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalLatePenalty.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">หักกลับก่อนเกณฑ์</p>
+                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalEarlyLeavePenalty.toLocaleString()}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -295,6 +303,7 @@ export default function PayrollReportPage() {
                                         <TableHead className="text-right">ค่าแรงปกติ</TableHead>
                                         <TableHead className="text-right">OT</TableHead>
                                         <TableHead className="text-right text-red-400">หักสาย</TableHead>
+                                        <TableHead className="text-right text-red-400">กลับก่อน</TableHead>
                                         <TableHead className="text-right text-red-400">หักเบิกล่วงหน้า</TableHead>
                                         <TableHead className="text-right text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
                                         <TableHead className="text-right text-red-400">ประกันสังคม</TableHead>
@@ -313,6 +322,7 @@ export default function PayrollReportPage() {
                                             <TableCell className="text-right text-blue-600">{fmtMoney(emp.regularPay)}</TableCell>
                                             <TableCell className="text-right text-purple-600">{fmtMoney(emp.overtimePay)}</TableCell>
                                             <TableCell className="text-right text-red-400">{emp.latePenalty > 0 ? `-${fmtMoney(emp.latePenalty)}` : '-'}</TableCell>
+                                            <TableCell className="text-right text-red-400">{emp.earlyLeavePenalty > 0 ? `-${fmtMoney(emp.earlyLeavePenalty)}` : '-'}</TableCell>
                                             <TableCell className="text-right text-red-400">{emp.advanceDeduction > 0 ? `-${fmtMoney(emp.advanceDeduction)}` : '-'}</TableCell>
                                             <TableCell className="text-right text-red-400">{emp.otherExpenses > 0 ? `-${fmtMoney(emp.otherExpenses)}` : '-'}</TableCell>
                                             <TableCell className="text-right text-red-400">{emp.socialSecurity > 0 ? `-${fmtMoney(emp.socialSecurity)}` : '-'}</TableCell>

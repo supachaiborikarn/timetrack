@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
                     overtimePay: calculation.overtimePay,
                     latePenalty: calculation.latePenalty,
                     advanceDeduct: calculation.advanceDeduction,
-                    otherDeduct: calculation.otherExpenses,
+                    otherDeduct: roundMoney(calculation.otherExpenses + calculation.earlyLeavePenalty),
                     socialSecurity: calculation.socialSecurity,
                     adjustment: calculation.adjustment,
                     specialIncome: calculation.specialIncome,

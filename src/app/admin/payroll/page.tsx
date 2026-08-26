@@ -71,6 +71,7 @@ interface PayrollData {
         regularPay: number;
         overtimePay: number;
         latePenalty: number;
+        earlyLeavePenalty: number;
         advanceDeduction: number;
         otherExpenses: number;
         socialSecurity: number;
@@ -91,6 +92,7 @@ interface PayrollData {
         totalAdjustment: number;
         totalSpecialIncome: number;
         totalLatePenalty: number;
+        totalEarlyLeavePenalty: number;
         totalAdvanceDeduction: number;
         totalOtherExpenses: number;
         totalSocialSecurity: number;
@@ -517,11 +519,17 @@ export default function PayrollPage() {
                     </div>
 
                     {/* Breakdown - Deductions */}
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <Card>
                             <CardContent className="py-3 text-center">
                                 <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalLatePenalty)}</p>
                                 <p className="text-xs text-muted-foreground">หักสาย</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="py-3 text-center">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(payrollData.summary.totalEarlyLeavePenalty)}</p>
+                                <p className="text-xs text-muted-foreground">หักกลับก่อนเกณฑ์</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -561,6 +569,7 @@ export default function PayrollPage() {
                                         <TableHead className="text-right">ค่าแรง</TableHead>
                                         <TableHead className="text-right">รายได้พิเศษ</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">หักสาย</TableHead>
+                                        <TableHead className="text-right text-red-600 dark:text-red-400">กลับก่อน</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">เบิกล่วงหน้า</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">ค่าใช้จ่ายอื่นๆ</TableHead>
                                         <TableHead className="text-right text-red-600 dark:text-red-400">ประกันสังคม</TableHead>
@@ -591,6 +600,7 @@ export default function PayrollPage() {
                                                 <TableCell className="text-right text-blue-600 dark:text-blue-400">฿{formatCurrency(emp.regularPay)}</TableCell>
                                                 <TableCell className="text-right text-emerald-600 dark:text-emerald-400">{emp.specialIncome > 0 ? `+฿${formatCurrency(emp.specialIncome)}` : '-'}</TableCell>
                                                 <TableCell className="text-right text-red-600 dark:text-red-400">{emp.latePenalty > 0 ? `-฿${formatCurrency(emp.latePenalty)}` : '-'}</TableCell>
+                                                <TableCell className="text-right text-red-600 dark:text-red-400">{emp.earlyLeavePenalty > 0 ? `-฿${formatCurrency(emp.earlyLeavePenalty)}` : '-'}</TableCell>
                                                 <TableCell className="text-center">
                                                     <Input
                                                         type="number"

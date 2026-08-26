@@ -1,4 +1,5 @@
 import { calculatePayrollDay } from "@/lib/payroll-day";
+import { calculateStationTimePay } from "@/lib/station-pay-rules";
 
 export const PAYROLL_ELIGIBLE_ROLES = ["EMPLOYEE", "CASHIER", "MANAGER", "HR"] as const;
 export const DEFAULT_SSO_RATE = 0.05;
@@ -57,6 +58,7 @@ export type PayrollDailyCalculation = {
     dailyWage: number;
     otAmount: number;
     latePenalty: number;
+    earlyLeavePenalty: number;
     adjustment: number;
     specialIncome: number;
     otherDeduction: number;
@@ -72,6 +74,7 @@ export type PayrollPeriodCalculation = {
     regularPay: number;
     overtimePay: number;
     latePenalty: number;
+    earlyLeavePenalty: number;
     advanceDeduction: number;
     otherExpenses: number;
     socialSecurity: number;
@@ -87,6 +90,7 @@ type CalculatePayrollPeriodInput = {
     startDate: string;
     endDate: string;
     dailyRate: NumericLike;
+    stationCode?: string | null;
     /**
      * Daily rate for days on or before `probationEndDate`. Both must be present for the
      * probation rate to apply; if either is missing, `dailyRate` is used for every day,
@@ -210,10 +214,18 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
             const attendanceRecord = attendanceByDate.get(dateKey) || null;
             const override = overridesByDate.get(dateKey) || null;
             const daySpecialIncomes = specialIncomesByDate.get(dateKey) || [];
-            const actualHours = attendanceRecord?.checkInTime ? Math.max(0, toNumber(attendanceRecord.actualHours)) : 0;
-            const overtimeHours = attendanceRecord?.checkInTime
-                ? Math.max(0, toNumber(attendanceRecord.overtimeHours))
-                : 0;
+            const hasCheckIn = !!attendanceRecord?.checkInTime;
+            const hasCompletedShift = hasCheckIn && !!attendanceRecord?.checkOutTime && attendanceRecord?.actualHours != null;
+            const actualHours = hasCheckIn ? Math.max(0, toNumber(attendanceRecord?.actualHours)) : 0;
+            const stationTimePay = calculateStationTimePay({
+                dateKey,
+                stationCode: input.stationCode,
+                actualHours: hasCompletedShift ? actualHours : null,
+                hasCompletedShift,
+            });
+            const overtimeHours = stationTimePay.thresholdHours != null
+                ? stationTimePay.overtimeHours
+                : (hasCheckIn ? Math.max(0, toNumber(attendanceRecord?.overtimeHours)) : 0);
             // Days up to and including the probation end date are paid at the probation rate.
             const rateForDay = probationRate && dateKey <= probationRate.lastDateKey
                 ? probationRate.rate
@@ -229,7 +241,10 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
                 : toNumber(attendanceRecord?.latePenaltyAmount));
             const otAmount = suppressOt
                 ? 0
-                : Math.max(0, override?.overrideOT != null ? toNumber(override.overrideOT) : 0);
+                : Math.max(0, override?.overrideOT != null
+                    ? toNumber(override.overrideOT)
+                    : stationTimePay.overtimePay);
+            const earlyLeavePenalty = stationTimePay.earlyLeavePenalty;
             const adjustment = toNumber(override?.adjustment);
             const otherDeduction = override?.otherDeduction == null
                 ? 0
@@ -249,10 +264,11 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
                 dailyWage: day.dailyWage,
                 otAmount: roundMoney(otAmount),
                 latePenalty: roundMoney(latePenalty),
+                earlyLeavePenalty: roundMoney(earlyLeavePenalty),
                 adjustment: roundMoney(adjustment),
                 specialIncome: roundMoney(specialIncome),
                 otherDeduction: roundMoney(otherDeduction),
-                total: roundMoney(day.dailyWage + otAmount + adjustment + specialIncome - latePenalty - otherDeduction),
+                total: roundMoney(day.dailyWage + otAmount + adjustment + specialIncome - latePenalty - earlyLeavePenalty - otherDeduction),
             };
         });
 
@@ -262,6 +278,7 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
     const regularPay = sum((record) => record.dailyWage);
     const overtimePay = sum((record) => record.otAmount);
     const latePenalty = sum((record) => record.latePenalty);
+    const earlyLeavePenalty = sum((record) => record.earlyLeavePenalty);
     const adjustment = sum((record) => record.adjustment);
     const specialIncome = sum((record) => record.specialIncome);
     const hasPeriodOtherDeduction = input.overrides.some((override) =>
@@ -282,7 +299,7 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
         ? roundMoney(Math.min(regularPay * ssoRate, ssoMax))
         : 0;
     const totalEarnings = roundMoney(regularPay + overtimePay + adjustment + specialIncome);
-    const totalDeductions = roundMoney(latePenalty + advanceDeduction + otherExpenses + socialSecurity);
+    const totalDeductions = roundMoney(latePenalty + earlyLeavePenalty + advanceDeduction + otherExpenses + socialSecurity);
     const totalPay = roundMoney(totalEarnings - totalDeductions);
 
     return {
@@ -294,6 +311,7 @@ export function calculatePayrollPeriod(input: CalculatePayrollPeriodInput): Payr
         regularPay,
         overtimePay,
         latePenalty,
+        earlyLeavePenalty,
         advanceDeduction,
         otherExpenses,
         socialSecurity,

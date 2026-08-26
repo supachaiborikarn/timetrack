@@ -45,6 +45,7 @@ interface DailyEntry {
     dailyWage: number;
     overtimePay: number;
     latePenalty: number;
+    earlyLeavePenalty: number;
     breakPenalty: number;
     totalPenalty: number;
     specialIncomes: SpecialIncomeItem[];
@@ -452,6 +453,12 @@ export default function WalletPage() {
                                                                 <div className="flex justify-between text-stone-400">
                                                                     <span>หักมาสาย</span>
                                                                     <span className="text-red-400">-฿{formatMoney(day.latePenalty)}</span>
+                                                                </div>
+                                                            )}
+                                                            {day.earlyLeavePenalty > 0 && (
+                                                                <div className="flex justify-between text-stone-400">
+                                                                    <span>หักกลับก่อนเกณฑ์</span>
+                                                                    <span className="text-red-400">-฿{formatMoney(day.earlyLeavePenalty)}</span>
                                                                 </div>
                                                             )}
                                                             {day.breakPenalty > 0 && (

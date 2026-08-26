@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
             regularPay: calculation.regularPay,
             overtimePay: calculation.overtimePay,
             latePenalty: calculation.latePenalty,
+            earlyLeavePenalty: calculation.earlyLeavePenalty,
             advanceDeduction: calculation.advanceDeduction,
             otherExpenses: calculation.otherExpenses,
             socialSecurity: calculation.socialSecurity,
