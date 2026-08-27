@@ -65,3 +65,27 @@ Captured:
 - Runbook and verification workflow.
 - Known build issue and follow-up backlog.
 - Full retrospective log of the 2026-08-26 payroll change.
+
+Git:
+
+- Commit: `edda4b7`
+- Message: `Add timetrack second brain`
+- Pushed: `main -> origin/main`
+
+## 2026-08-27 — Made Second Brain logging mandatory
+
+User established a permanent project rule: **any project change must be recorded in Second Brain every time**.
+
+Implementation:
+
+- Added the rule to root `AGENTS.md` so AI agents encounter it as a project-level instruction.
+- Added a concise reminder to `CLAUDE.md`.
+- Strengthened `secondbrain/README.md`, `00-Start-Here.md`, and `notes/Runbook.md` from “meaningful changes” to **every change**.
+- Defined the minimum required log content: what/why, important files, decisions, verification, risks/follow-ups, and commit hash when available.
+- Defined which durable notes must also be updated when applicable: Decisions, Architecture, Runbook, Backlog, and Start Here.
+- Explicitly states that a code/config/business-rule change without a Second Brain update is incomplete work.
+
+Verification:
+
+- Documentation/instruction-only change; no application test suite required.
+- Git diff/status reviewed before commit.

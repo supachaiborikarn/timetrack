@@ -19,10 +19,11 @@ Remote used in latest session: `origin/main`
 
 ## Before editing
 
-1. Check `git status --short --branch`.
-2. Preserve unrelated local changes.
-3. Read [[Decisions]] before changing payroll/business rules.
-4. Prefer shared calculation modules over API/UI-local formulas.
+1. Read root `AGENTS.md`.
+2. Check `git status --short --branch`.
+3. Preserve unrelated local changes.
+4. Read [[Decisions]] before changing payroll/business rules.
+5. Prefer shared calculation modules over API/UI-local formulas.
 
 ## Common verification
 
@@ -51,11 +52,21 @@ Latest full build:
 
 Do not attribute this existing prerender failure to station payroll changes unless new evidence shows otherwise.
 
-## Second Brain maintenance
+## Mandatory Second Brain maintenance
 
-After meaningful work:
+Every project change must be logged before the work is considered complete.
 
-- Add a dated section to [[Session-Log]].
-- Update [[Decisions]] for durable business/architecture decisions.
-- Update [[Backlog]] for unresolved work.
-- Include commit hash and verification results when available.
+For each change:
+
+1. Add a dated section to [[Session-Log]] describing what changed and why.
+2. Record important files/areas touched.
+3. Record verification/test results, including skipped checks and why.
+4. Record open risks/follow-ups.
+5. Add commit hash once available.
+6. Update [[Decisions]] for durable business/architecture decisions.
+7. Update [[Architecture]] when flows/source-of-truth structure changes.
+8. Update [[Backlog]] for unresolved work.
+9. Update this Runbook when commands/operations/recovery workflow changes.
+10. Update `00-Start-Here.md` when the important current state changes.
+
+Before committing code/config/rules, verify the relevant Second Brain files are included in the same commit or explicitly follow immediately in the same session.

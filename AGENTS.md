@@ -78,3 +78,36 @@ Free plan, history retention = 6 ชม. ถ้าทำข้อมูลหา
 - ทุก endpoint ที่แก้ข้อมูลต้องเช็ค session และสิทธิ์ (`Permission` / `RolePermission`)
 - เลขบัตรประชาชนในใบสมัครงานเข้ารหัสด้วย `FIELD_ENCRYPTION_KEY` — ห้ามสร้าง key ใหม่บน production
 - Timezone ของระบบคือ Asia/Bangkok ระวังตอนคำนวณกะข้ามคืนและรอบเงินเดือน
+
+## 7. กฎบังคับ: ทุกการเปลี่ยนแปลงต้องบันทึก Second Brain
+
+**ห้ามจบงานที่มีการเปลี่ยนแปลงโปรเจกต์โดยไม่อัปเดต `secondbrain/` ใน session เดียวกัน**
+
+การเปลี่ยนแปลงที่ต้องบันทึกครอบคลุมทุกอย่าง เช่น:
+
+- แก้/เพิ่ม/ลบ code, API, UI, database schema, config, script, dependency หรือ test
+- เปลี่ยน business rule, payroll rule, permission, workflow หรือพฤติกรรมของระบบ
+- แก้ bug, refactor, workaround หรือแก้ incident
+- เปลี่ยน deployment/runtime/environment ที่มีผลต่อการทำงาน
+- พบข้อจำกัด ความเสี่ยง ปัญหาค้าง หรือข้อมูลสำคัญที่ session ถัดไปควรรู้
+
+อย่างน้อยทุกครั้งต้องเพิ่มรายการแบบลงวันที่ใน `secondbrain/notes/Session-Log.md` โดยระบุ:
+
+1. ทำอะไรและทำไม
+2. ไฟล์/ส่วนสำคัญที่เปลี่ยน
+3. business/technical decision ที่เกิดขึ้น
+4. ผลการทดสอบ/verification ที่รัน
+5. งานค้างหรือความเสี่ยง ถ้ามี
+6. commit hash เมื่อมี commit
+
+และต้องอัปเดตโน้ตเฉพาะทางให้ตรงกับสภาพจริงด้วยเมื่อเกี่ยวข้อง:
+
+- `secondbrain/notes/Decisions.md` — กติกาหรือการตัดสินใจถาวร
+- `secondbrain/notes/Architecture.md` — flow/โครงสร้างระบบเปลี่ยน
+- `secondbrain/notes/Runbook.md` — วิธีรัน/ตรวจสอบ/กู้ระบบเปลี่ยน
+- `secondbrain/notes/Backlog.md` — มีงานค้างหรือความเสี่ยงใหม่
+- `secondbrain/00-Start-Here.md` — current state สำคัญเปลี่ยน
+
+**Second Brain ถือเป็นส่วนหนึ่งของงาน ไม่ใช่งานเสริม** ถ้า code เปลี่ยนแต่ Second Brain ยังไม่ถูกอัปเดต งานนั้นถือว่ายังไม่เสร็จ
+
+ก่อน commit ให้ตรวจว่าเอกสาร Second Brain ที่เกี่ยวข้องถูก stage ไปพร้อมกับการเปลี่ยนแปลงนั้นด้วย

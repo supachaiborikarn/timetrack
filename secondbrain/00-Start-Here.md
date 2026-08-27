@@ -7,6 +7,14 @@ updated: 2026-08-27
 
 # timetrack — Start Here
 
+## Mandatory project-memory rule
+
+**Every change to this project must be recorded in Second Brain in the same session.**
+
+At minimum add a dated entry to [[notes/Session-Log]]. Also update [[notes/Decisions]], [[notes/Architecture]], [[notes/Runbook]], [[notes/Backlog]], or this page whenever the corresponding durable state changes.
+
+If code/config/business rules change but Second Brain is not updated, the work is not complete.
+
 ## Current state
 
 `timetrack` is the HR / attendance / payroll system for the station businesses. The application is built with Next.js, TypeScript, Prisma, and Vitest.
@@ -43,4 +51,4 @@ Latest important payroll change:
 
 ## Working convention
 
-For meaningful changes, update Second Brain in the same session and include the resulting notes in Git so future sessions can resume from repository state rather than chat history.
+For **every** project change, update Second Brain in the same session and include the resulting notes in Git so future sessions can resume from repository state rather than chat history.
