@@ -25,6 +25,15 @@ Latest important payroll change:
 - Pushed to `origin/main` on 2026-08-26.
 - New rules take effect from `2026-08-26` onward.
 
+Customer Feedback QR launch state (checked 2026-08-27):
+
+- Admin feature and public feature are enabled. Vercel production deployment `dpl_J3MQZRy7FuDiPSzGnz4t6cngKgvf` is Ready, aliased to `timetrack-lake.vercel.app`, and `/f` returns HTTP 200.
+- Production database currently has 48 EMPLOYEE production QRs and 4 STATION production QRs, all inactive with `needsReprint=true`.
+- All four active stations have a public emergency phone configured.
+- Only 1 of 48 employee QRs currently has public-profile approval, so employee QRs must not be bulk-activated yet.
+- Station QR PDFs exist under `output/pdf/station-feedback/`, but print success still has to be recorded through the normal flow before activation.
+- Do not bypass `needsReprint` or employee public-profile acknowledgement merely to make a QR active.
+
 ## Read first for payroll work
 
 - [[notes/Decisions]]

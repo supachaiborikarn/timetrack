@@ -89,3 +89,36 @@ Verification:
 
 - Documentation/instruction-only change; no application test suite required.
 - Git diff/status reviewed before commit.
+
+## 2026-08-27 — Enabled Customer Feedback public feature for launch preparation
+
+Goal:
+
+Enable the public Customer Feedback QR surface requested by the owner while preserving the existing production safety guards for printing and employee public-profile consent.
+
+Changes and current production state:
+
+- Local `.env`: changed `CUSTOMER_FEEDBACK_PUBLIC_ENABLED` from `false` to `true`.
+- Vercel Production: changed `CUSTOMER_FEEDBACK_PUBLIC_ENABLED` to `true` and deployed production `dpl_J3MQZRy7FuDiPSzGnz4t6cngKgvf`; the `timetrack-lake.vercel.app` alias now serves the enabled public surface.
+- Production database check found 48 EMPLOYEE production QRs and 4 STATION production QRs; all remain inactive with `needsReprint=true`.
+- The four active stations all have `publicEmergencyPhone` configured.
+- Only 1 of 48 EMPLOYEE QRs currently has `publicProfileApprovedAt`; therefore employee QRs were deliberately not bulk-activated and consent was not fabricated.
+- Four station QR PDF files already exist under `output/pdf/station-feedback/`, but the database still has no `MARK_PRINTED` confirmation; the print guard remains intact.
+
+Decision:
+
+- Public feature flag may be enabled independently, but a QR must still pass its own activation guard. Do not bypass `needsReprint` or employee public-profile approval to make a QR active.
+
+Verification:
+
+- Queried production QR status and station emergency-phone readiness through Prisma using the configured production database.
+- Confirmed local feature flag changed to `true`.
+- Confirmed Vercel accepted the production environment-variable override.
+- Vercel deployment `dpl_J3MQZRy7FuDiPSzGnz4t6cngKgvf` reached Ready and was aliased to `timetrack-lake.vercel.app`.
+- Production smoke test: `GET https://timetrack-lake.vercel.app/f` returned HTTP 200 with the Thai “เสียงลูกค้า” form.
+
+Follow-up / risk:
+
+- To make station QR signs usable by customers, physically print the current QR PDFs, record print success through the normal admin flow, then activate the intended station QRs.
+- EMPLOYEE QRs require public-profile acknowledgement for each employee before activation; 47 are still missing it at this check.
+- No QR activation state was forged or bypassed in this session.
