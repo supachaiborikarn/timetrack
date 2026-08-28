@@ -13,6 +13,8 @@ export interface CustomerFeedbackA4PosterInput {
     stationLabel?: string;
     isTest?: boolean;
     version?: number;
+    /** Origin of the running app, e.g. https://timetrack-lake.vercel.app. */
+    assetBaseUrl?: string;
 }
 
 function escapeHtml(value: string): string {
@@ -25,73 +27,71 @@ function escapeHtml(value: string): string {
     })[character]!);
 }
 
-function speechIcon(): string {
-    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 12h44a6 6 0 0 1 6 6v24a6 6 0 0 1-6 6H30L18 57v-9h-8a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/><circle cx="22" cy="30" r="3.8" fill="currentColor"/><circle cx="32" cy="30" r="3.8" fill="currentColor"/><circle cx="42" cy="30" r="3.8" fill="currentColor"/></svg>`;
-}
-
-function clockIcon(): string {
-    return `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="4"/><path d="M24 13v12l8 5" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function checkIcon(): string {
-    return `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="4"/><path d="m15 24 6 6 13-14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function lockIcon(): string {
-    return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="15" y="28" width="34" height="25" rx="6" fill="currentColor"/><path d="M22 28v-7c0-7 4-12 10-12s10 5 10 12v7" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><circle cx="32" cy="40" r="3" fill="#fff"/></svg>`;
-}
-
-function personIcon(): string {
-    return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M10 55c1-13 10-20 22-20s21 7 22 20" fill="currentColor"/></svg>`;
-}
-
-function oneMinuteIcon(): string {
-    return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="none" stroke="currentColor" stroke-width="5"/><text x="32" y="40" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="900" fill="currentColor">1</text></svg>`;
-}
-
-function heartIcon(): string {
-    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 55S8 41 8 23c0-8 6-14 14-14 5 0 9 3 10 7 2-4 6-7 11-7 8 0 13 6 13 14 0 18-24 32-24 32Z" fill="currentColor"/></svg>`;
-}
-
-function caltexBrandLockup(): string {
-    return `<div class="caltex-lockup" aria-label="Caltex — Enjoy the Journey">
-      <svg class="caltex-logo" viewBox="0 0 270 82" role="img" aria-label="Caltex">
-        <circle cx="41" cy="41" r="39" fill="#d71920"/>
-        <circle cx="41" cy="41" r="31" fill="#ffffff"/>
-        <polygon points="41,13 48,32 69,32 52,44 59,65 41,52 23,65 30,44 13,32 34,32" fill="#003a70"/>
-        <polygon points="41,30 55,41 41,47 27,41" fill="#d71920"/>
-        <text x="88" y="51" font-family="Arial,Helvetica,sans-serif" font-size="39" font-weight="900" letter-spacing="1" fill="#003a70">CALTEX</text>
-      </svg>
-      <span class="brand-divider"></span>
-      <span class="brand-slogan">ENJOY THE JOURNEY</span>
-    </div>`;
-}
-
 function visibleThaiLength(value: string): number {
     return Array.from(value.trim()).filter((character) => !/[\u0E31-\u0E3A\u0E47-\u0E4E]/.test(character)).length;
 }
 
+function personIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="19" r="11" fill="currentColor"/><path d="M11 55c2-14 10-21 21-21s20 7 21 21" fill="currentColor"/></svg>`;
+}
+
+function pinIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 59S12 39 12 24C12 12 21 5 32 5s20 7 20 19c0 15-20 35-20 35Z" fill="currentColor"/><circle cx="32" cy="24" r="8" fill="#fff"/></svg>`;
+}
+
+function clockIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="5"/><path d="M32 18v15l10 6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function anonymousIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 25c4-9 11-14 20-14s16 5 20 14c-5 4-12 7-20 7s-15-3-20-7Z" fill="currentColor"/><path d="M15 29c1 16 7 24 17 24s16-8 17-24c-5 4-10 6-17 6s-12-2-17-6Z" fill="currentColor" opacity=".18"/><path d="M17 41c4-2 8-3 15-3s11 1 15 3" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>`;
+}
+
+function shieldIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 52 14v16c0 13-8 23-20 29C20 53 12 43 12 30V14L32 6Z" fill="currentColor"/><path d="m23 31 6 6 13-15" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function heartOutlineIcon(): string {
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 55S8 41 8 23c0-8 6-14 14-14 5 0 9 3 10 7 2-4 6-7 11-7 8 0 13 6 13 14 0 18-24 32-24 32Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function makeCodeCells(code: string): string {
+    return Array.from(code.trim().slice(0, 8).padEnd(8, " "))
+        .map((character) => `<span class="code-cell">${character === " " ? "&nbsp;" : escapeHtml(character)}</span>`)
+        .join("");
+}
+
+function absoluteAssetUrl(baseUrl: string | undefined, path: string): string {
+    const normalizedBase = baseUrl?.replace(/\/$/, "") ?? "";
+    return `${normalizedBase}${path}`;
+}
+
 /**
- * A4 landscape customer-feedback sign based on the approved yellow/navy mockup.
- * Everything that varies by QR remains live HTML/SVG: name, station, QR, fallback code and URL.
+ * A4-landscape customer-feedback poster.
+ *
+ * Employee posters deliberately mirror the approved Caltex reference artwork:
+ * white field, real Caltex lock-up, oversized red employee name, teal information band,
+ * elevated QR card, red/teal brand sweep and Techron badge.
+ * All person/QR values stay live HTML/SVG so every printed poster is unique and scannable.
  */
 export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4PosterInput): string {
-    const qrSvg = generateQRCodeSVG(input.qrUrl, 920);
+    const qrSvg = generateQRCodeSVG(input.qrUrl, 960);
     const targetLabel = escapeHtml(input.targetLabel);
     const subtitle = input.subtitle ? escapeHtml(input.subtitle) : "";
     const positionLabel = input.positionLabel ? escapeHtml(input.positionLabel) : "";
     const stationLabel = input.stationLabel ? escapeHtml(input.stationLabel) : "";
     const manualEntryUrl = escapeHtml(input.manualEntryUrl);
-    const manualCode = escapeHtml(input.manualCode);
     const version = input.version ? `QR version ${input.version}` : "";
     const isEmployee = input.targetType === "EMPLOYEE";
-    const invitation = isEmployee ? "ช่วยประเมินการบริการของฉัน" : "ช่วยประเมินการบริการของเรา";
-    const question = isEmployee ? "วันนี้ฉันบริการคุณเป็นอย่างไรบ้าง?" : "วันนี้การบริการของเราเป็นอย่างไรบ้าง?";
     const resolvedStation = stationLabel || (isEmployee ? subtitle.split(" · ").slice(-1)[0] : targetLabel);
     const resolvedPosition = positionLabel || (isEmployee ? subtitle.split(" · ")[0] : "");
-    const employeeNameLength = visibleThaiLength(input.targetLabel);
-    const employeeNameClass = employeeNameLength <= 6 ? "name-xl" : employeeNameLength <= 10 ? "name-lg" : "name-md";
-    const targetClass = isEmployee ? `target employee-name ${employeeNameClass}` : "target station-name";
+    const targetLength = visibleThaiLength(input.targetLabel);
+    const targetSizeClass = targetLength <= 6 ? "target-xl" : targetLength <= 10 ? "target-lg" : targetLength <= 15 ? "target-md" : "target-sm";
+    const caltexLogo = absoluteAssetUrl(input.assetBaseUrl, "/customer-feedback/caltex-logo.png");
+    const techronLogo = absoluteAssetUrl(input.assetBaseUrl, "/customer-feedback/techron-logo.png");
+    const codeCells = makeCodeCells(input.manualCode);
+    const mainPrompt = isEmployee ? "ช่วยประเมินการบริการของ" : "ช่วยประเมินการบริการของเรา";
+    const question = isEmployee ? "วันนี้ผมบริการคุณเป็นอย่างไรบ้าง?" : "วันนี้การบริการของเราเป็นอย่างไรบ้าง?";
 
     return `<!doctype html>
 <html lang="th">
@@ -101,12 +101,26 @@ export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4Poste
 <title>ป้ายเสียงลูกค้า A4 - ${targetLabel}</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Regular.ttf")}") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-SemiBold.ttf")}") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Bold.ttf")}") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-ExtraBold.ttf")}") format("truetype"); font-weight: 800; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Black.ttf")}") format("truetype"); font-weight: 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: "SrirachaPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Sriracha-Regular.ttf")}") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+
+  :root {
+    --brand-teal: #003f4c;
+    --brand-deep: #003845;
+    --brand-red: #ed0015;
+    --brand-blue: #003b63;
+    --muted-line: #7f8c91;
+  }
   * { box-sizing: border-box; }
   html, body { width: 297mm; height: 210mm; margin: 0; padding: 0; }
   body {
-    font-family: "Sarabun", "Noto Sans Thai", "Tahoma", -apple-system, BlinkMacSystemFont, sans-serif;
-    color: #082f57;
-    background: #ffffff;
+    background: #fff;
+    color: var(--brand-deep);
+    font-family: "KanitPoster", "Noto Sans Thai", Tahoma, sans-serif;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -115,387 +129,475 @@ export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4Poste
     width: 297mm;
     height: 210mm;
     overflow: hidden;
-    background: #ffffff;
+    background:
+      radial-gradient(circle at 17% 21%, rgba(0,63,76,.035), transparent 27%),
+      linear-gradient(180deg, #fff 0%, #fff 79%, #fbfbfb 100%);
   }
-  .voice-banner {
+
+  /* --- Caltex lock-up, top left --- */
+  .brand-lockup {
     position: absolute;
+    left: 12mm;
+    top: 5.3mm;
+    width: 68mm;
     z-index: 5;
-    left: 0;
-    top: 0;
-    width: 156mm;
-    height: 23mm;
-    display: flex;
-    align-items: center;
-    gap: 4mm;
-    padding-left: 15mm;
-    color: #07366c;
-    background: linear-gradient(100deg, #ffc20e 0%, #ffd45c 70%, #ffc20e 100%);
-    border-bottom-right-radius: 11mm;
-    box-shadow: 0 1.3mm 0 #e7aa00, 0 3mm 7mm rgba(15,23,42,.10);
   }
-  .voice-icon {
-    width: 13mm;
-    height: 13mm;
-    display: grid;
-    place-items: center;
-    border: 1.3mm solid #ffffff;
-    border-radius: 50%;
-    color: #ffffff;
+  .brand-lockup img {
+    width: 64mm;
+    height: auto;
+    display: block;
   }
-  .voice-icon svg { width: 8.5mm; height: 8.5mm; }
-  .voice-title {
-    font-size: 10.2mm;
-    line-height: 1;
-    font-weight: 950;
-    letter-spacing: -.35mm;
-  }
-  .main {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 23mm;
-    bottom: 22mm;
-    display: grid;
-    grid-template-columns: 53.5% 46.5%;
-  }
-  .left {
+  .brand-slogan {
+    margin-left: 24.5mm;
+    margin-top: .7mm;
+    display: inline-block;
     position: relative;
-    padding: 8mm 9mm 5mm 14mm;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .invitation {
-    margin: 0;
-    font-size: 8.4mm;
-    line-height: 1.1;
-    font-weight: 950;
-    letter-spacing: -.2mm;
-    color: #082f57;
-  }
-  .target {
-    margin-top: 1mm;
-    max-width: 145mm;
-    color: #082f57;
-    font-weight: 950;
-    letter-spacing: -1mm;
-    text-shadow: 0 1.4mm 0 rgba(2,47,87,.08);
-    overflow-wrap: anywhere;
-  }
-  .employee-name { line-height: .92; }
-  .employee-name.name-xl { font-size: 31mm; }
-  .employee-name.name-lg { font-size: 25mm; }
-  .employee-name.name-md { font-size: 20mm; line-height: 1; }
-  .station-name { margin-top: 6mm; font-size: 15mm; line-height: 1.04; letter-spacing: -.45mm; }
-  .question {
-    margin-top: 2mm;
-    font-size: 6.3mm;
-    line-height: 1.15;
-    font-weight: 800;
-    font-style: italic;
-    color: #0e477e;
-  }
-  .meta-pill {
-    align-self: flex-start;
-    max-width: 144mm;
-    margin-top: 4.5mm;
-    padding: 2.5mm 4.5mm 2.3mm;
-    border-radius: 3.2mm;
-    background: #0a376e;
-    color: #ffffff;
-    font-size: 4.55mm;
-    line-height: 1.2;
-    font-weight: 850;
-  }
-  .quick-facts {
-    display: flex;
-    align-items: center;
-    gap: 6mm;
-    margin-top: 4mm;
-  }
-  .fact {
-    display: flex;
-    align-items: center;
-    gap: 1.6mm;
-    color: #111827;
+    color: #003845;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 4.2mm;
+    line-height: 1;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: .12mm;
+  }
+  .brand-slogan::after {
+    content: "";
+    position: absolute;
+    left: 51%;
+    right: 0;
+    bottom: -1.6mm;
+    height: .55mm;
+    border-radius: 999px;
+    background: var(--brand-red);
+    transform: rotate(-2deg);
+  }
+
+  /* --- Main copy --- */
+  .copy {
+    position: absolute;
+    left: 17.5mm;
+    top: 38.5mm;
+    width: 137mm;
+    z-index: 4;
+  }
+  .prompt {
+    color: var(--brand-deep);
+    font-size: 9.1mm;
+    line-height: 1.08;
     font-weight: 800;
+    letter-spacing: -.2mm;
     white-space: nowrap;
   }
-  .fact-icon {
-    width: 6mm;
-    height: 6mm;
-    color: #f4b400;
-    flex: 0 0 auto;
-  }
-  .fact-icon svg { width: 100%; height: 100%; display: block; }
-  .benefit-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3mm;
-    margin-top: 5mm;
-    max-width: 144mm;
-  }
-  .benefit {
-    min-height: 20mm;
-    display: grid;
-    grid-template-columns: 12mm 1fr;
+  .target-wrap {
+    position: relative;
+    width: 137mm;
+    height: 55mm;
+    margin-top: 2.2mm;
+    display: flex;
     align-items: center;
-    gap: 2.4mm;
-    padding: 3mm 3mm;
-    border: .55mm solid #efb514;
-    border-radius: 4mm;
-    background: #fffefa;
-    color: #111827;
-    font-size: 3.8mm;
-    line-height: 1.25;
-    font-weight: 850;
   }
-  .benefit-icon {
-    width: 10mm;
-    height: 10mm;
+  .target {
+    position: relative;
+    z-index: 2;
+    color: var(--brand-red);
+    font-weight: 900;
+    line-height: .88;
+    letter-spacing: -1.25mm;
+    white-space: nowrap;
+    text-shadow: 0 .55mm 0 rgba(237,0,21,.05);
+  }
+  .target-xl { font-size: 45mm; }
+  .target-lg { font-size: 35mm; letter-spacing: -.85mm; }
+  .target-md { font-size: 28mm; letter-spacing: -.55mm; }
+  .target-sm { font-size: 22mm; letter-spacing: -.35mm; white-space: normal; line-height: .95; }
+  .heart-doodle {
+    position: absolute;
+    right: -1mm;
+    top: 9mm;
+    width: 15mm;
+    height: 15mm;
+    color: var(--brand-red);
+    transform: rotate(-8deg);
+  }
+  .heart-doodle svg { width: 100%; height: 100%; display: block; }
+  .question {
+    margin-top: -1.5mm;
+    color: #00445a;
+    font-family: "SrirachaPoster", "KanitPoster", sans-serif;
+    font-size: 7.8mm;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .divider {
+    width: 127mm;
+    height: .25mm;
+    margin-top: 7mm;
+    background: #818b8d;
+  }
+  .identity {
+    display: grid;
+    gap: 3.2mm;
+    margin-top: 5.2mm;
+  }
+  .identity-row {
+    display: flex;
+    align-items: center;
+    min-height: 9mm;
+    color: #121212;
+    font-size: 5.8mm;
+    line-height: 1.15;
+  }
+  .identity-icon {
+    width: 9mm;
+    height: 9mm;
+    margin-right: 3mm;
     display: grid;
     place-items: center;
     border-radius: 50%;
-    background: #f4b400;
-    color: #ffffff;
+    background: var(--brand-teal);
+    color: #fff;
+    flex: 0 0 auto;
   }
-  .benefit-icon svg { width: 6.5mm; height: 6.5mm; }
-  .improve-row {
-    display: flex;
+  .identity-icon svg { width: 5.3mm; height: 5.3mm; }
+  .identity-label { color: var(--brand-deep); font-weight: 800; margin-right: 1.7mm; }
+  .identity-value { color: #111; font-weight: 500; }
+
+  /* --- Dark teal three-column fact band --- */
+  .fact-band {
+    position: absolute;
+    left: 8mm;
+    top: 153mm;
+    width: 154mm;
+    height: 27mm;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.25fr;
+    overflow: hidden;
+    border-radius: 7.2mm;
+    background: linear-gradient(100deg, #004d59 0%, #003842 100%);
+    box-shadow: 0 1.7mm 4.5mm rgba(0,56,69,.15);
+    color: #fff;
+  }
+  .fact-band-item {
+    display: grid;
+    grid-template-columns: 13mm 1fr;
     align-items: center;
     gap: 2.5mm;
-    margin-top: 4.5mm;
-    max-width: 144mm;
-    color: #2b3440;
-    font-size: 3.7mm;
-    line-height: 1.3;
-    font-weight: 750;
+    padding: 4mm 5mm;
+    position: relative;
   }
-  .heart {
-    width: 7mm;
-    height: 7mm;
+  .fact-band-item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 5mm;
+    bottom: 5mm;
+    width: .35mm;
+    background: rgba(255,255,255,.75);
+  }
+  .fact-circle {
+    width: 12mm;
+    height: 12mm;
+    border-radius: 50%;
     display: grid;
     place-items: center;
-    border-radius: 50%;
-    background: #ffc20e;
-    color: #ffffff;
-    flex: 0 0 auto;
+    background: #fff;
+    color: var(--brand-teal);
   }
-  .heart svg { width: 4.3mm; height: 4.3mm; }
-  .right {
-    position: relative;
-    padding: 5mm 13mm 5mm 6mm;
-  }
+  .fact-circle svg { width: 7.4mm; height: 7.4mm; }
+  .fact-small { font-size: 3.8mm; line-height: 1.05; font-weight: 400; }
+  .fact-big { margin-top: .7mm; font-size: 6.3mm; line-height: 1; font-weight: 700; }
+  .fact-last { font-size: 4.2mm; line-height: 1.35; font-weight: 500; }
+  .fact-last strong { font-weight: 800; }
+
+  /* --- QR card, right --- */
   .qr-card {
-    width: 100%;
-    height: 155mm;
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 4.5mm 7mm 4mm;
-    border: .65mm solid #efb514;
-    border-radius: 7mm;
-    background: #ffffff;
-    box-shadow: 0 2mm 5mm rgba(15,23,42,.08);
+    position: absolute;
+    left: 171mm;
+    top: 29.5mm;
+    width: 106mm;
+    height: 138mm;
+    z-index: 8;
+    border-radius: 12mm;
+    background: #fff;
+    box-shadow: 0 3mm 7mm rgba(16,35,38,.19);
   }
   .scan-pill {
-    width: 83mm;
-    min-height: 13mm;
+    position: absolute;
+    left: 14mm;
+    top: -4.1mm;
+    width: 78mm;
+    height: 13.2mm;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
-    background: #0a376e;
-    color: #ffffff;
-    font-size: 6.3mm;
+    border-radius: 4.8mm;
+    background: linear-gradient(100deg, #005060 0%, #003b4c 100%);
+    box-shadow: 0 1.2mm 2mm rgba(0,56,69,.15);
+    color: #fff;
+    font-size: 7.2mm;
     line-height: 1;
-    font-weight: 950;
-    margin-bottom: 3mm;
+    font-weight: 800;
   }
-  .qr-wrap {
-    width: 85mm;
-    height: 85mm;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    background: #ffffff;
+  .scan-rays {
+    position: absolute;
+    right: 2mm;
+    top: -10mm;
+    width: 15mm;
+    height: 15mm;
+    color: var(--brand-red);
   }
-  .qr-wrap svg { display: block; width: 100%; height: 100%; }
+  .qr-shell {
+    position: absolute;
+    left: 14mm;
+    top: 12.3mm;
+    width: 78mm;
+    height: 78mm;
+  }
+  .qr-shell svg { width: 100%; height: 100%; display: block; }
+  .qr-brand {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16mm;
+    height: 16mm;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 1.4mm #fff;
+  }
+  .qr-brand img {
+    height: 16mm;
+    width: auto;
+    max-width: none;
+    display: block;
+  }
   .or-row {
-    width: 96%;
+    position: absolute;
+    left: 6mm;
+    right: 6mm;
+    top: 96.5mm;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: 3mm;
-    margin-top: 2.3mm;
-    color: #667085;
-    font-size: 3.4mm;
-    font-weight: 850;
-  }
-  .or-line { height: .35mm; background: #9aa8b7; }
-  .manual-help {
-    margin-top: 2mm;
-    max-width: 105mm;
-    text-align: center;
-    color: #223047;
-    font-size: 3.35mm;
-    line-height: 1.35;
-    font-weight: 800;
-  }
-  .manual-code {
-    width: 99%;
-    margin-top: 3mm;
-    padding: 2.5mm 2mm 2.2mm;
-    border: .55mm solid #efb514;
-    border-radius: 4mm;
-    background: linear-gradient(180deg, #fffdf3 0%, #fff8d9 100%);
-    color: #082f57;
-    text-align: center;
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-    font-size: 10.5mm;
+    gap: 2.4mm;
+    color: #17333c;
+    font-size: 4.9mm;
     line-height: 1;
-    font-weight: 950;
-    letter-spacing: 1.1mm;
+  }
+  .or-line { height: .35mm; background: #63787f; }
+  .manual-label {
+    position: absolute;
+    left: 5mm;
+    right: 5mm;
+    top: 103.5mm;
+    text-align: center;
+    color: #111;
+    font-size: 4.9mm;
+    line-height: 1;
+    font-weight: 500;
+  }
+  .code-cells {
+    position: absolute;
+    left: 6mm;
+    right: 6mm;
+    top: 109.2mm;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1.2mm;
+  }
+  .code-cell {
+    height: 13.5mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: .45mm solid var(--brand-red);
+    border-radius: 2.2mm;
+    background: #fff;
+    color: #090909;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5mm;
+    line-height: 1;
+    font-weight: 900;
   }
   .manual-url {
-    margin-top: 2mm;
-    max-width: 108mm;
-    color: #25334a;
+    position: absolute;
+    left: 4mm;
+    right: 4mm;
+    top: 129.5mm;
     text-align: center;
-    font-size: 2.95mm;
-    line-height: 1.25;
-    font-weight: 750;
-    word-break: break-all;
+    color: #151515;
+    font-size: 3.9mm;
+    line-height: 1.15;
+    font-weight: 600;
+    white-space: nowrap;
   }
   .version {
-    margin-top: auto;
-    color: #a0a8b2;
-    font-size: 2.25mm;
+    position: absolute;
+    right: 5mm;
+    bottom: 2.4mm;
+    color: #b0b6b9;
+    font-size: 1.9mm;
   }
-  .footer-wave {
+
+  /* --- Bottom Caltex/Techron sweep from approved artwork --- */
+  .bottom-sweep {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
     width: 297mm;
-    height: 28mm;
+    height: 46mm;
+    z-index: 2;
     pointer-events: none;
   }
-  .footer-content {
+  .thanks {
     position: absolute;
-    z-index: 3;
-    left: 14mm;
-    right: 13mm;
-    bottom: 4.2mm;
+    z-index: 7;
+    left: 12mm;
+    bottom: 4.8mm;
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 8mm;
-  }
-  .caltex-lockup { display: flex; align-items: center; min-width: 0; }
-  .caltex-logo { width: 51mm; height: 15.5mm; display: block; flex: 0 0 auto; }
-  .brand-divider { width: .35mm; height: 7mm; margin: 0 3.5mm; background: rgba(8,47,87,.45); }
-  .brand-slogan {
-    color: #d71920;
-    font-family: Arial,Helvetica,sans-serif;
-    font-size: 3.6mm;
-    font-weight: 900;
-    letter-spacing: .18mm;
+    align-items: center;
+    gap: 2.5mm;
+    color: #fff;
+    font-family: "SrirachaPoster", "KanitPoster", sans-serif;
+    font-size: 4.9mm;
+    line-height: 1;
     white-space: nowrap;
   }
-  .station-signature { text-align: right; color: #082f57; }
-  .station-signature .station { font-size: 5.6mm; line-height: 1.05; font-weight: 950; }
-  .station-signature .tagline { margin-top: .8mm; color: #d71920; font-family: Arial,Helvetica,sans-serif; font-size: 2.8mm; font-weight: 900; letter-spacing: .15mm; }
+  .thanks svg { width: 7mm; height: 7mm; flex: 0 0 auto; }
+  .techron-badge {
+    position: absolute;
+    z-index: 9;
+    right: 14mm;
+    bottom: 11mm;
+    width: 62mm;
+    height: 21mm;
+    transform: rotate(-2.3deg) skewX(-5deg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 5mm;
+    background: linear-gradient(105deg, #e80016 0%, #f51b27 70%, #c70012 100%);
+    box-shadow: 0 2mm 3mm rgba(112,0,0,.18);
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    border-top: .6mm solid rgba(255,255,255,.3);
+  }
+  .techron-wordmark {
+    width: 48mm;
+    height: auto;
+    display: block;
+    filter: brightness(0) invert(1);
+  }
+  .techron-sub {
+    margin-top: 1.2mm;
+    font-size: 3.7mm;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: .15mm;
+  }
+
   .test-ribbon {
     position: absolute;
-    z-index: 20;
+    z-index: 30;
     top: 10mm;
-    right: -27mm;
-    width: 100mm;
-    transform: rotate(39deg);
-    background: #d71920;
-    color: #ffffff;
+    right: -28mm;
+    width: 105mm;
+    transform: rotate(40deg);
+    padding: 2.5mm 0;
+    background: #ed0015;
+    color: #fff;
     text-align: center;
-    padding: 2.2mm 0;
-    font-size: 4.8mm;
-    font-weight: 950;
+    font-size: 4.7mm;
+    line-height: 1;
+    font-weight: 800;
     box-shadow: 0 .8mm 2mm rgba(0,0,0,.18);
   }
+
   @media screen {
-    body { background: #d9dde3; padding: 8px; }
-    .sheet { margin: 0 auto; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+    body { background: #d8dde0; padding: 8px; }
+    .sheet { margin: 0 auto; box-shadow: 0 3mm 12mm rgba(0,0,0,.18); }
   }
   @media print {
-    body { background: #ffffff; padding: 0; }
+    body { padding: 0; background: #fff; }
     .sheet { box-shadow: none; }
   }
 </style>
 </head>
 <body>
-  <section class="sheet ${isEmployee ? "employee-poster" : "station-poster"}">
-    ${input.isTest ? '<div class="test-ribbon">ตัวอย่าง / แบบทดสอบ</div>' : ""}
+<section class="sheet ${isEmployee ? "employee-poster" : "station-poster"}">
+  ${input.isTest ? '<div class="test-ribbon">ตัวอย่าง / แบบทดสอบ</div>' : ""}
 
-    <div class="voice-banner">
-      <span class="voice-icon">${speechIcon()}</span>
-      <span class="voice-title">เสียงลูกค้า</span>
+  <div class="brand-lockup">
+    <img src="${caltexLogo}" alt="Caltex" />
+    <div class="brand-slogan">ENJOY THE JOURNEY</div>
+  </div>
+
+  <div class="copy">
+    <div class="prompt">${mainPrompt}</div>
+    <div class="target-wrap">
+      <div class="target ${targetSizeClass}">${targetLabel}</div>
+      <span class="heart-doodle">${heartOutlineIcon()}</span>
     </div>
-
-    <div class="main">
-      <div class="left">
-        <h1 class="invitation">${invitation}</h1>
-        <div class="${targetClass}">${targetLabel}</div>
-        <div class="question">${question}</div>
-
-        <div class="meta-pill">
-          ${isEmployee
-            ? `ตำแหน่ง: ${resolvedPosition || "พนักงานบริการ"} · สถานี: ${resolvedStation || "-"}`
-            : `${resolvedStation}${subtitle ? ` · ${subtitle}` : ""}`}
-        </div>
-
-        <div class="quick-facts">
-          <div class="fact"><span class="fact-icon">${clockIcon()}</span><span>ใช้เวลาประมาณ 1 นาที</span></div>
-          <div class="fact"><span class="fact-icon">${checkIcon()}</span><span>ไม่ต้องระบุชื่อ</span></div>
-        </div>
-
-        <div class="benefit-cards">
-          <div class="benefit"><span class="benefit-icon">${lockIcon()}</span><span>ไม่ต้อง<br>ล็อกอิน</span></div>
-          <div class="benefit"><span class="benefit-icon">${personIcon()}</span><span>ไม่ต้อง<br>ระบุชื่อ</span></div>
-          <div class="benefit"><span class="benefit-icon">${oneMinuteIcon()}</span><span>ใช้เวลา<br>ประมาณ 1 นาที</span></div>
-        </div>
-
-        <div class="improve-row">
-          <span class="heart">${heartIcon()}</span>
-          <span>ความคิดเห็นของคุณช่วยให้เราปรับปรุงบริการได้ดียิ่งขึ้น</span>
-        </div>
+    <div class="question">${question}</div>
+    <div class="divider"></div>
+    <div class="identity">
+      <div class="identity-row">
+        <span class="identity-icon">${personIcon()}</span>
+        <span class="identity-label">${isEmployee ? "ตำแหน่ง :" : "ประเภท :"}</span>
+        <span class="identity-value">${isEmployee ? (resolvedPosition || "พนักงานบริการ") : "QR ประเมินสถานี"}</span>
       </div>
-
-      <div class="right">
-        <div class="qr-card">
-          <div class="scan-pill">สแกนเพื่อประเมิน</div>
-          <div class="qr-wrap">${qrSvg}</div>
-          <div class="or-row"><span class="or-line"></span><span>หรือ</span><span class="or-line"></span></div>
-          <div class="manual-help">สแกนไม่ได้? เข้า ${manualEntryUrl}<br>แล้วกรอกรหัสนี้เพื่อประเมิน</div>
-          <div class="manual-code">${manualCode}</div>
-          <div class="manual-url">${manualEntryUrl}</div>
-          <div class="version">${escapeHtml(version)}</div>
-        </div>
+      <div class="identity-row">
+        <span class="identity-icon">${pinIcon()}</span>
+        <span class="identity-label">สถานีบริการ :</span>
+        <span class="identity-value">${resolvedStation || "-"}</span>
       </div>
     </div>
+  </div>
 
-    <svg class="footer-wave" viewBox="0 0 1200 180" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 66 C145 25 270 44 380 77 C505 113 612 110 736 73 C865 35 1012 30 1200 61 L1200 180 L0 180 Z" fill="#ffc20e"/>
-      <path d="M0 58 C145 17 270 36 380 69 C505 105 612 102 736 65 C865 27 1012 22 1200 53" fill="none" stroke="#f2a900" stroke-width="4"/>
-    </svg>
-    <div class="footer-content">
-      ${caltexBrandLockup()}
-      <div class="station-signature">
-        <div class="station">${resolvedStation || targetLabel}</div>
-        <div class="tagline">ENJOY THE JOURNEY</div>
-      </div>
+  <div class="fact-band">
+    <div class="fact-band-item">
+      <span class="fact-circle">${clockIcon()}</span>
+      <span><span class="fact-small">ใช้เวลาประมาณ</span><br><span class="fact-big">1 นาที</span></span>
     </div>
-  </section>
+    <div class="fact-band-item">
+      <span class="fact-circle">${anonymousIcon()}</span>
+      <span><span class="fact-small">ไม่ต้อง</span><br><span class="fact-big">ระบุชื่อ</span></span>
+    </div>
+    <div class="fact-band-item">
+      <span class="fact-circle">${shieldIcon()}</span>
+      <span class="fact-last">ความคิดเห็นของคุณ<br><strong>ช่วยให้เราพัฒนา<br>บริการให้ดียิ่งขึ้น</strong></span>
+    </div>
+  </div>
+
+  <div class="qr-card">
+    <div class="scan-pill">สแกนเพื่อประเมิน</div>
+    <svg class="scan-rays" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 6 15 27M36 10 26 29M51 22 34 35" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg>
+    <div class="qr-shell">
+      ${qrSvg}
+      <span class="qr-brand"><img src="${caltexLogo}" alt="" /></span>
+    </div>
+    <div class="or-row"><span class="or-line"></span><span>หรือ</span><span class="or-line"></span></div>
+    <div class="manual-label">กรอกรหัสนี้เพื่อประเมิน</div>
+    <div class="code-cells">${codeCells}</div>
+    <div class="manual-url">เข้าเว็บไซต์ : ${manualEntryUrl}</div>
+    <div class="version">${escapeHtml(version)}</div>
+  </div>
+
+  <svg class="bottom-sweep" viewBox="0 0 1492 232" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 96 C230 140 470 152 710 143 C998 132 1245 91 1492 54 L1492 232 L0 232 Z" fill="#003f4c"/>
+    <path d="M0 62 C236 103 480 116 716 107 C1013 95 1268 54 1492 19 L1492 56 C1249 93 996 133 710 144 C471 153 229 140 0 98 Z" fill="#ed0015"/>
+    <path d="M0 54 C236 94 477 106 714 98 C1008 88 1263 46 1492 11" fill="none" stroke="#ffffff" stroke-width="4" opacity=".95"/>
+  </svg>
+
+  <div class="thanks">${heartOutlineIcon()}<span>ขอบคุณทุกความคิดเห็น เพื่อบริการที่ดีกว่าเดิม</span></div>
+  <div class="techron-badge">
+    <img class="techron-wordmark" src="${techronLogo}" alt="Techron" />
+    <div class="techron-sub">CLEAN AND PROTECT</div>
+  </div>
+</section>
 </body>
 </html>`;
 }

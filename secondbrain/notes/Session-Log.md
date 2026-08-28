@@ -249,4 +249,32 @@ Deployment:
 - Fix pushed to `origin/main` in commit `98ee09e` (`Fix A4 feedback print layout`).
 - Vercel production candidate: `timetrack-ot5uppfrk-benzs-projects-2423502c.vercel.app` (inspect id `GRWJefmxSBaxvvUaG54iDMj9TLPj`).
 - Durable deploy task: `bfbfab46-d3da-4d91-a08f-0822c26a943b`. After two bounded checks the deployment was still `Building`; production readiness was not claimed.
+## 2026-08-28 — Rebuilt A4 Customer Feedback print template to the final Caltex reference
+
+Goal:
+
+Make the real **A4 แนวนอน** print action follow the final owner-approved Caltex artwork rather than generating another conceptual mockup.
+
+Implementation:
+
+- Rebuilt `src/lib/customer-feedback/print-poster.ts` around the final reference composition: white field, Caltex lock-up at top left, oversized red employee public name, handwritten-style service question, position/station rows, dark-teal three-column information band, elevated QR card, eight separate red-bordered fallback-code cells, red/teal bottom sweep, thank-you copy and Techron treatment.
+- Added the official Caltex logo asset at `public/customer-feedback/caltex-logo.png`; the asset was sourced from the public Caltex corporate asset path and is now served locally by TimeTrack so print output does not depend on an external network request.
+- Bundled Kanit weights plus Sriracha under `public/fonts/` for deterministic Thai print typography in the blank print window.
+- QR, public employee name, public position, station, manual code and manual URL remain live/dynamic values; no raster QR or hard-coded employee identity is used.
+- Added a Caltex logo treatment at the QR centre while retaining the existing generated QR SVG and quiet zone.
+- `qr-codes-tab.tsx` now passes `window.location.origin` as the print asset base and waits for local fonts/images (bounded by a fallback timeout) before opening the browser print dialog, preventing missing-brand/font output.
+- Employee-name size still adapts for longer public labels. Station posters continue to use the same brand system with station-specific wording.
+- `reveal`, print confirmation, `MARK_PRINTED`, employee public-profile acknowledgement, test watermark and activation guards remain unchanged. No QR/database activation state was bypassed.
+
+Verification:
+
+- Poster unit tests updated for the final Caltex reference layout: 6/6 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed with no errors/warnings.
+- `git diff --check`: passed.
+- Headless Chrome rendered the actual HTML template at exactly 1492×1054 (the supplied reference-image dimensions) successfully.
+
+Deployment:
+
+- Production deployment pending at the time this entry was written; update this section after Vercel completes.
 

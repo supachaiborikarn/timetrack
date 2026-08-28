@@ -125,6 +125,7 @@ export function QrCodesTab() {
                     subtitle: rawSubtitle,
                     isTest: row.isTest,
                     version: expectedVersion,
+                    assetBaseUrl: window.location.origin,
                 }));
             } else {
                 printWindow.document.write(`<!doctype html><html lang="th"><head><title>ป้าย QR ${targetLabel}</title><style>
@@ -146,6 +147,21 @@ export function QrCodesTab() {
             </div></body></html>`);
             }
             printWindow.document.close();
+
+            if (format === "a4-landscape") {
+                const imagesReady = Array.from(printWindow.document.images).map((image) => {
+                    if (image.complete) return Promise.resolve();
+                    return new Promise<void>((resolve) => {
+                        image.addEventListener("load", () => resolve(), { once: true });
+                        image.addEventListener("error", () => resolve(), { once: true });
+                    });
+                });
+                await Promise.race([
+                    Promise.all([printWindow.document.fonts.ready, ...imagesReady]),
+                    new Promise<void>((resolve) => window.setTimeout(resolve, 1800)),
+                ]);
+            }
+
             printWindow.focus();
             printWindow.print();
             return window.confirm("พิมพ์ป้ายหรือบันทึกเป็น PDF สำเร็จแล้วใช่หรือไม่?");
