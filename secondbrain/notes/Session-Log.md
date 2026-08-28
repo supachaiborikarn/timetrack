@@ -244,3 +244,9 @@ Verification:
 - Targeted ESLint for poster/test/admin QR files: passed.
 - Headless Chrome rendered the new real-template preview successfully.
 
+Deployment:
+
+- Fix pushed to `origin/main` in commit `98ee09e` (`Fix A4 feedback print layout`).
+- Vercel production candidate: `timetrack-ot5uppfrk-benzs-projects-2423502c.vercel.app` (inspect id `GRWJefmxSBaxvvUaG54iDMj9TLPj`).
+- Durable deploy task: `bfbfab46-d3da-4d91-a08f-0822c26a943b`. After two bounded checks the deployment was still `Building`; production readiness was not claimed.
+
