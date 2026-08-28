@@ -150,3 +150,7 @@ Risk / follow-up:
 
 - Printing A4 or compact format both count as printing the current QR version only after the admin confirms the print/save succeeded.
 - Employee QR public-profile acknowledgement remains mandatory before either print action is shown.
+
+Git:
+
+- Feature commit: `093e2f6` — `Add A4 landscape customer feedback QR poster`
