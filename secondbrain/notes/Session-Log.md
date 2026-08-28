@@ -258,7 +258,7 @@ Make the real **A4 แนวนอน** print action follow the final owner-appr
 Implementation:
 
 - Rebuilt `src/lib/customer-feedback/print-poster.ts` around the final reference composition: white field, Caltex lock-up at top left, oversized red employee public name, handwritten-style service question, position/station rows, dark-teal three-column information band, elevated QR card, eight separate red-bordered fallback-code cells, red/teal bottom sweep, thank-you copy and Techron treatment.
-- Added the official Caltex logo asset at `public/customer-feedback/caltex-logo.png`; the asset was sourced from the public Caltex corporate asset path and is now served locally by TimeTrack so print output does not depend on an external network request.
+- Added local brand assets at `public/customer-feedback/caltex-logo.png` and `public/customer-feedback/techron-logo.png`; the print template now uses the real Caltex lock-up and Techron wordmark rather than drawing substitute wordmarks in CSS. Assets are served locally by TimeTrack so print output does not depend on an external network request.
 - Bundled Kanit weights plus Sriracha under `public/fonts/` for deterministic Thai print typography in the blank print window.
 - QR, public employee name, public position, station, manual code and manual URL remain live/dynamic values; no raster QR or hard-coded employee identity is used.
 - Added a Caltex logo treatment at the QR centre while retaining the existing generated QR SVG and quiet zone.
@@ -276,5 +276,7 @@ Verification:
 
 Deployment:
 
-- Production deployment pending at the time this entry was written; update this section after Vercel completes.
+- Feature commit `7b3f9ad` (`Match feedback A4 poster to final Caltex design`) was pushed to `origin/main`.
+- Vercel production candidate: `timetrack-96m2oadyv-benzs-projects-2423502c.vercel.app` (inspect id `CKBVxi6yL6GWCfEPGV7nE5n8L9Y8`).
+- Durable deploy task: `d2fd25eb-a7f9-49b4-872d-b736d7e0853f`. After two bounded checks the remote build was still running; production readiness is deliberately not claimed yet.
 
