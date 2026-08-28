@@ -10,8 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Printer, RefreshCcw, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
+import { buildCustomerFeedbackA4PosterHtml } from "@/lib/customer-feedback/print-poster";
 import { EmployeePickerDialog } from "./employee-picker-dialog";
 import { StationPickerDialog } from "./station-picker-dialog";
+
+type PrintFormat = "badge" | "a4-landscape";
 
 interface QrRow {
     id: string;
@@ -93,7 +96,8 @@ export function QrCodesTab() {
         manualEntryUrl: string,
         manualCode: string,
         row: QrRow,
-        expectedVersion: number
+        expectedVersion: number,
+        format: PrintFormat = "badge"
     ): Promise<boolean> {
         try {
             const { generateQRCodeSVG } = await import("@/lib/qr-code");
@@ -103,13 +107,24 @@ export function QrCodesTab() {
                 toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up");
                 return false;
             }
-            const targetLabel = escapeHtml(row.publicLabel || row.station?.name || "QR เสียงลูกค้า");
-            const subtitle = escapeHtml(
-                row.targetType === "EMPLOYEE"
-                    ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
-                    : [row.station?.name, row.placementKey ?? row.placement].filter(Boolean).join(" · ")
-            );
-            printWindow.document.write(`<!doctype html><html lang="th"><head><title>ป้าย QR ${targetLabel}</title><style>
+            const rawTargetLabel = row.publicLabel || row.station?.name || "QR เสียงลูกค้า";
+            const rawSubtitle = row.targetType === "EMPLOYEE"
+                ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
+                : [row.station?.name, row.placementKey ?? row.placement].filter(Boolean).join(" · ");
+            const targetLabel = escapeHtml(rawTargetLabel);
+            const subtitle = escapeHtml(rawSubtitle);
+            if (format === "a4-landscape") {
+                printWindow.document.write(buildCustomerFeedbackA4PosterHtml({
+                    qrUrl,
+                    manualEntryUrl,
+                    manualCode,
+                    targetLabel: rawTargetLabel,
+                    subtitle: rawSubtitle,
+                    isTest: row.isTest,
+                    version: expectedVersion,
+                }));
+            } else {
+                printWindow.document.write(`<!doctype html><html lang="th"><head><title>ป้าย QR ${targetLabel}</title><style>
                 body{font-family:sans-serif;display:flex;justify-content:center;padding:24px;color:#111}
                 .badge{border:2px solid #111;padding:16px 24px;text-align:center;max-width:340px}
                 .target{font-weight:700;font-size:22px;margin-top:8px}.subtitle{font-size:14px;color:#333;margin-top:4px}
@@ -126,6 +141,7 @@ export function QrCodesTab() {
                 <div>แล้วกรอกรหัส: <span class="manual">${escapeHtml(manualCode)}</span></div>
                 <div style="font-size:10px;color:#666;margin-top:8px">QR version ${expectedVersion}</div>
             </div></body></html>`);
+            }
             printWindow.document.close();
             printWindow.focus();
             printWindow.print();
@@ -136,7 +152,7 @@ export function QrCodesTab() {
         }
     }
 
-    const act = async (id: string, body: Record<string, unknown>, confirmMsg?: string) => {
+    const act = async (id: string, body: Record<string, unknown>, confirmMsg?: string, printFormat: PrintFormat = "badge") => {
         if (confirmMsg && !window.confirm(confirmMsg)) return;
         const res = await fetch(`/api/admin/customer-feedback/qr-codes/${id}`, {
             method: "PATCH",
@@ -159,7 +175,7 @@ export function QrCodesTab() {
                             ? { publicPosition: data.publicPosition }
                             : {}),
                     };
-                    const created = await openPrintWindow(data.qrUrl, data.manualEntryUrl, data.manualCode, printRow, expectedVersion);
+                    const created = await openPrintWindow(data.qrUrl, data.manualEntryUrl, data.manualCode, printRow, expectedVersion, printFormat);
                     if (created) await markPrinted(printableQrId, expectedVersion);
                     else toast.info("ยังไม่บันทึกว่าพิมพ์สำเร็จ สามารถเปิดพิมพ์ใหม่ได้");
                 }
@@ -294,9 +310,19 @@ export function QrCodesTab() {
                                                     </Button>
                                                 )}
                                                 {(q.targetType !== "EMPLOYEE" || q.publicProfileApprovedAt) && (
-                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
-                                                        <Printer className="mr-1 h-4 w-4" />พิมพ์ป้าย
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            title="A4 แนวนอน สำหรับใส่กรอบหรือป้ายวางหน้ารถ"
+                                                            onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version }, undefined, "a4-landscape")}
+                                                        >
+                                                            <Printer className="mr-1 h-4 w-4" />A4 แนวนอน
+                                                        </Button>
+                                                        <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
+                                                            ป้ายเล็ก
+                                                        </Button>
+                                                    </>
                                                 )}
                                                 {q.isActive ? (
                                                     <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>

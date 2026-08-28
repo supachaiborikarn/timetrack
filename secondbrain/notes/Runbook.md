@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - runbook
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Runbook
@@ -70,3 +70,13 @@ For each change:
 10. Update `00-Start-Here.md` when the important current state changes.
 
 Before committing code/config/rules, verify the relevant Second Brain files are included in the same commit or explicitly follow immediately in the same session.
+
+
+## Customer Feedback QR printing
+
+From Admin → เสียงลูกค้า → QR Codes, printable rows offer two formats:
+
+- `A4 แนวนอน` — 297×210 mm landscape poster for an acrylic/frame sign or a sign placed in front of a car.
+- `ป้ายเล็ก` — preserves the original compact badge format.
+
+Both formats call the same audited `reveal` API and show the current QR version. After the browser print/save-PDF dialog finishes, confirm success only if the current version was actually printed/saved; that confirmation records `MARK_PRINTED` and clears `needsReprint`. Do not mark printed merely to bypass activation.

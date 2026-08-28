@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Session Log
@@ -122,3 +122,31 @@ Follow-up / risk:
 - To make station QR signs usable by customers, physically print the current QR PDFs, record print success through the normal admin flow, then activate the intended station QRs.
 - EMPLOYEE QRs require public-profile acknowledgement for each employee before activation; 47 are still missing it at this check.
 - No QR activation state was forged or bypassed in this session.
+
+
+## 2026-08-28 — Added A4 landscape Customer Feedback QR poster
+
+Goal:
+
+Add a print format suitable for an acrylic/frame sign placed in front of a car, while preserving the existing compact QR badge format and all QR activation/print guards.
+
+Implementation:
+
+- Added `src/lib/customer-feedback/print-poster.ts` with a dedicated A4 landscape (297×210 mm) poster template.
+- Poster uses a large high-resolution SVG QR (~105 mm on paper), large Thai call-to-action, station/employee public label, fallback 8-character manual code, manual-entry URL, QR version, and a clear TEST watermark for test QRs.
+- Updated `src/components/customer-feedback/admin/qr-codes-tab.tsx` so authorized users can choose **A4 แนวนอน** or the existing **ป้ายเล็ก** from each printable QR row.
+- A4 printing still uses the existing `reveal` action and `MARK_PRINTED` confirmation flow; no activation guard is bypassed.
+- Added `src/lib/__tests__/customer-feedback-print-poster.test.ts`.
+- Generated a non-production demo render under `output/previews/customer-feedback-a4-landscape-sample.html` and `.png`; the demo QR/token is intentionally invalid and marked as a test/sample.
+
+Verification:
+
+- New poster unit tests: 2/2 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint on changed files: passed.
+- `npm run build`: compile and TypeScript passed, then hit the pre-existing unrelated `/apply/status` prerender `useState` null failure already documented in the runbook.
+
+Risk / follow-up:
+
+- Printing A4 or compact format both count as printing the current QR version only after the admin confirms the print/save succeeded.
+- Employee QR public-profile acknowledgement remains mandatory before either print action is shown.
