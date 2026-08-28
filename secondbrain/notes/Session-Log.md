@@ -281,3 +281,21 @@ Deployment:
 - Durable deploy task `d2fd25eb-a7f9-49b4-872d-b736d7e0853f` completed successfully. Vercel compiled, typechecked, prerendered all routes, deployed outputs, and reported `Ready in 2m`.
 - Production alias was updated successfully to `https://timetrack-lake.vercel.app`.
 
+## 2026-08-28 — Activated Golf employee feedback QR v1 after confirmed print
+
+Production state change (operator explicitly confirmed):
+
+- Target: employee public label `กอล์ฟ` at `ศุภชัยบริการ`; production EMPLOYEE QR version 1.
+- Production DB host: `ep-delicate-sound-a1mi5n1t-pooler.ap-southeast-1.aws.neon.tech`.
+- Recorded the already-printed v1 poster as printed (`lastPrintedAt`/`lastPrintedById`) and cleared `needsReprint`.
+- Activated the same QR row (`isActive=true`, `revokedAt=null`) without rotating the token or changing the QR version, so the physical poster already printed remains valid.
+- Wrote `CUSTOMER_FEEDBACK_QR_PRINTED` and `CUSTOMER_FEEDBACK_QR_ACTIVATED` audit entries using the existing admin approval actor.
+- Preconditions verified before the transaction: employee active, public profile already approved, production/non-test QR, no other active employee QR.
+
+Verification after the write:
+
+- Database state: version 1, `isActive=true`, `needsReprint=false`, `revokedAt=null`, print timestamp present, employee active.
+- Decrypted stored token hashes back to the same `tokenHash`, and a route-equivalent token-hash lookup resolves to the same active QR; no token/manual secret was printed to logs.
+- `https://timetrack-lake.vercel.app/f` returned HTTP 200.
+- Did not POST to the public resolve endpoint during verification because that endpoint creates a production `CustomerFeedbackVisit`; avoided polluting live feedback analytics with an artificial test visit.
+
