@@ -215,3 +215,10 @@ Verification:
 - Poster unit tests: 4/4 passed.
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint for poster/test/admin QR files: passed.
+
+Deployment:
+
+- Feature pushed to `origin/main` in commit `5d76452` (`Match customer feedback A4 mockup`).
+- Production deployment uploaded to `timetrack-lgph825zk-benzs-projects-2423502c.vercel.app` (Vercel inspect id `B5rNVa1TvAAPW6gLiU48WiL1oGH1`).
+- Durable deploy task: `5ac61143-a981-4de5-8d0b-180cf6ef1d7a`. At the final allowed check in this turn Vercel was still `Building`; production readiness was not claimed.
+
