@@ -154,3 +154,9 @@ Risk / follow-up:
 Git:
 
 - Feature commit: `093e2f6` — `Add A4 landscape customer feedback QR poster`
+
+Deployment:
+
+- `main` pushed through `a62761b`.
+- Vercel CLI 59.9.1 rejected the session with `Not authorized`; retrying with the previously working 59.7.0 client authenticated successfully, uploaded the production candidate, and started remote build at `timetrack-6khxsd8ww-benzs-projects-2423502c.vercel.app`.
+- At the final check in this session, the Vercel remote build was still compiling; production alias readiness was therefore not yet claimed.
