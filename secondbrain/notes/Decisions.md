@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Decisions
@@ -36,3 +36,10 @@ If HR sets `overrideOT`, that amount overrides automatic station OT for that day
 ## 2026-08-26: Early-leave deduction stays separate from late penalty
 
 The 50 THB under-threshold deduction is a distinct payroll deduction and should be presented as `หักกลับก่อนเกณฑ์`, not merged into `หักสาย` in calculations or UI.
+
+## 2026-08-28: Customer Feedback A4 print branding and hierarchy
+
+- Use Caltex as the master brand for Customer Feedback A4 signs, with `ENJOY THE JOURNEY` as the brand line.
+- EMPLOYEE signs use first-person invitation copy and make the approved public employee name the largest visual element.
+- STATION signs use collective invitation copy and a smaller station-name hierarchy.
+- Branding/layout changes must not bypass QR reveal auditing, print confirmation, `needsReprint`, or employee public-profile acknowledgement.

@@ -118,6 +118,7 @@ export function QrCodesTab() {
                     qrUrl,
                     manualEntryUrl,
                     manualCode,
+                    targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" : "STATION",
                     targetLabel: rawTargetLabel,
                     subtitle: rawSubtitle,
                     isTest: row.isTest,

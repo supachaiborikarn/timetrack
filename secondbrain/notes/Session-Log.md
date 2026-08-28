@@ -160,3 +160,32 @@ Deployment:
 - `main` pushed through `a62761b`.
 - Vercel CLI 59.9.1 rejected the session with `Not authorized`; retrying with the previously working 59.7.0 client authenticated successfully, uploaded the production candidate, and started remote build at `timetrack-6khxsd8ww-benzs-projects-2423502c.vercel.app`.
 - At the final check in this session, the Vercel remote build was still compiling; production alias readiness was therefore not yet claimed.
+
+## 2026-08-28 — Rebranded Customer Feedback A4 posters to Caltex and emphasized employee name
+
+Goal:
+
+Correct the A4 customer-feedback sign branding to Caltex and make employee/person QR signs clearly identify the individual being evaluated.
+
+Implementation:
+
+- Reworked `src/lib/customer-feedback/print-poster.ts` to use a Caltex red/navy/white print system with a Caltex lockup and the brand line `ENJOY THE JOURNEY`.
+- Added explicit `targetType` to the poster input so EMPLOYEE and STATION signs render different wording/hierarchy.
+- EMPLOYEE posters now use `ช่วยประเมินการบริการของฉัน` and make `publicLabel` the largest element on the page (25 mm type), followed by public position/station context.
+- STATION posters use `ช่วยประเมินการบริการของเรา` and keep the station label prominent but smaller than employee names.
+- Kept the large real SVG QR, 8-character fallback code, test watermark, reveal audit flow, print confirmation and `MARK_PRINTED` guard unchanged. No database rows or QR activation state were changed.
+- Generated a real-template sample render at `output/previews/customer-feedback-a4-caltex-employee.html` and `.png` using a non-production demo token/code.
+
+Verification:
+
+- Poster unit tests: 3/3 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for poster/test/admin QR files: passed.
+
+Decision:
+
+- Customer Feedback A4 signs use Caltex as the master brand with `ENJOY THE JOURNEY`. Employee signs prioritize the employee public name; station signs prioritize station identity with collective wording.
+
+Risk / follow-up:
+
+- The embedded print lockup is a print-safe vector/CSS representation so the sign does not depend on an external image URL. If an approved official Caltex artwork asset is supplied later, it can replace the embedded lockup without changing QR behavior.
