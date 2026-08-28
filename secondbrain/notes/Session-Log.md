@@ -189,3 +189,7 @@ Decision:
 Risk / follow-up:
 
 - The embedded print lockup is a print-safe vector/CSS representation so the sign does not depend on an external image URL. If an approved official Caltex artwork asset is supplied later, it can replace the embedded lockup without changing QR behavior.
+
+Git:
+
+- Feature commit: `ea0bbdf` — `Brand customer feedback A4 signs for Caltex`
