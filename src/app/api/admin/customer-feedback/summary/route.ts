@@ -17,7 +17,7 @@ import {
     MIN_STATION_COMPARE_SAMPLE,
     type RatingSummary,
 } from "@/lib/customer-feedback/metrics";
-import { getReasonOwner } from "@/lib/customer-feedback/questions";
+import { getReasonOwner, STANDARD_SURVEY_VERSIONS } from "@/lib/customer-feedback/questions";
 import { startOfDayBangkok } from "@/lib/date-utils";
 import { monthsBefore, RESPONSE_RETENTION_MONTHS } from "@/lib/customer-feedback/retention";
 
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
         const aggregateFilters = {
             reportDate: { gte: aggregateDateFrom, lt: historicalToExclusive },
             isTest: false,
-            surveyVersion: { in: ["employee-v1", "station-v1"] },
+            surveyVersion: { in: [...STANDARD_SURVEY_VERSIONS] },
             ...(stationId ? { stationKey: stationId } : {}),
             ...(targetType.value ? { targetType: targetType.value } : {}),
         };
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
                       where: {
                           reportDate: { gte: aggregateDateFrom, lt: historicalToExclusive },
                           isTest: false,
-                          surveyVersion: { in: ["employee-v1", "station-v1"] },
+                          surveyVersion: { in: [...STANDARD_SURVEY_VERSIONS] },
                           ...(stationId ? { stationKey: stationId } : {}),
                           ...(targetType.value ? { targetType: targetType.value } : {}),
                       },
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
                 where: {
                     reportDate: { gte: aggregateDateFrom, lt: closedAggregateTo },
                     isTest: false,
-                    surveyVersion: { in: ["employee-v1", "station-v1"] },
+                    surveyVersion: { in: [...STANDARD_SURVEY_VERSIONS] },
                     ...(stationId ? { stationKey: stationId } : {}),
                     ...(targetType.value ? { targetType: targetType.value } : {}),
                 },
@@ -215,7 +215,7 @@ export async function GET(request: NextRequest) {
                 where: {
                     openedAt: { gte: liveFrom, lt: liveTo },
                     isTestAtOpen: false,
-                    surveyVersion: { in: ["employee-v1", "station-v1"] },
+                    surveyVersion: { in: [...STANDARD_SURVEY_VERSIONS] },
                     ...(targetType.value ? { targetType: targetType.value } : {}),
                     ...(stationId
                         ? {
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
             });
             for (const visit of liveVisits) {
                 const visitStation = visit.stationIdSelected ?? visit.stationIdAtOpen ?? visit.qrCode?.stationId ?? "NO_QR";
-                if (visit.isTestAtOpen || !["employee-v1", "station-v1"].includes(visit.surveyVersion)) continue;
+                if (visit.isTestAtOpen || !(STANDARD_SURVEY_VERSIONS as readonly string[]).includes(visit.surveyVersion)) continue;
                 if (stationId && visitStation !== stationId) continue;
                 if (targetType.value && visit.targetType !== targetType.value) continue;
                 const disposition = visit.disposition === "OPEN" && visit.formExpiresAt < now

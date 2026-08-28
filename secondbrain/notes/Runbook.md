@@ -80,3 +80,11 @@ From Admin → เสียงลูกค้า → QR Codes, printable rows of
 - `ป้ายเล็ก` — preserves the original compact badge format.
 
 Both formats call the same audited `reveal` API and show the current QR version. After the browser print/save-PDF dialog finishes, confirm success only if the current version was actually printed/saved; that confirmation records `MARK_PRINTED` and clears `needsReprint`. Do not mark printed merely to bypass activation.
+
+## Customer Feedback employee survey versions
+
+- New EMPLOYEE resolves use `employee-v2`.
+- `employee-v2` adds seven required service-behavior answers: neat appearance, vehicle guidance, greeting, order repeat, special-service offer, thanks, and front-of-car service sign. Values are stored as normalized `YES`, `NO`, or `UNSURE` answers under stable question keys.
+- Keep `employee-v1` registered and accepted for already-open visits. Never coerce an old visit/token to v2 during submit or idempotent resolve reuse.
+- STATION remains `station-v1`; incident remains `incident-v1`.
+- Adding/changing a published behavior meaning requires a new survey version rather than silently reusing a published key.

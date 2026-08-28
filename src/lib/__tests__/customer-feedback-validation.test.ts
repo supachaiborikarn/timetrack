@@ -5,7 +5,14 @@ import {
     validatePhone,
     validateEmail,
 } from "@/lib/customer-feedback/validation";
-import { shuffledOptionOrder, SURVEYS, EMPLOYEE_REASON_OPTIONS, STATION_REASON_OPTIONS } from "@/lib/customer-feedback/questions";
+import {
+    shuffledOptionOrder,
+    SURVEYS,
+    EMPLOYEE_BEHAVIOR_QUESTIONS,
+    EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    EMPLOYEE_REASON_OPTIONS,
+    STATION_REASON_OPTIONS,
+} from "@/lib/customer-feedback/questions";
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, SEVERITY_SLA_HOURS } from "@/lib/customer-feedback/cases";
 import { summarizeRatingDistribution, summarizeRatings, meetsMinimumSample } from "@/lib/customer-feedback/metrics";
 
@@ -17,10 +24,20 @@ describe("question registry", () => {
         }
     });
 
-    it("survey version ทั้งสามมีค่าครบ", () => {
+    it("survey version ทั้งสี่มีค่าครบ", () => {
         expect(SURVEYS["employee-v1"].maxReasons).toBe(2);
+        expect(SURVEYS["employee-v2"].behaviorQuestions).toEqual(EMPLOYEE_BEHAVIOR_QUESTIONS);
         expect(SURVEYS["station-v1"].maxReasons).toBe(3);
         expect(SURVEYS["incident-v1"].commentMaxLength).toBe(1000);
+    });
+
+    it("employee-v2 มีคำถามพฤติกรรม 7 ข้อพร้อมคำแปลไทยและอังกฤษ", () => {
+        expect(EMPLOYEE_BEHAVIOR_QUESTIONS.map((question) => question.key)).toEqual(EMPLOYEE_BEHAVIOR_QUESTION_KEYS);
+        expect(new Set(EMPLOYEE_BEHAVIOR_QUESTION_KEYS).size).toBe(7);
+        for (const question of EMPLOYEE_BEHAVIOR_QUESTIONS) {
+            expect(question.label.th.length).toBeGreaterThan(0);
+            expect(question.label.en.length).toBeGreaterThan(0);
+        }
     });
 
     it("หมุนลำดับตัวเลือกตาม seed และตรึง other/unspecified ท้ายรายการ", () => {
@@ -37,6 +54,15 @@ describe("question registry", () => {
 });
 
 describe("standard payload validation", () => {
+    const behaviorAnswers = {
+        appearance_neat: "YES",
+        vehicle_guidance: "NO",
+        greeted_customer: "UNSURE",
+        order_repeated: "YES",
+        special_service_offered: "NO",
+        thanked_customer: "YES",
+        front_sign_placed: "UNSURE",
+    } as const;
     const base = {
         targetConfirmation: "YES",
         overallRating: 5,
@@ -149,6 +175,39 @@ describe("standard payload validation", () => {
         const comment = "ก".repeat(301);
         expect(validateStandardPayload({ ...base, comment }, "employee-v1").ok).toBe(true);
         expect(validateStandardPayload({ ...base, comment }, "station-v1").ok).toBe(false);
+    });
+
+    it("employee-v2 บังคับ behaviorAnswers ให้ครบ 7 ข้อและคืนค่าที่ validate แล้ว", () => {
+        const result = validateStandardPayload({ ...base, behaviorAnswers }, "employee-v2");
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.value.behaviorAnswers).toEqual(behaviorAnswers);
+
+        expect(validateStandardPayload(base, "employee-v2").ok).toBe(false);
+        expect(validateStandardPayload({
+            ...base,
+            behaviorAnswers: { ...behaviorAnswers, thanked_customer: undefined },
+        }, "employee-v2").ok).toBe(false);
+    });
+
+    it("employee-v2 ปฏิเสธ key เกินและค่าที่ไม่ใช่ YES, NO, UNSURE", () => {
+        expect(validateStandardPayload({
+            ...base,
+            behaviorAnswers: { ...behaviorAnswers, unknown_behavior: "YES" },
+        }, "employee-v2").ok).toBe(false);
+        expect(validateStandardPayload({
+            ...base,
+            behaviorAnswers: { ...behaviorAnswers, appearance_neat: "MAYBE" },
+        }, "employee-v2").ok).toBe(false);
+    });
+
+    it("employee-v1 และ station-v1 ห้ามส่ง behaviorAnswers เพื่อรักษา payload รุ่นเดิม", () => {
+        expect(validateStandardPayload({ ...base, behaviorAnswers }, "employee-v1").ok).toBe(false);
+        expect(validateStandardPayload({
+            ...base,
+            reasonKeys: ["station_cleanliness"],
+            serviceAreas: ["restroom"],
+            behaviorAnswers,
+        }, "station-v1").ok).toBe(false);
     });
 
     it("ปฏิเสธ durationSeconds จาก client เพราะ server เป็นผู้คำนวณ", () => {

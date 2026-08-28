@@ -12,6 +12,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn().mockResolvedValue(null) }));
 import {
     abuseResponseWhere,
     abuseSignalLockKeys,
+    buildNormalizedStandardAnswers,
     canonicalPayloadHash,
     createCaseWithNotifications,
     recordUrgentIncidentAlert,
@@ -20,6 +21,7 @@ import {
     shouldCreateOperationalFeedbackCase,
     type LoadedVisitContext,
 } from "@/lib/customer-feedback/submit";
+import { EMPLOYEE_BEHAVIOR_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import type { StandardPayload } from "@/lib/customer-feedback/validation";
 
 process.env.CUSTOMER_FEEDBACK_ABUSE_HMAC_KEY = "test-abuse-secret";
@@ -35,13 +37,25 @@ const payload: StandardPayload = {
     language: "th",
 };
 
-function submittedVisit(): LoadedVisitContext {
+const behaviorAnswers = {
+    appearance_neat: "YES",
+    vehicle_guidance: "NO",
+    greeted_customer: "UNSURE",
+    order_repeated: "YES",
+    special_service_offered: "NO",
+    thanked_customer: "YES",
+    front_sign_placed: "UNSURE",
+} as const;
+
+const employeeV2Payload: StandardPayload = { ...payload, behaviorAnswers };
+
+function submittedVisit(surveyVersion: "employee-v1" | "employee-v2" = "employee-v1"): LoadedVisitContext {
     return {
         visit: {
             id: "visit-1",
             visitKind: "STANDARD",
             targetType: "EMPLOYEE",
-            surveyVersion: "employee-v1",
+            surveyVersion,
             qrCodeId: "qr-1",
             qrVersionAtOpen: 1,
             disposition: "SUBMITTED",
@@ -58,7 +72,7 @@ function submittedVisit(): LoadedVisitContext {
             visitId: "visit-1",
             visitKind: "STANDARD",
             targetType: "EMPLOYEE",
-            surveyVersion: "employee-v1",
+            surveyVersion,
             qrCodeId: "qr-1",
             qrVersion: 1,
             issuedAt: Date.now() - 10_000,
@@ -108,6 +122,61 @@ describe("customer feedback submission idempotency", () => {
             payload: { ...payload, selectedStationId: "station-2" },
             loaded: submittedVisit(),
         })).resolves.toEqual({ conflict: true, status: 409 });
+    });
+
+    it("employee-v2 ใช้ surveyVersion ของ Visit และคืนผลเดิมได้", async () => {
+        const storedHash = canonicalPayloadHash(standardIdempotencyPayload("visit-1", "qr-1", employeeV2Payload));
+        prismaMock.customerFeedbackResponse.findUnique.mockResolvedValue({
+            refCode: "FB-V2",
+            idempotencyPayloadHash: storedHash,
+            case: null,
+        });
+
+        await expect(submitStandardResponse({
+            headers: new Headers(),
+            idempotencyKey: "same-key-v2",
+            payload: employeeV2Payload,
+            loaded: submittedVisit("employee-v2"),
+        })).resolves.toEqual({
+            refCode: "FB-V2",
+            caseId: null,
+            severity: null,
+            duplicate: true,
+        });
+    });
+});
+
+describe("employee-v2 normalized behavior answers", () => {
+    it("สร้าง CustomerFeedbackAnswer แยก questionKey ครบทั้ง 7 ข้อ", () => {
+        const answers = buildNormalizedStandardAnswers("employee-v2", employeeV2Payload);
+        const behaviorRows = answers.filter((answer) =>
+            (EMPLOYEE_BEHAVIOR_QUESTION_KEYS as readonly string[]).includes(answer.questionKey)
+        );
+
+        expect(behaviorRows).toHaveLength(7);
+        for (const row of behaviorRows) {
+            expect(row).toMatchObject({
+                surveyVersion: "employee-v2",
+                state: "ANSWERED",
+                choiceValues: [behaviorAnswers[row.questionKey as keyof typeof behaviorAnswers]],
+            });
+        }
+    });
+
+    it("employee-v1 ไม่เพิ่มคำตอบพฤติกรรมและ hash payload เดิมไม่เปลี่ยนรูป", () => {
+        const answers = buildNormalizedStandardAnswers("employee-v1", payload);
+        expect(answers.some((answer) =>
+            (EMPLOYEE_BEHAVIOR_QUESTION_KEYS as readonly string[]).includes(answer.questionKey)
+        )).toBe(false);
+
+        const canonical = standardIdempotencyPayload("visit-1", "qr-1", payload);
+        expect(canonical.payload).not.toHaveProperty("behaviorAnswers");
+    });
+
+    it("employee-v2 ไม่มีคำตอบครบต้องหยุดก่อนเขียน answers", () => {
+        expect(() => buildNormalizedStandardAnswers("employee-v2", payload)).toThrow(
+            "employee-v2 requires all behavior answers"
+        );
     });
 });
 

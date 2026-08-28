@@ -209,7 +209,7 @@ describe("public feedback resolve final eligibility re-read", () => {
         expect(response.headers.get("Cache-Control")).toBe("no-store");
         await expect(response.json()).resolves.toMatchObject({
             visitToken: "signed-visit-token",
-            surveyVersion: "employee-v1",
+            surveyVersion: "employee-v2",
             targetType: "EMPLOYEE",
             isTest: false,
         });

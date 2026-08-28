@@ -34,6 +34,7 @@ Customer Feedback QR launch state (checked 2026-08-27):
 - Station QR PDFs exist under `output/pdf/station-feedback/`, but print success still has to be recorded through the normal flow before activation.
 - Do not bypass `needsReprint` or employee public-profile acknowledgement merely to make a QR active.
 - Admin QR Codes supports a dedicated **A4 landscape** print format for front-of-car/acrylic signs while keeping the compact badge format. As of 2026-08-28 the real print template follows the final approved Caltex reference: official Caltex lock-up, white/red/deep-teal composition, oversized red employee public name, handwritten-style question, position/station rows, three-column information band, elevated QR card with Caltex centre mark, eight separate fallback-code cells, red/teal bottom sweep and Techron treatment. QR/name/position/station/code remain dynamic; print/consent/activation guards are unchanged.
+- Employee Customer Feedback now has registry version `employee-v2`: new employee QR visits ask seven service-behavior questions (appearance, vehicle guidance, greeting, order repeat, special-service offer, thanks, front-of-car sign) with `YES | NO | UNSURE`; existing `employee-v1` visits remain valid and continue to submit under their original version.
 
 ## Read first for payroll work
 

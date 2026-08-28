@@ -28,6 +28,12 @@ export async function GET() {
                     ? [{ key: "incident_type", required: true, label: { th: "ประเภทเหตุ", en: "Incident type" }, branching: "always" }]
                     : [{ key: "reason_keys", required: "rating <= 2", label: { th: "สาเหตุ", en: "Reasons" }, branching: `max ${s.maxReasons}; unspecified singleton` }]),
                 ...(s.version === "station-v1" ? [{ key: "service_areas", required: false, label: { th: "ส่วนบริการที่ใช้", en: "Service areas" }, branching: "unsure singleton" }] : []),
+                ...s.behaviorQuestions.map((question) => ({
+                    key: question.key,
+                    required: true,
+                    label: question.label,
+                    branching: "YES | NO | UNSURE",
+                })),
                 { key: "comment", required: false, label: { th: "ข้อความเพิ่มเติม", en: "Comment" }, branching: "optional" },
             ],
             reasonOptions: s.reasonOptions,

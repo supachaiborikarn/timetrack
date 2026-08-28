@@ -7,8 +7,16 @@
  * - คะแนน 1–2 ต้องเลือกสาเหตุอย่างน้อยหนึ่งข้อหรือ "ไม่สะดวกระบุ"
  */
 
-export type SurveyVersion = "employee-v1" | "station-v1" | "incident-v1";
+export type SurveyVersion = "employee-v1" | "employee-v2" | "station-v1" | "incident-v1";
+export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
 export type QuestionOwner = "EMPLOYEE" | "SYSTEM" | "STATION" | "UNKNOWN";
+export type BehaviorAnswer = "YES" | "NO" | "UNSURE";
+
+export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
+
+export function isStandardSurveyVersion(version: string): version is StandardSurveyVersion {
+    return (STANDARD_SURVEY_VERSIONS as readonly string[]).includes(version);
+}
 
 export interface LocalizedText {
     th: string;
@@ -26,11 +34,17 @@ export interface ServiceAreaOption {
     label: LocalizedText;
 }
 
+export interface BehaviorQuestion {
+    key: EmployeeBehaviorQuestionKey;
+    label: LocalizedText;
+}
+
 export interface SurveyDefinition {
     version: SurveyVersion;
     maxReasons: number;
     commentMaxLength: number;
     reasonOptions: ReasonOption[];
+    behaviorQuestions: BehaviorQuestion[];
 }
 
 export const RATING_OPTIONS: { value: number; label: LocalizedText }[] = [
@@ -63,6 +77,51 @@ export const EMPLOYEE_REASON_OPTIONS: ReasonOption[] = [
     { key: "system_availability", label: { th: "สินค้าหรืออุปกรณ์ไม่พร้อม", en: "Product or equipment unavailable" }, owner: "SYSTEM" },
     { key: "other", label: { th: "อื่น ๆ", en: "Other" }, owner: "UNKNOWN" },
     { key: "unspecified", label: { th: "ไม่สะดวกระบุ", en: "Prefer not to say" }, owner: "UNKNOWN" },
+];
+
+export const EMPLOYEE_BEHAVIOR_QUESTION_KEYS = [
+    "appearance_neat",
+    "vehicle_guidance",
+    "greeted_customer",
+    "order_repeated",
+    "special_service_offered",
+    "thanked_customer",
+    "front_sign_placed",
+] as const;
+
+export type EmployeeBehaviorQuestionKey = (typeof EMPLOYEE_BEHAVIOR_QUESTION_KEYS)[number];
+export type EmployeeBehaviorAnswers = Record<EmployeeBehaviorQuestionKey, BehaviorAnswer>;
+
+/** คำถามพฤติกรรมที่เพิ่มใน employee-v2 — key ที่เผยแพร่แล้วห้ามเปลี่ยนความหมาย */
+export const EMPLOYEE_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
+    {
+        key: "appearance_neat",
+        label: { th: "พนักงานแต่งกายสะอาดและเรียบร้อย", en: "The employee was clean and neatly dressed" },
+    },
+    {
+        key: "vehicle_guidance",
+        label: { th: "พนักงานโบกรถและแนะนำจุดจอดอย่างเหมาะสม", en: "The employee guided your vehicle to the service point" },
+    },
+    {
+        key: "greeted_customer",
+        label: { th: "พนักงานกล่าวทักทายคุณ", en: "The employee greeted you" },
+    },
+    {
+        key: "order_repeated",
+        label: { th: "พนักงานทวนรายการที่คุณสั่ง", en: "The employee repeated your order" },
+    },
+    {
+        key: "special_service_offered",
+        label: { th: "พนักงานเสนอผลิตภัณฑ์หรือบริการพิเศษ", en: "The employee offered special products or services" },
+    },
+    {
+        key: "thanked_customer",
+        label: { th: "พนักงานกล่าวขอบคุณหลังให้บริการ", en: "The employee thanked you after the service" },
+    },
+    {
+        key: "front_sign_placed",
+        label: { th: "พนักงานวางป้ายบริการหน้ารถ", en: "The employee placed the service sign in front of the vehicle" },
+    },
 ];
 
 export const STATION_REASON_OPTIONS: ReasonOption[] = [
@@ -107,12 +166,21 @@ export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
         maxReasons: 2,
         commentMaxLength: 500,
         reasonOptions: EMPLOYEE_REASON_OPTIONS,
+        behaviorQuestions: [],
+    },
+    "employee-v2": {
+        version: "employee-v2",
+        maxReasons: 2,
+        commentMaxLength: 500,
+        reasonOptions: EMPLOYEE_REASON_OPTIONS,
+        behaviorQuestions: EMPLOYEE_BEHAVIOR_QUESTIONS,
     },
     "station-v1": {
         version: "station-v1",
         maxReasons: 3,
         commentMaxLength: 300,
         reasonOptions: STATION_REASON_OPTIONS,
+        behaviorQuestions: [],
     },
     // incident ไม่มี reason ให้เลือก — ใช้ incidentKey แทน
     "incident-v1": {
@@ -120,6 +188,7 @@ export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
         maxReasons: 0,
         commentMaxLength: 1000,
         reasonOptions: [],
+        behaviorQuestions: [],
     },
 };
 

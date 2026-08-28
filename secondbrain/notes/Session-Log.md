@@ -299,3 +299,32 @@ Verification after the write:
 - `https://timetrack-lake.vercel.app/f` returned HTTP 200.
 - Did not POST to the public resolve endpoint during verification because that endpoint creates a production `CustomerFeedbackVisit`; avoided polluting live feedback analytics with an artificial test visit.
 
+## 2026-08-28 — Added seven employee service-behavior questions (`employee-v2`)
+
+Owner request:
+
+Add seven Customer Feedback questions for employee service execution: neat appearance, vehicle guidance, greeting, repeating the order, offering special/additional service, thanking the customer, and placing the front-of-car service sign.
+
+Implementation:
+
+- Added registry version `employee-v2` while retaining `employee-v1` for backward compatibility.
+- New employee resolves issue `employee-v2`; idempotent reuse returns the original Visit survey version so existing `employee-v1` sessions remain valid.
+- Added seven stable behavior keys and bilingual labels.
+- Added a dedicated mobile UI step after overall rating with three answers per question (`YES`, `NO`, `UNSURE`), progress 0/7 through 7/7, back navigation, safe draft restore, and validation focus/error handling.
+- `employee-v2` requires all seven behavior answers before submit; `employee-v1` and `station-v1` reject the new payload field.
+- Each behavior is persisted as its own normalized `CustomerFeedbackAnswer`; the v1 idempotency payload shape remains unchanged when behavior answers are absent.
+- Admin question registry and summary/funnel version filters include `employee-v2`. Station and incident survey behavior is unchanged.
+- No Prisma schema change, migration, QR rotation, production DB write, or employee QR activation was required.
+
+Verification:
+
+- Focused Customer Feedback tests: 78/78 passed across validation, submit, public resolve, admin access/summary and feedback-form UI.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed with zero errors/warnings.
+- `git diff --check`: passed.
+- `npm run build`: Prisma generate, Next compile and TypeScript passed; build later failed on the known unrelated `/apply/status` prerender `useState` null error.
+
+Deployment:
+
+- Pending commit/push/deploy at the time of this entry; record the final production state below once confirmed.
+

@@ -13,7 +13,11 @@ import {
 } from "./anti-abuse";
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, caseNotificationEventKey } from "./cases";
 import { visitPurgeAfter, contactPurgeAfter, FORM_EXPIRY_MS } from "./retention";
-import { PRIVACY_NOTICE_VERSION, type SurveyVersion } from "./questions";
+import {
+    EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    PRIVACY_NOTICE_VERSION,
+    type StandardSurveyVersion,
+} from "./questions";
 import type { StandardPayload, IncidentPayload } from "./validation";
 import { encryptField } from "@/lib/crypto-field";
 
@@ -111,8 +115,71 @@ export function standardIdempotencyPayload(
             wantsFollowUp: payload.wantsFollowUp,
             contact: payload.contact ?? null,
             language: payload.language,
+            ...(payload.behaviorAnswers
+                ? {
+                    behaviorAnswers: Object.fromEntries(
+                        EMPLOYEE_BEHAVIOR_QUESTION_KEYS.map((key) => [key, payload.behaviorAnswers![key]])
+                    ),
+                }
+                : {}),
         },
     };
+}
+
+type NormalizedStandardAnswer = {
+    surveyVersion: string;
+    questionKey: string;
+    state: "ANSWERED" | "SKIPPED" | "NOT_SHOWN";
+    numberValue?: number;
+    textValue?: string;
+    choiceValues?: string[];
+};
+
+export function buildNormalizedStandardAnswers(
+    surveyVersion: StandardSurveyVersion,
+    payload: StandardPayload
+): NormalizedStandardAnswer[] {
+    const answers: NormalizedStandardAnswer[] = [
+        { surveyVersion, questionKey: "target_confirmation", state: "ANSWERED", choiceValues: ["YES"] },
+        { surveyVersion, questionKey: "overall_rating", state: "ANSWERED", numberValue: payload.overallRating },
+        {
+            surveyVersion,
+            questionKey: "reason_keys",
+            state: payload.reasonKeys.length > 0 ? "ANSWERED" : payload.overallRating <= 2 ? "ANSWERED" : "SKIPPED",
+            choiceValues: payload.reasonKeys,
+        },
+        {
+            surveyVersion,
+            questionKey: "service_areas",
+            state: payload.serviceAreas.length > 0 ? "ANSWERED" : "SKIPPED",
+            choiceValues: payload.serviceAreas,
+        },
+        {
+            surveyVersion,
+            questionKey: "comment",
+            state: payload.comment ? "ANSWERED" : "SKIPPED",
+            textValue: payload.comment,
+        },
+    ];
+
+    if (surveyVersion === "employee-v2") {
+        if (
+            !payload.behaviorAnswers ||
+            EMPLOYEE_BEHAVIOR_QUESTION_KEYS.some((key) => !["YES", "NO", "UNSURE"].includes(payload.behaviorAnswers![key]))
+        ) {
+            throw new Error("employee-v2 requires all behavior answers");
+        }
+        for (const questionKey of EMPLOYEE_BEHAVIOR_QUESTION_KEYS) {
+            answers.push({
+                surveyVersion,
+                questionKey,
+                state: "ANSWERED",
+                choiceValues: [payload.behaviorAnswers[questionKey]],
+            });
+        }
+    }
+
+    return answers;
 }
 
 export function incidentIdempotencyPayload(
@@ -427,8 +494,11 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
     if (visit.visitKind !== "STANDARD" || !qr) return { failure: "VISIT_NOT_OPEN", status: 409 } as const;
 
     const isEmployee = qr.targetType === "EMPLOYEE";
-    const surveyVersion = (isEmployee ? "employee-v1" : "station-v1") as SurveyVersion;
-    if (tokenPayload.surveyVersion !== surveyVersion || visit.surveyVersion !== surveyVersion) {
+    const surveyVersion = visit.surveyVersion as StandardSurveyVersion;
+    const supportedForTarget = isEmployee
+        ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2"
+        : surveyVersion === "station-v1";
+    if (!supportedForTarget || tokenPayload.surveyVersion !== surveyVersion) {
         return { failure: "TOKEN_INVALID", status: 401 } as const;
     }
 
@@ -653,19 +723,8 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
             select: { id: true },
         });
 
-            // normalized answers
-        const answers: { surveyVersion: string; questionKey: string; state: "ANSWERED" | "SKIPPED" | "NOT_SHOWN"; numberValue?: number; textValue?: string; choiceValues?: string[] }[] = [
-            { surveyVersion, questionKey: "target_confirmation", state: "ANSWERED", choiceValues: ["YES"] },
-            { surveyVersion, questionKey: "overall_rating", state: "ANSWERED", numberValue: args.payload.overallRating },
-            {
-                surveyVersion,
-                questionKey: "reason_keys",
-                state: args.payload.reasonKeys.length > 0 ? "ANSWERED" : args.payload.overallRating <= 2 ? "ANSWERED" : "SKIPPED",
-                choiceValues: args.payload.reasonKeys,
-            },
-            { surveyVersion, questionKey: "service_areas", state: args.payload.serviceAreas.length > 0 ? "ANSWERED" : "SKIPPED", choiceValues: args.payload.serviceAreas },
-            { surveyVersion, questionKey: "comment", state: args.payload.comment ? "ANSWERED" : "SKIPPED", textValue: args.payload.comment },
-        ];
+        // normalized answers
+        const answers = buildNormalizedStandardAnswers(surveyVersion, args.payload);
         await tx.customerFeedbackAnswer.createMany({
             data: answers.map((a) => ({
                 responseId: created.id,

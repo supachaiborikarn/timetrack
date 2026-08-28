@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
             stationContext = { stationId: qr.stationId!, source: "TOKEN" };
         }
 
-        const surveyVersion = qr.targetType === "EMPLOYEE" ? "employee-v1" : "station-v1";
+        const newSurveyVersion = qr.targetType === "EMPLOYEE" ? "employee-v2" : "station-v1";
         const formExpiresAt = new Date(now.getTime() + FORM_EXPIRY_MS);
 
         // ส่ง Resolve-Idempotency-Key เดิมซ้ำ = คำขอเดิม ไม่สร้าง Visit ใหม่
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
                 visitId,
                 visitKind: "STANDARD",
                 targetType: qr.targetType,
-                surveyVersion,
+                surveyVersion: newSurveyVersion,
                 qrCodeId: qr.id,
                 qrVersion: currentQr.version,
             }, now.getTime());
@@ -347,7 +347,7 @@ export async function POST(request: NextRequest) {
                 qrCodeId: qr.id,
                 qrVersionAtOpen: currentQr.version,
                 visitKind: "STANDARD" as const,
-                surveyVersion,
+                surveyVersion: newSurveyVersion,
                 disposition: "OPEN" as const,
                 isTestAtOpen: currentQr.isTest,
                 sessionTokenHash: initialToken.tokenHash,
@@ -415,7 +415,13 @@ export async function POST(request: NextRequest) {
         const { visit, signedToken } = issuedVisit;
         await recordResolve(resolverType, "SUCCESS");
 
-        const survey = getSurvey(surveyVersion)!;
+        // idempotent resolve อาจ reuse Visit รุ่นเก่า จึงต้องคืน registry/version ของ Visit เดิม
+        // ให้ตรงกับ signed token และกติกาที่ใช้ตอนส่งคำตอบ
+        const resolvedSurveyVersion = visit.surveyVersion;
+        const survey = getSurvey(resolvedSurveyVersion);
+        if (!survey || resolvedSurveyVersion === "incident-v1") {
+            return publicError("SESSION_EXPIRED", 401);
+        }
         const stationName = visit.stationIdAtOpen
             ? (await prisma.station.findUnique({ where: { id: visit.stationIdAtOpen }, select: { name: true, publicEmergencyPhone: true } }))
             : null;
@@ -423,7 +429,7 @@ export async function POST(request: NextRequest) {
 
         return noStore(NextResponse.json({
             visitToken: signedToken,
-            surveyVersion,
+            surveyVersion: resolvedSurveyVersion,
             targetType: qr.targetType,
             target: {
                 label: qr.publicLabel,

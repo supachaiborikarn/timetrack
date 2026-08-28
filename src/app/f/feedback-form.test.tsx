@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { FeedbackForm, stableRequestKey } from "./feedback-form";
 
 const stationResolveResult = {
@@ -17,6 +17,14 @@ const stationResolveResult = {
     isTest: false,
 };
 
+const employeeV2ResolveResult = {
+    ...stationResolveResult,
+    surveyVersion: "employee-v2",
+    targetType: "EMPLOYEE",
+    target: { label: "พนักงาน ก", position: "พนักงานเติมน้ำมัน" },
+    reasonOptionOrder: ["employee_courtesy", "other", "unspecified"],
+};
+
 async function reachStationReasons() {
     fireEvent.change(screen.getByLabelText("กรอกรหัส 8 ตัวใต้ QR"), { target: { value: "ABCDEFGH" } });
     fireEvent.click(screen.getByRole("button", { name: "เริ่มประเมิน" }));
@@ -30,6 +38,19 @@ async function reachStationReasons() {
     fireEvent.click(screen.getByRole("radio", { name: "4. พอใจ" }));
     fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
     await screen.findByRole("heading", { name: "เรื่องใดทำให้คุณพอใจ" });
+}
+
+async function reachEmployeeRating() {
+    fireEvent.change(screen.getByLabelText("กรอกรหัส 8 ตัวใต้ QR"), { target: { value: "ABCDEFGH" } });
+    fireEvent.click(screen.getByRole("button", { name: "เริ่มประเมิน" }));
+    await screen.findByRole("heading", { name: "วันนี้ พนักงาน ก เป็นผู้ให้บริการคุณใช่ไหม" });
+    fireEvent.click(screen.getByRole("radio", { name: "ใช่" }));
+    fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+    await screen.findByRole("heading", { name: "โดยรวม คุณพอใจกับการให้บริการครั้งนี้เพียงใด" });
+}
+
+function answerBehavior(question: RegExp, answer: "ใช่" | "ไม่ใช่" | "ไม่แน่ใจ") {
+    fireEvent.click(within(screen.getByRole("group", { name: question })).getByRole("radio", { name: answer }));
 }
 
 describe("FeedbackForm station choices", () => {
@@ -247,6 +268,144 @@ describe("FeedbackForm station choices", () => {
         await screen.findByRole("heading", { name: "โดยรวม คุณพอใจกับการใช้บริการที่สถานีนี้วันนี้เพียงใด" });
         expect(sessionStorage.getItem("cf_visit_token")).toBe("signed-visit-token");
         expect((screen.getByRole("radio", { name: "3. ปานกลาง" }) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it("requires all seven employee-v2 behaviors, keeps back navigation, and submits the exact answers", async () => {
+        const submittedBodies: Array<Record<string, unknown>> = [];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+                const url = String(input);
+                if (url.endsWith("/api/public/customer-feedback/resolve")) {
+                    return new Response(JSON.stringify(employeeV2ResolveResult), {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+                if (url.endsWith("/api/public/customer-feedback/submissions")) {
+                    submittedBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+                    return new Response(JSON.stringify({ refCode: "EMP-2" }), {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+                return new Response(JSON.stringify({}), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                });
+            })
+        );
+
+        render(<FeedbackForm />);
+        await reachEmployeeRating();
+        fireEvent.click(screen.getByRole("radio", { name: "4. พอใจ" }));
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+
+        await screen.findByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" });
+        expect(screen.getAllByRole("group")).toHaveLength(7);
+        expect(screen.getAllByRole("radio")).toHaveLength(21);
+
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+        expect((await screen.findByRole("alert")).textContent).toContain("กรุณาตอบคำถามนี้ก่อนดำเนินการต่อ");
+        expect(screen.getByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" })).toBeTruthy();
+
+        answerBehavior(/แต่งกายสะอาดและเรียบร้อย/, "ใช่");
+        answerBehavior(/โบกรถและแนะนำจุดจอด/, "ไม่ใช่");
+        answerBehavior(/กล่าวทักทาย/, "ไม่แน่ใจ");
+        answerBehavior(/ทวนรายการ/, "ใช่");
+        answerBehavior(/เสนอผลิตภัณฑ์หรือบริการพิเศษ/, "ไม่ใช่");
+        answerBehavior(/กล่าวขอบคุณ/, "ใช่");
+        answerBehavior(/วางป้ายบริการหน้ารถ/, "ไม่แน่ใจ");
+
+        await waitFor(() => {
+            const draft = JSON.parse(sessionStorage.getItem("cf_feedback_draft_v1") ?? "{}") as Record<string, unknown>;
+            expect(draft.behaviorAnswers).toEqual({
+                appearance_neat: "YES",
+                vehicle_guidance: "NO",
+                greeted_customer: "UNSURE",
+                order_repeated: "YES",
+                special_service_offered: "NO",
+                thanked_customer: "YES",
+                front_sign_placed: "UNSURE",
+            });
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "กลับ" }));
+        await screen.findByRole("heading", { name: "โดยรวม คุณพอใจกับการให้บริการครั้งนี้เพียงใด" });
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+        await screen.findByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" });
+        expect((within(screen.getByRole("group", { name: /แต่งกายสะอาดและเรียบร้อย/ })).getByRole("radio", { name: "ใช่" }) as HTMLInputElement).checked).toBe(true);
+
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+        await screen.findByRole("heading", { name: "เรื่องใดทำให้คุณพอใจ" });
+        fireEvent.click(screen.getByRole("button", { name: "กลับ" }));
+        await screen.findByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" });
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+        fireEvent.click(await screen.findByRole("button", { name: "ส่งความคิดเห็น" }));
+
+        await screen.findByRole("heading", { name: "รับความคิดเห็นแล้ว ขอบคุณที่ช่วยให้เราปรับบริการ" });
+        expect(submittedBodies).toHaveLength(1);
+        expect(submittedBodies[0].behaviorAnswers).toEqual({
+            appearance_neat: "YES",
+            vehicle_guidance: "NO",
+            greeted_customer: "UNSURE",
+            order_repeated: "YES",
+            special_service_offered: "NO",
+            thanked_customer: "YES",
+            front_sign_placed: "UNSURE",
+        });
+    });
+
+    it("restores safe employee-v2 behavior answers and translates the screen to English", async () => {
+        sessionStorage.setItem("cf_feedback_draft_v1", JSON.stringify({
+            version: 1,
+            language: "th",
+            screen: "service-behaviors",
+            result: employeeV2ResolveResult,
+            selectedStation: null,
+            confirmation: "YES",
+            serviceAreas: [],
+            rating: 5,
+            behaviorAnswers: { appearance_neat: "YES" },
+            reasonKeys: [],
+        }));
+
+        render(<FeedbackForm />);
+
+        await screen.findByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" });
+        expect(screen.getByText("ตอบแล้ว 1/7 ข้อ")).toBeTruthy();
+        expect((within(screen.getByRole("group", { name: /แต่งกายสะอาดและเรียบร้อย/ })).getByRole("radio", { name: "ใช่" }) as HTMLInputElement).checked).toBe(true);
+
+        fireEvent.click(screen.getByRole("button", { name: "Change language" }));
+        await screen.findByRole("heading", { name: "Did the employee do the following?" });
+        expect(screen.getByRole("group", { name: /clean and neatly dressed/ })).toBeTruthy();
+        expect(within(screen.getByRole("group", { name: /guided your vehicle/ })).getByRole("radio", { name: "Not sure" })).toBeTruthy();
+    });
+
+    it("keeps employee-v1 on the original rating-to-reasons flow", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (input: RequestInfo | URL) => {
+                if (String(input).endsWith("/api/public/customer-feedback/resolve")) {
+                    return new Response(JSON.stringify({ ...employeeV2ResolveResult, surveyVersion: "employee-v1" }), {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+                return new Response(JSON.stringify({}), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                });
+            })
+        );
+
+        render(<FeedbackForm />);
+        await reachEmployeeRating();
+        fireEvent.click(screen.getByRole("radio", { name: "4. พอใจ" }));
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+
+        await screen.findByRole("heading", { name: "เรื่องใดทำให้คุณพอใจ" });
+        expect(screen.queryByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" })).toBeNull();
     });
 
     it("never writes comments or contact details into the safe draft", async () => {

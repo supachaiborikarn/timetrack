@@ -40,7 +40,10 @@ export async function POST(request: NextRequest) {
             return publicError(STANDARD_FAILURE_CODES[loaded.error] ?? "SUBMIT_FAILED", status);
         }
         const surveyVersion = loaded.visit.surveyVersion;
-        if (loaded.visit.visitKind !== "STANDARD" || (surveyVersion !== "employee-v1" && surveyVersion !== "station-v1")) {
+        if (
+            loaded.visit.visitKind !== "STANDARD" ||
+            (surveyVersion !== "employee-v1" && surveyVersion !== "employee-v2" && surveyVersion !== "station-v1")
+        ) {
             return publicError("SESSION_EXPIRED", 401);
         }
         const visitLimit = await checkPublicVisitRateLimit("submission", loaded.visit.id);

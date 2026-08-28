@@ -3,7 +3,9 @@ import {
     isValidReasonKey,
     isValidServiceArea,
     isValidIncidentKey,
-    type SurveyVersion,
+    EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    type EmployeeBehaviorAnswers,
+    type StandardSurveyVersion as RegistryStandardSurveyVersion,
 } from "./questions";
 
 /**
@@ -34,6 +36,7 @@ export interface StandardPayload {
     wantsFollowUp: boolean;
     contact?: ContactInput;
     language: string;
+    behaviorAnswers?: EmployeeBehaviorAnswers;
 }
 
 export interface IncidentPayload {
@@ -49,7 +52,7 @@ export interface IncidentPayload {
 }
 
 export type ValidationError = { field: string; message: string };
-export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
+export type StandardSurveyVersion = RegistryStandardSurveyVersion;
 
 const ALLOWED_STANDARD_KEYS = new Set([
     "targetConfirmation",
@@ -61,6 +64,7 @@ const ALLOWED_STANDARD_KEYS = new Set([
     "wantsFollowUp",
     "contact",
     "language",
+    "behaviorAnswers",
 ]);
 
 const ALLOWED_INCIDENT_KEYS = new Set([
@@ -163,6 +167,41 @@ function validateSharedFollowUp(
     return { wantsFollowUp: false };
 }
 
+function validateBehaviorAnswers(
+    raw: Record<string, unknown>,
+    surveyVersion: StandardSurveyVersion,
+    push: (e: ValidationError) => void
+): EmployeeBehaviorAnswers | undefined {
+    const wasSent = Object.prototype.hasOwnProperty.call(raw, "behaviorAnswers");
+    if (surveyVersion !== "employee-v2") {
+        if (wasSent) {
+            push({ field: "behaviorAnswers", message: "แบบประเมินรุ่นนี้ไม่รับคำตอบพฤติกรรมพนักงาน" });
+        }
+        return undefined;
+    }
+
+    if (!wasSent || typeof raw.behaviorAnswers !== "object" || raw.behaviorAnswers === null || Array.isArray(raw.behaviorAnswers)) {
+        push({ field: "behaviorAnswers", message: "กรุณาตอบคำถามพฤติกรรมพนักงานให้ครบทุกข้อ" });
+        return undefined;
+    }
+
+    const answers = raw.behaviorAnswers as Record<string, unknown>;
+    const allowedKeys = new Set<string>(EMPLOYEE_BEHAVIOR_QUESTION_KEYS);
+    for (const key of Object.keys(answers)) {
+        if (!allowedKeys.has(key)) {
+            push({ field: `behaviorAnswers.${key}`, message: "คำถามพฤติกรรมพนักงานไม่อยู่ในรายการ" });
+        }
+    }
+    for (const key of EMPLOYEE_BEHAVIOR_QUESTION_KEYS) {
+        const answer = answers[key];
+        if (answer !== "YES" && answer !== "NO" && answer !== "UNSURE") {
+            push({ field: `behaviorAnswers.${key}`, message: "คำตอบต้องเป็น YES, NO หรือ UNSURE" });
+        }
+    }
+
+    return answers as EmployeeBehaviorAnswers;
+}
+
 export function validateStandardPayload(
     body: unknown,
     surveyVersion: StandardSurveyVersion = "employee-v1"
@@ -172,6 +211,8 @@ export function validateStandardPayload(
     const raw = body as Record<string, unknown>;
     const unknown = rejectUnknownKeys(raw, ALLOWED_STANDARD_KEYS);
     if (unknown) return { ok: false, errors: [unknown] };
+
+    const behaviorAnswers = validateBehaviorAnswers(raw, surveyVersion, (e) => errors.push(e));
 
     if (raw.targetConfirmation !== "YES") {
         return { ok: false, errors: [{ field: "targetConfirmation", message: "ต้องยืนยันว่าเป้าหมายถูกต้องก่อนส่ง" }] };
@@ -215,7 +256,7 @@ export function validateStandardPayload(
             errors.push({ field: "serviceAreas", message: "ไม่แน่ใจส่งร่วมกับค่าอื่นไม่ได้" });
         }
         if (new Set(keys).size !== keys.length) errors.push({ field: "serviceAreas", message: "ส่วนบริการซ้ำไม่ได้" });
-        if (surveyVersion === "employee-v1" && keys.length > 0) {
+        if ((surveyVersion === "employee-v1" || surveyVersion === "employee-v2") && keys.length > 0) {
             errors.push({ field: "serviceAreas", message: "แบบประเมินพนักงานไม่รับส่วนบริการ" });
         }
         if (surveyVersion === "station-v1" && keys.length === 0) {
@@ -254,6 +295,7 @@ export function validateStandardPayload(
             wantsFollowUp: followUp.wantsFollowUp,
             contact: followUp.contact,
             language: language!,
+            behaviorAnswers,
         },
     };
 }
