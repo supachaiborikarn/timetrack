@@ -8,6 +8,9 @@ export interface CustomerFeedbackA4PosterInput {
     manualCode: string;
     targetType: CustomerFeedbackPosterTargetType;
     targetLabel: string;
+    publicPosition?: string;
+    stationLabel?: string;
+    placementLabel?: string;
     subtitle?: string;
     isTest?: boolean;
     version?: number;
@@ -36,20 +39,40 @@ function caltexBrandLockup(): string {
     </div>`;
 }
 
+function employeeNameSizeClass(label: string): string {
+    const length = [...label.trim()].length;
+    if (length <= 10) return "name-short";
+    if (length <= 18) return "name-medium";
+    return "name-long";
+}
+
 /**
- * สร้างเอกสาร A4 แนวนอนสำหรับวางหน้ารถ/หน้าเคาน์เตอร์
- * โดยใช้ Caltex เป็นแบรนด์หลักและให้ป้ายบุคคลเน้นชื่อพนักงานมากที่สุด
+ * A4 landscape customer-feedback sign for front-of-car / counter display.
+ * Layout follows the approved visual mockup while keeping all data and QR values dynamic.
  */
 export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4PosterInput): string {
-    const qrSvg = generateQRCodeSVG(input.qrUrl, 760);
+    const qrSvg = generateQRCodeSVG(input.qrUrl, 900);
     const targetLabel = escapeHtml(input.targetLabel);
+    const publicPosition = input.publicPosition ? escapeHtml(input.publicPosition) : "";
+    const stationLabel = input.stationLabel ? escapeHtml(input.stationLabel) : "";
+    const placementLabel = input.placementLabel ? escapeHtml(input.placementLabel) : "";
     const subtitle = input.subtitle ? escapeHtml(input.subtitle) : "";
     const manualEntryUrl = escapeHtml(input.manualEntryUrl);
     const manualCode = escapeHtml(input.manualCode);
     const version = input.version ? `QR version ${input.version}` : "";
     const isEmployee = input.targetType === "EMPLOYEE";
+    const nameSizeClass = isEmployee ? employeeNameSizeClass(input.targetLabel) : "name-station";
+
     const invitation = isEmployee ? "ช่วยประเมินการบริการของฉัน" : "ช่วยประเมินการบริการของเรา";
-    const targetClass = isEmployee ? "target target-employee" : "target target-station";
+    const question = isEmployee
+        ? "วันนี้ฉันบริการคุณเป็นอย่างไรบ้าง?"
+        : "ความคิดเห็นของคุณช่วยให้เราปรับปรุงบริการได้ดียิ่งขึ้น";
+    const infoLine = isEmployee
+        ? [publicPosition ? `ตำแหน่ง: ${publicPosition}` : "", stationLabel ? `สถานี: ${stationLabel}` : ""]
+            .filter(Boolean)
+            .join("  •  ")
+        : [stationLabel, placementLabel].filter(Boolean).join("  •  ") || subtitle;
+    const footerStation = stationLabel || (isEmployee ? "สถานีบริการ Caltex" : targetLabel);
 
     return `<!doctype html>
 <html lang="th">
@@ -63,7 +86,7 @@ export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4Poste
   html, body { width: 297mm; height: 210mm; margin: 0; padding: 0; }
   body {
     font-family: "Sarabun", "Noto Sans Thai", "Tahoma", -apple-system, BlinkMacSystemFont, sans-serif;
-    color: #082f57;
+    color: #102a56;
     background: #fff;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -74,236 +97,362 @@ export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4Poste
     height: 210mm;
     overflow: hidden;
     background:
-      radial-gradient(circle at 3% 4%, rgba(215,25,32,.06) 0 23mm, transparent 23.5mm),
-      linear-gradient(180deg, #ffffff 0%, #ffffff 83%, #f7f9fb 100%);
+      linear-gradient(180deg, rgba(255,255,255,.98) 0%, #ffffff 79%, #fbfbfd 100%);
   }
-  .brandbar {
-    height: 27mm;
+  .voice-header {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 157mm;
+    height: 28mm;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 3.5mm 13mm 3mm 12mm;
-    border-bottom: 1.4mm solid #d71920;
-    background: #fff;
+    gap: 5mm;
+    padding: 0 15mm 0 13mm;
+    border-bottom-right-radius: 12mm;
+    background: linear-gradient(135deg, #f5b400 0%, #ffd34f 55%, #f5b400 100%);
+    border-bottom: .6mm solid #d99d00;
+    box-shadow: 0 2mm 4mm rgba(171,113,0,.16);
+    z-index: 2;
   }
-  .caltex-lockup { display: flex; align-items: center; gap: 5mm; min-width: 0; }
-  .caltex-logo { width: 67mm; height: 21mm; display: block; }
-  .brand-slogan {
-    padding-left: 5mm;
-    border-left: .55mm solid #cbd5e1;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 4.1mm;
-    line-height: 1.08;
-    font-weight: 900;
-    letter-spacing: .35mm;
-    color: #d71920;
-    white-space: nowrap;
-  }
-  .voice {
-    display: flex;
-    align-items: center;
-    gap: 2.5mm;
-    font-size: 5.5mm;
-    font-weight: 950;
-    color: #003a70;
-    white-space: nowrap;
-  }
-  .voice-dot {
-    width: 8mm;
-    height: 8mm;
+  .voice-icon {
+    width: 16mm;
+    height: 16mm;
     display: grid;
     place-items: center;
+    border: 1.6mm solid #fff;
     border-radius: 50%;
-    background: #003a70;
+    background: rgba(255,255,255,.18);
     color: #fff;
-    font-family: Arial, sans-serif;
-    font-size: 4mm;
-    letter-spacing: -.4mm;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8mm;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -.7mm;
+  }
+  .voice-title {
+    color: #102a56;
+    font-size: 12mm;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: -.2mm;
+    text-shadow: 0 .4mm 0 rgba(255,255,255,.8);
+  }
+  .test-ribbon {
+    position: absolute;
+    top: 6mm;
+    right: -19mm;
+    width: 78mm;
+    transform: rotate(39deg);
+    background: #d71920;
+    color: #fff;
+    text-align: center;
+    padding: 2mm 0;
+    font-size: 4.8mm;
+    font-weight: 950;
+    z-index: 20;
+    box-shadow: 0 .8mm 2mm rgba(0,0,0,.18);
   }
   .content {
-    height: 183mm;
+    position: absolute;
+    left: 13mm;
+    right: 13mm;
+    top: 34mm;
+    bottom: 28mm;
     display: grid;
-    grid-template-columns: 1.1fr .9fr;
-    gap: 8mm;
-    padding: 10mm 12mm 10mm 14mm;
+    grid-template-columns: 1.08fr .92fr;
+    gap: 11mm;
   }
   .copy {
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-    padding-right: 1mm;
+    justify-content: flex-start;
+    padding-top: 3mm;
   }
-  .eyebrow {
+  .invitation {
+    margin: 0 0 3mm;
+    color: #17233a;
+    font-size: 8.7mm;
+    line-height: 1.15;
+    font-weight: 900;
+  }
+  .target {
+    margin: 0;
+    color: #102a56;
+    font-weight: 950;
+    line-height: .92;
+    letter-spacing: -.65mm;
+    overflow-wrap: anywhere;
+    text-shadow:
+      1.1mm 1.1mm 0 rgba(255,255,255,.95),
+      1.8mm 1.8mm 2.2mm rgba(16,42,86,.10);
+  }
+  .name-short { font-size: 31mm; }
+  .name-medium { font-size: 25mm; }
+  .name-long { font-size: 20mm; line-height: 1; }
+  .name-station { font-size: 16mm; line-height: 1.05; }
+  .question {
+    margin-top: 4mm;
+    color: #17385e;
+    font-size: 6.3mm;
+    line-height: 1.35;
+    font-weight: 750;
+    font-style: italic;
+  }
+  .info-pill {
     display: inline-flex;
     align-self: flex-start;
     align-items: center;
-    gap: 2mm;
-    border: .65mm solid #d71920;
-    border-radius: 999px;
-    padding: 2.2mm 4.2mm 1.9mm;
-    font-size: 4.5mm;
-    font-weight: 900;
-    color: #d71920;
-    margin-bottom: 4.5mm;
-  }
-  .invitation {
-    margin: 0;
-    max-width: 145mm;
-    font-size: 9mm;
-    line-height: 1.15;
-    font-weight: 900;
-    color: #1f2937;
-  }
-  .target {
-    margin-top: 2.5mm;
-    color: #003a70;
-    font-weight: 950;
-    overflow-wrap: anywhere;
-  }
-  .target-employee {
-    font-size: 25mm;
-    line-height: .98;
-    letter-spacing: -.75mm;
-    text-shadow: 1.2mm 1.2mm 0 rgba(215,25,32,.11);
-  }
-  .target-station {
+    max-width: 100%;
     margin-top: 5mm;
-    font-size: 13mm;
-    line-height: 1.08;
-    letter-spacing: -.25mm;
-  }
-  .subtitle {
-    margin-top: 3mm;
-    min-height: 7mm;
-    font-size: 5.2mm;
-    color: #4b5563;
-    font-weight: 800;
-  }
-  .divider {
-    width: 27mm;
-    height: 1.1mm;
-    margin-top: 5mm;
-    border-radius: 99px;
-    background: #d71920;
-  }
-  .benefits {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2.5mm;
-    margin-top: 6mm;
-  }
-  .chip {
-    border: .4mm solid #d9e1e8;
-    border-radius: 999px;
-    background: #f8fafc;
-    padding: 2.25mm 3.8mm;
-    font-size: 4mm;
-    color: #003a70;
+    padding: 2.4mm 5mm 2.2mm;
+    border-radius: 3.2mm;
+    background: #102a56;
+    color: #fff;
+    font-size: 4.7mm;
+    line-height: 1.35;
     font-weight: 850;
   }
-  .chip b { color: #d71920; }
-  .hint {
-    margin-top: 5.5mm;
-    font-size: 3.9mm;
-    color: #5b6470;
-    line-height: 1.5;
+  .info-pill .dot {
+    color: #f5b400;
+    padding: 0 1.8mm;
   }
-  .footer-brand {
+  .fast-facts {
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+    margin-top: 4mm;
+    color: #17233a;
+    font-size: 4.5mm;
+    font-weight: 800;
+  }
+  .fast-fact {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    white-space: nowrap;
+  }
+  .fast-icon {
+    width: 7mm;
+    height: 7mm;
+    display: grid;
+    place-items: center;
+    border: .65mm solid #f5b400;
+    border-radius: 50%;
+    color: #102a56;
+    font-size: 3.7mm;
+    font-weight: 950;
+  }
+  .benefit-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4mm;
+    margin-top: 6mm;
+  }
+  .benefit {
+    min-height: 21mm;
+    display: grid;
+    grid-template-columns: 9mm 1fr;
+    align-items: center;
+    gap: 2.5mm;
+    padding: 3mm 3mm;
+    border: .45mm solid #e5b32c;
+    border-radius: 4mm;
+    background: #fff;
+    color: #17233a;
+    box-shadow: 0 1mm 2.6mm rgba(30,41,59,.05);
+  }
+  .benefit-icon {
+    width: 9mm;
+    height: 9mm;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #f5b400;
+    color: #fff;
+    font-size: 4.2mm;
+    font-weight: 950;
+  }
+  .benefit-text {
+    font-size: 4mm;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+  .feedback-note {
     margin-top: 5mm;
     display: flex;
     align-items: center;
-    gap: 2.5mm;
-    color: #003a70;
-    font-size: 3.8mm;
-    font-weight: 850;
+    gap: 3mm;
+    color: #303846;
+    font-size: 4.1mm;
+    font-weight: 720;
   }
-  .footer-brand .red { color: #d71920; }
-  .qr-panel {
+  .heart {
+    width: 8.5mm;
+    height: 8.5mm;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #f5b400;
+    color: #fff;
+    font-size: 5mm;
+    font-weight: 900;
+  }
+  .qr-card {
     position: relative;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    border: .75mm solid #d8e0e7;
-    border-radius: 8mm;
-    padding: 4.5mm 5mm 4mm;
+    justify-content: flex-start;
+    padding: 6mm 7mm 5mm;
+    border: .75mm solid #e8b73a;
+    border-radius: 6.5mm;
     background: #fff;
-    box-shadow: 2.2mm 2.2mm 0 #003a70, 4mm 4mm 0 #d71920;
+    box-shadow: 0 2.2mm 5.5mm rgba(16,42,86,.12);
   }
-  .scan-title {
-    display: inline-flex;
+  .scan-pill {
+    width: 83%;
+    min-height: 13mm;
+    display: flex;
     align-items: center;
-    gap: 2mm;
-    font-size: 6.5mm;
-    color: #003a70;
+    justify-content: center;
+    border-radius: 999px;
+    background: #102a56;
+    color: #fff;
+    font-size: 6.7mm;
+    line-height: 1;
     font-weight: 950;
-    margin-bottom: 1.4mm;
-  }
-  .scan-title::before {
-    content: "";
-    width: 3mm;
-    height: 3mm;
-    border-radius: 50%;
-    background: #d71920;
+    margin-bottom: 3.5mm;
   }
   .qr {
-    width: 103mm;
-    height: 103mm;
+    width: 104mm;
+    height: 104mm;
     background: #fff;
   }
   .qr svg { display: block; width: 100%; height: 100%; }
-  .manual-label {
+  .or-line {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 3mm;
     margin-top: 1.5mm;
-    max-width: 115mm;
+    color: #596579;
+    font-size: 3.6mm;
+    font-weight: 850;
+  }
+  .or-line::before, .or-line::after {
+    content: "";
+    height: .35mm;
+    background: #98a2b3;
+  }
+  .manual-label {
+    margin-top: 1mm;
+    max-width: 100%;
     text-align: center;
-    font-size: 3.4mm;
+    color: #303846;
+    font-size: 3.55mm;
     line-height: 1.35;
-    color: #667085;
-    font-weight: 750;
+    font-weight: 760;
   }
   .manual {
-    margin-top: 1.5mm;
-    padding: 2mm 4mm 1.8mm 6mm;
-    border: .55mm solid #d71920;
-    border-radius: 3mm;
-    background: #fff7f7;
+    width: 100%;
+    margin-top: 2.5mm;
+    padding: 3.3mm 2mm 3mm 4mm;
+    border: .5mm solid #e8b73a;
+    border-radius: 3.5mm;
+    background: #fff9e9;
+    color: #102a56;
+    text-align: center;
     font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-    font-size: 7mm;
+    font-size: 9.5mm;
     line-height: 1;
-    color: #003a70;
     font-weight: 950;
-    letter-spacing: 1.8mm;
+    letter-spacing: 1.6mm;
   }
   .url {
-    margin-top: 2mm;
-    max-width: 115mm;
-    font-size: 2.8mm;
-    color: #8b95a1;
+    margin-top: 2.5mm;
+    max-width: 100%;
+    color: #102a56;
+    font-size: 3.15mm;
+    line-height: 1.35;
+    font-weight: 800;
     word-break: break-all;
     text-align: center;
   }
   .version {
     position: absolute;
-    right: 4mm;
-    bottom: 3mm;
-    font-size: 2.5mm;
-    color: #b2bac4;
+    right: 3mm;
+    bottom: 2mm;
+    color: #a8b0bd;
+    font-size: 2.4mm;
   }
-  .test {
+  .footer {
     position: absolute;
-    top: 24mm;
-    right: -28mm;
-    width: 105mm;
-    transform: rotate(39deg);
-    background: #d71920;
-    color: #fff;
-    text-align: center;
-    padding: 2.1mm 0;
-    font-size: 4.8mm;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 27mm;
+    overflow: hidden;
+    background: linear-gradient(180deg, #ffd756 0%, #f5b400 100%);
+    border-top: .6mm solid #e7ab00;
+  }
+  .footer::before {
+    content: "";
+    position: absolute;
+    left: -12mm;
+    top: -8mm;
+    width: 190mm;
+    height: 15mm;
+    border-radius: 50%;
+    background: #fff;
+    transform: rotate(-1deg);
+  }
+  .footer-inner {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8mm;
+    padding: 8mm 13mm 4.5mm;
+  }
+  .caltex-lockup {
+    display: flex;
+    align-items: center;
+    gap: 4mm;
+    min-width: 0;
+  }
+  .caltex-logo { width: 55mm; height: 17mm; display: block; }
+  .brand-slogan {
+    padding-left: 4mm;
+    border-left: .55mm solid rgba(16,42,86,.35);
+    color: #d71920;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3.6mm;
+    line-height: 1.08;
     font-weight: 950;
-    z-index: 20;
-    box-shadow: 0 .6mm 1.5mm rgba(0,0,0,.18);
+    letter-spacing: .25mm;
+    white-space: nowrap;
+  }
+  .footer-station {
+    max-width: 90mm;
+    color: #102a56;
+    text-align: right;
+    font-size: 5.2mm;
+    line-height: 1.15;
+    font-weight: 950;
+  }
+  .footer-station small {
+    display: block;
+    margin-top: 1mm;
+    color: #d71920;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3.1mm;
+    font-weight: 950;
+    letter-spacing: .25mm;
   }
   @media screen {
     body { background: #e5e7eb; padding: 8px; }
@@ -317,38 +466,47 @@ export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4Poste
 </head>
 <body>
   <section class="sheet ${isEmployee ? "employee-poster" : "station-poster"}">
-    ${input.isTest ? '<div class="test">ตัวอย่าง / แบบทดสอบ</div>' : ""}
-    <div class="brandbar">
-      ${caltexBrandLockup()}
-      <div class="voice"><span class="voice-dot">•••</span>เสียงลูกค้า</div>
+    ${input.isTest ? '<div class="test-ribbon">ตัวอย่าง / แบบทดสอบ</div>' : ""}
+    <div class="voice-header">
+      <div class="voice-icon">•••</div>
+      <div class="voice-title">เสียงลูกค้า</div>
     </div>
+
     <div class="content">
       <div class="copy">
-        <div class="eyebrow">ความคิดเห็นของคุณสำคัญกับเรา</div>
         <h1 class="invitation">${invitation}</h1>
-        <div class="${targetClass}">${targetLabel}</div>
-        <div class="subtitle">${subtitle}</div>
-        <div class="divider"></div>
-        <div class="benefits">
-          <div class="chip"><b>✓</b> ไม่ต้องล็อกอิน</div>
-          <div class="chip"><b>✓</b> ไม่ต้องระบุชื่อ</div>
-          <div class="chip"><b>✓</b> ใช้เวลาประมาณ 1 นาที</div>
+        <div class="target ${nameSizeClass}">${targetLabel}</div>
+        <div class="question">${question}</div>
+        ${infoLine ? `<div class="info-pill">${infoLine}</div>` : ""}
+        <div class="fast-facts">
+          <div class="fast-fact"><span class="fast-icon">1</span><span>ใช้เวลาประมาณ 1 นาที</span></div>
+          <div class="fast-fact"><span class="fast-icon">✓</span><span>ไม่ต้องระบุชื่อ</span></div>
         </div>
-        <div class="hint">
-          เปิดกล้องโทรศัพท์แล้วสแกน QR ด้านขวา<br>
-          สแกนไม่ได้? ใช้รหัส 8 ตัวใต้ QR ได้เช่นกัน
+        <div class="benefit-grid">
+          <div class="benefit"><div class="benefit-icon">✓</div><div class="benefit-text">ไม่ต้อง<br>ล็อกอิน</div></div>
+          <div class="benefit"><div class="benefit-icon">✓</div><div class="benefit-text">ไม่ต้อง<br>ระบุชื่อ</div></div>
+          <div class="benefit"><div class="benefit-icon">1</div><div class="benefit-text">ใช้เวลา<br>ประมาณ 1 นาที</div></div>
         </div>
-        <div class="footer-brand"><span class="red">CALTEX</span><span>·</span><span>ENJOY THE JOURNEY</span></div>
+        <div class="feedback-note"><span class="heart">♥</span><span>ความคิดเห็นของคุณช่วยให้เราปรับปรุงบริการได้ดียิ่งขึ้น</span></div>
       </div>
-      <div class="qr-panel">
-        <div class="scan-title">สแกนเพื่อประเมิน</div>
+
+      <div class="qr-card">
+        <div class="scan-pill">สแกนเพื่อประเมิน</div>
         <div class="qr">${qrSvg}</div>
-        <div class="manual-label">สแกนไม่ได้? เข้า ${manualEntryUrl} แล้วกรอกรหัส</div>
+        <div class="or-line">หรือ</div>
+        <div class="manual-label">สแกนไม่ได้? เข้า ${manualEntryUrl}<br>แล้วกรอกรหัสนี้เพื่อประเมิน</div>
         <div class="manual">${manualCode}</div>
         <div class="url">${manualEntryUrl}</div>
         <div class="version">${escapeHtml(version)}</div>
       </div>
     </div>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        ${caltexBrandLockup()}
+        <div class="footer-station">${footerStation}<small>ENJOY THE JOURNEY</small></div>
+      </div>
+    </footer>
   </section>
 </body>
 </html>`;

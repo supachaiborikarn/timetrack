@@ -193,3 +193,25 @@ Risk / follow-up:
 Git:
 
 - Feature commit: `ea0bbdf` — `Brand customer feedback A4 signs for Caltex`
+
+## 2026-08-28 — Matched the approved A4 mockup in the real print template
+
+Goal:
+
+Replace the earlier generic Caltex A4 layout with the user-approved visual structure while keeping all QR and employee/station data dynamic.
+
+Implementation:
+
+- Reworked `src/lib/customer-feedback/print-poster.ts` to mirror the approved mockup structure: yellow `เสียงลูกค้า` header, oversized employee public name, dark information pill, quick privacy/time facts, three benefit cards, a large bordered QR card, fallback 8-character code, and a branded footer.
+- Preserved Caltex identity and `ENJOY THE JOURNEY` in the footer rather than using the mockup's placeholder station branding.
+- Added explicit `publicPosition`, `stationLabel`, and `placementLabel` poster inputs so employee position/station and station placement are rendered from real QR-row data instead of flattened copy.
+- Updated `src/components/customer-feedback/admin/qr-codes-tab.tsx` to pass those real values into the A4 template.
+- Added responsive employee-name size classes so long public labels shrink before overflowing the A4 layout.
+- QR SVG, manual URL/code, TEST watermark, reveal audit, print confirmation and `MARK_PRINTED` behavior remain unchanged. No QR activation, consent, or database state was bypassed.
+- Generated a real-template preview at `output/previews/customer-feedback-a4-approved-employee.html` and `.png` using an intentionally invalid demo token/code.
+
+Verification:
+
+- Poster unit tests: 4/4 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for poster/test/admin QR files: passed.

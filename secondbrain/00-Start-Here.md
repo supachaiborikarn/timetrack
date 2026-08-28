@@ -33,7 +33,7 @@ Customer Feedback QR launch state (checked 2026-08-27):
 - Only 1 of 48 employee QRs currently has public-profile approval, so employee QRs must not be bulk-activated yet.
 - Station QR PDFs exist under `output/pdf/station-feedback/`, but print success still has to be recorded through the normal flow before activation.
 - Do not bypass `needsReprint` or employee public-profile acknowledgement merely to make a QR active.
-- Admin QR Codes now supports a dedicated **A4 landscape** print format for front-of-car/acrylic signs while keeping the compact badge format. Employee A4 signs are Caltex-branded (`ENJOY THE JOURNEY`) and make the approved employee public name the dominant element; station signs use separate collective wording.
+- Admin QR Codes supports a dedicated **A4 landscape** print format for front-of-car/acrylic signs while keeping the compact badge format. The A4 template now follows the approved yellow `เสียงลูกค้า` mockup structure, keeps Caltex + `ENJOY THE JOURNEY` branding, uses real dynamic QR/employee/station data, and makes the approved employee public name the dominant element.
 
 ## Read first for payroll work
 

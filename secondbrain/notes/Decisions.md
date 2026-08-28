@@ -43,3 +43,4 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - EMPLOYEE signs use first-person invitation copy and make the approved public employee name the largest visual element.
 - STATION signs use collective invitation copy and a smaller station-name hierarchy.
 - Branding/layout changes must not bypass QR reveal auditing, print confirmation, `needsReprint`, or employee public-profile acknowledgement.
+- The approved A4 visual structure is the yellow `เสียงลูกค้า` header + dominant employee name + right-side QR card + Caltex branded footer; implement it as real HTML/CSS with dynamic data, not as a static PNG background.
