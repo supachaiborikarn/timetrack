@@ -326,5 +326,8 @@ Verification:
 
 Deployment:
 
-- Pending commit/push/deploy at the time of this entry; record the final production state below once confirmed.
+- Feature commit `030a6b9` (`Add employee feedback service behaviors`) pushed to `origin/main`.
+- Direct local Vercel CLI deployment attempt returned `Not authorized`; no production state was inferred from that failed CLI call.
+- The repository Vercel integration then built commit `030a6b9`; GitHub combined status reported `Vercel: success` with deployment target `4tKVh5KknhXjYxLQT3nSFVf2Eru6`.
+- Production `https://timetrack-lake.vercel.app/f` returned HTTP 200 after the successful integration deployment. No real QR resolve was submitted for smoke testing, so no synthetic Production Visit was created.
 
