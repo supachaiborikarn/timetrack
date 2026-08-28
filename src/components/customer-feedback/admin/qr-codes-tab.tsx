@@ -110,7 +110,7 @@ export function QrCodesTab() {
             const rawTargetLabel = row.publicLabel || row.station?.name || "QR เสียงลูกค้า";
             const rawSubtitle = row.targetType === "EMPLOYEE"
                 ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
-                : [row.station?.name, row.placementKey ?? row.placement].filter(Boolean).join(" · ");
+                : [row.placementKey ?? row.placement].filter(Boolean).join(" · ");
             const targetLabel = escapeHtml(rawTargetLabel);
             const subtitle = escapeHtml(rawSubtitle);
             if (format === "a4-landscape") {
@@ -120,9 +120,8 @@ export function QrCodesTab() {
                     manualCode,
                     targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" : "STATION",
                     targetLabel: rawTargetLabel,
-                    publicPosition: row.targetType === "EMPLOYEE" ? row.publicPosition ?? undefined : undefined,
+                    positionLabel: row.targetType === "EMPLOYEE" ? row.publicPosition ?? undefined : undefined,
                     stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
-                    placementLabel: row.targetType === "STATION" ? row.placementKey ?? row.placement : undefined,
                     subtitle: rawSubtitle,
                     isTest: row.isTest,
                     version: expectedVersion,

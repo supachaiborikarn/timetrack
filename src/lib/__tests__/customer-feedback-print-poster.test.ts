@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildCustomerFeedbackA4PosterHtml } from "@/lib/customer-feedback/print-poster";
 
 describe("customer feedback A4 landscape poster", () => {
-    it("builds the approved employee layout with a dominant name, metadata strip and Caltex footer", () => {
+    it("builds the approved yellow/navy employee layout with a dominant name and Caltex footer", () => {
         const html = buildCustomerFeedbackA4PosterHtml({
             qrUrl: "https://timetrack.example/f?t=demo-token",
             manualEntryUrl: "https://timetrack.example/f",
             manualCode: "AB12CD34",
             targetType: "EMPLOYEE",
-            targetLabel: "พี่เมย์",
-            publicPosition: "พนักงานบริการ",
-            stationLabel: "สถานีบริการศุภชัย",
+            targetLabel: "กอล์ฟ",
+            positionLabel: "พนักงานบริการ",
+            stationLabel: "ศุภชัยบริการ",
             version: 3,
         });
 
@@ -20,10 +20,11 @@ describe("customer feedback A4 landscape poster", () => {
         expect(html).toContain("เสียงลูกค้า");
         expect(html).toContain("ช่วยประเมินการบริการของฉัน");
         expect(html).toContain("วันนี้ฉันบริการคุณเป็นอย่างไรบ้าง?");
-        expect(html).toContain('class="target name-short"');
-        expect(html).toContain("พี่เมย์");
-        expect(html).toContain("ตำแหน่ง: พนักงานบริการ");
-        expect(html).toContain("สถานี: สถานีบริการศุภชัย");
+        expect(html).toContain('class="target employee-name name-xl"');
+        expect(html).toContain("กอล์ฟ");
+        expect(html).toContain("ตำแหน่ง: พนักงานบริการ · สถานี: ศุภชัยบริการ");
+        expect(html).toContain("benefit-cards");
+        expect(html).toContain("footer-wave");
         expect(html).toContain("สแกนเพื่อประเมิน");
         expect(html).toContain("AB12CD34");
         expect(html).toContain("CALTEX");
@@ -41,7 +42,7 @@ describe("customer feedback A4 landscape poster", () => {
             targetLabel: "พนักงานชื่อยาวมากเป็นพิเศษ",
         });
 
-        expect(html).toContain('class="target name-long"');
+        expect(html).toContain('class="target employee-name name-md"');
     });
 
     it("uses station wording, station identity and placement context for station posters", () => {
@@ -52,13 +53,12 @@ describe("customer feedback A4 landscape poster", () => {
             targetType: "STATION",
             targetLabel: "สถานีบริการตัวอย่าง",
             stationLabel: "สถานีบริการตัวอย่าง",
-            placementLabel: "จุดบริการหลัก",
+            subtitle: "จุดบริการหลัก",
         });
 
         expect(html).toContain("ช่วยประเมินการบริการของเรา");
-        expect(html).toContain('class="target name-station"');
-        expect(html).toContain("สถานีบริการตัวอย่าง");
-        expect(html).toContain("จุดบริการหลัก");
+        expect(html).toContain('class="target station-name"');
+        expect(html).toContain("สถานีบริการตัวอย่าง · จุดบริการหลัก");
     });
 
     it("escapes public text and shows a clear test watermark", () => {
@@ -68,7 +68,7 @@ describe("customer feedback A4 landscape poster", () => {
             manualCode: "TEST1234",
             targetType: "EMPLOYEE",
             targetLabel: '<script>alert("x")</script>',
-            publicPosition: "A & B",
+            positionLabel: "A & B",
             stationLabel: "S < 1",
             isTest: true,
         });
@@ -78,5 +78,19 @@ describe("customer feedback A4 landscape poster", () => {
         expect(html).toContain("A &amp; B");
         expect(html).toContain("S &lt; 1");
         expect(html).toContain("ตัวอย่าง / แบบทดสอบ");
+    });
+
+    it("keeps the QR card above the footer so manual code is not clipped", () => {
+        const html = buildCustomerFeedbackA4PosterHtml({
+            qrUrl: "https://timetrack.example/f?t=demo-token",
+            manualEntryUrl: "https://timetrack.example/f",
+            manualCode: "SAFE1234",
+            targetType: "EMPLOYEE",
+            targetLabel: "เมย์",
+        });
+
+        expect(html).toContain("bottom: 22mm");
+        expect(html).toContain("height: 155mm");
+        expect(html).toContain('class="manual-code">SAFE1234</div>');
     });
 });

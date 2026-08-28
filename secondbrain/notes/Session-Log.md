@@ -221,4 +221,26 @@ Deployment:
 - Feature pushed to `origin/main` in commit `5d76452` (`Match customer feedback A4 mockup`).
 - Production deployment uploaded to `timetrack-lgph825zk-benzs-projects-2423502c.vercel.app` (Vercel inspect id `B5rNVa1TvAAPW6gLiU48WiL1oGH1`).
 - Durable deploy task: `5ac61143-a981-4de5-8d0b-180cf6ef1d7a`. At the final allowed check in this turn Vercel was still `Building`; production readiness was not claimed.
+## 2026-08-28 — Corrected A4 print-preview mismatch and footer clipping
+
+Observed from real Chrome print preview:
+
+- The deployed A4 sign still looked materially flatter/generic compared with the approved yellow/navy mockup.
+- The right QR card extended into the footer, causing the fallback-code area to be partially covered in print preview.
+
+Implementation:
+
+- Rebuilt `src/lib/customer-feedback/print-poster.ts` around the approved composition: yellow speech-banner header, oversized employee name, italic service question, navy position/station pill, quick facts, three icon benefit cards, improvement note, rounded right-side QR card, `หรือ` divider, fallback instructions and a large 8-character code box.
+- Kept Caltex + `ENJOY THE JOURNEY` in a yellow wave footer and kept all variable content as live HTML/SVG rather than a raster mockup.
+- Added explicit `positionLabel` and `stationLabel` poster inputs and passed real employee/station values from `qr-codes-tab.tsx`.
+- Reserved the bottom 22 mm of the A4 sheet for the footer and capped the QR card at 155 mm so the QR/manual-code card cannot be covered by the footer.
+- QR SVG, manual code/URL, TEST watermark, reveal auditing, print confirmation, `MARK_PRINTED`, activation guards and employee public-profile acknowledgement remain unchanged. No QR/database activation state was altered.
+- Generated a new real-template preview at `output/previews/customer-feedback-a4-mockup-v2.html` and `.png`.
+
+Verification:
+
+- Poster unit tests: 5/5 passed, including a regression test for footer/manual-code clipping.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for poster/test/admin QR files: passed.
+- Headless Chrome rendered the new real-template preview successfully.
 
