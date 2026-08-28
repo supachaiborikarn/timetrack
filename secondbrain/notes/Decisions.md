@@ -43,5 +43,5 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - EMPLOYEE signs use first-person invitation copy and make the approved public employee name the largest visual element.
 - STATION signs use collective invitation copy and a smaller station-name hierarchy.
 - Branding/layout changes must not bypass QR reveal auditing, print confirmation, `needsReprint`, or employee public-profile acknowledgement.
-- The approved A4 visual structure is the yellow `เสียงลูกค้า` header + dominant employee name + right-side QR card + Caltex branded footer; implement it as real HTML/CSS with dynamic data, not as a static PNG background.
-- The printable content area must reserve footer space; the QR card and 8-character fallback code must remain fully visible above the footer in A4 print preview.
+- The final approved A4 visual reference is the white/red/deep-teal Caltex composition: official Caltex lock-up at top-left, oversized red public employee name, handwritten-style service question, position/station identity rows, dark-teal three-column information band, elevated right-side QR card with Caltex centre mark, eight separate fallback-code cells, and the red/teal Techron footer sweep. Implement it as live HTML/CSS with dynamic QR/name/position/station/code values, not as a static poster PNG.
+- Preserve the reference proportions in A4 landscape and keep the QR card plus all eight fallback-code cells fully visible above the footer sweep.

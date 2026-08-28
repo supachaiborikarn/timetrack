@@ -272,11 +272,12 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint: passed with no errors/warnings.
 - `git diff --check`: passed.
-- Headless Chrome rendered the actual HTML template at exactly 1492×1054 (the supplied reference-image dimensions) successfully.
+- Headless Chrome rendered the actual HTML template successfully at A4 landscape proportions; the latest QA render was 1680×1188.
 
 Deployment:
 
 - Feature commit `7b3f9ad` (`Match feedback A4 poster to final Caltex design`) was pushed to `origin/main`.
-- Vercel production candidate: `timetrack-96m2oadyv-benzs-projects-2423502c.vercel.app` (inspect id `CKBVxi6yL6GWCfEPGV7nE5n8L9Y8`).
-- Durable deploy task: `d2fd25eb-a7f9-49b4-872d-b736d7e0853f`. After two bounded checks the remote build was still running; production readiness is deliberately not claimed yet.
+- Vercel production deployment: `timetrack-96m2oadyv-benzs-projects-2423502c.vercel.app` (inspect id `CKBVxi6yL6GWCfEPGV7nE5n8L9Y8`).
+- Durable deploy task `d2fd25eb-a7f9-49b4-872d-b736d7e0853f` completed successfully. Vercel compiled, typechecked, prerendered all routes, deployed outputs, and reported `Ready in 2m`.
+- Production alias was updated successfully to `https://timetrack-lake.vercel.app`.
 
