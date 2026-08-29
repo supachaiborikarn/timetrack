@@ -55,3 +55,10 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Rotating an already-approved, eligible EMPLOYEE QR must keep or restore the newly generated version as active atomically. The old token/manual code becomes invalid immediately, but the returned replacement QR must be scannable from the print preview; `needsReprint` remains true until print confirmation.
 - Intentionally deactivated or conflicting/stale QR states must not be silently revived outside these authenticated acknowledgement/print flows.
 - STATION QRs keep the existing two-step lifecycle: confirmed print clears `needsReprint`, then activation remains manual.
+
+## 2026-08-29: Customer Feedback small-label print design
+
+- The admin `ป้ายเล็ก` action uses a dedicated 105 x 148 mm portrait template derived from the approved A4 Caltex visual system.
+- Reuse the Caltex lock-up, oversized red public target label, handwritten-style service question, deep-teal information treatment, fallback-code cells, and red/teal Techron footer sweep so small and A4 signs read as one family.
+- Keep the compact-label QR completely unobstructed: do not place a logo over QR modules. Render it at 54 mm on white; `generateQRCodeSVG` supplies the standard four-module quiet zone. Scan reliability takes priority over decorative QR treatment on the small sign.
+- Keep all QR/public label/position/station/manual-code values live and preserve the existing authenticated `reveal` -> print confirmation -> `MARK_PRINTED` / `needsReprint` lifecycle.

@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Session Log
@@ -416,3 +416,39 @@ Deployment and production repair:
 - Repaired only the existing `กระเพรา` production QR version 2 after strict transaction checks: employee active, public profile approved, label/position complete, exact version unchanged, and no other active employee QR.
 - The repair set `isActive=true` and `revokedAt=null` without rotating secrets again, changing print metadata, or clearing `needsReprint`; it also wrote `CUSTOMER_FEEDBACK_QR_ACTIVATED` with source `PRODUCTION_ROTATE_REPAIR`.
 - Route-equivalent verification decrypted the stored values without logging them and confirmed both token-hash and manual-code-hash lookups resolve to the same active version 2. No public resolve request was submitted, so no synthetic production Visit was created.
+
+## 2026-08-29 — Restyled Customer Feedback small QR sign to match A4
+
+Goal:
+
+Replace the old plain black-border Customer Feedback small QR sign with a polished compact sign that uses the same visual language as the approved A4 Caltex poster.
+
+Implementation:
+
+- Added `buildCustomerFeedbackSmallLabelHtml()` in `src/lib/customer-feedback/print-poster.ts` as a dedicated 105 x 148 mm portrait print template.
+- Reused the A4 system: Caltex lock-up and `ENJOY THE JOURNEY`, red public employee/station label, Sriracha service question, teal information treatment, red-bordered manual-code cells, red/teal footer sweep and Techron treatment.
+- Kept employee/station wording, public position/station identity, TEST ribbon, QR version, manual URL and eight-character fallback code dynamic from the current QR row.
+- Replaced the old inline `ป้ายเล็ก` HTML in `src/components/customer-feedback/admin/qr-codes-tab.tsx` with the shared small-label builder; A4 and small formats now use the same live poster input and wait for local fonts/images before print.
+- Kept the compact QR completely unobstructed instead of applying the A4 centre-logo treatment. The QR renders at 54 mm on white, and `generateQRCodeSVG` supplies the standard four-module quiet zone. This intentionally favors scan reliability on the smaller physical sign.
+- Added small-label regression coverage to `src/lib/__tests__/customer-feedback-print-poster.test.ts` for dimensions, Caltex assets/typography, long labels, station wording, escaping/test watermark, unobstructed QR and eight fallback-code cells.
+- No database command, production data change, QR rotation, activation change, deployment, commit or push was performed in this session.
+
+Verification:
+
+- Customer Feedback poster tests: 10/10 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint on the QR admin, poster and poster-test files: passed with zero errors.
+- `git diff --check`: passed before final documentation update and is rechecked at handoff.
+- Generated a local mock-data HTML preview and macOS Quick Look successfully rendered a thumbnail. Automated Chrome capture was unavailable because Google Chrome is not installed in the connector environment; the temporary preview was moved under ignored `.local/` and the preview server was stopped.
+
+Decision:
+
+- Small and A4 Customer Feedback signs share one Caltex visual family, but the small sign does not place any decorative logo over the QR.
+
+Risk / follow-up:
+
+- Before mass printing, print one 105 x 148 mm sample at 100%/Actual Size and scan it with both iPhone and an older Android phone under real station lighting/glare.
+
+Git:
+
+- Not committed or pushed in this session.

@@ -67,6 +67,467 @@ function absoluteAssetUrl(baseUrl: string | undefined, path: string): string {
 }
 
 /**
+ * Compact 105 x 148 mm customer-feedback label.
+ *
+ * This deliberately shares the A4 poster's Caltex visual language while keeping the QR
+ * unobstructed. The QR stays on a plain white field with a generous quiet zone because
+ * the compact label is more likely to be scanned close-up, under glare, or by older phones.
+ */
+export function buildCustomerFeedbackSmallLabelHtml(input: CustomerFeedbackA4PosterInput): string {
+    const qrSvg = generateQRCodeSVG(input.qrUrl, 720);
+    const targetLabel = escapeHtml(input.targetLabel);
+    const subtitle = input.subtitle ? escapeHtml(input.subtitle) : "";
+    const positionLabel = input.positionLabel ? escapeHtml(input.positionLabel) : "";
+    const stationLabel = input.stationLabel ? escapeHtml(input.stationLabel) : "";
+    const manualEntryUrl = escapeHtml(input.manualEntryUrl);
+    const version = input.version ? `QR version ${input.version}` : "";
+    const isEmployee = input.targetType === "EMPLOYEE";
+    const resolvedStation = stationLabel || (isEmployee ? subtitle.split(" · ").slice(-1)[0] : targetLabel);
+    const resolvedPosition = positionLabel || (isEmployee ? subtitle.split(" · ")[0] : "");
+    const targetLength = visibleThaiLength(input.targetLabel);
+    const targetSizeClass = targetLength <= 6 ? "target-xl" : targetLength <= 10 ? "target-lg" : targetLength <= 15 ? "target-md" : "target-sm";
+    const caltexLogo = absoluteAssetUrl(input.assetBaseUrl, "/customer-feedback/caltex-logo.png");
+    const techronLogo = absoluteAssetUrl(input.assetBaseUrl, "/customer-feedback/techron-logo.png");
+    const codeCells = makeCodeCells(input.manualCode);
+    const mainPrompt = isEmployee ? "ช่วยประเมินการบริการของ" : "ช่วยประเมินการบริการของเรา";
+    const question = isEmployee ? "วันนี้ผมบริการคุณเป็นอย่างไรบ้าง?" : "วันนี้การบริการของเราเป็นอย่างไรบ้าง?";
+
+    return `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ป้ายเสียงลูกค้า - ${targetLabel}</title>
+<style>
+  @page { size: 105mm 148mm; margin: 0; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Regular.ttf")}") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-SemiBold.ttf")}") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Bold.ttf")}") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-ExtraBold.ttf")}") format("truetype"); font-weight: 800; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Black.ttf")}") format("truetype"); font-weight: 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: "SrirachaPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Sriracha-Regular.ttf")}") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+
+  :root {
+    --brand-teal: #003f4c;
+    --brand-deep: #003845;
+    --brand-red: #ed0015;
+    --muted: #64757b;
+  }
+  * { box-sizing: border-box; }
+  html, body { width: 105mm; height: 148mm; margin: 0; padding: 0; }
+  body {
+    background: #fff;
+    color: var(--brand-deep);
+    font-family: "KanitPoster", "Noto Sans Thai", Tahoma, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .sheet {
+    position: relative;
+    width: 105mm;
+    height: 148mm;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(0,63,76,.045), transparent 25%),
+      linear-gradient(180deg, #fff 0%, #fff 87%, #fafafa 100%);
+  }
+  .brand-lockup {
+    position: absolute;
+    left: 7mm;
+    top: 4.5mm;
+    width: 43mm;
+    z-index: 5;
+  }
+  .brand-lockup img { width: 40mm; height: auto; display: block; }
+  .brand-slogan {
+    margin-left: 15.4mm;
+    margin-top: .4mm;
+    position: relative;
+    display: inline-block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 2.55mm;
+    line-height: 1;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: .06mm;
+    color: var(--brand-deep);
+  }
+  .brand-slogan::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    right: 0;
+    bottom: -1mm;
+    height: .35mm;
+    border-radius: 999px;
+    background: var(--brand-red);
+    transform: rotate(-2deg);
+  }
+  .copy {
+    position: absolute;
+    left: 7mm;
+    right: 7mm;
+    top: 24mm;
+    text-align: center;
+    z-index: 4;
+  }
+  .prompt {
+    color: var(--brand-deep);
+    font-size: 5.1mm;
+    line-height: 1.05;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .target-wrap {
+    position: relative;
+    min-height: 15mm;
+    margin-top: 1.2mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .target {
+    color: var(--brand-red);
+    font-weight: 900;
+    line-height: .92;
+    letter-spacing: -.35mm;
+    max-width: 84mm;
+  }
+  .target-xl { font-size: 13.5mm; }
+  .target-lg { font-size: 11.4mm; }
+  .target-md { font-size: 9.6mm; }
+  .target-sm { font-size: 7.6mm; line-height: 1; }
+  .heart-doodle {
+    position: absolute;
+    right: 4mm;
+    top: 1mm;
+    width: 8mm;
+    height: 8mm;
+    color: var(--brand-red);
+    transform: rotate(-8deg);
+  }
+  .heart-doodle svg { width: 100%; height: 100%; display: block; }
+  .question {
+    margin-top: 1.1mm;
+    color: #00445a;
+    font-family: "SrirachaPoster", "KanitPoster", sans-serif;
+    font-size: 4.2mm;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .identity {
+    margin: 4mm auto 0;
+    width: 87mm;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2mm;
+  }
+  .identity-chip {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    border-radius: 3.5mm;
+    background: #edf4f5;
+    color: #152f37;
+    padding: 1.8mm 2.3mm;
+    text-align: left;
+  }
+  .identity-icon {
+    width: 6.5mm;
+    height: 6.5mm;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--brand-teal);
+    color: #fff;
+  }
+  .identity-icon svg { width: 3.8mm; height: 3.8mm; }
+  .identity-copy { min-width: 0; font-size: 2.7mm; line-height: 1.16; }
+  .identity-label { display: block; color: var(--brand-teal); font-weight: 800; }
+  .identity-value { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #111; font-weight: 500; }
+  .scan-pill {
+    position: absolute;
+    left: 22mm;
+    top: 66.5mm;
+    width: 61mm;
+    height: 9.5mm;
+    z-index: 12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4.7mm;
+    background: linear-gradient(100deg, #005060 0%, #003b4c 100%);
+    box-shadow: 0 1mm 2.5mm rgba(0,56,69,.18);
+    color: #fff;
+    font-size: 4.4mm;
+    line-height: 1;
+    font-weight: 800;
+  }
+  .qr-card {
+    position: absolute;
+    left: 9mm;
+    top: 71mm;
+    width: 87mm;
+    height: 58mm;
+    z-index: 9;
+    border-radius: 7mm;
+    background: #fff;
+    box-shadow: 0 2.2mm 6mm rgba(16,35,38,.17);
+  }
+  .qr-shell {
+    position: absolute;
+    left: 3mm;
+    top: 3.5mm;
+    width: 54mm;
+    height: 54mm;
+    background: #fff;
+  }
+  .qr-shell svg { width: 100%; height: 100%; display: block; }
+  .manual-area {
+    position: absolute;
+    left: 58.5mm;
+    right: 3.5mm;
+    top: 9mm;
+    bottom: 4mm;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+  }
+  .manual-kicker {
+    color: var(--muted);
+    font-size: 2.45mm;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .manual-label {
+    margin-top: 1.3mm;
+    color: #111;
+    font-size: 2.9mm;
+    line-height: 1.15;
+    font-weight: 700;
+    text-align: center;
+  }
+  .code-cells {
+    margin-top: 2mm;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1mm;
+  }
+  .code-cell {
+    height: 7.1mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: .35mm solid var(--brand-red);
+    border-radius: 1.5mm;
+    background: #fff;
+    color: #090909;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 4.4mm;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .manual-url {
+    margin-top: 2mm;
+    color: #172d34;
+    font-size: 2.15mm;
+    line-height: 1.25;
+    font-weight: 600;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .fact-band {
+    position: absolute;
+    left: 9mm;
+    top: 132mm;
+    width: 73mm;
+    height: 11mm;
+    z-index: 11;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+    border-radius: 5.5mm;
+    background: linear-gradient(100deg, #004d59 0%, #003842 100%);
+    color: #fff;
+    box-shadow: 0 1mm 3mm rgba(0,56,69,.16);
+  }
+  .fact-item {
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    padding: 1.4mm 2mm;
+    position: relative;
+  }
+  .fact-item:first-child::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 2mm;
+    bottom: 2mm;
+    width: .3mm;
+    background: rgba(255,255,255,.7);
+  }
+  .fact-circle {
+    width: 7.2mm;
+    height: 7.2mm;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--brand-teal);
+  }
+  .fact-circle svg { width: 4.5mm; height: 4.5mm; }
+  .fact-copy { font-size: 2.3mm; line-height: 1.08; }
+  .fact-copy strong { display: block; margin-top: .4mm; font-size: 3.1mm; line-height: 1; }
+  .bottom-sweep {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 105mm;
+    height: 18mm;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .thanks {
+    position: absolute;
+    z-index: 8;
+    left: 7mm;
+    bottom: 2.2mm;
+    display: flex;
+    align-items: center;
+    gap: 1.2mm;
+    color: #fff;
+    font-family: "SrirachaPoster", "KanitPoster", sans-serif;
+    font-size: 2.55mm;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .thanks svg { width: 4mm; height: 4mm; flex: 0 0 auto; }
+  .techron {
+    position: absolute;
+    z-index: 13;
+    right: 6mm;
+    bottom: 3mm;
+    width: 24mm;
+    height: 9mm;
+    transform: rotate(-2deg) skewX(-5deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.3mm 2mm;
+    background: linear-gradient(105deg, #e80016 0%, #f51b27 70%, #c70012 100%);
+    box-shadow: 0 1mm 2mm rgba(112,0,0,.18);
+  }
+  .techron img { width: 20mm; height: auto; display: block; filter: brightness(0) invert(1); }
+  .version {
+    position: absolute;
+    z-index: 14;
+    right: 4.5mm;
+    top: 128mm;
+    color: #a7afb2;
+    font-size: 1.55mm;
+  }
+  .test-ribbon {
+    position: absolute;
+    z-index: 30;
+    top: 8mm;
+    right: -22mm;
+    width: 75mm;
+    transform: rotate(40deg);
+    padding: 1.6mm 0;
+    background: var(--brand-red);
+    color: #fff;
+    text-align: center;
+    font-size: 3mm;
+    line-height: 1;
+    font-weight: 800;
+    box-shadow: 0 .7mm 1.7mm rgba(0,0,0,.18);
+  }
+  @media screen {
+    body { background: #d8dde0; padding: 8px; }
+    .sheet { margin: 0 auto; box-shadow: 0 3mm 12mm rgba(0,0,0,.18); }
+  }
+  @media print {
+    body { padding: 0; background: #fff; }
+    .sheet { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<section class="sheet ${isEmployee ? "employee-label" : "station-label"}">
+  ${input.isTest ? '<div class="test-ribbon">ตัวอย่าง / แบบทดสอบ</div>' : ""}
+
+  <div class="brand-lockup">
+    <img src="${caltexLogo}" alt="Caltex" />
+    <div class="brand-slogan">ENJOY THE JOURNEY</div>
+  </div>
+
+  <div class="copy">
+    <div class="prompt">${mainPrompt}</div>
+    <div class="target-wrap">
+      <div class="target ${targetSizeClass}">${targetLabel}</div>
+      <span class="heart-doodle">${heartOutlineIcon()}</span>
+    </div>
+    <div class="question">${question}</div>
+    <div class="identity">
+      <div class="identity-chip">
+        <span class="identity-icon">${personIcon()}</span>
+        <span class="identity-copy">
+          <span class="identity-label">${isEmployee ? "ตำแหน่ง" : "ประเภท"}</span>
+          <span class="identity-value">${isEmployee ? (resolvedPosition || "พนักงานบริการ") : "QR ประเมินสถานี"}</span>
+        </span>
+      </div>
+      <div class="identity-chip">
+        <span class="identity-icon">${pinIcon()}</span>
+        <span class="identity-copy">
+          <span class="identity-label">สถานีบริการ</span>
+          <span class="identity-value">${resolvedStation || "-"}</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-pill">สแกนเพื่อประเมิน</div>
+  <div class="qr-card">
+    <div class="qr-shell">${qrSvg}</div>
+    <div class="manual-area">
+      <div class="manual-kicker">สแกนไม่ได้?</div>
+      <div class="manual-label">กรอกรหัสนี้แทน</div>
+      <div class="code-cells">${codeCells}</div>
+      <div class="manual-url">${manualEntryUrl}</div>
+    </div>
+  </div>
+
+  <div class="fact-band">
+    <div class="fact-item">
+      <span class="fact-circle">${clockIcon()}</span>
+      <span class="fact-copy">ใช้เวลาประมาณ<strong>1 นาที</strong></span>
+    </div>
+    <div class="fact-item">
+      <span class="fact-circle">${anonymousIcon()}</span>
+      <span class="fact-copy">ตอบได้โดย<strong>ไม่ระบุชื่อ</strong></span>
+    </div>
+  </div>
+
+  <div class="version">${escapeHtml(version)}</div>
+  <svg class="bottom-sweep" viewBox="0 0 1050 180" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 74 C180 108 340 116 510 110 C710 102 885 70 1050 38 L1050 180 L0 180 Z" fill="#003f4c"/>
+    <path d="M0 48 C180 80 344 88 512 82 C720 74 892 43 1050 16 L1050 40 C890 71 718 103 510 111 C340 117 178 108 0 76 Z" fill="#ed0015"/>
+    <path d="M0 42 C180 72 343 80 510 74 C714 67 888 36 1050 10" fill="none" stroke="#ffffff" stroke-width="3" opacity=".95"/>
+  </svg>
+  <div class="thanks">${heartOutlineIcon()}<span>ขอบคุณทุกความคิดเห็น</span></div>
+  <div class="techron"><img src="${techronLogo}" alt="Techron" /></div>
+</section>
+</body>
+</html>`;
+}
+
+/**
  * A4-landscape customer-feedback poster.
  *
  * Employee posters deliberately mirror the approved Caltex reference artwork:

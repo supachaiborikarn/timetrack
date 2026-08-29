@@ -1,5 +1,98 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomerFeedbackA4PosterHtml } from "@/lib/customer-feedback/print-poster";
+import {
+    buildCustomerFeedbackA4PosterHtml,
+    buildCustomerFeedbackSmallLabelHtml,
+} from "@/lib/customer-feedback/print-poster";
+
+describe("customer feedback small label", () => {
+    it("uses the A4 Caltex visual language in a compact 105 x 148 mm layout", () => {
+        const html = buildCustomerFeedbackSmallLabelHtml({
+            qrUrl: "https://timetrack.example/f?t=demo-token",
+            manualEntryUrl: "https://timetrack.example/f",
+            manualCode: "X7A4K9D2",
+            targetType: "EMPLOYEE",
+            targetLabel: "เบียร์",
+            positionLabel: "พนักงานเติมน้ำมัน",
+            stationLabel: "สถานีบริการคาลเท็กซ์ พหลโยธิน กม. 18",
+            assetBaseUrl: "https://timetrack.example",
+            version: 4,
+        });
+
+        expect(html).toContain("@page { size: 105mm 148mm; margin: 0; }");
+        expect(html).toContain("width: 105mm");
+        expect(html).toContain("height: 148mm");
+        expect(html).toContain("https://timetrack.example/customer-feedback/caltex-logo.png");
+        expect(html).toContain("https://timetrack.example/customer-feedback/techron-logo.png");
+        expect(html).toContain("https://timetrack.example/fonts/Kanit-Black.ttf");
+        expect(html).toContain("https://timetrack.example/fonts/Sriracha-Regular.ttf");
+        expect(html).toContain("ENJOY THE JOURNEY");
+        expect(html).toContain("ช่วยประเมินการบริการของ");
+        expect(html).toContain('class="target target-xl"');
+        expect(html).toContain("เบียร์");
+        expect(html).toContain("วันนี้ผมบริการคุณเป็นอย่างไรบ้าง?");
+        expect(html).toContain("พนักงานเติมน้ำมัน");
+        expect(html).toContain("สถานีบริการคาลเท็กซ์ พหลโยธิน กม. 18");
+        expect(html).toContain("scan-pill");
+        expect(html).toContain("qr-shell");
+        expect(html).not.toContain("qr-brand");
+        expect(html).toContain("bottom-sweep");
+        expect(html).toContain("ขอบคุณทุกความคิดเห็น");
+        expect(html).toContain("QR version 4");
+    });
+
+    it("keeps a large unobstructed QR field and renders the fallback code as eight cells", () => {
+        const html = buildCustomerFeedbackSmallLabelHtml({
+            qrUrl: "https://timetrack.example/f?t=demo-token",
+            manualEntryUrl: "https://timetrack.example/f",
+            manualCode: "SAFE1234",
+            targetType: "EMPLOYEE",
+            targetLabel: "เมย์",
+        });
+
+        expect(html).toContain("width: 54mm");
+        expect(html).toContain("height: 54mm");
+        expect(html).not.toContain("padding: 2.2mm");
+        expect((html.match(/class="code-cell"/g) ?? []).length).toBe(8);
+        expect(html).toContain("grid-template-columns: repeat(4, 1fr)");
+        expect(html).toContain("border: .35mm solid var(--brand-red)");
+    });
+
+    it("uses station wording, scales long labels, and preserves the same compact brand system", () => {
+        const html = buildCustomerFeedbackSmallLabelHtml({
+            qrUrl: "https://timetrack.example/f?t=demo-token",
+            manualEntryUrl: "https://timetrack.example/f",
+            manualCode: "STN12345",
+            targetType: "STATION",
+            targetLabel: "สถานีบริการชื่อยาวมากเป็นพิเศษ",
+            stationLabel: "สถานีบริการชื่อยาวมากเป็นพิเศษ",
+        });
+
+        expect(html).toContain("ช่วยประเมินการบริการของเรา");
+        expect(html).toContain("วันนี้การบริการของเราเป็นอย่างไรบ้าง?");
+        expect(html).toContain("QR ประเมินสถานี");
+        expect(html).toContain('class="target target-sm"');
+        expect(html).toContain("fact-band");
+    });
+
+    it("escapes public text and shows the test ribbon", () => {
+        const html = buildCustomerFeedbackSmallLabelHtml({
+            qrUrl: "https://timetrack.example/f?t=demo-token",
+            manualEntryUrl: "https://timetrack.example/f",
+            manualCode: "TEST1234",
+            targetType: "EMPLOYEE",
+            targetLabel: '<script>alert("x")</script>',
+            positionLabel: "A & B",
+            stationLabel: "S < 1",
+            isTest: true,
+        });
+
+        expect(html).not.toContain('<script>alert("x")</script>');
+        expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
+        expect(html).toContain("A &amp; B");
+        expect(html).toContain("S &lt; 1");
+        expect(html).toContain("ตัวอย่าง / แบบทดสอบ");
+    });
+});
 
 describe("customer feedback A4 landscape poster", () => {
     it("builds the approved Caltex employee reference layout with live data", () => {

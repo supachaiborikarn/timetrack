@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Printer, RefreshCcw, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
-import { buildCustomerFeedbackA4PosterHtml } from "@/lib/customer-feedback/print-poster";
+import { buildCustomerFeedbackA4PosterHtml, buildCustomerFeedbackSmallLabelHtml } from "@/lib/customer-feedback/print-poster";
 import { EmployeePickerDialog } from "./employee-picker-dialog";
 import { StationPickerDialog } from "./station-picker-dialog";
 
@@ -36,16 +36,6 @@ interface QrRow {
     lastPrintedAt: string | null;
     rotatedAt: string | null;
     createdAt: string;
-}
-
-function escapeHtml(value: string): string {
-    return value.replace(/[&<>'"]/g, (character) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;",
-    })[character]!);
 }
 
 export function QrCodesTab() {
@@ -100,8 +90,6 @@ export function QrCodesTab() {
         format: PrintFormat = "badge"
     ): Promise<boolean> {
         try {
-            const { generateQRCodeSVG } = await import("@/lib/qr-code");
-            const svg = generateQRCodeSVG(qrUrl, 240);
             const printWindow = window.open("", "_blank");
             if (!printWindow) {
                 toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up");
@@ -111,56 +99,37 @@ export function QrCodesTab() {
             const rawSubtitle = row.targetType === "EMPLOYEE"
                 ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
                 : [row.placementKey ?? row.placement].filter(Boolean).join(" · ");
-            const targetLabel = escapeHtml(rawTargetLabel);
-            const subtitle = escapeHtml(rawSubtitle);
-            if (format === "a4-landscape") {
-                printWindow.document.write(buildCustomerFeedbackA4PosterHtml({
-                    qrUrl,
-                    manualEntryUrl,
-                    manualCode,
-                    targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" : "STATION",
-                    targetLabel: rawTargetLabel,
-                    positionLabel: row.targetType === "EMPLOYEE" ? row.publicPosition ?? undefined : undefined,
-                    stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
-                    subtitle: rawSubtitle,
-                    isTest: row.isTest,
-                    version: expectedVersion,
-                    assetBaseUrl: window.location.origin,
-                }));
-            } else {
-                printWindow.document.write(`<!doctype html><html lang="th"><head><title>ป้าย QR ${targetLabel}</title><style>
-                body{font-family:sans-serif;display:flex;justify-content:center;padding:24px;color:#111}
-                .badge{border:2px solid #111;padding:16px 24px;text-align:center;max-width:340px}
-                .target{font-weight:700;font-size:22px;margin-top:8px}.subtitle{font-size:14px;color:#333;margin-top:4px}
-                .code{background:#fff;padding:12px;margin:8px auto;width:240px}
-                .manual{font-family:monospace;font-size:20px;letter-spacing:4px;margin-top:8px}
-                @media print{body{padding:0}.badge{break-inside:avoid}}
-            </style></head><body><div class="badge">
-                <div style="font-weight:700;font-size:18px">สแกนเพื่อประเมินการบริการ</div>
-                ${row.isTest ? '<div style="margin:8px 0;padding:6px;background:#fee2e2;color:#991b1b;font-weight:700">แบบทดสอบ — ไม่นำคะแนนไปใช้</div>' : ""}
-                <div class="target">${targetLabel}</div><div class="subtitle">${subtitle}</div>
-                <div style="font-size:13px;color:#444;margin-top:6px">ใช้เวลาประมาณ 1 นาที ไม่ต้องระบุชื่อ</div>
-                <div class="code">${svg}</div>
-                <div>สแกนไม่ได้? ไปที่ ${escapeHtml(manualEntryUrl)}</div>
-                <div>แล้วกรอกรหัส: <span class="manual">${escapeHtml(manualCode)}</span></div>
-                <div style="font-size:10px;color:#666;margin-top:8px">QR version ${expectedVersion}</div>
-            </div></body></html>`);
-            }
+            const posterInput = {
+                qrUrl,
+                manualEntryUrl,
+                manualCode,
+                targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" as const : "STATION" as const,
+                targetLabel: rawTargetLabel,
+                positionLabel: row.targetType === "EMPLOYEE" ? row.publicPosition ?? undefined : undefined,
+                stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
+                subtitle: rawSubtitle,
+                isTest: row.isTest,
+                version: expectedVersion,
+                assetBaseUrl: window.location.origin,
+            };
+            printWindow.document.write(
+                format === "a4-landscape"
+                    ? buildCustomerFeedbackA4PosterHtml(posterInput)
+                    : buildCustomerFeedbackSmallLabelHtml(posterInput)
+            );
             printWindow.document.close();
 
-            if (format === "a4-landscape") {
-                const imagesReady = Array.from(printWindow.document.images).map((image) => {
-                    if (image.complete) return Promise.resolve();
-                    return new Promise<void>((resolve) => {
-                        image.addEventListener("load", () => resolve(), { once: true });
-                        image.addEventListener("error", () => resolve(), { once: true });
-                    });
+            const imagesReady = Array.from(printWindow.document.images).map((image) => {
+                if (image.complete) return Promise.resolve();
+                return new Promise<void>((resolve) => {
+                    image.addEventListener("load", () => resolve(), { once: true });
+                    image.addEventListener("error", () => resolve(), { once: true });
                 });
-                await Promise.race([
-                    Promise.all([printWindow.document.fonts.ready, ...imagesReady]),
-                    new Promise<void>((resolve) => window.setTimeout(resolve, 1800)),
-                ]);
-            }
+            });
+            await Promise.race([
+                Promise.all([printWindow.document.fonts.ready, ...imagesReady]),
+                new Promise<void>((resolve) => window.setTimeout(resolve, 1800)),
+            ]);
 
             printWindow.focus();
             printWindow.print();
@@ -338,7 +307,7 @@ export function QrCodesTab() {
                                                         >
                                                             <Printer className="mr-1 h-4 w-4" />A4 แนวนอน
                                                         </Button>
-                                                        <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
+                                                        <Button size="sm" variant="ghost" title="ป้ายเล็ก 105 × 148 มม. สไตล์เดียวกับ A4" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
                                                             ป้ายเล็ก
                                                         </Button>
                                                     </>
