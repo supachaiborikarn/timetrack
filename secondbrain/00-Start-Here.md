@@ -28,7 +28,7 @@ Latest important payroll change:
 Customer Feedback QR launch state (checked 2026-08-29):
 
 - Admin feature and public feature are enabled; production public form is `https://timetrack-lake.vercel.app/f`.
-- Production has 48 EMPLOYEE production QRs: 1 active, 47 still `needsReprint=true`, and 2 have public-profile acknowledgement recorded.
+- Production has 48 EMPLOYEE production QRs: 2 active, 47 still `needsReprint=true`, and 2 have public-profile acknowledgement recorded.
 - Production has 4 STATION production QRs: all 4 inactive and all 4 still `needsReprint=true`.
 - Do not bulk-activate or bypass `needsReprint` / employee public-profile acknowledgement.
 - EMPLOYEE lifecycle: public-profile acknowledgement immediately activates the current QR version while leaving `needsReprint=true` until a real print/save-PDF is confirmed. Opening the print action (`reveal`) also self-heals an already-approved inactive employee QR before returning the QR, so scanning from print preview works immediately. `MARK_PRINTED` then records the real print and clears `needsReprint`.

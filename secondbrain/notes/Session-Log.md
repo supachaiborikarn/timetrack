@@ -408,3 +408,11 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint: passed.
 - `git diff --check`: passed.
+
+Deployment and production repair:
+
+- Feature commit `c3654f6` (`Fix rotated employee feedback QR activation`) was pushed to `origin/main`.
+- GitHub combined status reported `Vercel: success` for commit `c3654f6`.
+- Repaired only the existing `กระเพรา` production QR version 2 after strict transaction checks: employee active, public profile approved, label/position complete, exact version unchanged, and no other active employee QR.
+- The repair set `isActive=true` and `revokedAt=null` without rotating secrets again, changing print metadata, or clearing `needsReprint`; it also wrote `CUSTOMER_FEEDBACK_QR_ACTIVATED` with source `PRODUCTION_ROTATE_REPAIR`.
+- Route-equivalent verification decrypted the stored values without logging them and confirmed both token-hash and manual-code-hash lookups resolve to the same active version 2. No public resolve request was submitted, so no synthetic production Visit was created.
