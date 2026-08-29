@@ -81,6 +81,8 @@ From Admin → เสียงลูกค้า → QR Codes, printable rows of
 
 Both formats call the same audited `reveal` API and show the current QR version. After the browser print/save-PDF dialog finishes, confirm success only if the current version was actually printed/saved; that confirmation records `MARK_PRINTED` and clears `needsReprint`. Do not mark printed merely to bypass activation.
 
+For `EMPLOYEE` QR rows, public-profile acknowledgement is still required before printing. A successful `MARK_PRINTED` now atomically records the print **and activates that same QR version automatically** when the employee is active, the approved public name/position are still current, and no other employee QR is active. If those checks fail or the version changed, the transaction does not mark the print as successful. `STATION` QR rows do **not** auto-activate after printing; they keep the existing manual activation flow.
+
 ## Customer Feedback employee survey versions
 
 - New EMPLOYEE resolves use `employee-v2`.

@@ -25,16 +25,16 @@ Latest important payroll change:
 - Pushed to `origin/main` on 2026-08-26.
 - New rules take effect from `2026-08-26` onward.
 
-Customer Feedback QR launch state (checked 2026-08-27):
+Customer Feedback QR launch state (checked 2026-08-29):
 
-- Admin feature and public feature are enabled. Vercel production deployment `dpl_J3MQZRy7FuDiPSzGnz4t6cngKgvf` is Ready, aliased to `timetrack-lake.vercel.app`, and `/f` returns HTTP 200.
-- Production database currently has 48 EMPLOYEE production QRs and 4 STATION production QRs, all inactive with `needsReprint=true`.
-- All four active stations have a public emergency phone configured.
-- Only 1 of 48 employee QRs currently has public-profile approval, so employee QRs must not be bulk-activated yet.
-- Station QR PDFs exist under `output/pdf/station-feedback/`, but print success still has to be recorded through the normal flow before activation.
-- Do not bypass `needsReprint` or employee public-profile acknowledgement merely to make a QR active.
-- Admin QR Codes supports a dedicated **A4 landscape** print format for front-of-car/acrylic signs while keeping the compact badge format. As of 2026-08-28 the real print template follows the final approved Caltex reference: official Caltex lock-up, white/red/deep-teal composition, oversized red employee public name, handwritten-style question, position/station rows, three-column information band, elevated QR card with Caltex centre mark, eight separate fallback-code cells, red/teal bottom sweep and Techron treatment. QR/name/position/station/code remain dynamic; print/consent/activation guards are unchanged.
-- Employee Customer Feedback now has registry version `employee-v2`: new employee QR visits ask seven service-behavior questions (appearance, vehicle guidance, greeting, order repeat, special-service offer, thanks, front-of-car sign) with `YES | NO | UNSURE`; existing `employee-v1` visits remain valid and continue to submit under their original version.
+- Admin feature and public feature are enabled; production public form is `https://timetrack-lake.vercel.app/f`.
+- Production has 48 EMPLOYEE production QRs: 1 active, 47 still `needsReprint=true`, and 2 have public-profile acknowledgement recorded.
+- Production has 4 STATION production QRs: all 4 inactive and all 4 still `needsReprint=true`.
+- Do not bulk-activate or bypass `needsReprint` / employee public-profile acknowledgement.
+- EMPLOYEE lifecycle: acknowledgement enables printing; after the operator confirms a real print/save-PDF, `MARK_PRINTED` clears `needsReprint` and atomically auto-activates that same QR version when the employee/profile checks still pass. Approval alone never activates a QR.
+- STATION lifecycle is unchanged: confirmed print only clears `needsReprint`; activation remains a separate manual action.
+- Admin QR Codes supports a dedicated **A4 landscape** print format for front-of-car/acrylic signs while keeping the compact badge format. The real print template follows the final approved Caltex reference: official Caltex lock-up, white/red/deep-teal composition, oversized red employee public name, handwritten-style question, position/station rows, three-column information band, elevated QR card with Caltex centre mark, eight separate fallback-code cells, red/teal bottom sweep and Techron treatment. QR/name/position/station/code remain dynamic.
+- Employee Customer Feedback registry version is `employee-v2`: new employee QR visits ask seven service-behavior questions (appearance, vehicle guidance, greeting, order repeat, special-service offer, thanks, front-of-car sign) with `YES | NO | UNSURE`; existing `employee-v1` visits remain valid and continue to submit under their original version.
 
 ## Read first for payroll work
 

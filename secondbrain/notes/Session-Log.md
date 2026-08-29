@@ -331,3 +331,33 @@ Deployment:
 - The repository Vercel integration then built commit `030a6b9`; GitHub combined status reported `Vercel: success` with deployment target `4tKVh5KknhXjYxLQT3nSFVf2Eru6`.
 - Production `https://timetrack-lake.vercel.app/f` returned HTTP 200 after the successful integration deployment. No real QR resolve was submitted for smoke testing, so no synthetic Production Visit was created.
 
+
+## 2026-08-29 — Auto-activate employee feedback QR after confirmed print
+
+Owner request:
+
+After an employee's public profile is acknowledged, allow printing and make the QR become active automatically for every employee once the current QR version is genuinely printed/saved.
+
+Implementation:
+
+- Changed admin `MARK_PRINTED` for `EMPLOYEE` QRs so print metadata, `needsReprint=false`, and `isActive=true` are committed in the same transaction.
+- Re-checks the locked current QR version, public-profile acknowledgement, public label/position, employee active status, and absence of another active employee QR before activation.
+- Writes the normal `CUSTOMER_FEEDBACK_QR_PRINTED` audit plus `CUSTOMER_FEEDBACK_QR_ACTIVATED` with `source=MARK_PRINTED` when auto-activation actually changes the state.
+- `STATION` QR printing is unchanged and does not auto-activate.
+- Admin UI now shows `พิมพ์แล้วเปิดอัตโนมัติ` instead of offering a premature activate button while an acknowledged EMPLOYEE QR still needs printing; intentionally deactivated already-printed employee QRs can still be re-enabled manually.
+- Print-success toast uses the backend message so the operator sees when automatic activation happened.
+
+Production state check before rollout:
+
+- Production DB host: `ep-delicate-sound-a1mi5n1t-pooler.ap-southeast-1.aws.neon.tech`.
+- EMPLOYEE production QRs: 48 total, 1 active, 47 `needsReprint=true`, 2 with public-profile acknowledgement.
+- STATION production QRs: 4 total, 0 active, 4 `needsReprint=true`.
+- Reconcile query for already-approved + already-printed + inactive employees returned **0 rows**, so no production QR state was mutated during reconciliation.
+- In particular, any approved employee QR that still has `needsReprint=true` remains inactive until a real print/save-PDF is confirmed.
+
+Verification:
+
+- Admin QR route tests: 17/17 passed, including employee auto-activation, station non-auto-activation, and rejection before employee acknowledgement.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed.
+- `git diff --check`: passed.

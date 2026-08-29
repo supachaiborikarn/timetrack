@@ -566,27 +566,126 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 if (!Number.isSafeInteger(body.expectedVersion) || (body.expectedVersion ?? 0) < 1) {
                     return NextResponse.json({ error: "ต้องระบุ expectedVersion ของป้ายที่พิมพ์" }, { status: 400 });
                 }
+                if (body.expectedVersion !== qr.version) {
+                    return NextResponse.json({ error: "QR เปลี่ยนเวอร์ชันระหว่างพิมพ์ กรุณาพิมพ์ป้ายเวอร์ชันใหม่" }, { status: 409 });
+                }
+                if (qr.targetType === "EMPLOYEE") {
+                    if (!qr.publicProfileApprovedAt) {
+                        return NextResponse.json({ error: "ต้องบันทึกว่าพนักงานรับทราบข้อมูลสาธารณะก่อนพิมพ์" }, { status: 400 });
+                    }
+                    if (!qr.publicLabel || !qr.publicPosition) {
+                        return NextResponse.json({ error: "ต้องมีชื่อและตำแหน่งสาธารณะครบก่อนพิมพ์" }, { status: 400 });
+                    }
+                    if (!qr.employee?.isActive) {
+                        return NextResponse.json({ error: "พนักงานไม่อยู่ในสถานะทำงาน" }, { status: 400 });
+                    }
+                }
+
                 const marked = await prisma.$transaction(async (tx) => {
+                    if (qr.targetType === "EMPLOYEE") {
+                        await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${qr.employeeId} FOR UPDATE`);
+                        await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "CustomerFeedbackQr" WHERE "id" = ${id} FOR UPDATE`);
+                        const current = await tx.customerFeedbackQr.findUnique({
+                            where: { id },
+                            select: {
+                                version: true,
+                                isActive: true,
+                                employeeId: true,
+                                publicProfileApprovedAt: true,
+                                publicLabel: true,
+                                publicPosition: true,
+                            },
+                        });
+                        if (!current || current.version !== body.expectedVersion) return { status: "STALE" as const };
+                        if (!current.publicProfileApprovedAt || !current.publicLabel || !current.publicPosition) {
+                            return { status: "PROFILE_NOT_APPROVED" as const };
+                        }
+                        const employee = current.employeeId ? await tx.user.findUnique({
+                            where: { id: current.employeeId },
+                            select: { isActive: true },
+                        }) : null;
+                        if (!employee?.isActive) return { status: "TARGET_INACTIVE" as const };
+                        const activeOther = await tx.customerFeedbackQr.findFirst({
+                            where: {
+                                employeeId: current.employeeId,
+                                targetType: "EMPLOYEE",
+                                isActive: true,
+                                id: { not: id },
+                            },
+                            select: { id: true },
+                        });
+                        if (activeOther) return { status: "OTHER_ACTIVE" as const };
+
+                        const autoActivated = !current.isActive;
+                        const updated = await tx.customerFeedbackQr.updateMany({
+                            where: { id, version: body.expectedVersion },
+                            data: {
+                                lastPrintedAt: now,
+                                lastPrintedById: session.user.id,
+                                needsReprint: false,
+                                isActive: true,
+                                revokedAt: null,
+                            },
+                        });
+                        if (updated.count !== 1) return { status: "STALE" as const };
+                        await tx.auditLog.create({
+                            data: {
+                                action: "CUSTOMER_FEEDBACK_QR_PRINTED",
+                                entity: "CustomerFeedbackQr",
+                                entityId: id,
+                                details: JSON.stringify({ version: body.expectedVersion, autoActivated }),
+                                userId: session.user.id,
+                            },
+                        });
+                        if (autoActivated) {
+                            await tx.auditLog.create({
+                                data: {
+                                    action: "CUSTOMER_FEEDBACK_QR_ACTIVATED",
+                                    entity: "CustomerFeedbackQr",
+                                    entityId: id,
+                                    details: JSON.stringify({ version: body.expectedVersion, source: "MARK_PRINTED" }),
+                                    userId: session.user.id,
+                                },
+                            });
+                        }
+                        return { status: "PRINTED" as const, autoActivated };
+                    }
+
                     const updated = await tx.customerFeedbackQr.updateMany({
                         where: { id, version: body.expectedVersion },
                         data: { lastPrintedAt: now, lastPrintedById: session.user.id, needsReprint: false },
                     });
-                    if (updated.count !== 1) return false;
+                    if (updated.count !== 1) return { status: "STALE" as const };
                     await tx.auditLog.create({
                         data: {
                             action: "CUSTOMER_FEEDBACK_QR_PRINTED",
                             entity: "CustomerFeedbackQr",
                             entityId: id,
-                            details: JSON.stringify({ version: body.expectedVersion }),
+                            details: JSON.stringify({ version: body.expectedVersion, autoActivated: false }),
                             userId: session.user.id,
                         },
                     });
-                    return true;
+                    return { status: "PRINTED" as const, autoActivated: false };
                 });
-                if (!marked) {
+
+                if (marked.status === "PROFILE_NOT_APPROVED") {
+                    return NextResponse.json({ error: "ข้อมูลสาธารณะของพนักงานยังไม่ได้รับการรับทราบ" }, { status: 400 });
+                }
+                if (marked.status === "TARGET_INACTIVE") {
+                    return NextResponse.json({ error: "พนักงานไม่อยู่ในสถานะทำงาน" }, { status: 400 });
+                }
+                if (marked.status === "OTHER_ACTIVE") {
+                    return NextResponse.json({ error: "พนักงานมี QR ที่ใช้งานอยู่แล้ว" }, { status: 409 });
+                }
+                if (marked.status === "STALE") {
                     return NextResponse.json({ error: "QR เปลี่ยนเวอร์ชันระหว่างพิมพ์ กรุณาพิมพ์ป้ายเวอร์ชันใหม่" }, { status: 409 });
                 }
-                return NextResponse.json({ message: "บันทึกการพิมพ์แล้ว" });
+                return NextResponse.json({
+                    message: marked.autoActivated
+                        ? "บันทึกการพิมพ์และเปิดใช้งาน QR พนักงานอัตโนมัติแล้ว"
+                        : "บันทึกการพิมพ์แล้ว",
+                    autoActivated: marked.autoActivated,
+                });
             }
 
             case "reveal": {

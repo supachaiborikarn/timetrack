@@ -82,7 +82,7 @@ export function QrCodesTab() {
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
-            toast.success("สร้างป้ายสำหรับ QR เวอร์ชันนี้แล้ว");
+            toast.success(data.message ?? "สร้างป้ายสำหรับ QR เวอร์ชันนี้แล้ว");
         } else if (response.status === 409) {
             toast.error("QR ถูกหมุนรหัสระหว่างสร้างป้าย รายการถูกโหลดใหม่แล้ว");
         } else {
@@ -345,9 +345,11 @@ export function QrCodesTab() {
                                                 )}
                                                 {q.isActive ? (
                                                     <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
-                                                ) : (
+                                                ) : q.targetType === "EMPLOYEE" && q.publicProfileApprovedAt && q.needsReprint ? (
+                                                    <Button size="sm" variant="outline" disabled>พิมพ์แล้วเปิดอัตโนมัติ</Button>
+                                                ) : q.targetType !== "EMPLOYEE" || q.publicProfileApprovedAt ? (
                                                     <Button size="sm" onClick={() => void act(q.id, { action: "activate", expectedVersion: q.version })}>เปิดใช้งาน</Button>
-                                                )}
+                                                ) : null}
                                                 {q.isTest && !q.isActive && (
                                                     <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "promote-test", expectedVersion: q.version }, "สร้าง QR ใช้งานจริงแยกจาก QR ทดสอบใบนี้? ต้องพิมพ์ป้ายใหม่ก่อนเปิดใช้")}>เปลี่ยนเป็นใช้งานจริง</Button>
                                                 )}

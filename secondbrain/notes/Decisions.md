@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Decisions
@@ -45,3 +45,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Branding/layout changes must not bypass QR reveal auditing, print confirmation, `needsReprint`, or employee public-profile acknowledgement.
 - The final approved A4 visual reference is the white/red/deep-teal Caltex composition: official Caltex lock-up at top-left, oversized red public employee name, handwritten-style service question, position/station identity rows, dark-teal three-column information band, elevated right-side QR card with Caltex centre mark, eight separate fallback-code cells, and the red/teal Techron footer sweep. Implement it as live HTML/CSS with dynamic QR/name/position/station/code values, not as a static poster PNG.
 - Preserve the reference proportions in A4 landscape and keep the QR card plus all eight fallback-code cells fully visible above the footer sweep.
+
+## 2026-08-29: Auto-activate employee feedback QR only after confirmed print
+
+- EMPLOYEE public-profile acknowledgement makes the current QR version printable; acknowledgement by itself must not activate the QR.
+- When the operator confirms the current EMPLOYEE QR was actually printed or saved as PDF, `MARK_PRINTED` must atomically record the print, clear `needsReprint`, and activate that same version.
+- Auto-activation is allowed only while the employee is active, the approved public label/position are still valid for that version, and no other EMPLOYEE QR for that employee is active. A stale/conflicting request must fail without recording the print.
+- STATION QRs keep the existing two-step lifecycle: mark the current version printed, then activate manually.
+- Never clear `needsReprint` or activate a QR merely to make an unprinted physical sign work.
