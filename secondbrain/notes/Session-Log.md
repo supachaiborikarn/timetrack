@@ -386,3 +386,25 @@ Verification:
 - Targeted ESLint: passed.
 - `git diff --check`: passed.
 - No production database write was performed while diagnosing or implementing this fix; production inspection was read-only.
+## 2026-08-29 — Fixed rotated employee feedback QR being immediately inactive
+
+Observed from the latest production EMPLOYEE QR rotation:
+
+- The current `กระเพรา` production QR had been rotated to version 2, but the rotate action set `isActive=false` and `revokedAt` to the rotation time.
+- Both the QR token and the fallback manual code were therefore rejected by the public resolver, even though the employee was active and public-profile acknowledgement was already recorded.
+- The existing acknowledgement/reveal self-heal did not help this path because the admin UI prints directly from the rotate response without calling `reveal` again.
+
+Implementation:
+
+- EMPLOYEE rotation now locks the employee and QR row, rechecks the expected version, public-profile acknowledgement, public label/position, employee active state, and active-QR conflicts.
+- When eligible, the newly generated version remains or becomes active in the same transaction (`revokedAt=null`) while `needsReprint=true` and print metadata are reset. The old token/manual code still become invalid immediately.
+- Unapproved employee QRs and all STATION rotations retain the inactive-after-rotate behavior.
+- Rotation audit details now record whether an employee QR was auto-activated, and a normal activation audit is added when rotation changes the state from inactive to active.
+
+Verification:
+
+- Admin QR route tests: 21/21 passed, including approved employee rotate activation and unapproved employee staying inactive.
+- Admin rotate + public resolve targeted tests: 23/23 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed.
+- `git diff --check`: passed.

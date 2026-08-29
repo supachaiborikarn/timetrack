@@ -248,7 +248,52 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 }
                 const secrets = buildQrSecrets();
                 const rotated = await prisma.$transaction(async (tx) => {
-                    if (qr.targetType === "STATION" && qr.isPrimary && qr.stationId) {
+                    let activateRotatedEmployee = false;
+                    let employeeAutoActivated = false;
+
+                    if (qr.targetType === "EMPLOYEE") {
+                        if (!qr.employeeId) return { status: "STALE" as const };
+                        // ใช้ lock order เดียวกับ approve/reveal/submit: User -> QR
+                        await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${qr.employeeId} FOR UPDATE`);
+                        await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "CustomerFeedbackQr" WHERE "id" = ${id} FOR UPDATE`);
+                        const current = await tx.customerFeedbackQr.findUnique({
+                            where: { id },
+                            select: {
+                                version: true,
+                                isActive: true,
+                                employeeId: true,
+                                publicProfileApprovedAt: true,
+                                publicLabel: true,
+                                publicPosition: true,
+                            },
+                        });
+                        if (!current || current.version !== body.expectedVersion || current.employeeId !== qr.employeeId) {
+                            return { status: "STALE" as const };
+                        }
+
+                        // หลังพนักงานรับทราบแล้ว QR เวอร์ชันใหม่ต้องสแกนทดสอบได้ทันที
+                        // แม้ needsReprint จะยังคง true เพื่อบังคับเปลี่ยนป้ายจริงก็ตาม
+                        if (current.publicProfileApprovedAt && current.publicLabel && current.publicPosition) {
+                            const employee = await tx.user.findUnique({
+                                where: { id: qr.employeeId },
+                                select: { isActive: true },
+                            });
+                            if (employee?.isActive) {
+                                const activeOther = await tx.customerFeedbackQr.findFirst({
+                                    where: {
+                                        employeeId: qr.employeeId,
+                                        targetType: "EMPLOYEE",
+                                        isActive: true,
+                                        id: { not: id },
+                                    },
+                                    select: { id: true },
+                                });
+                                if (activeOther) return { status: "OTHER_ACTIVE" as const };
+                                activateRotatedEmployee = true;
+                                employeeAutoActivated = !current.isActive;
+                            }
+                        }
+                    } else if (qr.isPrimary && qr.stationId) {
                         await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Station" WHERE "id" = ${qr.stationId} FOR UPDATE`);
                         await tx.$queryRaw(Prisma.sql`
                             SELECT "id" FROM "CustomerFeedbackQr"
@@ -262,15 +307,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         data: {
                             ...secrets.columns,
                             version: { increment: 1 },
-                            isActive: false,
+                            isActive: activateRotatedEmployee,
                             needsReprint: true,
                             lastPrintedAt: null,
                             lastPrintedById: null,
                             rotatedAt: now,
-                            revokedAt: now,
+                            revokedAt: activateRotatedEmployee ? null : now,
                         },
                     });
-                    if (updated.count !== 1) return false;
+                    if (updated.count !== 1) return { status: "STALE" as const };
                     const closedSecondaries = qr.targetType === "STATION" && qr.isPrimary && qr.stationId
                         ? await tx.customerFeedbackQr.updateMany({
                             where: {
@@ -291,17 +336,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                                 previousVersion: qr.version,
                                 nextVersion: qr.version + 1,
                                 closedSecondaryCount: closedSecondaries.count,
+                                employeeAutoActivated,
                             }),
                             userId: session.user.id,
                         },
                     });
-                    return true;
+                    if (employeeAutoActivated) {
+                        await tx.auditLog.create({
+                            data: {
+                                action: "CUSTOMER_FEEDBACK_QR_ACTIVATED",
+                                entity: "CustomerFeedbackQr",
+                                entityId: id,
+                                details: JSON.stringify({ version: qr.version + 1, source: "ROTATE_APPROVED_EMPLOYEE" }),
+                                userId: session.user.id,
+                            },
+                        });
+                    }
+                    return { status: "ROTATED" as const, employeeActive: activateRotatedEmployee };
                 });
-                if (!rotated) {
+                if (rotated.status === "STALE") {
                     return NextResponse.json({ error: "QR เปลี่ยนเวอร์ชันระหว่างทำรายการ กรุณาโหลดใหม่" }, { status: 409 });
                 }
+                if (rotated.status === "OTHER_ACTIVE") {
+                    return NextResponse.json({ error: "พนักงานมี QR ที่ใช้งานอยู่แล้ว" }, { status: 409 });
+                }
                 return NextResponse.json({
-                    message: "หมุนรหัสแล้ว ป้ายเก่าใช้ไม่ได้ กรุณาพิมพ์ป้ายใหม่",
+                    message: rotated.employeeActive
+                        ? "หมุนรหัสแล้ว QR ใหม่เปิดใช้งานทันที ป้ายเก่าใช้ไม่ได้ กรุณาพิมพ์ป้ายใหม่"
+                        : "หมุนรหัสแล้ว ป้ายเก่าใช้ไม่ได้ กรุณาพิมพ์ป้ายใหม่",
                     version: qr.version + 1,
                     token: secrets.token,
                     manualCode: secrets.manualCode,

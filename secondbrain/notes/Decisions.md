@@ -52,5 +52,6 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Acknowledgement/activation does **not** claim the sign was printed: keep `needsReprint=true` and `lastPrintedAt` unchanged until a real print/save-PDF is confirmed.
 - `reveal` is a recovery/self-heal point for already-approved inactive EMPLOYEE rows: before returning the token for printing, it atomically activates the current eligible QR version. This covers rows acknowledged before this rule was deployed.
 - `MARK_PRINTED` remains the source of truth for physical print completion; it records print metadata, clears `needsReprint`, and keeps the employee QR active.
+- Rotating an already-approved, eligible EMPLOYEE QR must keep or restore the newly generated version as active atomically. The old token/manual code becomes invalid immediately, but the returned replacement QR must be scannable from the print preview; `needsReprint` remains true until print confirmation.
 - Intentionally deactivated or conflicting/stale QR states must not be silently revived outside these authenticated acknowledgement/print flows.
 - STATION QRs keep the existing two-step lifecycle: confirmed print clears `needsReprint`, then activation remains manual.

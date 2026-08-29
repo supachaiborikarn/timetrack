@@ -546,6 +546,91 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
         }));
     });
 
+    it("หมุนรหัส QR พนักงานที่รับทราบแล้วและเปิดรหัสใหม่ทันที", async () => {
+        const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const createAudit = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            user: { findUnique: vi.fn().mockResolvedValue({ isActive: true }) },
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    isActive: false,
+                    employeeId: "employee-1",
+                    publicProfileApprovedAt: employeeQr.publicProfileApprovedAt,
+                    publicLabel: employeeQr.publicLabel,
+                    publicPosition: employeeQr.publicPosition,
+                }),
+                findFirst: vi.fn().mockResolvedValue(null),
+                updateMany,
+            },
+            auditLog: { create: createAudit },
+        }));
+        const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "rotate", expectedVersion: 2 }),
+        });
+
+        const response = await PATCH(request, { params: Promise.resolve({ id: "qr-1" }) });
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.version).toBe(3);
+        expect(body.message).toContain("QR ใหม่เปิดใช้งานทันที");
+        expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "qr-1", version: 2 },
+            data: expect.objectContaining({
+                tokenHash: "new-hash",
+                version: { increment: 1 },
+                isActive: true,
+                needsReprint: true,
+                revokedAt: null,
+            }),
+        }));
+        expect(createAudit).toHaveBeenCalledTimes(2);
+        expect(createAudit).toHaveBeenLastCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "CUSTOMER_FEEDBACK_QR_ACTIVATED" }),
+        }));
+    });
+
+    it("หมุนรหัส QR พนักงานที่ยังไม่รับทราบโดยคงสถานะปิดไว้", async () => {
+        qrFindMock.mockResolvedValue({ ...employeeQr, publicProfileApprovedAt: null });
+        const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const createAudit = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            user: { findUnique: vi.fn() },
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    isActive: false,
+                    employeeId: "employee-1",
+                    publicProfileApprovedAt: null,
+                    publicLabel: employeeQr.publicLabel,
+                    publicPosition: employeeQr.publicPosition,
+                }),
+                findFirst: vi.fn(),
+                updateMany,
+            },
+            auditLog: { create: createAudit },
+        }));
+        const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "rotate", expectedVersion: 2 }),
+        });
+
+        const response = await PATCH(request, { params: Promise.resolve({ id: "qr-1" }) });
+
+        expect(response.status).toBe(200);
+        expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ isActive: false, needsReprint: true }),
+        }));
+        expect(updateMany.mock.calls[0][0].data.revokedAt).toBeInstanceOf(Date);
+        expect(createAudit).toHaveBeenCalledTimes(1);
+    });
+
     it("หมุน QR หลักแล้วปิด QR จุดย่อยของสถานีใน transaction เดียวกัน", async () => {
         qrFindMock.mockResolvedValue({
             ...employeeQr,
