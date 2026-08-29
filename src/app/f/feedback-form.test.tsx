@@ -25,6 +25,11 @@ const employeeV2ResolveResult = {
     reasonOptionOrder: ["employee_courtesy", "other", "unspecified"],
 };
 
+const employeeV3ResolveResult = {
+    ...employeeV2ResolveResult,
+    surveyVersion: "employee-v3",
+};
+
 async function reachStationReasons() {
     fireEvent.change(screen.getByLabelText("กรอกรหัส 8 ตัวใต้ QR"), { target: { value: "ABCDEFGH" } });
     fireEvent.click(screen.getByRole("button", { name: "เริ่มประเมิน" }));
@@ -354,6 +359,57 @@ describe("FeedbackForm station choices", () => {
             thanked_customer: "YES",
             front_sign_placed: "UNSURE",
         });
+    });
+
+    it("shows all nine employee-v3 weighted questions and submits every answer", async () => {
+        const submittedBodies: Array<Record<string, unknown>> = [];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+                const url = String(input);
+                if (url.endsWith("/api/public/customer-feedback/resolve")) {
+                    return new Response(JSON.stringify(employeeV3ResolveResult), {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+                if (url.endsWith("/api/public/customer-feedback/submissions")) {
+                    submittedBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+                    return new Response(JSON.stringify({ refCode: "EMP-3" }), {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+                return new Response(JSON.stringify({}), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                });
+            })
+        );
+
+        render(<FeedbackForm />);
+        await reachEmployeeRating();
+        fireEvent.click(screen.getByRole("radio", { name: "5. พอใจมาก" }));
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+
+        await screen.findByRole("heading", { name: "พนักงานทำสิ่งต่อไปนี้หรือไม่" });
+        const groups = screen.getAllByRole("group");
+        expect(groups).toHaveLength(9);
+        expect(screen.getByRole("group", { name: /15 คะแนน/ })).toBeTruthy();
+        expect(screen.getAllByText(/คะแนน$/).length).toBeGreaterThanOrEqual(9);
+        for (const group of groups) {
+            fireEvent.click(within(group).getByRole("radio", { name: "ใช่" }));
+        }
+
+        fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
+        await screen.findByRole("heading", { name: "เรื่องใดทำให้คุณพอใจ" });
+        fireEvent.click(screen.getByRole("button", { name: "ส่งความคิดเห็น" }));
+
+        await screen.findByRole("heading", { name: "รับความคิดเห็นแล้ว ขอบคุณที่ช่วยให้เราปรับบริการ" });
+        expect(submittedBodies).toHaveLength(1);
+        const answers = submittedBodies[0].behaviorAnswers as Record<string, string>;
+        expect(Object.keys(answers)).toHaveLength(9);
+        expect(Object.values(answers)).toEqual(Array(9).fill("YES"));
     });
 
     it("restores safe employee-v2 behavior answers and translates the screen to English", async () => {

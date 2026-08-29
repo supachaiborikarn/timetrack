@@ -7,12 +7,12 @@
  * - คะแนน 1–2 ต้องเลือกสาเหตุอย่างน้อยหนึ่งข้อหรือ "ไม่สะดวกระบุ"
  */
 
-export type SurveyVersion = "employee-v1" | "employee-v2" | "station-v1" | "incident-v1";
+export type SurveyVersion = "employee-v1" | "employee-v2" | "employee-v3" | "station-v1" | "incident-v1";
 export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
 export type QuestionOwner = "EMPLOYEE" | "SYSTEM" | "STATION" | "UNKNOWN";
 export type BehaviorAnswer = "YES" | "NO" | "UNSURE";
 
-export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
+export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "employee-v3", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
 
 export function isStandardSurveyVersion(version: string): version is StandardSurveyVersion {
     return (STANDARD_SURVEY_VERSIONS as readonly string[]).includes(version);
@@ -37,6 +37,8 @@ export interface ServiceAreaOption {
 export interface BehaviorQuestion {
     key: EmployeeBehaviorQuestionKey;
     label: LocalizedText;
+    /** คะแนนเต็มของเกณฑ์เมื่อคำถามนี้ใช้เป็น rubric; v2 เดิมไม่มีน้ำหนักคะแนน */
+    weight?: number;
 }
 
 export interface SurveyDefinition {
@@ -89,8 +91,23 @@ export const EMPLOYEE_BEHAVIOR_QUESTION_KEYS = [
     "front_sign_placed",
 ] as const;
 
-export type EmployeeBehaviorQuestionKey = (typeof EMPLOYEE_BEHAVIOR_QUESTION_KEYS)[number];
-export type EmployeeBehaviorAnswers = Record<EmployeeBehaviorQuestionKey, BehaviorAnswer>;
+/** employee-v3: rubric หน้าลานตามป้าย Caltex รวม 64 คะแนน */
+export const EMPLOYEE_SCORE_QUESTION_KEYS = [
+    "uniform_and_name_badge",
+    "guide_vehicle_immediately",
+    "receive_driver_side",
+    "caltex_greeting",
+    "front_service_sign",
+    "repeat_fuel_amount_before",
+    "offer_rewards_promotion",
+    "repeat_fuel_amount_after",
+    "thank_and_guide_exit",
+] as const;
+
+export type EmployeeV2BehaviorQuestionKey = (typeof EMPLOYEE_BEHAVIOR_QUESTION_KEYS)[number];
+export type EmployeeScoreQuestionKey = (typeof EMPLOYEE_SCORE_QUESTION_KEYS)[number];
+export type EmployeeBehaviorQuestionKey = EmployeeV2BehaviorQuestionKey | EmployeeScoreQuestionKey;
+export type EmployeeBehaviorAnswers = Partial<Record<EmployeeBehaviorQuestionKey, BehaviorAnswer>>;
 
 /** คำถามพฤติกรรมที่เพิ่มใน employee-v2 — key ที่เผยแพร่แล้วห้ามเปลี่ยนความหมาย */
 export const EMPLOYEE_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
@@ -123,6 +140,35 @@ export const EMPLOYEE_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
         label: { th: "พนักงานวางป้ายบริการหน้ารถ", en: "The employee placed the service sign in front of the vehicle" },
     },
 ];
+
+/**
+ * employee-v3 — เกณฑ์บริการหน้าลานจากป้ายตรวจ 64 คะแนน
+ * YES = ได้คะแนนเต็มข้อนั้น, NO = 0, UNSURE = ตัดน้ำหนักข้อนั้นออกจากฐานคำนวณ
+ */
+export const EMPLOYEE_SCORE_QUESTIONS: BehaviorQuestion[] = [
+    { key: "uniform_and_name_badge", weight: 15, label: { th: "พนักงานแต่งกายตามมาตรฐานและมีป้ายชื่อเรียบร้อย", en: "The employee wore the standard uniform and name badge neatly" } },
+    { key: "guide_vehicle_immediately", weight: 10, label: { th: "พนักงานโบกรถเข้ารับบริการทันที", en: "The employee promptly guided your vehicle into the service point" } },
+    { key: "receive_driver_side", weight: 3, label: { th: "พนักงานเข้ารับรถทางฝั่งคนขับ", en: "The employee approached your vehicle from the driver's side" } },
+    { key: "caltex_greeting", weight: 10, label: { th: "พนักงานกล่าวทักทาย “คาลเท็กซ์ สวัสดีครับ/ค่ะ”", en: "The employee greeted you with the Caltex greeting" } },
+    { key: "front_service_sign", weight: 3, label: { th: "พนักงานวางป้ายบริการหน้ารถ", en: "The employee placed the service sign in front of the vehicle" } },
+    { key: "repeat_fuel_amount_before", weight: 4, label: { th: "พนักงานทวนประเภทน้ำมันและจำนวนเงินก่อนเติม", en: "The employee repeated the fuel type and amount before fueling" } },
+    { key: "offer_rewards_promotion", weight: 5, label: { th: "พนักงานเสนอ Caltex Rewards หรือโปรโมชั่นที่เกี่ยวข้อง", en: "The employee offered Caltex Rewards or a relevant promotion" } },
+    { key: "repeat_fuel_amount_after", weight: 4, label: { th: "ตอนรับชำระเงิน พนักงานทวนประเภทน้ำมันและจำนวนเงินหลังเติม", en: "At payment, the employee repeated the fuel type and amount after fueling" } },
+    { key: "thank_and_guide_exit", weight: 10, label: { th: "พนักงานกล่าวขอบคุณและโบกรถออกจากสถานี", en: "The employee thanked you and guided your vehicle out" } },
+];
+
+export const EMPLOYEE_SCORE_TOTAL = EMPLOYEE_SCORE_QUESTIONS.reduce((sum, question) => sum + (question.weight ?? 0), 0);
+
+export function employeeBehaviorQuestionsForVersion(version: StandardSurveyVersion): BehaviorQuestion[] {
+    if (version === "employee-v2") return EMPLOYEE_BEHAVIOR_QUESTIONS;
+    if (version === "employee-v3") return EMPLOYEE_SCORE_QUESTIONS;
+    return [];
+}
+
+export function employeeBehaviorQuestionKeysForVersion(version: StandardSurveyVersion): readonly EmployeeBehaviorQuestionKey[] {
+    return employeeBehaviorQuestionsForVersion(version).map((question) => question.key);
+}
+
 
 export const STATION_REASON_OPTIONS: ReasonOption[] = [
     { key: "station_cleanliness", label: { th: "ความสะอาด", en: "Cleanliness" }, owner: "STATION" },
@@ -174,6 +220,13 @@ export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
         commentMaxLength: 500,
         reasonOptions: EMPLOYEE_REASON_OPTIONS,
         behaviorQuestions: EMPLOYEE_BEHAVIOR_QUESTIONS,
+    },
+    "employee-v3": {
+        version: "employee-v3",
+        maxReasons: 2,
+        commentMaxLength: 500,
+        reasonOptions: EMPLOYEE_REASON_OPTIONS,
+        behaviorQuestions: EMPLOYEE_SCORE_QUESTIONS,
     },
     "station-v1": {
         version: "station-v1",

@@ -10,6 +10,9 @@ import {
     SURVEYS,
     EMPLOYEE_BEHAVIOR_QUESTIONS,
     EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    EMPLOYEE_SCORE_QUESTIONS,
+    EMPLOYEE_SCORE_QUESTION_KEYS,
+    EMPLOYEE_SCORE_TOTAL,
     EMPLOYEE_REASON_OPTIONS,
     STATION_REASON_OPTIONS,
 } from "@/lib/customer-feedback/questions";
@@ -24,9 +27,10 @@ describe("question registry", () => {
         }
     });
 
-    it("survey version ทั้งสี่มีค่าครบ", () => {
+    it("survey version ทั้งห้ามีค่าครบ", () => {
         expect(SURVEYS["employee-v1"].maxReasons).toBe(2);
         expect(SURVEYS["employee-v2"].behaviorQuestions).toEqual(EMPLOYEE_BEHAVIOR_QUESTIONS);
+        expect(SURVEYS["employee-v3"].behaviorQuestions).toEqual(EMPLOYEE_SCORE_QUESTIONS);
         expect(SURVEYS["station-v1"].maxReasons).toBe(3);
         expect(SURVEYS["incident-v1"].commentMaxLength).toBe(1000);
     });
@@ -38,6 +42,13 @@ describe("question registry", () => {
             expect(question.label.th.length).toBeGreaterThan(0);
             expect(question.label.en.length).toBeGreaterThan(0);
         }
+    });
+
+    it("employee-v3 มี 9 เกณฑ์และน้ำหนักรวม 64 คะแนน", () => {
+        expect(EMPLOYEE_SCORE_QUESTIONS.map((question) => question.key)).toEqual(EMPLOYEE_SCORE_QUESTION_KEYS);
+        expect(new Set(EMPLOYEE_SCORE_QUESTION_KEYS).size).toBe(9);
+        expect(EMPLOYEE_SCORE_TOTAL).toBe(64);
+        expect(EMPLOYEE_SCORE_QUESTIONS.reduce((sum, question) => sum + (question.weight ?? 0), 0)).toBe(64);
     });
 
     it("หมุนลำดับตัวเลือกตาม seed และตรึง other/unspecified ท้ายรายการ", () => {
@@ -62,6 +73,17 @@ describe("standard payload validation", () => {
         special_service_offered: "NO",
         thanked_customer: "YES",
         front_sign_placed: "UNSURE",
+    } as const;
+    const scoreAnswers = {
+        uniform_and_name_badge: "YES",
+        guide_vehicle_immediately: "YES",
+        receive_driver_side: "NO",
+        caltex_greeting: "YES",
+        front_service_sign: "YES",
+        repeat_fuel_amount_before: "YES",
+        offer_rewards_promotion: "UNSURE",
+        repeat_fuel_amount_after: "YES",
+        thank_and_guide_exit: "YES",
     } as const;
     const base = {
         targetConfirmation: "YES",
@@ -187,6 +209,18 @@ describe("standard payload validation", () => {
             ...base,
             behaviorAnswers: { ...behaviorAnswers, thanked_customer: undefined },
         }, "employee-v2").ok).toBe(false);
+    });
+
+    it("employee-v3 บังคับคำตอบ rubric ครบ 9 ข้อและไม่รับ key ของ v2", () => {
+        const result = validateStandardPayload({ ...base, behaviorAnswers: scoreAnswers }, "employee-v3");
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.value.behaviorAnswers).toEqual(scoreAnswers);
+
+        expect(validateStandardPayload({
+            ...base,
+            behaviorAnswers: { ...scoreAnswers, thank_and_guide_exit: undefined },
+        }, "employee-v3").ok).toBe(false);
+        expect(validateStandardPayload({ ...base, behaviorAnswers }, "employee-v3").ok).toBe(false);
     });
 
     it("employee-v2 ปฏิเสธ key เกินและค่าที่ไม่ใช่ YES, NO, UNSURE", () => {

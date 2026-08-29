@@ -453,3 +453,51 @@ Git:
 
 - Feature commit: `28f8f8770f55d339b686c3878a9c2864720080e4`.
 - Pushed: `main -> origin/main`.
+
+
+## 2026-08-29 — Added employee Customer Feedback 64-point scorecard
+
+Goal:
+
+Use the Caltex forecourt service checklist as a customer-answer-driven employee score that can later be used as one input to bonus calculation, and add an admin menu to inspect each employee's score.
+
+Implementation:
+
+- Added immutable `employee-v3` survey instead of changing the meaning of published `employee-v2` questions. New employee QR visits resolve to `employee-v3`; existing v1/v2 visits remain supported.
+- `employee-v3` has 9 service criteria weighted 15 + 10 + 3 + 10 + 3 + 4 + 5 + 4 + 10 = 64 points, matching the supplied Caltex checklist.
+- Customer answers remain YES / NO / UNSURE. YES earns the criterion weight, NO earns zero, and UNSURE is excluded from that criterion's denominator rather than treated as a failure.
+- Added `summarizeEmployeeRubric()` to calculate each criterion as YES rate x criterion weight, preserving the checklist's fixed weights. If an entire criterion has no evaluable answer it is excluded and the remaining score is normalized back to 64.
+- Employee scores are hidden until at least 10 VALID employee-v3 responses exist, following the existing minimum-sample guardrail. TEST, SUSPECTED and HIDDEN responses are excluded.
+- Added admin API `/api/admin/customer-feedback/employee-scores` with existing station-scope and `customer_feedback.view_dashboard` permission checks.
+- Added `คะแนนพนักงาน` tab under `เสียงลูกค้า` with two subviews: `ภาพรวมคะแนน` for ranking/comparison and `รายบุคคล` for selecting one employee at a time. The individual view has employee/station search, overall score /64, VALID sample count, aggregate YES/NO/UNSURE counts, and all 9 criterion scores. The overview table also has a `ดูคะแนนรายคน` action that opens the selected employee directly.
+- This score is informational evidence only in this change; it is not yet written into Payroll or used to pay/deduct bonus automatically.
+
+Key files:
+
+- `src/lib/customer-feedback/questions.ts`
+- `src/lib/customer-feedback/validation.ts`
+- `src/lib/customer-feedback/submit.ts`
+- `src/lib/customer-feedback/employee-score.ts`
+- `src/app/api/public/customer-feedback/resolve/route.ts`
+- `src/app/api/public/customer-feedback/submissions/route.ts`
+- `src/app/api/admin/customer-feedback/employee-scores/route.ts`
+- `src/app/f/feedback-form.tsx`
+- `src/app/admin/customer-feedback/page.tsx`
+- `src/components/customer-feedback/admin/employee-scores-tab.tsx`
+- relevant tests.
+
+Verification:
+
+- `npx tsc --noEmit`: passed after the individual-score menu and employee-v3 test coverage were added.
+- Targeted Customer Feedback tests: 79/79 passed, including employee-v3 form rendering/submission, registry/validation, normalized answers, rubric calculation, resolve flow, and individual-score navigation.
+- Targeted ESLint on changed implementation/test files: passed with zero errors and zero warnings.
+- Production build: `NODE_ENV=production npm run build` passed, including `/admin/customer-feedback` and `/api/admin/customer-feedback/employee-scores`. The earlier local build failure was reproduced only under the connector's non-standard NODE_ENV and disappeared with the standard production value.
+
+Risk / follow-up:
+
+- No historical employee-v2 answers are backfilled into the 64-point rubric because their question meanings are not one-to-one with the Caltex checklist. Scores begin from employee-v3 responses.
+- Bonus integration remains a separate business-rule change and must not be enabled until the bonus formula and period rules are explicitly approved.
+
+Git:
+
+- Not committed or pushed in this session yet.

@@ -21,7 +21,7 @@ import {
     shouldCreateOperationalFeedbackCase,
     type LoadedVisitContext,
 } from "@/lib/customer-feedback/submit";
-import { EMPLOYEE_BEHAVIOR_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
+import { EMPLOYEE_BEHAVIOR_QUESTION_KEYS, EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import type { StandardPayload } from "@/lib/customer-feedback/validation";
 
 process.env.CUSTOMER_FEEDBACK_ABUSE_HMAC_KEY = "test-abuse-secret";
@@ -49,7 +49,21 @@ const behaviorAnswers = {
 
 const employeeV2Payload: StandardPayload = { ...payload, behaviorAnswers };
 
-function submittedVisit(surveyVersion: "employee-v1" | "employee-v2" = "employee-v1"): LoadedVisitContext {
+const scoreAnswers = {
+    uniform_and_name_badge: "YES",
+    guide_vehicle_immediately: "YES",
+    receive_driver_side: "NO",
+    caltex_greeting: "YES",
+    front_service_sign: "YES",
+    repeat_fuel_amount_before: "YES",
+    offer_rewards_promotion: "UNSURE",
+    repeat_fuel_amount_after: "YES",
+    thank_and_guide_exit: "YES",
+} as const;
+
+const employeeV3Payload: StandardPayload = { ...payload, behaviorAnswers: scoreAnswers };
+
+function submittedVisit(surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" = "employee-v1"): LoadedVisitContext {
     return {
         visit: {
             id: "visit-1",
@@ -176,6 +190,28 @@ describe("employee-v2 normalized behavior answers", () => {
     it("employee-v2 ไม่มีคำตอบครบต้องหยุดก่อนเขียน answers", () => {
         expect(() => buildNormalizedStandardAnswers("employee-v2", payload)).toThrow(
             "employee-v2 requires all behavior answers"
+        );
+    });
+
+    it("employee-v3 สร้าง normalized answers ครบ 9 เกณฑ์ rubric", () => {
+        const answers = buildNormalizedStandardAnswers("employee-v3", employeeV3Payload);
+        const rubricRows = answers.filter((answer) =>
+            (EMPLOYEE_SCORE_QUESTION_KEYS as readonly string[]).includes(answer.questionKey)
+        );
+
+        expect(rubricRows).toHaveLength(9);
+        for (const row of rubricRows) {
+            expect(row).toMatchObject({
+                surveyVersion: "employee-v3",
+                state: "ANSWERED",
+                choiceValues: [scoreAnswers[row.questionKey as keyof typeof scoreAnswers]],
+            });
+        }
+    });
+
+    it("employee-v3 ไม่มีคำตอบครบต้องหยุดก่อนเขียน answers", () => {
+        expect(() => buildNormalizedStandardAnswers("employee-v3", payload)).toThrow(
+            "employee-v3 requires all behavior answers"
         );
     });
 });

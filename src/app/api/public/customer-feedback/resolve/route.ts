@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
             stationContext = { stationId: qr.stationId!, source: "TOKEN" };
         }
 
-        const newSurveyVersion = qr.targetType === "EMPLOYEE" ? "employee-v2" : "station-v1";
+        const newSurveyVersion = qr.targetType === "EMPLOYEE" ? "employee-v3" : "station-v1";
         const formExpiresAt = new Date(now.getTime() + FORM_EXPIRY_MS);
 
         // ส่ง Resolve-Idempotency-Key เดิมซ้ำ = คำขอเดิม ไม่สร้าง Visit ใหม่

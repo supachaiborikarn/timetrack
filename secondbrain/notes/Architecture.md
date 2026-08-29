@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - architecture
-updated: 2026-08-27
+updated: 2026-08-29
 ---
 
 # Architecture
@@ -60,3 +60,17 @@ Late penalties remain separate from the new early-leave deduction so UI/report l
 ## Finalized payroll
 
 `PayrollRecord` has no dedicated early-leave column. During finalization, the early-leave deduction is included with `otherDeduct` while late penalty remains in `latePenalty`.
+
+
+## Customer Feedback employee score flow
+
+Current employee QR flow uses `employee-v3` for new visits while retaining v1/v2 compatibility. Normalized answer rows store each of the 9 rubric answers.
+
+Admin score path:
+
+1. `/api/admin/customer-feedback/employee-scores` reads only STANDARD, VALID, EMPLOYEE, `employee-v3` responses within the requested date/station scope.
+2. `src/lib/customer-feedback/employee-score.ts` computes per-criterion YES rates with fixed Caltex weights and excludes UNSURE from that criterion's denominator.
+3. Numeric scores remain hidden below the existing 10-response minimum sample.
+4. `คะแนนพนักงาน` in `/admin/customer-feedback` has `ภาพรวมคะแนน` and `รายบุคคล` subviews. Overview ranks employees and links into individual detail; individual detail supports employee/station search and shows score /64, VALID sample status, YES/NO/UNSURE totals and all 9 weighted criteria.
+
+The score path is intentionally separate from Payroll. No Customer Feedback score is persisted into payroll records or bonus amounts by this flow.

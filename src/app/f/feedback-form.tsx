@@ -5,7 +5,9 @@ import { CheckCircle2, Loader2, Phone, Search } from "lucide-react";
 import type { PublicErrorCode } from "@/lib/customer-feedback/public-errors";
 import {
     EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
-    EMPLOYEE_BEHAVIOR_QUESTIONS,
+    EMPLOYEE_SCORE_QUESTION_KEYS,
+    employeeBehaviorQuestionsForVersion,
+    employeeBehaviorQuestionKeysForVersion,
     type BehaviorAnswer,
     type EmployeeBehaviorQuestionKey,
 } from "@/lib/customer-feedback/questions";
@@ -22,7 +24,7 @@ type Lang = "th" | "en";
 
 type ResolveResult = {
     visitToken: string;
-    surveyVersion: "employee-v1" | "employee-v2" | "station-v1";
+    surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" | "station-v1";
     targetType: "EMPLOYEE" | "STATION";
     target: { label: string; position: string | null };
     station: { id: string; name: string; emergencyPhone: string | null } | null;
@@ -364,14 +366,16 @@ function isBehaviorAnswer(value: unknown): value is BehaviorAnswer {
 function isBehaviorAnswers(value: unknown): value is BehaviorAnswers {
     if (!isRecord(value)) return false;
     return Object.entries(value).every(([key, answer]) =>
-        EMPLOYEE_BEHAVIOR_QUESTION_KEYS.includes(key as EmployeeBehaviorQuestionKey) && isBehaviorAnswer(answer)
+        ([...EMPLOYEE_BEHAVIOR_QUESTION_KEYS, ...EMPLOYEE_SCORE_QUESTION_KEYS] as readonly string[]).includes(key) && isBehaviorAnswer(answer)
     );
 }
 
 function hasCompleteBehaviorAnswers(
-    answers: BehaviorAnswers
-): answers is Record<EmployeeBehaviorQuestionKey, BehaviorAnswer> {
-    return EMPLOYEE_BEHAVIOR_QUESTION_KEYS.every((key) => isBehaviorAnswer(answers[key]));
+    answers: BehaviorAnswers,
+    surveyVersion: ResolveResult["surveyVersion"]
+): boolean {
+    const keys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    return keys.length > 0 && keys.every((key) => isBehaviorAnswer(answers[key]));
 }
 
 function tr<T extends { th: string; en: string }>(item: T, lang: Lang): string {
@@ -464,7 +468,7 @@ function isResolveResult(value: unknown): value is ResolveResult {
     const stationValid = value.station === null || isStationOption(value.station);
     return typeof value.visitToken === "string"
         && value.visitToken.length > 0
-        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "station-v1")
+        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "employee-v3" || value.surveyVersion === "station-v1")
         && (value.targetType === "EMPLOYEE" || value.targetType === "STATION")
         && typeof value.target.label === "string"
         && (value.target.position === null || typeof value.target.position === "string")
@@ -839,7 +843,7 @@ export function FeedbackForm() {
 
     const submitStandard = useCallback(async () => {
         if (!result || rating === null) return;
-        if (result.surveyVersion === "employee-v2" && !hasCompleteBehaviorAnswers(behaviorAnswers)) {
+        if ((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") && !hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
             setError({ kind: "dict", key: "required", field: "behaviorAnswers" });
             setScreen("service-behaviors");
             return;
@@ -866,9 +870,9 @@ export function FeedbackForm() {
             wantsFollowUp,
             language: lang,
         };
-        if (result.surveyVersion === "employee-v2") {
+        if (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") {
             payload.behaviorAnswers = Object.fromEntries(
-                EMPLOYEE_BEHAVIOR_QUESTION_KEYS.map((key) => [key, behaviorAnswers[key]])
+                employeeBehaviorQuestionKeysForVersion(result.surveyVersion).map((key) => [key, behaviorAnswers[key]])
             );
         }
         if (selectedStation) payload.selectedStationId = selectedStation.id;
@@ -1439,15 +1443,17 @@ export function FeedbackForm() {
                     setError(null);
                     void postProgress({ lastStep: "rating" });
                     setReasonKeys([]);
-                    setScreen(result.surveyVersion === "employee-v2" ? "service-behaviors" : "reasons");
+                    setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") ? "service-behaviors" : "reasons");
                 })}
                 {errorBox(error)}
             </div>
         );
     }
 
-    if (screen === "service-behaviors" && result?.surveyVersion === "employee-v2") {
-        const answeredCount = EMPLOYEE_BEHAVIOR_QUESTION_KEYS.filter((key) => isBehaviorAnswer(behaviorAnswers[key])).length;
+    if (screen === "service-behaviors" && (result?.surveyVersion === "employee-v2" || result?.surveyVersion === "employee-v3")) {
+        const behaviorQuestions = employeeBehaviorQuestionsForVersion(result.surveyVersion);
+        const behaviorKeys = employeeBehaviorQuestionKeysForVersion(result.surveyVersion);
+        const answeredCount = behaviorKeys.filter((key) => isBehaviorAnswer(behaviorAnswers[key])).length;
         const behaviorError = error?.field === "behaviorAnswers";
         return card(
             <div className="space-y-4">
@@ -1462,10 +1468,10 @@ export function FeedbackForm() {
                     aria-invalid={behaviorError || undefined}
                     className="space-y-4 focus:outline-none"
                 >
-                    {EMPLOYEE_BEHAVIOR_QUESTIONS.map(({ key, label }, index) => (
+                    {behaviorQuestions.map(({ key, label, weight }, index) => (
                         <fieldset key={key} className="rounded-xl border border-neutral-200 bg-white p-3">
                             <legend className="px-1 text-sm font-semibold leading-snug">
-                                {index + 1}. {tr(label, lang)}
+                                {index + 1}. {tr(label, lang)}{weight ? ` · ${weight} ${lang === "th" ? "คะแนน" : "pts"}` : ""}
                             </legend>
                             <div className="mt-2 grid grid-cols-3 gap-2">
                                 {(["YES", "NO", "UNSURE"] as const).map((answer) => {
@@ -1483,7 +1489,7 @@ export function FeedbackForm() {
                                                 onChange={() => {
                                                     const next = { ...behaviorAnswers, [key]: answer };
                                                     setBehaviorAnswers(next);
-                                                    if (hasCompleteBehaviorAnswers(next)) setError(null);
+                                                    if (hasCompleteBehaviorAnswers(next, result.surveyVersion)) setError(null);
                                                 }}
                                                 className="sr-only"
                                             />
@@ -1497,7 +1503,7 @@ export function FeedbackForm() {
                 </div>
                 {errorBox(error)}
                 {primaryBtn(t.next, () => {
-                    if (!hasCompleteBehaviorAnswers(behaviorAnswers)) {
+                    if (!hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
                         setError({ kind: "dict", key: "required", field: "behaviorAnswers" });
                         return;
                     }
@@ -1613,7 +1619,7 @@ export function FeedbackForm() {
                 {secondaryBtn(t.back, () => setScreen(
                     result.targetType === "STATION"
                         ? "service-areas"
-                        : result.surveyVersion === "employee-v2"
+                        : result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3"
                             ? "service-behaviors"
                             : "rating"
                 ))}

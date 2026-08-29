@@ -62,3 +62,14 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Reuse the Caltex lock-up, oversized red public target label, handwritten-style service question, deep-teal information treatment, fallback-code cells, and red/teal Techron footer sweep so small and A4 signs read as one family.
 - Keep the compact-label QR completely unobstructed: do not place a logo over QR modules. Render it at 54 mm on white; `generateQRCodeSVG` supplies the standard four-module quiet zone. Scan reliability takes priority over decorative QR treatment on the small sign.
 - Keep all QR/public label/position/station/manual-code values live and preserve the existing authenticated `reveal` -> print confirmation -> `MARK_PRINTED` / `needsReprint` lifecycle.
+
+
+## 2026-08-29: Customer Feedback employee score uses versioned 64-point rubric
+
+- Do not reinterpret historical `employee-v2` answers as Caltex checklist scores. Keep v2 immutable and use `employee-v3` for the 64-point rubric.
+- Rubric weights are fixed at 15, 10, 3, 10, 3, 4, 5, 4, 10 (total 64).
+- YES earns the criterion, NO earns zero, and UNSURE is removed from that criterion's denominator; UNSURE must not become an automatic penalty.
+- Aggregate each criterion independently as YES/(YES+NO) x criterion weight so each checklist item keeps its intended weight.
+- Hide the numeric employee score until at least 10 VALID employee-v3 responses exist.
+- In Customer Feedback admin, expose employee scores through both an overview comparison and an explicit per-employee view; do not rely on an inline expanded row as the only way to inspect one employee.
+- Customer-feedback score is only evidence for a future bonus calculation; it must not alter Payroll automatically without a separately approved bonus rule.

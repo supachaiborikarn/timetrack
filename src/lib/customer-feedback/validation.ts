@@ -3,7 +3,7 @@ import {
     isValidReasonKey,
     isValidServiceArea,
     isValidIncidentKey,
-    EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    employeeBehaviorQuestionKeysForVersion,
     type EmployeeBehaviorAnswers,
     type StandardSurveyVersion as RegistryStandardSurveyVersion,
 } from "./questions";
@@ -173,7 +173,8 @@ function validateBehaviorAnswers(
     push: (e: ValidationError) => void
 ): EmployeeBehaviorAnswers | undefined {
     const wasSent = Object.prototype.hasOwnProperty.call(raw, "behaviorAnswers");
-    if (surveyVersion !== "employee-v2") {
+    const expectedKeys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    if (expectedKeys.length === 0) {
         if (wasSent) {
             push({ field: "behaviorAnswers", message: "แบบประเมินรุ่นนี้ไม่รับคำตอบพฤติกรรมพนักงาน" });
         }
@@ -186,13 +187,13 @@ function validateBehaviorAnswers(
     }
 
     const answers = raw.behaviorAnswers as Record<string, unknown>;
-    const allowedKeys = new Set<string>(EMPLOYEE_BEHAVIOR_QUESTION_KEYS);
+    const allowedKeys = new Set<string>(expectedKeys);
     for (const key of Object.keys(answers)) {
         if (!allowedKeys.has(key)) {
             push({ field: `behaviorAnswers.${key}`, message: "คำถามพฤติกรรมพนักงานไม่อยู่ในรายการ" });
         }
     }
-    for (const key of EMPLOYEE_BEHAVIOR_QUESTION_KEYS) {
+    for (const key of expectedKeys) {
         const answer = answers[key];
         if (answer !== "YES" && answer !== "NO" && answer !== "UNSURE") {
             push({ field: `behaviorAnswers.${key}`, message: "คำตอบต้องเป็น YES, NO หรือ UNSURE" });
@@ -256,7 +257,7 @@ export function validateStandardPayload(
             errors.push({ field: "serviceAreas", message: "ไม่แน่ใจส่งร่วมกับค่าอื่นไม่ได้" });
         }
         if (new Set(keys).size !== keys.length) errors.push({ field: "serviceAreas", message: "ส่วนบริการซ้ำไม่ได้" });
-        if ((surveyVersion === "employee-v1" || surveyVersion === "employee-v2") && keys.length > 0) {
+        if ((surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3") && keys.length > 0) {
             errors.push({ field: "serviceAreas", message: "แบบประเมินพนักงานไม่รับส่วนบริการ" });
         }
         if (surveyVersion === "station-v1" && keys.length === 0) {

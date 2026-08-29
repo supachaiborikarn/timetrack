@@ -14,7 +14,7 @@ import {
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, caseNotificationEventKey } from "./cases";
 import { visitPurgeAfter, contactPurgeAfter, FORM_EXPIRY_MS } from "./retention";
 import {
-    EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
+    employeeBehaviorQuestionKeysForVersion,
     PRIVACY_NOTICE_VERSION,
     type StandardSurveyVersion,
 } from "./questions";
@@ -118,7 +118,7 @@ export function standardIdempotencyPayload(
             ...(payload.behaviorAnswers
                 ? {
                     behaviorAnswers: Object.fromEntries(
-                        EMPLOYEE_BEHAVIOR_QUESTION_KEYS.map((key) => [key, payload.behaviorAnswers![key]])
+                        Object.entries(payload.behaviorAnswers).sort(([a], [b]) => a.localeCompare(b))
                     ),
                 }
                 : {}),
@@ -162,19 +162,20 @@ export function buildNormalizedStandardAnswers(
         },
     ];
 
-    if (surveyVersion === "employee-v2") {
+    const behaviorKeys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    if (behaviorKeys.length > 0) {
         if (
             !payload.behaviorAnswers ||
-            EMPLOYEE_BEHAVIOR_QUESTION_KEYS.some((key) => !["YES", "NO", "UNSURE"].includes(payload.behaviorAnswers![key]))
+            behaviorKeys.some((key) => !["YES", "NO", "UNSURE"].includes(payload.behaviorAnswers![key] ?? ""))
         ) {
-            throw new Error("employee-v2 requires all behavior answers");
+            throw new Error(`${surveyVersion} requires all behavior answers`);
         }
-        for (const questionKey of EMPLOYEE_BEHAVIOR_QUESTION_KEYS) {
+        for (const questionKey of behaviorKeys) {
             answers.push({
                 surveyVersion,
                 questionKey,
                 state: "ANSWERED",
-                choiceValues: [payload.behaviorAnswers[questionKey]],
+                choiceValues: [payload.behaviorAnswers[questionKey]!],
             });
         }
     }
@@ -496,7 +497,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
     const isEmployee = qr.targetType === "EMPLOYEE";
     const surveyVersion = visit.surveyVersion as StandardSurveyVersion;
     const supportedForTarget = isEmployee
-        ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2"
+        ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3"
         : surveyVersion === "station-v1";
     if (!supportedForTarget || tokenPayload.surveyVersion !== surveyVersion) {
         return { failure: "TOKEN_INVALID", status: 401 } as const;

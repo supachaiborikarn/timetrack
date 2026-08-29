@@ -6,16 +6,18 @@ import { redirect } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { OverviewTab } from "@/components/customer-feedback/admin/overview-tab";
+import { EmployeeScoresTab } from "@/components/customer-feedback/admin/employee-scores-tab";
 import { ResponsesTab } from "@/components/customer-feedback/admin/responses-tab";
 import { CasesTab } from "@/components/customer-feedback/admin/cases-tab";
 import { QrCodesTab } from "@/components/customer-feedback/admin/qr-codes-tab";
 import { QuestionsTab } from "@/components/customer-feedback/admin/questions-tab";
 import { ReviewRequestsTab } from "@/components/customer-feedback/admin/review-requests-tab";
 
-type FeedbackTab = "overview" | "responses" | "cases" | "qr" | "questions" | "reviews";
+type FeedbackTab = "overview" | "employee-scores" | "responses" | "cases" | "qr" | "questions" | "reviews";
 
 const TAB_DEFINITIONS: { id: FeedbackTab; label: string; permission: string; probe: string }[] = [
     { id: "overview", label: "ภาพรวม", permission: "customer_feedback.view_dashboard", probe: "/api/admin/customer-feedback/summary" },
+    { id: "employee-scores", label: "คะแนนพนักงาน", permission: "customer_feedback.view_dashboard", probe: "/api/admin/customer-feedback/employee-scores" },
     { id: "responses", label: "คำตอบ", permission: "customer_feedback.view_response", probe: "/api/admin/customer-feedback/responses?pageSize=1" },
     { id: "cases", label: "เคส", permission: "customer_feedback.case_manage", probe: "/api/admin/customer-feedback/cases?pageSize=1" },
     { id: "qr", label: "QR Codes", permission: "customer_feedback.manage", probe: "/api/admin/customer-feedback/qr-codes" },
@@ -140,6 +142,7 @@ export default function CustomerFeedbackAdminPage() {
                     </TabsList>
                 </div>
                 {permissions.has("customer_feedback.view_dashboard") && <TabsContent value="overview"><OverviewTab /></TabsContent>}
+                {permissions.has("customer_feedback.view_dashboard") && <TabsContent value="employee-scores"><EmployeeScoresTab /></TabsContent>}
                 {permissions.has("customer_feedback.view_response") && (
                     <TabsContent value="responses">
                         <ResponsesTab
