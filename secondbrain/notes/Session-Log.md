@@ -451,4 +451,4 @@ Risk / follow-up:
 
 Git:
 
-- Not committed or pushed in this session.
+- Feature commit: `28f8f87` — `Restyle customer feedback small QR sign`.
