@@ -431,7 +431,7 @@ Implementation:
 - Replaced the old inline `ป้ายเล็ก` HTML in `src/components/customer-feedback/admin/qr-codes-tab.tsx` with the shared small-label builder; A4 and small formats now use the same live poster input and wait for local fonts/images before print.
 - Kept the compact QR completely unobstructed instead of applying the A4 centre-logo treatment. The QR renders at 54 mm on white, and `generateQRCodeSVG` supplies the standard four-module quiet zone. This intentionally favors scan reliability on the smaller physical sign.
 - Added small-label regression coverage to `src/lib/__tests__/customer-feedback-print-poster.test.ts` for dimensions, Caltex assets/typography, long labels, station wording, escaping/test watermark, unobstructed QR and eight fallback-code cells.
-- No database command, production data change, QR rotation, activation change, deployment, commit or push was performed in this session.
+- No database command, production data change, QR rotation, or activation change was performed in this session.
 
 Verification:
 
@@ -451,4 +451,5 @@ Risk / follow-up:
 
 Git:
 
-- Feature commit: `28f8f87` — `Restyle customer feedback small QR sign`.
+- Feature commit: `28f8f8770f55d339b686c3878a9c2864720080e4`.
+- Pushed: `main -> origin/main`.
