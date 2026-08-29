@@ -361,3 +361,28 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint: passed.
 - `git diff --check`: passed.
+
+## 2026-08-29 — Fixed approved employee QR failing when scanned from print preview
+
+Observed from production after owner tested employee `กระเพรา`:
+
+- Production QR version 1 had public-profile acknowledgement recorded at `2026-08-29T03:21:07.997Z`, employee active, but `isActive=false`, `needsReprint=true`, and `lastPrintedAt=null`.
+- Audit history showed acknowledgement followed by three `CUSTOMER_FEEDBACK_QR_REVEALED` events, but no `CUSTOMER_FEEDBACK_QR_PRINTED` / activation event. The QR was therefore correctly rejected by the public resolver as `INVALID_QR`, displayed as “ไม่พบแบบประเมินนี้”.
+- The previous auto-activation change (`34a03f9`) had deployed successfully only after those print-preview attempts, and that flow still waited for post-print confirmation before activation, so scanning the preview itself remained a bad experience.
+
+Fix:
+
+- EMPLOYEE `approve-public-profile` now atomically records acknowledgement and activates the same current QR version immediately after re-checking version, employee active status, public label/position, and active-QR conflicts.
+- Approval activation deliberately does not clear `needsReprint` or set `lastPrintedAt`; the system does not pretend the physical sign was printed.
+- EMPLOYEE `reveal` now self-heals already-approved inactive rows by activating them before returning the QR token. This means legacy rows such as `กระเพรา` become testable as soon as the operator opens the print action again, including scanning directly from print preview.
+- `MARK_PRINTED` remains responsible for physical print completion and clearing `needsReprint`.
+- STATION behavior remains unchanged.
+- Admin confirmation copy now explains that acknowledgement opens the employee QR automatically and printing/testing can begin immediately.
+
+Verification:
+
+- Admin QR route tests: 19/19 passed, including immediate activation on acknowledgement and activation-before-reveal for print-preview scanning.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed.
+- `git diff --check`: passed.
+- No production database write was performed while diagnosing or implementing this fix; production inspection was read-only.

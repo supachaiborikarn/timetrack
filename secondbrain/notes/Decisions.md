@@ -46,10 +46,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - The final approved A4 visual reference is the white/red/deep-teal Caltex composition: official Caltex lock-up at top-left, oversized red public employee name, handwritten-style service question, position/station identity rows, dark-teal three-column information band, elevated right-side QR card with Caltex centre mark, eight separate fallback-code cells, and the red/teal Techron footer sweep. Implement it as live HTML/CSS with dynamic QR/name/position/station/code values, not as a static poster PNG.
 - Preserve the reference proportions in A4 landscape and keep the QR card plus all eight fallback-code cells fully visible above the footer sweep.
 
-## 2026-08-29: Auto-activate employee feedback QR only after confirmed print
+## 2026-08-29: Auto-activate employee feedback QR when acknowledgement is recorded
 
-- EMPLOYEE public-profile acknowledgement makes the current QR version printable; acknowledgement by itself must not activate the QR.
-- When the operator confirms the current EMPLOYEE QR was actually printed or saved as PDF, `MARK_PRINTED` must atomically record the print, clear `needsReprint`, and activate that same version.
-- Auto-activation is allowed only while the employee is active, the approved public label/position are still valid for that version, and no other EMPLOYEE QR for that employee is active. A stale/conflicting request must fail without recording the print.
-- STATION QRs keep the existing two-step lifecycle: mark the current version printed, then activate manually.
-- Never clear `needsReprint` or activate a QR merely to make an unprinted physical sign work.
+- Recording EMPLOYEE public-profile acknowledgement must activate that same current QR version immediately when the employee is active and no other employee QR is active. This lets the operator scan/test the QR from print preview without waiting for a later print-confirmation dialog.
+- Acknowledgement/activation does **not** claim the sign was printed: keep `needsReprint=true` and `lastPrintedAt` unchanged until a real print/save-PDF is confirmed.
+- `reveal` is a recovery/self-heal point for already-approved inactive EMPLOYEE rows: before returning the token for printing, it atomically activates the current eligible QR version. This covers rows acknowledged before this rule was deployed.
+- `MARK_PRINTED` remains the source of truth for physical print completion; it records print metadata, clears `needsReprint`, and keeps the employee QR active.
+- Intentionally deactivated or conflicting/stale QR states must not be silently revived outside these authenticated acknowledgement/print flows.
+- STATION QRs keep the existing two-step lifecycle: confirmed print clears `needsReprint`, then activation remains manual.

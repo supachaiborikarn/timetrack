@@ -283,12 +283,18 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
             customerFeedbackQr: {
                 findUnique: vi.fn().mockResolvedValue({
                     version: 2,
+                    targetType: "EMPLOYEE",
+                    isActive: true,
+                    employeeId: "employee-1",
+                    publicProfileApprovedAt: new Date("2026-08-01T00:00:00.000Z"),
                     tokenCiphertext: "token-cipher",
                     manualCodeCiphertext: "manual-cipher",
                     publicLabel: "ชื่อปัจจุบัน",
                     publicPosition: "ตำแหน่งปัจจุบัน",
                 }),
+                findFirst: vi.fn().mockResolvedValue(null),
             },
+            user: { findUnique: vi.fn().mockResolvedValue({ isActive: true }) },
             auditLog: { create: vi.fn().mockResolvedValue({}) },
         }));
         const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
@@ -306,6 +312,52 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
             publicLabel: "ชื่อปัจจุบัน",
             publicPosition: "ตำแหน่งปัจจุบัน",
         });
+    });
+
+    it("reveal เปิด QR พนักงานที่รับทราบแล้วก่อนคืน QR เพื่อให้สแกนจาก print preview ได้", async () => {
+        const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const createAudit = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    targetType: "EMPLOYEE",
+                    isActive: false,
+                    employeeId: "employee-1",
+                    publicProfileApprovedAt: new Date("2026-08-01T00:00:00.000Z"),
+                    tokenCiphertext: "token-cipher",
+                    manualCodeCiphertext: "manual-cipher",
+                    publicLabel: "นัท",
+                    publicPosition: "พนักงานบริการ",
+                }),
+                findFirst: vi.fn().mockResolvedValue(null),
+                updateMany,
+            },
+            user: { findUnique: vi.fn().mockResolvedValue({ isActive: true }) },
+            auditLog: { create: createAudit },
+        }));
+        const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "reveal", expectedVersion: 2 }),
+        });
+
+        const response = await PATCH(request, { params: Promise.resolve({ id: "qr-1" }) });
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.autoActivated).toBe(true);
+        expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "qr-1", version: 2, isActive: false },
+            data: { isActive: true, revokedAt: null },
+        }));
+        expect(createAudit).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "CUSTOMER_FEEDBACK_QR_ACTIVATED" }),
+        }));
+        expect(createAudit).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "CUSTOMER_FEEDBACK_QR_REVEALED" }),
+        }));
     });
 
     it("rotate และ reveal ไม่รับคำสั่งที่ไม่มี version จากหน้ารายการ", async () => {
@@ -391,7 +443,19 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
         expect((await PATCH(missing, { params: Promise.resolve({ id: "qr-1" }) })).status).toBe(400);
 
         transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
-            customerFeedbackQr: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    targetType: "EMPLOYEE",
+                    isActive: false,
+                    employeeId: "employee-1",
+                    publicLabel: "นัท",
+                    publicPosition: "พนักงานบริการ",
+                }),
+                updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+            },
+            user: { findUnique: vi.fn().mockResolvedValue({ isActive: true }) },
             auditLog: { create: vi.fn() },
         }));
         const stale = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
@@ -400,6 +464,47 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
             body: JSON.stringify({ action: "approve-public-profile", expectedVersion: 1 }),
         });
         expect((await PATCH(stale, { params: Promise.resolve({ id: "qr-1" }) })).status).toBe(409);
+    });
+
+    it("รับทราบข้อมูลแล้วเปิด QR พนักงานทันทีโดยยังคง needsReprint จนกว่าจะยืนยันพิมพ์", async () => {
+        const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const createAudit = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    targetType: "EMPLOYEE",
+                    isActive: false,
+                    employeeId: "employee-1",
+                    publicLabel: "นัท",
+                    publicPosition: "พนักงานบริการ",
+                }),
+                findFirst: vi.fn().mockResolvedValue(null),
+                updateMany,
+            },
+            user: { findUnique: vi.fn().mockResolvedValue({ isActive: true }) },
+            auditLog: { create: createAudit },
+        }));
+        const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "approve-public-profile", expectedVersion: 2 }),
+        });
+
+        const response = await PATCH(request, { params: Promise.resolve({ id: "qr-1" }) });
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.autoActivated).toBe(true);
+        expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "qr-1", version: 2, targetType: "EMPLOYEE" },
+            data: expect.objectContaining({ isActive: true, revokedAt: null }),
+        }));
+        expect(updateMany.mock.calls[0][0].data).not.toHaveProperty("needsReprint");
+        expect(createAudit).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "CUSTOMER_FEEDBACK_QR_ACTIVATED" }),
+        }));
     });
 
     it("increments the version when a station label changes so an old print cannot win", async () => {

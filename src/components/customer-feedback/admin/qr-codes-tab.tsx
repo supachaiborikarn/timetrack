@@ -324,7 +324,7 @@ export function QrCodesTab() {
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
                                                 {q.targetType === "EMPLOYEE" && !q.publicProfileApprovedAt && (
-                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "approve-public-profile", expectedVersion: q.version }, "ยืนยันว่าพนักงานรับทราบและยินยอมให้แสดงชื่อ/ตำแหน่งนี้ต่อสาธารณะ?")}>
+                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "approve-public-profile", expectedVersion: q.version }, "ยืนยันว่าพนักงานรับทราบและยินยอมให้แสดงชื่อ/ตำแหน่งนี้ต่อสาธารณะ? หลังบันทึก QR จะเปิดใช้งานอัตโนมัติและสามารถพิมพ์/ทดสอบได้ทันที")}>
                                                         บันทึกรับทราบ
                                                     </Button>
                                                 )}
@@ -346,7 +346,7 @@ export function QrCodesTab() {
                                                 {q.isActive ? (
                                                     <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
                                                 ) : q.targetType === "EMPLOYEE" && q.publicProfileApprovedAt && q.needsReprint ? (
-                                                    <Button size="sm" variant="outline" disabled>พิมพ์แล้วเปิดอัตโนมัติ</Button>
+                                                    <Button size="sm" variant="outline" disabled>กดพิมพ์เพื่อเปิดอัตโนมัติ</Button>
                                                 ) : q.targetType !== "EMPLOYEE" || q.publicProfileApprovedAt ? (
                                                     <Button size="sm" onClick={() => void act(q.id, { action: "activate", expectedVersion: q.version })}>เปิดใช้งาน</Button>
                                                 ) : null}
