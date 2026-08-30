@@ -565,4 +565,5 @@ Verification:
 
 Git:
 
-- Not committed or pushed yet.
+- Feature commit: `a13f10b` (`feat: show admin monthly evaluation progress`).
+- Documentation was updated immediately afterward in the same session before push.
