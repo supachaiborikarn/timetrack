@@ -526,4 +526,5 @@ Verification:
 
 Git:
 
-- Not committed or pushed yet.
+- Feature commit: `d0f7460` (`feat: show monthly customer evaluation target`).
+- Pushed: `main -> origin/main`.
