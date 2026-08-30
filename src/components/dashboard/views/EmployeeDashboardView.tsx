@@ -332,17 +332,17 @@ export function EmployeeDashboardView() {
               <p className="text-3xl font-black text-black leading-none">{permissionCount}</p>
               <p className="text-[10px] font-bold text-black/70 uppercase tracking-wider mt-1.5">{T.permission}</p>
             </div>
-            <div className="w-[36%] flex justify-center px-1 self-start pt-1">
+            <div className="w-[36%] flex justify-center px-1 self-start -mt-4">
               {customerEvaluationTarget !== null && (
-                <div className="w-full rounded-2xl border border-black/10 bg-white/30 px-2.5 py-2.5 shadow-sm backdrop-blur-sm">
+                <div className="w-full rounded-2xl border border-black/10 bg-white/30 px-2 py-1.5 shadow-sm backdrop-blur-sm">
                   <div className="flex items-center justify-center gap-1.5">
                     <Trophy className="w-3.5 h-3.5 text-black/70" />
-                    <p className="text-[9px] font-bold text-black/70 leading-tight">ประเมินลูกค้าเดือนนี้</p>
+                    <p className="text-[8px] font-bold text-black/70 leading-tight">ประเมินลูกค้าเดือนนี้</p>
                   </div>
-                  <p className="mt-1.5 text-center text-[20px] font-black text-black leading-none">
+                  <p className="mt-1 text-center text-[18px] font-black text-black leading-none">
                     {customerEvaluationCount} <span className="text-[11px] font-bold text-black/55">/ {customerEvaluationTarget} คน</span>
                   </p>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/10">
+                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-black/10">
                     <div
                       className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
                       style={{ width: `${Math.min(100, customerEvaluationTarget > 0 ? (customerEvaluationCount / customerEvaluationTarget) * 100 : 0)}%` }}
@@ -353,7 +353,7 @@ export function EmployeeDashboardView() {
                       aria-valuenow={customerEvaluationCount}
                     />
                   </div>
-                  <p className="mt-1.5 text-center text-[8px] font-semibold text-black/50">เป้าหมาย 60 คน / เดือน</p>
+                  <p className="mt-1 text-center text-[7px] font-semibold text-black/50">เป้าหมาย 60 คน / เดือน</p>
                 </div>
               )}
             </div>

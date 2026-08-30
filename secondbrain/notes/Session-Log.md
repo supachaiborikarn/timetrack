@@ -528,3 +528,11 @@ Git:
 
 - Feature commit: `d0f7460` (`feat: show monthly customer evaluation target`).
 - Pushed: `main -> origin/main`.
+
+## 2026-08-30 — Fixed dashboard evaluation target overlap
+
+- User reported the monthly customer-evaluation card was partially hidden behind the large floating `วันทำงาน` circle on mobile.
+- Kept the card in the requested upper-yellow center slot, but moved it upward (`-mt-4`) and reduced vertical padding/font/progress-bar height so the whole `current / 60 คน` target remains visible above the work-days circle.
+- Did not use z-index to cover the work-days circle; the two dashboard elements now occupy separate visual space.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; the same 5 pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx`.
