@@ -10,7 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Printer, RefreshCcw, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
-import { buildCustomerFeedbackA4PosterHtml, buildCustomerFeedbackSmallLabelHtml } from "@/lib/customer-feedback/print-poster";
+import {
+    buildCustomerFeedbackA4PosterHtml,
+    buildCustomerFeedbackSmallLabelA4SheetHtml,
+    buildCustomerFeedbackSmallLabelHtml,
+    type CustomerFeedbackA4PosterInput,
+} from "@/lib/customer-feedback/print-poster";
 import { EmployeePickerDialog } from "./employee-picker-dialog";
 import { StationPickerDialog } from "./station-picker-dialog";
 
@@ -49,12 +54,21 @@ export function QrCodesTab() {
     const [editing, setEditing] = useState<QrRow | null>(null);
     const [editLabel, setEditLabel] = useState("");
     const [editPosition, setEditPosition] = useState("");
+    const [selectedPrintIds, setSelectedPrintIds] = useState<string[]>([]);
+    const [isBulkPrinting, setIsBulkPrinting] = useState(false);
 
     const load = useCallback(async () => {
         const res = await fetch(`/api/admin/customer-feedback/qr-codes?targetType=${targetType}${search ? `&search=${encodeURIComponent(search)}` : ""}`);
         if (res.ok) {
             const data = await res.json();
-            setRows(data.qrCodes);
+            const nextRows = data.qrCodes as QrRow[];
+            setRows(nextRows);
+            setSelectedPrintIds((current) => current.filter((id) => nextRows.some((row) =>
+                row.id === id
+                && row.targetType === "EMPLOYEE"
+                && Boolean(row.publicProfileApprovedAt)
+                && Boolean(row.employee?.isActive)
+            )));
         }
         setIsLoading(false);
     }, [targetType, search]);
@@ -63,6 +77,58 @@ export function QrCodesTab() {
         const timer = setTimeout(() => void load(), 0);
         return () => clearTimeout(timer);
     }, [load]);
+
+    const printableEmployeeRows = rows.filter((row) =>
+        row.targetType === "EMPLOYEE"
+        && Boolean(row.publicProfileApprovedAt)
+        && Boolean(row.employee?.isActive)
+    );
+    const selectedPrintableRows = printableEmployeeRows.filter((row) => selectedPrintIds.includes(row.id));
+    const allPrintableSelected = printableEmployeeRows.length > 0
+        && printableEmployeeRows.every((row) => selectedPrintIds.includes(row.id));
+
+    function makePosterInput(
+        row: QrRow,
+        qrUrl: string,
+        manualEntryUrl: string,
+        manualCode: string,
+        expectedVersion: number,
+        publicLabel?: string,
+        publicPosition?: string | null
+    ): CustomerFeedbackA4PosterInput {
+        const rawTargetLabel = publicLabel || row.publicLabel || row.station?.name || "QR เสียงลูกค้า";
+        const resolvedPosition = publicPosition === undefined ? row.publicPosition : publicPosition;
+        const rawSubtitle = row.targetType === "EMPLOYEE"
+            ? [resolvedPosition, row.employee?.stationName].filter(Boolean).join(" · ")
+            : [row.placementKey ?? row.placement].filter(Boolean).join(" · ");
+        return {
+            qrUrl,
+            manualEntryUrl,
+            manualCode,
+            targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" : "STATION",
+            targetLabel: rawTargetLabel,
+            positionLabel: row.targetType === "EMPLOYEE" ? resolvedPosition ?? undefined : undefined,
+            stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
+            subtitle: rawSubtitle,
+            isTest: row.isTest,
+            version: expectedVersion,
+            assetBaseUrl: window.location.origin,
+        };
+    }
+
+    async function waitForPrintAssets(printWindow: Window): Promise<void> {
+        const imagesReady = Array.from(printWindow.document.images).map((image) => {
+            if (image.complete) return Promise.resolve();
+            return new Promise<void>((resolve) => {
+                image.addEventListener("load", () => resolve(), { once: true });
+                image.addEventListener("error", () => resolve(), { once: true });
+            });
+        });
+        await Promise.race([
+            Promise.all([printWindow.document.fonts.ready, ...imagesReady]),
+            new Promise<void>((resolve) => window.setTimeout(resolve, 1800)),
+        ]);
+    }
 
     async function markPrinted(id: string, expectedVersion: number): Promise<void> {
         const response = await fetch(`/api/admin/customer-feedback/qr-codes/${id}`, {
@@ -95,23 +161,7 @@ export function QrCodesTab() {
                 toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up");
                 return false;
             }
-            const rawTargetLabel = row.publicLabel || row.station?.name || "QR เสียงลูกค้า";
-            const rawSubtitle = row.targetType === "EMPLOYEE"
-                ? [row.publicPosition, row.employee?.stationName].filter(Boolean).join(" · ")
-                : [row.placementKey ?? row.placement].filter(Boolean).join(" · ");
-            const posterInput = {
-                qrUrl,
-                manualEntryUrl,
-                manualCode,
-                targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" as const : "STATION" as const,
-                targetLabel: rawTargetLabel,
-                positionLabel: row.targetType === "EMPLOYEE" ? row.publicPosition ?? undefined : undefined,
-                stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
-                subtitle: rawSubtitle,
-                isTest: row.isTest,
-                version: expectedVersion,
-                assetBaseUrl: window.location.origin,
-            };
+            const posterInput = makePosterInput(row, qrUrl, manualEntryUrl, manualCode, expectedVersion);
             printWindow.document.write(
                 format === "a4-landscape"
                     ? buildCustomerFeedbackA4PosterHtml(posterInput)
@@ -119,17 +169,7 @@ export function QrCodesTab() {
             );
             printWindow.document.close();
 
-            const imagesReady = Array.from(printWindow.document.images).map((image) => {
-                if (image.complete) return Promise.resolve();
-                return new Promise<void>((resolve) => {
-                    image.addEventListener("load", () => resolve(), { once: true });
-                    image.addEventListener("error", () => resolve(), { once: true });
-                });
-            });
-            await Promise.race([
-                Promise.all([printWindow.document.fonts.ready, ...imagesReady]),
-                new Promise<void>((resolve) => window.setTimeout(resolve, 1800)),
-            ]);
+            await waitForPrintAssets(printWindow);
 
             printWindow.focus();
             printWindow.print();
@@ -139,6 +179,141 @@ export function QrCodesTab() {
             return false;
         }
     }
+
+    const printSelectedEmployeeLabels = async () => {
+        const selectedRows = rows.filter((row) =>
+            selectedPrintIds.includes(row.id)
+            && row.targetType === "EMPLOYEE"
+            && Boolean(row.publicProfileApprovedAt)
+            && Boolean(row.employee?.isActive)
+        );
+        if (selectedRows.length === 0) {
+            toast.error("กรุณาเลือกพนักงานที่พร้อมพิมพ์อย่างน้อย 1 คน");
+            return;
+        }
+
+        const printWindow = window.open("", "_blank");
+        if (!printWindow) {
+            toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up");
+            return;
+        }
+        printWindow.document.write('<!doctype html><html lang="th"><meta charset="utf-8"><title>กำลังเตรียมป้าย</title><body style="font-family:sans-serif;padding:24px">กำลังเตรียมป้ายพนักงาน...</body></html>');
+        printWindow.document.close();
+        setIsBulkPrinting(true);
+
+        type RevealedLabel = {
+            row: QrRow;
+            version: number;
+            input: CustomerFeedbackA4PosterInput;
+        };
+        const revealed: RevealedLabel[] = [];
+        const revealFailures: string[] = [];
+
+        try {
+            // Limit concurrent reveal transactions so a large selection does not spike the DB pool.
+            for (let index = 0; index < selectedRows.length; index += 6) {
+                const chunk = selectedRows.slice(index, index + 6);
+                const chunkResults = await Promise.all(chunk.map(async (row) => {
+                    const response = await fetch(`/api/admin/customer-feedback/qr-codes/${row.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "reveal", expectedVersion: row.version }),
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || !data.qrUrl || !data.manualEntryUrl || !data.manualCode) {
+                        return { ok: false as const, row, error: data.error ?? "เปิดรหัสสำหรับพิมพ์ไม่สำเร็จ" };
+                    }
+                    const version = typeof data.version === "number" ? data.version : row.version;
+                    return {
+                        ok: true as const,
+                        value: {
+                            row,
+                            version,
+                            input: makePosterInput(
+                                row,
+                                data.qrUrl,
+                                data.manualEntryUrl,
+                                data.manualCode,
+                                version,
+                                typeof data.publicLabel === "string" ? data.publicLabel : undefined,
+                                data.publicPosition === null || typeof data.publicPosition === "string"
+                                    ? data.publicPosition
+                                    : undefined
+                            ),
+                        },
+                    };
+                }));
+                for (const result of chunkResults) {
+                    if (result.ok) revealed.push(result.value);
+                    else revealFailures.push(`${result.row.publicLabel}: ${result.error}`);
+                }
+            }
+
+            if (revealed.length === 0) {
+                printWindow.close();
+                toast.error(revealFailures[0] ?? "ไม่สามารถเตรียมป้ายที่เลือกได้");
+                if (revealFailures.length > 1) toast.warning(`เตรียมป้ายไม่สำเร็จ ${revealFailures.length} รายการ`);
+                await load();
+                return;
+            }
+            if (revealFailures.length > 0) {
+                toast.warning(`เตรียมได้ ${revealed.length}/${selectedRows.length} คน — ข้าม ${revealFailures.length} รายการที่มีปัญหา`, { duration: 8000 });
+            }
+
+            printWindow.document.open();
+            printWindow.document.write(buildCustomerFeedbackSmallLabelA4SheetHtml(revealed.map((item) => item.input)));
+            printWindow.document.close();
+            await waitForPrintAssets(printWindow);
+            printWindow.focus();
+            printWindow.print();
+
+            const pageCount = Math.ceil(revealed.length / 9);
+            const confirmed = window.confirm(
+                `พิมพ์หรือบันทึก PDF ป้าย ${revealed.length} คน (${pageCount} แผ่น A4) สำเร็จแล้วใช่หรือไม่?\n\nกด OK เมื่อพิมพ์สำเร็จจริง เพื่อบันทึกเวอร์ชันป้ายของทุกคนที่อยู่ในชุดนี้`
+            );
+            if (!confirmed) {
+                toast.info("ยังไม่บันทึกว่าพิมพ์สำเร็จ สามารถเลือกชุดเดิมแล้วพิมพ์ใหม่ได้");
+                await load();
+                return;
+            }
+
+            const markedIds: string[] = [];
+            const markFailures: string[] = [];
+            for (let index = 0; index < revealed.length; index += 6) {
+                const chunk = revealed.slice(index, index + 6);
+                const chunkResults = await Promise.all(chunk.map(async ({ row, version }) => {
+                    const response = await fetch(`/api/admin/customer-feedback/qr-codes/${row.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "MARK_PRINTED", expectedVersion: version }),
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    return response.ok
+                        ? { ok: true as const, row }
+                        : { ok: false as const, row, error: data.error ?? "บันทึกการพิมพ์ไม่สำเร็จ" };
+                }));
+                for (const result of chunkResults) {
+                    if (result.ok) markedIds.push(result.row.id);
+                    else markFailures.push(`${result.row.publicLabel}: ${result.error}`);
+                }
+            }
+
+            setSelectedPrintIds((current) => current.filter((id) => !markedIds.includes(id)));
+            if (markedIds.length > 0) {
+                toast.success(`บันทึกการพิมพ์แล้ว ${markedIds.length} คน`);
+            }
+            if (markFailures.length > 0) {
+                toast.error(`มี ${markFailures.length} รายการที่บันทึกการพิมพ์ไม่สำเร็จ กรุณาโหลดใหม่แล้วตรวจสอบ`, { duration: 9000 });
+            }
+            await load();
+        } catch {
+            if (!printWindow.closed) printWindow.close();
+            toast.error("สร้าง A4 รวมป้ายพนักงานไม่สำเร็จ");
+            await load();
+        } finally {
+            setIsBulkPrinting(false);
+        }
+    };
 
     const act = async (id: string, body: Record<string, unknown>, confirmMsg?: string, printFormat: PrintFormat = "badge") => {
         if (confirmMsg && !window.confirm(confirmMsg)) return;
@@ -230,6 +405,18 @@ export function QrCodesTab() {
                         <input type="checkbox" checked={createAsTest} onChange={(event) => setCreateAsTest(event.target.checked)} />
                         สร้างเป็น QR ทดสอบ
                     </label>
+                    {targetType === "EMPLOYEE" && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={selectedPrintableRows.length === 0 || isBulkPrinting}
+                            onClick={() => void printSelectedEmployeeLabels()}
+                            title="พิมพ์ป้าย 54 × 88 มม. แบบ 3 × 3 สูงสุด 9 คนต่อ A4 หนึ่งแผ่น"
+                        >
+                            {isBulkPrinting ? <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Printer className="mr-1 h-4 w-4" />}
+                            A4 รวม 54×88 ({selectedPrintableRows.length})
+                        </Button>
+                    )}
                     <div className="ml-auto flex gap-1">
                         {targetType === "EMPLOYEE" ? (
                             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR พนักงาน</Button>
@@ -245,6 +432,19 @@ export function QrCodesTab() {
                     <div className="overflow-x-auto"><Table>
                         <TableHeader>
                             <TableRow>
+                                {targetType === "EMPLOYEE" && (
+                                    <TableHead className="w-10">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="เลือกพนักงานที่พร้อมพิมพ์ทั้งหมด"
+                                            checked={allPrintableSelected}
+                                            disabled={printableEmployeeRows.length === 0 || isBulkPrinting}
+                                            onChange={(event) => setSelectedPrintIds(
+                                                event.target.checked ? printableEmployeeRows.map((row) => row.id) : []
+                                            )}
+                                        />
+                                    </TableHead>
+                                )}
                                 <TableHead>เป้าหมาย</TableHead>
                                 <TableHead>ชื่อสาธารณะ</TableHead>
                                 <TableHead>สถานะ</TableHead>
@@ -255,12 +455,32 @@ export function QrCodesTab() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin motion-reduce:animate-none" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={targetType === "EMPLOYEE" ? 7 : 6} className="text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin motion-reduce:animate-none" /></TableCell></TableRow>
                             ) : rows.length === 0 ? (
-                                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">ยังไม่มี QR — สร้างจากปุ่มด้านบน</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={targetType === "EMPLOYEE" ? 7 : 6} className="text-center text-muted-foreground">ยังไม่มี QR — สร้างจากปุ่มด้านบน</TableCell></TableRow>
                             ) : (
                                 rows.map((q) => (
                                     <TableRow key={q.id}>
+                                        {targetType === "EMPLOYEE" && (
+                                            <TableCell>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`เลือกพิมพ์ป้าย ${q.publicLabel}`}
+                                                    checked={selectedPrintIds.includes(q.id)}
+                                                    disabled={
+                                                        isBulkPrinting
+                                                        || q.targetType !== "EMPLOYEE"
+                                                        || !q.publicProfileApprovedAt
+                                                        || !q.employee?.isActive
+                                                    }
+                                                    onChange={(event) => setSelectedPrintIds((current) =>
+                                                        event.target.checked
+                                                            ? [...new Set([...current, q.id])]
+                                                            : current.filter((id) => id !== q.id)
+                                                    )}
+                                                />
+                                            </TableCell>
+                                        )}
                                         <TableCell className="text-xs">
                                             {q.employee ? (
                                                 <>
@@ -307,7 +527,7 @@ export function QrCodesTab() {
                                                         >
                                                             <Printer className="mr-1 h-4 w-4" />A4 แนวนอน
                                                         </Button>
-                                                        <Button size="sm" variant="ghost" title="ป้ายเล็ก 105 × 148 มม. สไตล์เดียวกับ A4" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
+                                                        <Button size="sm" variant="ghost" title="ป้ายเล็กขนาดจริง 54 × 88 มม. สไตล์เดียวกับ A4" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
                                                             ป้ายเล็ก
                                                         </Button>
                                                     </>

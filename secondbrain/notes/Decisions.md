@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
 # Decisions
@@ -58,11 +58,21 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 
 ## 2026-08-29: Customer Feedback small-label print design
 
-- The admin `ป้ายเล็ก` action uses a dedicated 105 x 148 mm portrait template derived from the approved A4 Caltex visual system.
+- Historical note: the original admin `ป้ายเล็ก` action used a 105 x 148 mm portrait template. This size is superseded by the 54 x 88 mm decision dated 2026-08-30 below.
 - Reuse the Caltex lock-up, oversized red public target label, handwritten-style service question, deep-teal information treatment, fallback-code cells, and red/teal Techron footer sweep so small and A4 signs read as one family.
-- Keep the compact-label QR completely unobstructed: do not place a logo over QR modules. Render it at 54 mm on white; `generateQRCodeSVG` supplies the standard four-module quiet zone. Scan reliability takes priority over decorative QR treatment on the small sign.
+- Historical note for the superseded 105 x 148 mm design: its QR was rendered at 54 mm. The current 54 x 88 mm decision below replaces that physical QR size with a 35 x 35 mm unobstructed white field while preserving the QR quiet zone.
 - Keep all QR/public label/position/station/manual-code values live and preserve the existing authenticated `reveal` -> print confirmation -> `MARK_PRINTED` / `needsReprint` lifecycle.
 
+
+## 2026-08-30: Employee small labels are 54 x 88 mm and support batch A4 printing
+
+- Employee Customer Feedback small labels use the exact physical size **54 x 88 mm portrait**. This supersedes the previous 105 x 148 mm compact-label size.
+- Keep the Caltex visual family, live employee/public/station/manual-code data, and an unobstructed QR. At this smaller size the QR field is 35 x 35 mm on white, prioritizing scan reliability over decorative QR treatment.
+- Batch printing uses **A4 portrait, 3 columns x 3 rows = 9 employees per sheet**. Each slot remains exactly 54 x 88 mm with 4 mm horizontal/vertical cut spacing; 3 labels plus gaps occupy 170 mm of the 210 mm A4 width, and 3 rows plus gaps occupy 272 mm of the 297 mm height.
+- More than 9 selected employees automatically continue onto the next A4 page. Cut guides sit in the spacing rather than changing the label dimensions.
+- Only eligible EMPLOYEE QRs with public-profile acknowledgement and an active employee can be selected for batch printing.
+- Batch print must preserve the same security/audit lifecycle as single print: authenticated `reveal` per QR, operator print/PDF confirmation, then `MARK_PRINTED` per successfully printed QR version. Do not mark items printed merely because the A4 preview was generated.
+- Keep reveal/mark operations in bounded concurrency chunks to avoid a large selection spiking the production database connection pool.
 
 ## 2026-08-29: Customer Feedback employee score uses versioned 64-point rubric
 

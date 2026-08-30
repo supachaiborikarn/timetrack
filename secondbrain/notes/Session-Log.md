@@ -567,3 +567,46 @@ Git:
 
 - Feature commit: `a13f10b` (`feat: show admin monthly evaluation progress`).
 - Documentation was updated immediately afterward in the same session before push.
+
+
+## 2026-08-30 — Employee Customer Feedback 54 x 88 mm labels and batch A4 print
+
+Goal:
+
+Change the employee small Customer Feedback label to exact 54 x 88 mm and let admins print multiple employees on one A4 sheet without losing per-QR reveal/print auditing.
+
+Implementation:
+
+- Rebuilt `buildCustomerFeedbackSmallLabelHtml()` as an exact 54 x 88 mm portrait template while keeping the approved Caltex visual family.
+- Reduced the unobstructed QR field to 35 x 35 mm to fit the new physical format while preserving a white scan field and QR quiet zone.
+- Added `buildCustomerFeedbackSmallLabelA4SheetHtml()` for A4 portrait batch output: 3 x 3 grid, 9 labels per page, 4 mm gaps/cut guides, and automatic page continuation after every 9 employees.
+- Geometry is exact-size without CSS scaling: grid width = `3*54 + 2*4 = 170 mm` inside A4 width 210 mm; grid height = `3*88 + 2*4 = 272 mm` inside A4 height 297 mm.
+- Added employee-row checkboxes, select-all for currently loaded eligible employees, and `A4 รวม 54×88` in the Customer Feedback QR admin tab.
+- Batch selection is limited to EMPLOYEE QR rows whose public profile is acknowledged and whose employee is active.
+- Batch printing opens its window before async work to avoid popup blocking, reveals each selected QR through the existing authenticated API, generates one A4 print document, then asks for one operator confirmation.
+- Only after confirmation does the UI call `MARK_PRINTED` for each successfully revealed QR version. Reveal and mark calls are processed in chunks of 6 to avoid a large batch spiking the production DB pool. Partial reveal/mark failures are reported and do not falsely mark failed rows as printed.
+- The existing single `ป้ายเล็ก` action now identifies the physical size as 54 x 88 mm.
+
+Files:
+
+- `src/lib/customer-feedback/print-poster.ts`
+- `src/lib/__tests__/customer-feedback-print-poster.test.ts`
+- `src/components/customer-feedback/admin/qr-codes-tab.tsx`
+- `secondbrain/notes/Decisions.md`
+- `secondbrain/notes/Session-Log.md`
+
+Verification:
+
+- `npx tsc --noEmit`: passed.
+- Targeted print-poster tests: 11/11 passed after updating assertions for the new compact layout and 9-up A4 pagination.
+- Targeted ESLint on the changed print/UI/test files: passed with zero errors/warnings.
+- Full Vitest suite: 62 test files, 397/397 tests passed.
+- `env NODE_ENV=production npm run build`: passed; Next.js generated all 180 routes/pages successfully.
+- `git diff --check`: passed.
+- Generated a 9-employee A4 preview with the new HTML and rendered it through installed Google Chrome headless to a 1200 x 1800 PNG. The print CSS geometry is fixed at 170 x 272 mm for the 3 x 3 grid, centered inside 210 x 297 mm A4 with 20 mm side margins and 12.5 mm top/bottom margins.
+- The separate Playwright CLI screenshot attempt could not run because its bundled Chromium binary is not installed; Chrome headless rendering succeeded, so no browser package was installed for the project.
+- No database command was run.
+
+Git:
+
+- Pending commit/push; record the feature commit hash below immediately after commit.
