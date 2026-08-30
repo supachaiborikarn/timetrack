@@ -37,6 +37,13 @@ export async function GET(request: NextRequest) {
         const now = new Date();
         const from = dateRange.value.from ?? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const toExclusive = dateRange.value.toExclusive ?? now;
+        // Monthly target is always the current Bangkok calendar month, independent from score date filters.
+        const bangkokNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+        const monthlyYear = bangkokNow.getUTCFullYear();
+        const monthlyMonth = bangkokNow.getUTCMonth();
+        const monthlyFrom = new Date(Date.UTC(monthlyYear, monthlyMonth, 1) - 7 * 60 * 60 * 1000);
+        const monthlyToExclusive = new Date(Date.UTC(monthlyYear, monthlyMonth + 1, 1) - 7 * 60 * 60 * 1000);
+        const monthlyEvaluationTarget = 60;
 
         const responses = await prisma.customerFeedbackResponse.findMany({
             where: {
@@ -63,12 +70,45 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        const monthlyResponses = await prisma.customerFeedbackResponse.findMany({
+            where: {
+                kind: "STANDARD",
+                targetType: "EMPLOYEE",
+                surveyVersion: "employee-v3",
+                validity: "VALID",
+                employeeId: { not: null },
+                submittedAt: { gte: monthlyFrom, lt: monthlyToExclusive },
+                ...(stationId ? { stationId } : {}),
+            },
+            select: { employeeId: true },
+        });
+        // Include active frontyard employees with zero responses so admins can see 0 / 60 rather than losing them from the table.
+        const activeEmployees = await prisma.user.findMany({
+            where: {
+                isActive: true,
+                ...(stationId ? { stationId } : {}),
+            },
+            select: {
+                id: true,
+                name: true,
+                nickName: true,
+                stationId: true,
+                station: { select: { name: true } },
+                department: { select: { isFrontYard: true } },
+            },
+        });
+        const monthlyCountByEmployee = new Map<string, number>();
+        for (const response of monthlyResponses) {
+            if (!response.employeeId) continue;
+            monthlyCountByEmployee.set(response.employeeId, (monthlyCountByEmployee.get(response.employeeId) ?? 0) + 1);
+        }
+
         type Bucket = {
             employeeId: string;
             label: string;
             stationId: string | null;
             stationLabel: string | null;
-            latestAt: Date;
+            latestAt: Date | null;
             responses: EmployeeScoreResponseInput[];
         };
         const grouped = new Map<string, Bucket>();
@@ -82,7 +122,7 @@ export async function GET(request: NextRequest) {
                 latestAt: response.submittedAt,
                 responses: [],
             };
-            if (response.submittedAt >= bucket.latestAt) {
+            if (!bucket.latestAt || response.submittedAt >= bucket.latestAt) {
                 bucket.label = response.employeeLabelSnapshot ?? bucket.label;
                 bucket.stationId = response.stationId;
                 bucket.stationLabel = response.stationLabelSnapshot;
@@ -100,13 +140,26 @@ export async function GET(request: NextRequest) {
             grouped.set(response.employeeId, bucket);
         }
 
+        for (const employee of activeEmployees) {
+            if (!employee.department?.isFrontYard || grouped.has(employee.id)) continue;
+            grouped.set(employee.id, {
+                employeeId: employee.id,
+                label: employee.nickName?.trim() || employee.name || "พนักงาน",
+                stationId: employee.stationId,
+                stationLabel: employee.station?.name ?? null,
+                latestAt: null,
+                responses: [],
+            });
+        }
+
         const employees = [...grouped.values()]
             .map((bucket) => ({
                 employeeId: bucket.employeeId,
                 label: bucket.label,
                 stationId: bucket.stationId,
                 stationLabel: bucket.stationLabel,
-                latestResponseAt: bucket.latestAt.toISOString(),
+                latestResponseAt: bucket.latestAt?.toISOString() ?? null,
+                monthlyEvaluationCount: monthlyCountByEmployee.get(bucket.employeeId) ?? 0,
                 ...summarizeEmployeeRubric(bucket.responses),
             }))
             .sort((a, b) => {
@@ -121,6 +174,9 @@ export async function GET(request: NextRequest) {
             totalPoints: EMPLOYEE_SCORE_TOTAL,
             from: from.toISOString(),
             toExclusive: toExclusive.toISOString(),
+            monthlyEvaluationTarget,
+            monthlyFrom: monthlyFrom.toISOString(),
+            monthlyToExclusive: monthlyToExclusive.toISOString(),
             employees,
         });
     } catch (error) {

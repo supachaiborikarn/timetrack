@@ -25,6 +25,9 @@ const scoreResponse = {
     totalPoints: 64,
     from: "2026-08-01T00:00:00.000Z",
     toExclusive: "2026-08-30T00:00:00.000Z",
+    monthlyEvaluationTarget: 60,
+    monthlyFrom: "2026-07-31T17:00:00.000Z",
+    monthlyToExclusive: "2026-08-31T17:00:00.000Z",
     employees: [
         {
             employeeId: "emp-1",
@@ -33,6 +36,7 @@ const scoreResponse = {
             stationLabel: "สถานีหนึ่ง",
             latestResponseAt: "2026-08-29T00:00:00.000Z",
             responseCount: 10,
+            monthlyEvaluationCount: 42,
             minimumSample: 10,
             meetsMinimumSample: true,
             score64: 55.5,
@@ -48,6 +52,7 @@ const scoreResponse = {
             stationLabel: "สถานีสอง",
             latestResponseAt: "2026-08-29T00:00:00.000Z",
             responseCount: 8,
+            monthlyEvaluationCount: 60,
             minimumSample: 10,
             meetsMinimumSample: false,
             score64: null,
@@ -100,5 +105,22 @@ describe("EmployeeScoresTab individual score navigation", () => {
 
         expect(await screen.findByText("รายละเอียดคะแนน — สมหญิง บริการดี")).toBeTruthy();
         expect(screen.getByLabelText("ค้นหาพนักงาน")).toBeTruthy();
+        const progress = screen.getByRole("progressbar", { name: "ยอดประเมินเดือนนี้ สมหญิง บริการดี" });
+        expect(progress.getAttribute("aria-valuenow")).toBe("60");
+        expect(progress.getAttribute("aria-valuemax")).toBe("60");
+        expect(screen.getByText("ถึงเป้าแล้ว")).toBeTruthy();
+    });
+
+    it("shows current-month evaluation progress separately from the selected score-period count", async () => {
+        render(<EmployeeScoresTab />);
+
+        const progress = await screen.findByRole("progressbar", { name: "ยอดประเมินเดือนนี้ สมชาย ใจดี" });
+        expect(progress.getAttribute("aria-valuenow")).toBe("42");
+        expect(progress.getAttribute("aria-valuemax")).toBe("60");
+        expect(screen.getByText("ขาด 18")).toBeTruthy();
+        const row = screen.getByText("สมชาย ใจดี").closest("tr");
+        expect(row).not.toBeNull();
+        expect(within(row!).getByText("10")).toBeTruthy();
+        expect(within(row!).getByText("42 / 60 คน")).toBeTruthy();
     });
 });

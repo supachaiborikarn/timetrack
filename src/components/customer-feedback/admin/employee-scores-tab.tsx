@@ -25,8 +25,9 @@ type EmployeeScore = {
     label: string;
     stationId: string | null;
     stationLabel: string | null;
-    latestResponseAt: string;
+    latestResponseAt: string | null;
     responseCount: number;
+    monthlyEvaluationCount: number;
     minimumSample: number;
     meetsMinimumSample: boolean;
     score64: number | null;
@@ -41,6 +42,9 @@ type ScoreResponse = {
     totalPoints: number;
     from: string;
     toExclusive: string;
+    monthlyEvaluationTarget: number;
+    monthlyFrom: string;
+    monthlyToExclusive: string;
     employees: EmployeeScore[];
 };
 
@@ -101,6 +105,8 @@ export function EmployeeScoresTab() {
         );
     }, [data, employeeSearch]);
 
+    const monthlyTarget = data?.monthlyEvaluationTarget ?? 60;
+
     const selectedAnswerCounts = useMemo(() => {
         if (!selected) return null;
         return selected.criteria.reduce(
@@ -131,6 +137,39 @@ export function EmployeeScoresTab() {
 
         return (
             <div className="space-y-4">
+                <Card>
+                    <CardContent className="pt-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div className="text-xs text-muted-foreground">ยอดผู้ประเมินเดือนนี้</div>
+                                <div className="mt-1 text-2xl font-bold">
+                                    {selected.monthlyEvaluationCount}
+                                    <span className="ml-1 text-sm font-normal text-muted-foreground">/ {monthlyTarget} คน</span>
+                                </div>
+                            </div>
+                            <Badge variant={selected.monthlyEvaluationCount >= monthlyTarget ? "default" : "secondary"}>
+                                {selected.monthlyEvaluationCount >= monthlyTarget
+                                    ? "ถึงเป้าแล้ว"
+                                    : `ขาดอีก ${monthlyTarget - selected.monthlyEvaluationCount} คน`}
+                            </Badge>
+                        </div>
+                        <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                                className="h-full rounded-full bg-primary transition-[width] duration-500"
+                                style={{ width: `${Math.min(100, monthlyTarget > 0 ? (selected.monthlyEvaluationCount / monthlyTarget) * 100 : 0)}%` }}
+                                role="progressbar"
+                                aria-label={`ยอดประเมินเดือนนี้ ${selected.label}`}
+                                aria-valuemin={0}
+                                aria-valuemax={monthlyTarget}
+                                aria-valuenow={selected.monthlyEvaluationCount}
+                            />
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                            นับเฉพาะ VALID employee-v3 ของเดือนปัจจุบันตามเวลาไทย · ไม่เปลี่ยนตามช่วงวันที่ด้านบน
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     <Card>
                         <CardContent className="pt-5">
@@ -279,6 +318,7 @@ export function EmployeeScoresTab() {
                                             <TableHead>พนักงาน</TableHead>
                                             <TableHead>สถานีล่าสุด</TableHead>
                                             <TableHead className="text-right">แบบประเมิน VALID</TableHead>
+                                            <TableHead>เป้าเดือนนี้</TableHead>
                                             <TableHead className="text-right">คะแนน / 64</TableHead>
                                             <TableHead>สถานะข้อมูล</TableHead>
                                             <TableHead className="text-right">ดูรายคน</TableHead>
@@ -286,14 +326,35 @@ export function EmployeeScoresTab() {
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
-                                            <TableRow><TableCell colSpan={6} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
                                         ) : !data || data.employees.length === 0 ? (
-                                            <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">ยังไม่มีคำตอบ employee-v3 ในช่วงวันที่เลือก</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">ยังไม่มีคำตอบ employee-v3 ในช่วงวันที่เลือก</TableCell></TableRow>
                                         ) : data.employees.map((employee) => (
                                             <TableRow key={employee.employeeId}>
                                                 <TableCell className="font-medium">{employee.label}</TableCell>
                                                 <TableCell>{employee.stationLabel ?? "-"}</TableCell>
                                                 <TableCell className="text-right">{employee.responseCount}</TableCell>
+                                                <TableCell className="min-w-[180px]">
+                                                    <div className="flex items-center justify-between gap-2 text-xs">
+                                                        <span className="font-semibold">{employee.monthlyEvaluationCount} / {monthlyTarget} คน</span>
+                                                        <span className="text-muted-foreground">
+                                                            {employee.monthlyEvaluationCount >= monthlyTarget
+                                                                ? "ถึงเป้าแล้ว"
+                                                                : `ขาด ${monthlyTarget - employee.monthlyEvaluationCount}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                                                        <div
+                                                            className="h-full rounded-full bg-primary"
+                                                            style={{ width: `${Math.min(100, monthlyTarget > 0 ? (employee.monthlyEvaluationCount / monthlyTarget) * 100 : 0)}%` }}
+                                                            role="progressbar"
+                                                            aria-label={`ยอดประเมินเดือนนี้ ${employee.label}`}
+                                                            aria-valuemin={0}
+                                                            aria-valuemax={monthlyTarget}
+                                                            aria-valuenow={employee.monthlyEvaluationCount}
+                                                        />
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="text-right text-lg font-bold">
                                                     {employee.score64 === null ? "—" : employee.score64.toFixed(1)}
                                                 </TableCell>

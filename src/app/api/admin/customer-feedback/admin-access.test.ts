@@ -19,6 +19,7 @@ const {
     dailyAggregateGroupByMock,
     dailyReasonGroupByMock,
     stationFindManyMock,
+    userFindManyMock,
     transactionMock,
     auditCreateMock,
     createCaseWithNotificationsMock,
@@ -39,6 +40,7 @@ const {
     dailyAggregateGroupByMock: vi.fn(),
     dailyReasonGroupByMock: vi.fn(),
     stationFindManyMock: vi.fn(),
+    userFindManyMock: vi.fn(),
     transactionMock: vi.fn(),
     auditCreateMock: vi.fn(),
     createCaseWithNotificationsMock: vi.fn(),
@@ -82,6 +84,7 @@ vi.mock("@/lib/prisma", () => ({
         customerFeedbackDailyAggregate: { aggregate: dailyAggregateMock, groupBy: dailyAggregateGroupByMock },
         customerFeedbackDailyReasonAggregate: { groupBy: dailyReasonGroupByMock },
         station: { findMany: stationFindManyMock },
+        user: { findMany: userFindManyMock },
         auditLog: { create: auditCreateMock },
         $transaction: transactionMock,
     },
@@ -92,6 +95,7 @@ import { GET as getExport } from "./export/route";
 import { GET as getCases, POST as postCase } from "./cases/route";
 import { GET as getResponseDetail } from "./responses/[id]/route";
 import { GET as getResponseContact } from "./responses/[id]/contact/route";
+import { GET as getEmployeeScores } from "./employee-scores/route";
 
 const managerContext = {
     ok: true as const,
@@ -133,6 +137,7 @@ describe("customer feedback admin station and incident access", () => {
         dailyAggregateGroupByMock.mockResolvedValue([]);
         dailyReasonGroupByMock.mockResolvedValue([]);
         stationFindManyMock.mockResolvedValue([]);
+        userFindManyMock.mockResolvedValue([]);
     });
 
     it("scopes summary to the manager station, excludes employee QR from station score, and hides incident case count", async () => {
@@ -216,6 +221,74 @@ describe("customer feedback admin station and incident access", () => {
         expect(responseFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({ stationId: "station-own", kind: "STANDARD", validity: "HIDDEN" }),
         }));
+    });
+
+    it("adds current Bangkok-month evaluation progress to employee scores under the same station scope", async () => {
+        userFindManyMock.mockResolvedValue([
+            {
+                id: "employee-zero",
+                name: "พนักงานศูนย์",
+                nickName: "ศูนย์",
+                stationId: "station-own",
+                station: { name: "สถานีเรา" },
+                department: { isFrontYard: true },
+            },
+        ]);
+        responseFindManyMock
+            .mockResolvedValueOnce([
+                {
+                    id: "score-1",
+                    employeeId: "employee-1",
+                    employeeLabelSnapshot: "นัท",
+                    stationId: "station-own",
+                    stationLabelSnapshot: "สถานีเรา",
+                    submittedAt: new Date("2026-08-24T01:00:00.000Z"),
+                    answers: [],
+                },
+            ])
+            .mockResolvedValueOnce([
+                { employeeId: "employee-1" },
+                { employeeId: "employee-1" },
+            ]);
+
+        const response = await getEmployeeScores(new NextRequest(
+            "http://localhost/api/admin/customer-feedback/employee-scores?from=2026-08-01&to=2026-08-30&stationId=station-other"
+        ));
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(responseFindManyMock).toHaveBeenCalledTimes(2);
+        expect(responseFindManyMock.mock.calls[0][0]).toEqual(expect.objectContaining({
+            where: expect.objectContaining({
+                stationId: "station-own",
+                surveyVersion: "employee-v3",
+                validity: "VALID",
+            }),
+        }));
+        expect(responseFindManyMock.mock.calls[1][0]).toEqual(expect.objectContaining({
+            where: expect.objectContaining({
+                stationId: "station-own",
+                surveyVersion: "employee-v3",
+                validity: "VALID",
+                submittedAt: { gte: expect.any(Date), lt: expect.any(Date) },
+            }),
+        }));
+        expect(body.monthlyEvaluationTarget).toBe(60);
+        expect(body.monthlyFrom).toEqual(expect.any(String));
+        expect(body.monthlyToExclusive).toEqual(expect.any(String));
+        expect(body.employees).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                employeeId: "employee-1",
+                responseCount: 1,
+                monthlyEvaluationCount: 2,
+            }),
+            expect.objectContaining({
+                employeeId: "employee-zero",
+                responseCount: 0,
+                monthlyEvaluationCount: 0,
+                score64: null,
+            }),
+        ]));
     });
 
     it("scopes the case queue and removes incident cases without view_incident", async () => {

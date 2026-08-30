@@ -536,3 +536,33 @@ Git:
 - Did not use z-index to cover the work-days circle; the two dashboard elements now occupy separate visual space.
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint: 0 errors; the same 5 pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx`.
+
+
+## 2026-08-30 — Admin monthly customer-evaluation target visibility
+
+Goal:
+
+Let admins monitor each employee's current-month progress toward the same 60-customer-evaluation target shown on the employee dashboard, without confusing it with the score page's selectable date range.
+
+Implementation:
+
+- Extended `/api/admin/customer-feedback/employee-scores` with `monthlyEvaluationCount` per employee plus `monthlyEvaluationTarget = 60`, `monthlyFrom`, and `monthlyToExclusive`.
+- Monthly counts use the current Bangkok calendar month regardless of the admin's score-date filters.
+- Count only `STANDARD + EMPLOYEE + employee-v3 + VALID` responses, with the same effective station scope already enforced for the admin. TEST, SUSPECTED and HIDDEN responses are excluded.
+- Active employees whose department is marked `isFrontYard` are included even when they have no score-period or monthly responses, so the admin can see `0 / 60` instead of those employees disappearing from the target view.
+- Kept `responseCount` as the VALID sample count for the selected score period; it is intentionally separate from the current-month 60-target count.
+- Added a `เป้าเดือนนี้` column to the overview table with `current / 60`, progress, and remaining/reached status.
+- Added a dedicated individual card with the same monthly progress, `ขาดอีก N คน` / `ถึงเป้าแล้ว`, and an explicit note that it follows the current Bangkok month rather than the date filters above.
+
+Verification:
+
+- Targeted tests: 18/18 passed across employee-score UI, admin access/station scope, and rubric calculation.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint on changed admin/API/test files: passed with zero errors and zero warnings.
+- `git diff --check`: passed before documentation update and will be rechecked at handoff.
+- `npm run build` under the inherited shell environment failed while prerendering the unrelated `/auth/error` page because the machine-wide `NODE_ENV` was `development` (Next.js explicitly warned that the value was non-standard for a production build).
+- `env NODE_ENV=production npm run build`: passed; all 180 app pages/routes were generated successfully. No database command was run.
+
+Git:
+
+- Not committed or pushed yet.
