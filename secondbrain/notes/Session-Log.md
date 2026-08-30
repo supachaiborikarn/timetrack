@@ -501,3 +501,29 @@ Risk / follow-up:
 Git:
 
 - Not committed or pushed in this session yet.
+
+
+## 2026-08-30 — Employee dashboard monthly customer-evaluation target
+
+Goal:
+
+Show each forecourt employee how many valid customer evaluations they have accumulated toward a monthly target of 60 directly on the employee dashboard.
+
+Implementation:
+
+- Added `customerEvaluationCount` and `customerEvaluationTarget` to the consolidated `/api/employee/dashboard` response.
+- Count only `STANDARD + EMPLOYEE + employee-v3 + VALID` Customer Feedback responses whose `employeeId` matches the signed-in employee. TEST, SUSPECTED and HIDDEN responses do not count.
+- The evaluation month is always the current Bangkok calendar month and is independent from the historical attendance-calendar month the employee may browse.
+- The monthly target is 60 evaluations and is returned only for employees whose current department is marked `isFrontYard`; other employee dashboards do not show this scorecard target.
+- Added a compact dashboard target card in the upper yellow header area between the left/right attendance stats (the area marked in the reference screenshot), showing `current / 60 คน` and a progress bar capped visually at 100% while preserving the real count above 60.
+- Reused the existing consolidated dashboard request; no additional client API request was added.
+
+Verification:
+
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; five pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx` and were not introduced by this change.
+- Production build passed before the final UI reposition. After the reposition, TypeScript still passed and `git diff --check` passed; the final production-build retry stopped only because `next/font` could not fetch Inter from `fonts.googleapis.com` due to a connector/network failure, not a code compile/type error.
+
+Git:
+
+- Not committed or pushed yet.

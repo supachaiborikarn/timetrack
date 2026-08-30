@@ -73,3 +73,4 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Hide the numeric employee score until at least 10 VALID employee-v3 responses exist.
 - In Customer Feedback admin, expose employee scores through both an overview comparison and an explicit per-employee view; do not rely on an inline expanded row as the only way to inspect one employee.
 - Customer-feedback score is only evidence for a future bonus calculation; it must not alter Payroll automatically without a separately approved bonus rule.
+- Customer Feedback monthly collection target for forecourt employees is 60 VALID `employee-v3` evaluations per Bangkok calendar month. Employee self-service shows progress toward this target, but the count itself does not change the 64-point score formula.

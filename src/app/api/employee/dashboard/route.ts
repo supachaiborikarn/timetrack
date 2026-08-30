@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
         const calDate = new Date(calYear, calMonth, 1);
         const monthStart = startOfMonth(calDate);
         const monthEnd   = endOfMonth(calDate);
+        // Customer Feedback target always follows the current Bangkok calendar month,
+        // independent from the attendance calendar month the employee is browsing.
+        const bangkokNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+        const feedbackYear = bangkokNow.getUTCFullYear();
+        const feedbackMonth = bangkokNow.getUTCMonth();
+        const feedbackMonthStart = new Date(Date.UTC(feedbackYear, feedbackMonth, 1) - 7 * 60 * 60 * 1000);
+        const feedbackMonthEndExclusive = new Date(Date.UTC(feedbackYear, feedbackMonth + 1, 1) - 7 * 60 * 60 * 1000);
         const yearStart  = startOfYear(now);
         const yearEnd    = endOfYear(now);
 
@@ -59,6 +66,7 @@ export async function GET(request: NextRequest) {
             advances,
             announcements,
             calAttendance,
+            customerEvaluationCount,
         ] = await Promise.all([
             // 1. Attendance records for this payroll period
             prisma.attendance.findMany({
@@ -159,6 +167,20 @@ export async function GET(request: NextRequest) {
                     lateMinutes: true,
                 },
             }),
+
+            // 10. Valid customer evaluations for this employee in the selected Bangkok calendar month
+            isFrontYard
+                ? prisma.customerFeedbackResponse.count({
+                    where: {
+                        kind: "STANDARD",
+                        targetType: "EMPLOYEE",
+                        employeeId: userId,
+                        surveyVersion: "employee-v3",
+                        validity: "VALID",
+                        submittedAt: { gte: feedbackMonthStart, lt: feedbackMonthEndExclusive },
+                    },
+                })
+                : Promise.resolve(0),
         ]);
 
         // ============================================================
@@ -259,6 +281,8 @@ export async function GET(request: NextRequest) {
             earlyOutCount,
             breakMinutesToday,
             performanceScore,
+            customerEvaluationCount,
+            customerEvaluationTarget: isFrontYard ? 60 : null,
             leaveCount,
             permissionCount,
             leaveBalance: {
