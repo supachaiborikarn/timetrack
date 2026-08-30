@@ -609,4 +609,5 @@ Verification:
 
 Git:
 
-- Pending commit/push; record the feature commit hash below immediately after commit.
+- Feature commit: `825a67a` (`feat: batch print 54x88 feedback labels`).
+- Documentation hash record added immediately afterward in the same session before push.
