@@ -669,3 +669,8 @@ Verification:
 - `env NODE_ENV=production npm run build`: passed; Next.js generated all 180 routes/pages successfully.
 - `git diff --check`: passed.
 - No database command was run.
+
+Git:
+
+- Feature commit: `4d45acd` (`fix: hide employee feedback counts`).
+- Verification and Second Brain changes were included in the feature commit; this hash record was added immediately afterward before push.
