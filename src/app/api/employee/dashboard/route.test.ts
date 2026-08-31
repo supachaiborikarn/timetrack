@@ -12,7 +12,6 @@ const {
     leaveBalanceCreateMock,
     advanceFindManyMock,
     announcementFindManyMock,
-    feedbackResponseCountMock,
 } = vi.hoisted(() => ({
     authMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
@@ -24,7 +23,6 @@ const {
     leaveBalanceCreateMock: vi.fn(),
     advanceFindManyMock: vi.fn(),
     announcementFindManyMock: vi.fn(),
-    feedbackResponseCountMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: authMock }));
@@ -43,13 +41,12 @@ vi.mock("@/lib/prisma", () => ({
         },
         advance: { findMany: advanceFindManyMock },
         announcement: { findMany: announcementFindManyMock },
-        customerFeedbackResponse: { count: feedbackResponseCountMock },
     },
 }));
 
 import { GET } from "./route";
 
-describe("GET /api/employee/dashboard customer evaluation target", () => {
+describe("GET /api/employee/dashboard customer evaluation visibility", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers();
@@ -74,49 +71,20 @@ describe("GET /api/employee/dashboard customer evaluation target", () => {
         });
         advanceFindManyMock.mockResolvedValue([]);
         announcementFindManyMock.mockResolvedValue([]);
-        feedbackResponseCountMock.mockResolvedValue(4);
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it("counts only today's valid employee-v3 responses in Bangkok regardless of the viewed calendar month", async () => {
+    it("does not query or expose evaluation counts for a front-yard employee", async () => {
         const response = await GET(new NextRequest(
             "http://localhost/api/employee/dashboard?calYear=2025&calMonth=0",
         ));
         const body = await response.json();
 
         expect(response.status).toBe(200);
-        expect(feedbackResponseCountMock).toHaveBeenCalledWith({
-            where: {
-                kind: "STANDARD",
-                targetType: "EMPLOYEE",
-                employeeId: "employee-1",
-                surveyVersion: "employee-v3",
-                validity: "VALID",
-                submittedAt: {
-                    gte: new Date("2026-08-31T17:00:00.000Z"),
-                    lt: new Date("2026-09-01T17:00:00.000Z"),
-                },
-            },
-        });
-        expect(body.customerEvaluationCount).toBe(4);
-        expect(body.customerEvaluationTarget).toBe(5);
-    });
-
-    it("does not query or show the customer evaluation target outside front-yard departments", async () => {
-        userFindUniqueMock.mockResolvedValue({
-            departmentId: "office-1",
-            department: { isFrontYard: false },
-        });
-
-        const response = await GET(new NextRequest("http://localhost/api/employee/dashboard"));
-        const body = await response.json();
-
-        expect(response.status).toBe(200);
-        expect(feedbackResponseCountMock).not.toHaveBeenCalled();
-        expect(body.customerEvaluationCount).toBe(0);
-        expect(body.customerEvaluationTarget).toBeNull();
+        expect(body).not.toHaveProperty("customerEvaluationCount");
+        expect(body).not.toHaveProperty("customerEvaluationTarget");
     });
 });

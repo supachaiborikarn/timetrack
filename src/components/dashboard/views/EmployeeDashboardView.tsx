@@ -18,7 +18,7 @@ import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
 import { RightMenuDrawer } from "@/components/layout/RightMenuDrawer";
 import { ClockInModal } from "@/components/layout/ClockInModal";
 import {
-  Menu, CalendarDays, Trophy, TrendingUp,
+  Menu, CalendarDays, TrendingUp,
   Megaphone, CalendarCheck, Wallet,
   ChevronRight, ChevronLeft, Sun, Moon,
   BellRing, Globe, LogOut, Coffee, Plus,
@@ -155,8 +155,6 @@ export function EmployeeDashboardView() {
   const [permissionCount, setPermissionCount] = useState(0);
   const [breakMinutesToday, setBreakMinutesToday] = useState(0);
   const [performanceScore, setPerformanceScore] = useState(100);
-  const [customerEvaluationCount, setCustomerEvaluationCount] = useState(0);
-  const [customerEvaluationTarget, setCustomerEvaluationTarget] = useState<number | null>(null);
   const [calendarDays, setCalendarDays]   = useState<CalendarDay[]>([]);
   const [dataLoading, setDataLoading]     = useState(true);
 
@@ -182,8 +180,6 @@ export function EmployeeDashboardView() {
         setPermissionCount(data.permissionCount ?? 0);
         setBreakMinutesToday(data.breakMinutesToday ?? 0);
         setPerformanceScore(data.performanceScore ?? 100);
-        setCustomerEvaluationCount(data.customerEvaluationCount ?? 0);
-        setCustomerEvaluationTarget(typeof data.customerEvaluationTarget === "number" ? data.customerEvaluationTarget : null);
         setLeaveBalance(data.leaveBalance ?? null);
         setAdvanceSummary(data.advanceSummary ?? { totalAmount: 0, pendingAmount: 0 });
         setAnnouncements(data.announcements ?? []);
@@ -332,31 +328,7 @@ export function EmployeeDashboardView() {
               <p className="text-3xl font-black text-black leading-none">{permissionCount}</p>
               <p className="text-[10px] font-bold text-black/70 uppercase tracking-wider mt-1.5">{T.permission}</p>
             </div>
-            <div className="w-[36%] flex justify-center px-1 self-start -mt-4">
-              {customerEvaluationTarget !== null && (
-                <div className="w-full rounded-2xl border border-black/10 bg-white/30 px-2 py-1.5 shadow-sm backdrop-blur-sm">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <Trophy className="w-3.5 h-3.5 text-black/70" />
-                    <p className="text-[8px] font-bold text-black/70 leading-tight">ประเมินลูกค้าวันนี้</p>
-                  </div>
-                  <p className="mt-1 text-center text-[18px] font-black text-black leading-none">
-                    {customerEvaluationCount} <span className="text-[11px] font-bold text-black/55">/ {customerEvaluationTarget} คน</span>
-                  </p>
-                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-black/10">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
-                      style={{ width: `${Math.min(100, customerEvaluationTarget > 0 ? (customerEvaluationCount / customerEvaluationTarget) * 100 : 0)}%` }}
-                      role="progressbar"
-                      aria-label="ความคืบหน้ายอดประเมินจากลูกค้าวันนี้"
-                      aria-valuemin={0}
-                      aria-valuemax={customerEvaluationTarget}
-                      aria-valuenow={customerEvaluationCount}
-                    />
-                  </div>
-                  <p className="mt-1 text-center text-[7px] font-semibold text-black/50">เป้าหมาย 5 คน / วัน</p>
-                </div>
-              )}
-            </div>
+            <div className="w-[36%]" aria-hidden="true" />
             <div className="text-center w-[28%]">
               <p className="text-3xl font-black text-black leading-none">{lateCount}</p>
               <p className="text-[10px] font-bold text-black/70 uppercase tracking-wider mt-1.5 mb-4">{T.lateIn}</p>

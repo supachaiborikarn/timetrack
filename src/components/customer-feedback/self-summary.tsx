@@ -11,12 +11,11 @@ import { formatBangkokDateTime } from "@/lib/date-utils";
 
 interface SelfSummary {
     meetsMinimum: boolean;
-    minimumSample: number;
-    summary: { count: number; average?: number; positiveRate?: number; negativeRate?: number; distribution?: Record<string, number> };
+    summary: { average?: number; positiveRate?: number; negativeRate?: number };
     message: string | null;
     source: "LIVE" | "SNAPSHOT";
     scope: { reviewPeriodId: string; title: string; dateFrom: string; dateToExclusive: string; closedAt: string | null; generatedAt: string | null } | null;
-    topReasons: { key: string; count?: number }[];
+    topReasons: { key: string }[];
 }
 
 interface SelfReviewRequest {
@@ -195,7 +194,7 @@ export function CustomerFeedbackSelfSummary({ reviewPeriodId }: { reviewPeriodId
                         {visibleData.meetsMinimum ? (
                             <>
                                 <div className="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
-                                    <div><div className="text-2xl font-bold">{visibleData.summary.average?.toFixed(2)}</div><div className="text-xs text-slate-500">คะแนนเฉลี่ย ({visibleData.summary.count} คำตอบ)</div></div>
+                                    <div><div className="text-2xl font-bold">{visibleData.summary.average?.toFixed(2)}</div><div className="text-xs text-slate-500">คะแนนเฉลี่ย</div></div>
                                     <div><div className="text-2xl font-bold text-green-600">{visibleData.summary.positiveRate?.toFixed(0)}%</div><div className="text-xs text-slate-500">คะแนน 4–5</div></div>
                                     <div><div className="text-2xl font-bold text-red-600">{visibleData.summary.negativeRate?.toFixed(0)}%</div><div className="text-xs text-slate-500">คะแนน 1–2</div></div>
                                 </div>
@@ -203,13 +202,13 @@ export function CustomerFeedbackSelfSummary({ reviewPeriodId }: { reviewPeriodId
                                     <div className="space-y-1 text-sm">
                                         <p className="font-semibold text-slate-600">เรื่องที่ลูกค้าพูดถึงบ่อย</p>
                                         {visibleData.topReasons.map((reason) => (
-                                            <div key={reason.key} className="flex justify-between gap-3"><span>{REASON_LABEL[reason.key] ?? reason.key}</span>{reason.count !== undefined && <span className="font-semibold">{reason.count}</span>}</div>
+                                            <div key={reason.key}>{REASON_LABEL[reason.key] ?? reason.key}</div>
                                         ))}
                                     </div>
                                 )}
                             </>
                         ) : (
-                            <p className="text-sm text-slate-500">{visibleData.message ?? `ยังไม่พอแสดงคะแนนสรุป — มีคำตอบ ${visibleData.summary.count}/${visibleData.minimumSample} รายการ`}</p>
+                            <p className="text-sm text-slate-500">{visibleData.message ?? "กำลังรวบรวมข้อมูลสำหรับคะแนนสรุป"}</p>
                         )}
                     </CardContent>
                 </Card>

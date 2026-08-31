@@ -73,11 +73,12 @@ Admin score path:
 3. Numeric scores remain hidden below the existing 10-response minimum sample.
 4. `คะแนนพนักงาน` in `/admin/customer-feedback` has `ภาพรวมคะแนน` and `รายบุคคล` subviews. Overview ranks employees and links into individual detail; individual detail supports employee/station search and shows score /64, VALID sample status, YES/NO/UNSURE totals and all 9 weighted criteria.
 
-Employee dashboard collection path:
+Employee self-service visibility path:
 
-1. `/api/employee/dashboard` counts only STANDARD, VALID, EMPLOYEE, `employee-v3` responses for the signed-in front-yard employee.
-2. `src/lib/customer-feedback/evaluation-target.ts` supplies the fixed target of 5 and the current Bangkok calendar-day bounds.
-3. `EmployeeDashboardView` shows the returned count as today's progress toward 5; the count remains independent from the attendance calendar month selected in the dashboard.
-4. Non-front-yard employees receive no collection target, while the admin score view keeps its separate monthly 60-response benchmark.
+1. `/api/employee/dashboard` does not query or return Customer Feedback response counts or targets.
+2. `EmployeeDashboardView` contains no collection-progress card or count state.
+3. `/api/customer-feedback/me` uses the exact count internally only to decide whether the minimum sample is met; its response omits exact counts, the minimum threshold, rating distributions, suspected-response counts and per-reason counts.
+4. `CustomerFeedbackSelfSummary` shows a neutral collection message before the score is ready. Afterward it shows the score, positive/negative rates and ordered reason topics without response totals.
+5. Admin Customer Feedback routes and screens keep exact counts and the separate monthly 60-response benchmark.
 
 The score path is intentionally separate from Payroll. No Customer Feedback score is persisted into payroll records or bonus amounts by this flow.

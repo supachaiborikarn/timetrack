@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
-import { EMPLOYEE_DAILY_EVALUATION_TARGET, getBangkokEvaluationDayBounds } from "@/lib/customer-feedback/evaluation-target";
 
 /**
  * GET /api/employee/dashboard
@@ -44,9 +43,6 @@ export async function GET(request: NextRequest) {
         
         const { startDate: payrollStart, endDate: payrollEnd } = getPayrollPeriod(calDate, isFrontYard);
         const todayBangkok = startOfDayBangkok(now);
-        // Employee-facing Customer Feedback goal follows the current Bangkok calendar day
-        // and is independent from the attendance calendar month the employee is browsing.
-        const feedbackDayBounds = getBangkokEvaluationDayBounds(now);
         const periodEndUpToToday = new Date(Math.min(payrollEnd.getTime(), todayBangkok.getTime()));
         const currentYear = now.getFullYear();
 
@@ -63,7 +59,6 @@ export async function GET(request: NextRequest) {
             advances,
             announcements,
             calAttendance,
-            customerEvaluationCount,
         ] = await Promise.all([
             // 1. Attendance records for this payroll period
             prisma.attendance.findMany({
@@ -164,20 +159,6 @@ export async function GET(request: NextRequest) {
                     lateMinutes: true,
                 },
             }),
-
-            // 10. Valid employee-v3 customer evaluations for this employee today (Bangkok calendar day)
-            isFrontYard
-                ? prisma.customerFeedbackResponse.count({
-                    where: {
-                        kind: "STANDARD",
-                        targetType: "EMPLOYEE",
-                        employeeId: userId,
-                        surveyVersion: "employee-v3",
-                        validity: "VALID",
-                        submittedAt: { gte: feedbackDayBounds.from, lt: feedbackDayBounds.toExclusive },
-                    },
-                })
-                : Promise.resolve(0),
         ]);
 
         // ============================================================
@@ -278,8 +259,6 @@ export async function GET(request: NextRequest) {
             earlyOutCount,
             breakMinutesToday,
             performanceScore,
-            customerEvaluationCount,
-            customerEvaluationTarget: isFrontYard ? EMPLOYEE_DAILY_EVALUATION_TARGET : null,
             leaveCount,
             permissionCount,
             leaveBalance: {

@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
                     ratingAverage: true,
                     positiveRate: true,
                     negativeRate: true,
-                    suspectedExcludedCount: true,
                     topReasonKeys: true,
                     generatedAt: true,
                 },
@@ -79,7 +78,6 @@ export async function GET(request: NextRequest) {
             const meetsMinimum = count >= MIN_EMPLOYEE_SAMPLE;
             return privateJson({
                 meetsMinimum,
-                minimumSample: MIN_EMPLOYEE_SAMPLE,
                 source: "SNAPSHOT",
                 scope: {
                     reviewPeriodId: period.id,
@@ -91,16 +89,14 @@ export async function GET(request: NextRequest) {
                 },
                 summary: meetsMinimum
                     ? {
-                          count,
                           average: Number(snapshot!.ratingAverage),
                           positiveRate: Number(snapshot!.positiveRate),
                           negativeRate: Number(snapshot!.negativeRate),
                       }
-                    : { count },
-                suspectedExcludedCount: snapshot?.suspectedExcludedCount ?? 0,
+                    : {},
                 message: meetsMinimum
                     ? null
-                    : `ยังไม่พอแสดงคะแนนสรุป ต้องมีคำตอบที่ผ่านการตรวจอย่างน้อย ${MIN_EMPLOYEE_SAMPLE} รายการ`,
+                    : "กำลังรวบรวมข้อมูลสำหรับคะแนนสรุป",
                 // Snapshot เก็บหัวข้อโดยไม่เก็บข้อความดิบหรือจำนวนย่อยระบุตัวบุคคล
                 topReasons: meetsMinimum
                     ? (snapshot?.topReasonKeys ?? []).map((key) => ({ key }))
@@ -135,7 +131,6 @@ export async function GET(request: NextRequest) {
         const meetsMinimum = summary.count >= MIN_EMPLOYEE_SAMPLE;
         return privateJson({
             meetsMinimum,
-            minimumSample: MIN_EMPLOYEE_SAMPLE,
             source: "LIVE",
             scope: period
                 ? {
@@ -147,13 +142,13 @@ export async function GET(request: NextRequest) {
                       generatedAt: null,
                   }
                 : null,
-            // ถ้ายังไม่ถึง minimum ให้แสดงแค่จำนวน — ไม่แสดงคะแนนสรุป
+            // Employee-facing payload never reveals response counts or the minimum threshold.
             summary: meetsMinimum
-                ? { count: summary.count, average: Number(summary.average!.toFixed(2)), positiveRate: Number(summary.positiveRate!.toFixed(1)), negativeRate: Number(summary.negativeRate!.toFixed(1)), distribution: summary.distribution }
-                : { count: summary.count },
-            message: meetsMinimum ? null : `ยังไม่พอแสดงคะแนนสรุป ต้องมีคำตอบที่ผ่านการตรวจอย่างน้อย ${MIN_EMPLOYEE_SAMPLE} รายการ`,
+                ? { average: Number(summary.average!.toFixed(2)), positiveRate: Number(summary.positiveRate!.toFixed(1)), negativeRate: Number(summary.negativeRate!.toFixed(1)) }
+                : {},
+            message: meetsMinimum ? null : "กำลังรวบรวมข้อมูลสำหรับคะแนนสรุป",
             topReasons: meetsMinimum
-                ? [...reasonCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key, count]) => ({ key, count }))
+                ? [...reasonCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([key]) => ({ key }))
                 : [],
         });
     } catch (error) {

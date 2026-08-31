@@ -642,3 +642,30 @@ Git:
 
 - Feature commit: `75deddb` (`feat: use daily employee feedback target`).
 - Verification and Second Brain changes were included in the feature commit; this hash record was added immediately afterward before push.
+
+
+## 2026-08-31 — Hide employee-facing evaluation counts
+
+Goal:
+
+Remove the personal collection counter after observing that the visible target encouraged employees to rush Customer Feedback collection.
+
+Implementation:
+
+- Removed the daily evaluation progress card and its count/target state from `EmployeeDashboardView` while preserving the existing header layout.
+- Removed the Customer Feedback count query and count/target fields from `/api/employee/dashboard`.
+- Removed the unused daily-target helper and its boundary test.
+- Changed `/api/customer-feedback/me` to keep the minimum-sample calculation internal and omit response totals, the threshold, rating distributions, suspected-response counts and per-reason counts from employee responses.
+- Changed the employee self-summary to show `กำลังรวบรวมข้อมูลสำหรับคะแนนสรุป` before a score is ready and to show ready scores without response totals.
+- Admin monthly monitoring, exact counts, the 60-response benchmark and the 64-point scoring rules are unchanged.
+- Added API and component regression coverage for the employee count-hiding rules.
+
+Verification:
+
+- Targeted employee-dashboard, employee self-summary API and self-summary UI tests: 8/8 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; the same 5 pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx`.
+- Full Vitest suite: 64 test files, 402/402 tests passed.
+- `env NODE_ENV=production npm run build`: passed; Next.js generated all 180 routes/pages successfully.
+- `git diff --check`: passed.
+- No database command was run.

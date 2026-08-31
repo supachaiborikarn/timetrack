@@ -42,6 +42,43 @@ describe("employee customer feedback summary", () => {
         expect(responseFindManyMock).toHaveBeenCalledWith(expect.not.objectContaining({ take: expect.anything() }));
     });
 
+    it("does not reveal response counts or the minimum threshold before a score is ready", async () => {
+        responseFindManyMock.mockResolvedValue(Array.from({ length: 9 }, (_, index) => ({
+            overallRating: (index % 5) + 1,
+            reasonKeys: ["employee_courtesy"],
+            submittedAt: new Date(`2026-08-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`),
+        })));
+
+        const response = await GET(new NextRequest("https://example.test/api/customer-feedback/me"));
+        const body = await response.json();
+
+        expect(body.meetsMinimum).toBe(false);
+        expect(body.summary).toEqual({});
+        expect(body.message).toBe("กำลังรวบรวมข้อมูลสำหรับคะแนนสรุป");
+        expect(body).not.toHaveProperty("minimumSample");
+        expect(body).not.toHaveProperty("suspectedExcludedCount");
+    });
+
+    it("returns a ready score without response, distribution or reason counts", async () => {
+        responseFindManyMock.mockResolvedValue(Array.from({ length: 10 }, (_, index) => ({
+            overallRating: 5,
+            reasonKeys: [index < 6 ? "employee_courtesy" : "employee_safety"],
+            submittedAt: new Date(`2026-08-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`),
+        })));
+
+        const response = await GET(new NextRequest("https://example.test/api/customer-feedback/me"));
+        const body = await response.json();
+
+        expect(body.meetsMinimum).toBe(true);
+        expect(body.summary).toEqual({ average: 5, positiveRate: 100, negativeRate: 0 });
+        expect(body.topReasons).toEqual([
+            { key: "employee_courtesy" },
+            { key: "employee_safety" },
+        ]);
+        expect(body.summary).not.toHaveProperty("count");
+        expect(body.summary).not.toHaveProperty("distribution");
+    });
+
     it("filters live feedback to the selected review period", async () => {
         periodFindUniqueMock.mockResolvedValue({
             id: "period-1",
@@ -89,7 +126,9 @@ describe("employee customer feedback summary", () => {
         const body = await response.json();
 
         expect(body.source).toBe("SNAPSHOT");
-        expect(body.summary).toMatchObject({ count: 12, average: 4.25, positiveRate: 75 });
+        expect(body.summary).toEqual({ average: 4.25, positiveRate: 75, negativeRate: 8.33 });
+        expect(body).not.toHaveProperty("minimumSample");
+        expect(body).not.toHaveProperty("suspectedExcludedCount");
         expect(snapshotFindUniqueMock).toHaveBeenCalledWith(expect.objectContaining({
             where: { reviewPeriodId_employeeId: { reviewPeriodId: "period-closed", employeeId: "employee-1" } },
         }));
