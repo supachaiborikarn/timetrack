@@ -611,3 +611,29 @@ Git:
 
 - Feature commit: `825a67a` (`feat: batch print 54x88 feedback labels`).
 - Documentation hash record added immediately afterward in the same session before push.
+
+
+## 2026-08-31 — Employee daily customer-evaluation target
+
+Goal:
+
+Replace the employee dashboard's monthly 60-evaluation progress with a simpler daily goal of 5 customer evaluations, while leaving the admin monthly benchmark unchanged.
+
+Implementation:
+
+- Employee dashboard now counts only STANDARD + EMPLOYEE + employee-v3 + VALID responses submitted during the current Bangkok calendar day.
+- Daily window resets at 00:00 Asia/Bangkok and does not follow the attendance calendar month the employee is browsing.
+- Employee-facing target changed from 60/month to 5/day, with copy and accessibility label updated from month to today/day.
+- Admin monthly 60 benchmark and the 64-point employee score formula are unchanged.
+- Added a shared daily-target helper/constant and boundary tests around Bangkok midnight.
+- Added an employee-dashboard API regression test covering all response filters, Bangkok day bounds, independence from the viewed attendance month, the returned 5-person target and the non-front-yard path.
+
+Verification:
+
+- Targeted daily-target and employee-dashboard API tests: 4/4 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; the same 5 pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx`.
+- Full Vitest suite: 64 test files, 401/401 tests passed.
+- `env NODE_ENV=production npm run build`: passed; Next.js generated all 180 routes/pages successfully. The first sandboxed attempt could not fetch Google Fonts, and the network-enabled retry passed.
+- `git diff --check`: passed.
+- No database command was run.

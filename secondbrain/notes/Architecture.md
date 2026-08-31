@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - architecture
-updated: 2026-08-29
+updated: 2026-08-31
 ---
 
 # Architecture
@@ -72,5 +72,12 @@ Admin score path:
 2. `src/lib/customer-feedback/employee-score.ts` computes per-criterion YES rates with fixed Caltex weights and excludes UNSURE from that criterion's denominator.
 3. Numeric scores remain hidden below the existing 10-response minimum sample.
 4. `คะแนนพนักงาน` in `/admin/customer-feedback` has `ภาพรวมคะแนน` and `รายบุคคล` subviews. Overview ranks employees and links into individual detail; individual detail supports employee/station search and shows score /64, VALID sample status, YES/NO/UNSURE totals and all 9 weighted criteria.
+
+Employee dashboard collection path:
+
+1. `/api/employee/dashboard` counts only STANDARD, VALID, EMPLOYEE, `employee-v3` responses for the signed-in front-yard employee.
+2. `src/lib/customer-feedback/evaluation-target.ts` supplies the fixed target of 5 and the current Bangkok calendar-day bounds.
+3. `EmployeeDashboardView` shows the returned count as today's progress toward 5; the count remains independent from the attendance calendar month selected in the dashboard.
+4. Non-front-yard employees receive no collection target, while the admin score view keeps its separate monthly 60-response benchmark.
 
 The score path is intentionally separate from Payroll. No Customer Feedback score is persisted into payroll records or bonus amounts by this flow.

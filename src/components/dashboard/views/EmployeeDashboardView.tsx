@@ -337,7 +337,7 @@ export function EmployeeDashboardView() {
                 <div className="w-full rounded-2xl border border-black/10 bg-white/30 px-2 py-1.5 shadow-sm backdrop-blur-sm">
                   <div className="flex items-center justify-center gap-1.5">
                     <Trophy className="w-3.5 h-3.5 text-black/70" />
-                    <p className="text-[8px] font-bold text-black/70 leading-tight">ประเมินลูกค้าเดือนนี้</p>
+                    <p className="text-[8px] font-bold text-black/70 leading-tight">ประเมินลูกค้าวันนี้</p>
                   </div>
                   <p className="mt-1 text-center text-[18px] font-black text-black leading-none">
                     {customerEvaluationCount} <span className="text-[11px] font-bold text-black/55">/ {customerEvaluationTarget} คน</span>
@@ -347,13 +347,13 @@ export function EmployeeDashboardView() {
                       className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
                       style={{ width: `${Math.min(100, customerEvaluationTarget > 0 ? (customerEvaluationCount / customerEvaluationTarget) * 100 : 0)}%` }}
                       role="progressbar"
-                      aria-label="ความคืบหน้ายอดประเมินจากลูกค้าเดือนนี้"
+                      aria-label="ความคืบหน้ายอดประเมินจากลูกค้าวันนี้"
                       aria-valuemin={0}
                       aria-valuemax={customerEvaluationTarget}
                       aria-valuenow={customerEvaluationCount}
                     />
                   </div>
-                  <p className="mt-1 text-center text-[7px] font-semibold text-black/50">เป้าหมาย 60 คน / เดือน</p>
+                  <p className="mt-1 text-center text-[7px] font-semibold text-black/50">เป้าหมาย 5 คน / วัน</p>
                 </div>
               )}
             </div>
