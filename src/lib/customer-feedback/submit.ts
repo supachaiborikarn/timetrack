@@ -161,6 +161,14 @@ export function buildNormalizedStandardAnswers(
             textValue: payload.comment,
         },
     ];
+    if (surveyVersion === "employee-v4") {
+        answers.push({
+            surveyVersion,
+            questionKey: "service_side_preference",
+            state: "ANSWERED",
+            choiceValues: [payload.serviceSidePreference!],
+        });
+    }
 
     const behaviorKeys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
     if (behaviorKeys.length > 0) {
@@ -497,7 +505,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
     const isEmployee = qr.targetType === "EMPLOYEE";
     const surveyVersion = visit.surveyVersion as StandardSurveyVersion;
     const supportedForTarget = isEmployee
-        ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3"
+        ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3" || surveyVersion === "employee-v4"
         : surveyVersion === "station-v1";
     if (!supportedForTarget || tokenPayload.surveyVersion !== surveyVersion) {
         return { failure: "TOKEN_INVALID", status: 401 } as const;

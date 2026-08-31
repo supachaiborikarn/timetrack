@@ -165,7 +165,7 @@ export function EmployeeScoresTab() {
                             />
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                            นับเฉพาะ VALID employee-v3 ของเดือนปัจจุบันตามเวลาไทย · ไม่เปลี่ยนตามช่วงวันที่ด้านบน
+                            นับเฉพาะ VALID employee-v3/v4 ของเดือนปัจจุบันตามเวลาไทย · ไม่เปลี่ยนตามช่วงวันที่ด้านบน
                         </div>
                     </CardContent>
                 </Card>
@@ -328,7 +328,7 @@ export function EmployeeScoresTab() {
                                         {isLoading ? (
                                             <TableRow><TableCell colSpan={7} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
                                         ) : !data || data.employees.length === 0 ? (
-                                            <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">ยังไม่มีคำตอบ employee-v3 ในช่วงวันที่เลือก</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">ยังไม่มีคำตอบ employee-v3/v4 ในช่วงวันที่เลือก</TableCell></TableRow>
                                         ) : data.employees.map((employee) => (
                                             <TableRow key={employee.employeeId}>
                                                 <TableCell className="font-medium">{employee.label}</TableCell>

@@ -24,7 +24,7 @@ type Lang = "th" | "en";
 
 type ResolveResult = {
     visitToken: string;
-    surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" | "station-v1";
+    surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1";
     targetType: "EMPLOYEE" | "STATION";
     target: { label: string; position: string | null };
     station: { id: string; name: string; emergencyPhone: string | null } | null;
@@ -79,6 +79,10 @@ const DICT = {
         ratingQEmployee: "โดยรวม คุณพอใจกับการให้บริการครั้งนี้เพียงใด",
         ratingQStation: "โดยรวม คุณพอใจกับการใช้บริการที่สถานีนี้วันนี้เพียงใด",
         serviceBehaviorsQ: "พนักงานทำสิ่งต่อไปนี้หรือไม่",
+        serviceSideQ: "คุณอยากให้พนักงานเข้าบริการทางฝั่งไหนของรถ",
+        driverSide: "ฝั่งคนขับ",
+        passengerSide: "ฝั่งคนนั่ง",
+        noPreference: "ไม่ติดฝั่งไหน",
         behaviorAnswered: (n: number, total: number) => `ตอบแล้ว ${n}/${total} ข้อ`,
         next: "ถัดไป",
         back: "กลับ",
@@ -145,6 +149,10 @@ const DICT = {
         ratingQEmployee: "Overall, how satisfied were you with this service",
         ratingQStation: "Overall, how satisfied were you with this station today",
         serviceBehaviorsQ: "Did the employee do the following?",
+        serviceSideQ: "Which side of the vehicle would you prefer the employee to approach from?",
+        driverSide: "Driver side",
+        passengerSide: "Passenger side",
+        noPreference: "No preference",
         behaviorAnswered: (n: number, total: number) => `Answered ${n}/${total}`,
         next: "Next",
         back: "Back",
@@ -468,7 +476,7 @@ function isResolveResult(value: unknown): value is ResolveResult {
     const stationValid = value.station === null || isStationOption(value.station);
     return typeof value.visitToken === "string"
         && value.visitToken.length > 0
-        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "employee-v3" || value.surveyVersion === "station-v1")
+        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "employee-v3" || value.surveyVersion === "employee-v4" || value.surveyVersion === "station-v1")
         && (value.targetType === "EMPLOYEE" || value.targetType === "STATION")
         && typeof value.target.label === "string"
         && (value.target.position === null || typeof value.target.position === "string")
@@ -549,6 +557,7 @@ export function FeedbackForm() {
     const [serviceAreas, setServiceAreas] = useState<string[]>([]);
     const [rating, setRating] = useState<number | null>(null);
     const [behaviorAnswers, setBehaviorAnswers] = useState<BehaviorAnswers>({});
+    const [serviceSidePreference, setServiceSidePreference] = useState<"DRIVER" | "PASSENGER" | "NO_PREFERENCE" | null>(null);
     const [reasonKeys, setReasonKeys] = useState<string[]>([]);
     const [showComment, setShowComment] = useState(false);
     const [comment, setComment] = useState("");
@@ -687,6 +696,7 @@ export function FeedbackForm() {
             targetConfirmation: "confirmation-group",
             overallRating: "rating-group",
             behaviorAnswers: "service-behaviors-group",
+            serviceSidePreference: "service-side-preference-group",
             reasonKeys: "reason-group",
             serviceAreas: "service-area-group",
             contact: screen === "incident-detail" ? "incident-contact-value" : "contact-value",
@@ -843,7 +853,7 @@ export function FeedbackForm() {
 
     const submitStandard = useCallback(async () => {
         if (!result || rating === null) return;
-        if ((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") && !hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
+        if ((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") && !hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
             setError({ kind: "dict", key: "required", field: "behaviorAnswers" });
             setScreen("service-behaviors");
             return;
@@ -870,11 +880,12 @@ export function FeedbackForm() {
             wantsFollowUp,
             language: lang,
         };
-        if (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") {
+        if (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") {
             payload.behaviorAnswers = Object.fromEntries(
                 employeeBehaviorQuestionKeysForVersion(result.surveyVersion).map((key) => [key, behaviorAnswers[key]])
             );
         }
+        if (result.surveyVersion === "employee-v4") payload.serviceSidePreference = serviceSidePreference;
         if (selectedStation) payload.selectedStationId = selectedStation.id;
         if (wantsFollowUp) {
             payload.contact = {
@@ -909,7 +920,7 @@ export function FeedbackForm() {
                 setError(uiError);
                 if (uiError?.field === "serviceAreas") setScreen("service-areas");
                 else if (uiError?.field === "overallRating") setScreen("rating");
-                else if (uiError?.field === "behaviorAnswers") setScreen("service-behaviors");
+                else if (uiError?.field === "behaviorAnswers" || uiError?.field === "serviceSidePreference") setScreen("service-behaviors");
                 else if (uiError?.field === "targetConfirmation") setScreen("confirm-target");
                 else setScreen("reasons");
                 return;
@@ -927,7 +938,7 @@ export function FeedbackForm() {
         } finally {
             setBusy(false);
         }
-    }, [result, rating, behaviorAnswers, reasonKeys, serviceAreas, comment, wantsFollowUp, selectedStation, contactChannel, contactValue, contactName, preferredTime, lang]);
+    }, [result, rating, behaviorAnswers, serviceSidePreference, reasonKeys, serviceAreas, comment, wantsFollowUp, selectedStation, contactChannel, contactValue, contactName, preferredTime, lang]);
 
     const startIncident = useCallback(async () => {
         if (incidentToken) {
@@ -1443,14 +1454,14 @@ export function FeedbackForm() {
                     setError(null);
                     void postProgress({ lastStep: "rating" });
                     setReasonKeys([]);
-                    setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3") ? "service-behaviors" : "reasons");
+                    setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") ? "service-behaviors" : "reasons");
                 })}
                 {errorBox(error)}
             </div>
         );
     }
 
-    if (screen === "service-behaviors" && (result?.surveyVersion === "employee-v2" || result?.surveyVersion === "employee-v3")) {
+    if (screen === "service-behaviors" && (result?.surveyVersion === "employee-v2" || result?.surveyVersion === "employee-v3" || result?.surveyVersion === "employee-v4")) {
         const behaviorQuestions = employeeBehaviorQuestionsForVersion(result.surveyVersion);
         const behaviorKeys = employeeBehaviorQuestionKeysForVersion(result.surveyVersion);
         const answeredCount = behaviorKeys.filter((key) => isBehaviorAnswer(behaviorAnswers[key])).length;
@@ -1501,10 +1512,31 @@ export function FeedbackForm() {
                         </fieldset>
                     ))}
                 </div>
+                {result.surveyVersion === "employee-v4" && (
+                    <fieldset id="service-side-preference-group" className="rounded-xl border border-neutral-200 bg-white p-3">
+                        <legend className="px-1 text-sm font-semibold leading-snug">{t.serviceSideQ}</legend>
+                        <div className="mt-2 grid gap-2">
+                            {([
+                                ["DRIVER", t.driverSide],
+                                ["PASSENGER", t.passengerSide],
+                                ["NO_PREFERENCE", t.noPreference],
+                            ] as const).map(([value, label]) => (
+                                <label key={value} className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium ${serviceSidePreference === value ? "border-yellow-500 bg-yellow-50" : "border-neutral-300"}`}>
+                                    <input type="radio" name="service-side-preference" value={value} checked={serviceSidePreference === value} onChange={() => { setServiceSidePreference(value); setError(null); }} className="h-4 w-4 accent-yellow-500" />
+                                    {label}
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
+                )}
                 {errorBox(error)}
                 {primaryBtn(t.next, () => {
                     if (!hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
                         setError({ kind: "dict", key: "required", field: "behaviorAnswers" });
+                        return;
+                    }
+                    if (result.surveyVersion === "employee-v4" && !serviceSidePreference) {
+                        setError({ kind: "dict", key: "required", field: "serviceSidePreference" });
                         return;
                     }
                     setError(null);
@@ -1619,7 +1651,7 @@ export function FeedbackForm() {
                 {secondaryBtn(t.back, () => setScreen(
                     result.targetType === "STATION"
                         ? "service-areas"
-                        : result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3"
+                        : result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4"
                             ? "service-behaviors"
                             : "rating"
                 ))}

@@ -17,6 +17,7 @@ import {
  */
 
 export type TargetConfirmation = "YES" | "NO" | "UNSURE";
+export type ServiceSidePreference = "DRIVER" | "PASSENGER" | "NO_PREFERENCE";
 
 export interface ContactInput {
     consent: boolean;
@@ -37,6 +38,7 @@ export interface StandardPayload {
     contact?: ContactInput;
     language: string;
     behaviorAnswers?: EmployeeBehaviorAnswers;
+    serviceSidePreference?: ServiceSidePreference;
 }
 
 export interface IncidentPayload {
@@ -65,6 +67,7 @@ const ALLOWED_STANDARD_KEYS = new Set([
     "contact",
     "language",
     "behaviorAnswers",
+    "serviceSidePreference",
 ]);
 
 const ALLOWED_INCIDENT_KEYS = new Set([
@@ -214,6 +217,16 @@ export function validateStandardPayload(
     if (unknown) return { ok: false, errors: [unknown] };
 
     const behaviorAnswers = validateBehaviorAnswers(raw, surveyVersion, (e) => errors.push(e));
+    let serviceSidePreference: ServiceSidePreference | undefined;
+    if (surveyVersion === "employee-v4") {
+        if (raw.serviceSidePreference !== "DRIVER" && raw.serviceSidePreference !== "PASSENGER" && raw.serviceSidePreference !== "NO_PREFERENCE") {
+            errors.push({ field: "serviceSidePreference", message: "กรุณาเลือกฝั่งที่ต้องการให้พนักงานเข้าบริการ" });
+        } else {
+            serviceSidePreference = raw.serviceSidePreference;
+        }
+    } else if (raw.serviceSidePreference !== undefined) {
+        errors.push({ field: "serviceSidePreference", message: "แบบประเมินรุ่นนี้ไม่รับคำตอบฝั่งเข้าบริการ" });
+    }
 
     if (raw.targetConfirmation !== "YES") {
         return { ok: false, errors: [{ field: "targetConfirmation", message: "ต้องยืนยันว่าเป้าหมายถูกต้องก่อนส่ง" }] };
@@ -257,7 +270,7 @@ export function validateStandardPayload(
             errors.push({ field: "serviceAreas", message: "ไม่แน่ใจส่งร่วมกับค่าอื่นไม่ได้" });
         }
         if (new Set(keys).size !== keys.length) errors.push({ field: "serviceAreas", message: "ส่วนบริการซ้ำไม่ได้" });
-        if ((surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3") && keys.length > 0) {
+        if ((surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3" || surveyVersion === "employee-v4") && keys.length > 0) {
             errors.push({ field: "serviceAreas", message: "แบบประเมินพนักงานไม่รับส่วนบริการ" });
         }
         if (surveyVersion === "station-v1" && keys.length === 0) {
@@ -297,6 +310,7 @@ export function validateStandardPayload(
             contact: followUp.contact,
             language: language!,
             behaviorAnswers,
+            serviceSidePreference,
         },
     };
 }

@@ -7,12 +7,12 @@
  * - คะแนน 1–2 ต้องเลือกสาเหตุอย่างน้อยหนึ่งข้อหรือ "ไม่สะดวกระบุ"
  */
 
-export type SurveyVersion = "employee-v1" | "employee-v2" | "employee-v3" | "station-v1" | "incident-v1";
+export type SurveyVersion = "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1" | "incident-v1";
 export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
 export type QuestionOwner = "EMPLOYEE" | "SYSTEM" | "STATION" | "UNKNOWN";
 export type BehaviorAnswer = "YES" | "NO" | "UNSURE";
 
-export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "employee-v3", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
+export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
 
 export function isStandardSurveyVersion(version: string): version is StandardSurveyVersion {
     return (STANDARD_SURVEY_VERSIONS as readonly string[]).includes(version);
@@ -161,7 +161,7 @@ export const EMPLOYEE_SCORE_TOTAL = EMPLOYEE_SCORE_QUESTIONS.reduce((sum, questi
 
 export function employeeBehaviorQuestionsForVersion(version: StandardSurveyVersion): BehaviorQuestion[] {
     if (version === "employee-v2") return EMPLOYEE_BEHAVIOR_QUESTIONS;
-    if (version === "employee-v3") return EMPLOYEE_SCORE_QUESTIONS;
+    if (version === "employee-v3" || version === "employee-v4") return EMPLOYEE_SCORE_QUESTIONS;
     return [];
 }
 
@@ -223,6 +223,13 @@ export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
     },
     "employee-v3": {
         version: "employee-v3",
+        maxReasons: 2,
+        commentMaxLength: 500,
+        reasonOptions: EMPLOYEE_REASON_OPTIONS,
+        behaviorQuestions: EMPLOYEE_SCORE_QUESTIONS,
+    },
+    "employee-v4": {
+        version: "employee-v4",
         maxReasons: 2,
         commentMaxLength: 500,
         reasonOptions: EMPLOYEE_REASON_OPTIONS,

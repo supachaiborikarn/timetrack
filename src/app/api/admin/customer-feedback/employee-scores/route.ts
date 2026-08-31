@@ -13,7 +13,7 @@ import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/custom
 
 /**
  * GET /api/admin/customer-feedback/employee-scores
- * คะแนนบริการหน้าลาน employee-v3 ตาม rubric 64 คะแนน
+ * คะแนนบริการหน้าลาน employee-v3/v4 ตาม rubric 64 คะแนน
  * ใช้เฉพาะ STANDARD + VALID; TEST/SUSPECTED/HIDDEN ไม่เข้าคะแนน
  */
 export async function GET(request: NextRequest) {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
             where: {
                 kind: "STANDARD",
                 targetType: "EMPLOYEE",
-                surveyVersion: "employee-v3",
+                surveyVersion: { in: ["employee-v3", "employee-v4"] },
                 validity: "VALID",
                 employeeId: { not: null },
                 submittedAt: { gte: from, lt: toExclusive },
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
             where: {
                 kind: "STANDARD",
                 targetType: "EMPLOYEE",
-                surveyVersion: "employee-v3",
+                surveyVersion: { in: ["employee-v3", "employee-v4"] },
                 validity: "VALID",
                 employeeId: { not: null },
                 submittedAt: { gte: monthlyFrom, lt: monthlyToExclusive },
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
             });
 
         return NextResponse.json({
-            rubricVersion: "employee-v3",
+            rubricVersion: "employee-v3+employee-v4",
             totalPoints: EMPLOYEE_SCORE_TOTAL,
             from: from.toISOString(),
             toExclusive: toExclusive.toISOString(),

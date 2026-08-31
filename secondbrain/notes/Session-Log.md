@@ -674,3 +674,11 @@ Git:
 
 - Feature commit: `4d45acd` (`fix: hide employee feedback counts`).
 - Verification and Second Brain changes were included in the feature commit; this hash record was added immediately afterward before push.
+
+## 2026-08-31 — เสียงลูกค้า: ความต้องการฝั่งเข้าบริการ
+- เพิ่ม survey version `employee-v4` ตามกติกาห้ามเปลี่ยนความหมายคำถามรุ่นที่เผยแพร่แล้ว; QR พนักงานที่ resolve ใหม่ใช้ v4 ส่วน visit v1-v3 เดิมยังส่งได้ตามเดิม
+- v4 ใช้ rubric 64 คะแนนเดิม 9 ข้อ และเพิ่มคำถามไม่คิดคะแนน: ลูกค้าอยากให้พนักงานเข้าบริการทาง `ฝั่งคนขับ`, `ฝั่งคนนั่ง`, หรือ `ไม่ติดฝั่งไหน`
+- เก็บคำตอบ normalized เป็น `questionKey=service_side_preference` และค่า `DRIVER | PASSENGER | NO_PREFERENCE` เพื่อวิเคราะห์ภายหลัง
+- Admin employee score รวม VALID responses ของทั้ง employee-v3 และ employee-v4 เพื่อไม่ให้คะแนน/ยอดประเมินขาดช่วงหลังเปลี่ยน version
+- Verification: `npx tsc --noEmit` ผ่าน; targeted customer-feedback tests 73/73 ผ่าน (validation, submit, resolve, public form)
+
