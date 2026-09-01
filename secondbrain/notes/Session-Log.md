@@ -707,3 +707,10 @@ Verification:
 - `git diff --check`: passed.
 - Full Vitest suite: 406/409 passed; 3 failures are in the pre-existing `src/app/api/admin/customer-feedback/admin-access.test.ts` expectations that still assume pre-v4 query shapes. This feature does not modify that admin route/test.
 - No database command was run.
+
+## 2026-09-01 — Hide fixed daily target label from employee dashboard
+
+- Removed the visible `เป้าหมาย 5 คัน / วัน` line from the employee Dashboard feedback status card.
+- Employee Dashboard now shows only the coarse motivation status (`ยังไม่ครบ`, `ใกล้ครบ`, `ครบแล้ว`).
+- Removed `customerEvaluationTarget` from the employee Dashboard API payload; the fixed target remains server-side only for deriving status.
+- Admin counts/scoring are unchanged.

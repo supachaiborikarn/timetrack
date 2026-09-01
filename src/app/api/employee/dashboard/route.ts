@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
-import { EMPLOYEE_DAILY_EVALUATION_TARGET, getBangkokEvaluationDayBounds, getEmployeeDailyEvaluationStatus } from "@/lib/customer-feedback/evaluation-target";
+import { getBangkokEvaluationDayBounds, getEmployeeDailyEvaluationStatus } from "@/lib/customer-feedback/evaluation-target";
 
 /**
  * GET /api/employee/dashboard
@@ -278,7 +278,6 @@ export async function GET(request: NextRequest) {
             breakMinutesToday,
             performanceScore,
             customerEvaluationStatus: isFrontYard ? getEmployeeDailyEvaluationStatus(customerEvaluationCount) : null,
-            customerEvaluationTarget: isFrontYard ? EMPLOYEE_DAILY_EVALUATION_TARGET : null,
             leaveCount,
             permissionCount,
             leaveBalance: {

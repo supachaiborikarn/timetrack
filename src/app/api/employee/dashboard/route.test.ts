@@ -102,8 +102,8 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
 
         expect(response.status).toBe(200);
         expect(body.customerEvaluationStatus).toBe(expectedStatus);
-        expect(body.customerEvaluationTarget).toBe(5);
         expect(body).not.toHaveProperty("customerEvaluationCount");
+        expect(body).not.toHaveProperty("customerEvaluationTarget");
     });
 
     it("counts only today's valid standard employee-v3/v4 evaluations", async () => {
@@ -134,7 +134,6 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
 
         expect(customerFeedbackCountMock).not.toHaveBeenCalled();
         expect(body.customerEvaluationStatus).toBeNull();
-        expect(body.customerEvaluationTarget).toBeNull();
         expect(body).not.toHaveProperty("customerEvaluationCount");
     });
 });
