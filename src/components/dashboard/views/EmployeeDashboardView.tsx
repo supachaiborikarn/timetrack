@@ -48,6 +48,8 @@ interface AdvanceSummary {
   pendingAmount: number;
 }
 
+type CustomerEvaluationStatus = "NOT_YET" | "NEAR" | "DONE";
+
 interface CalendarDay {
   date: string;
   checkedIn: boolean;
@@ -68,6 +70,10 @@ const LANG = {
     today: "วันนี้",
     rank: "อันดับของคุณ",
     score: "คะแนนผลงาน",
+    feedbackNotYet: "ยังไม่ครบเป้าวันนี้",
+    feedbackNear: "ใกล้ครบเป้าแล้ว",
+    feedbackDone: "ครบเป้าวันนี้แล้ว",
+    feedbackTarget: (target: number) => `เป้าหมาย ${target} คัน / วัน`,
     announcements: "ประกาศสำคัญ",
     noAnnouncement: "ไม่มีประกาศในขณะนี้",
     attCorrection: "ขอแก้ไขเวลา",
@@ -89,6 +95,10 @@ const LANG = {
     today: "Today",
     rank: "Current Rank",
     score: "Performance Score",
+    feedbackNotYet: "Daily goal not reached",
+    feedbackNear: "Almost at today’s goal",
+    feedbackDone: "Today’s goal complete",
+    feedbackTarget: (target: number) => `Goal ${target} cars / day`,
     announcements: "Announcements",
     noAnnouncement: "No announcements right now",
     attCorrection: "Att. Correction",
@@ -110,6 +120,10 @@ const LANG = {
     today: "ယနေ့",
     rank: "အဆင့်",
     score: "စွမ်းဆောင်ရည်",
+    feedbackNotYet: "ယနေ့ ရည်မှန်းချက် မပြည့်သေး",
+    feedbackNear: "ရည်မှန်းချက် ပြည့်ရန် နီးပါပြီ",
+    feedbackDone: "ယနေ့ ရည်မှန်းချက် ပြည့်ပါပြီ",
+    feedbackTarget: (target: number) => `တစ်ရက် ${target} စီး ရည်မှန်းချက်`,
     announcements: "ကြေညာချက်",
     noAnnouncement: "ကြေညာချက်မရှိပါ",
     attCorrection: "တက်ရောက်ပြင်ဆင်",
@@ -155,6 +169,8 @@ export function EmployeeDashboardView() {
   const [permissionCount, setPermissionCount] = useState(0);
   const [breakMinutesToday, setBreakMinutesToday] = useState(0);
   const [performanceScore, setPerformanceScore] = useState(100);
+  const [customerEvaluationStatus, setCustomerEvaluationStatus] = useState<CustomerEvaluationStatus | null>(null);
+  const [customerEvaluationTarget, setCustomerEvaluationTarget] = useState(5);
   const [calendarDays, setCalendarDays]   = useState<CalendarDay[]>([]);
   const [dataLoading, setDataLoading]     = useState(true);
 
@@ -180,6 +196,8 @@ export function EmployeeDashboardView() {
         setPermissionCount(data.permissionCount ?? 0);
         setBreakMinutesToday(data.breakMinutesToday ?? 0);
         setPerformanceScore(data.performanceScore ?? 100);
+        setCustomerEvaluationStatus(data.customerEvaluationStatus ?? null);
+        setCustomerEvaluationTarget(data.customerEvaluationTarget ?? 5);
         setLeaveBalance(data.leaveBalance ?? null);
         setAdvanceSummary(data.advanceSummary ?? { totalAmount: 0, pendingAmount: 0 });
         setAnnouncements(data.announcements ?? []);
@@ -328,7 +346,24 @@ export function EmployeeDashboardView() {
               <p className="text-3xl font-black text-black leading-none">{permissionCount}</p>
               <p className="text-[10px] font-bold text-black/70 uppercase tracking-wider mt-1.5">{T.permission}</p>
             </div>
-            <div className="w-[36%]" aria-hidden="true" />
+            <div className="w-[36%] flex justify-center px-1 self-start -mt-4 text-center">
+              {customerEvaluationStatus ? (
+                <div className="rounded-2xl bg-black/10 px-2 py-3">
+                  <p className="text-[12px] font-black text-black leading-tight">
+                    {customerEvaluationStatus === "DONE"
+                      ? `✅ ${T.feedbackDone}`
+                      : customerEvaluationStatus === "NEAR"
+                        ? T.feedbackNear
+                        : T.feedbackNotYet}
+                  </p>
+                  <p className="text-[9px] font-bold text-black/60 mt-1.5">
+                    {T.feedbackTarget(customerEvaluationTarget)}
+                  </p>
+                </div>
+              ) : (
+                <div aria-hidden="true" />
+              )}
+            </div>
             <div className="text-center w-[28%]">
               <p className="text-3xl font-black text-black leading-none">{lateCount}</p>
               <p className="text-[10px] font-bold text-black/70 uppercase tracking-wider mt-1.5 mb-4">{T.lateIn}</p>

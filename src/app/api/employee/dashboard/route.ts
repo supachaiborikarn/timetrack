@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
+import { EMPLOYEE_DAILY_EVALUATION_TARGET, getBangkokEvaluationDayBounds, getEmployeeDailyEvaluationStatus } from "@/lib/customer-feedback/evaluation-target";
 
 /**
  * GET /api/employee/dashboard
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         
         const { startDate: payrollStart, endDate: payrollEnd } = getPayrollPeriod(calDate, isFrontYard);
         const todayBangkok = startOfDayBangkok(now);
+        const feedbackDayBounds = getBangkokEvaluationDayBounds(now);
         const periodEndUpToToday = new Date(Math.min(payrollEnd.getTime(), todayBangkok.getTime()));
         const currentYear = now.getFullYear();
 
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
             advances,
             announcements,
             calAttendance,
+            customerEvaluationCount,
         ] = await Promise.all([
             // 1. Attendance records for this payroll period
             prisma.attendance.findMany({
@@ -159,6 +162,21 @@ export async function GET(request: NextRequest) {
                     lateMinutes: true,
                 },
             }),
+
+            // 10. Count today's valid employee feedback server-side only.
+            // The employee dashboard receives only a coarse status, never this exact count.
+            isFrontYard
+                ? prisma.customerFeedbackResponse.count({
+                    where: {
+                        kind: "STANDARD",
+                        targetType: "EMPLOYEE",
+                        employeeId: userId,
+                        surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                        validity: "VALID",
+                        submittedAt: { gte: feedbackDayBounds.from, lt: feedbackDayBounds.toExclusive },
+                    },
+                })
+                : Promise.resolve(0),
         ]);
 
         // ============================================================
@@ -259,6 +277,8 @@ export async function GET(request: NextRequest) {
             earlyOutCount,
             breakMinutesToday,
             performanceScore,
+            customerEvaluationStatus: isFrontYard ? getEmployeeDailyEvaluationStatus(customerEvaluationCount) : null,
+            customerEvaluationTarget: isFrontYard ? EMPLOYEE_DAILY_EVALUATION_TARGET : null,
             leaveCount,
             permissionCount,
             leaveBalance: {

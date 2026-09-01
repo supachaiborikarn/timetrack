@@ -682,3 +682,28 @@ Git:
 - Admin employee score รวม VALID responses ของทั้ง employee-v3 และ employee-v4 เพื่อไม่ให้คะแนน/ยอดประเมินขาดช่วงหลังเปลี่ยน version
 - Verification: `npx tsc --noEmit` ผ่าน; targeted customer-feedback tests 73/73 ผ่าน (validation, submit, resolve, public form)
 
+
+## 2026-09-01 — Employee daily Customer Feedback status
+
+Goal:
+
+Restore a daily motivation signal for front-yard employees without revealing the exact number of customer evaluations collected.
+
+Implementation:
+
+- Restored the Bangkok-calendar daily feedback target helper with target 5 evaluations/day and a near-goal threshold at 3.
+- `/api/employee/dashboard` counts VALID STANDARD employee feedback for `employee-v3` and `employee-v4` server-side only.
+- Employee-facing API now returns only `NOT_YET`, `NEAR`, or `DONE` plus the fixed target 5; the exact count is never returned.
+- Dashboard status text is `ยังไม่ครบเป้าวันนี้` for 0-2, `ใกล้ครบเป้าแล้ว` for 3-4, and `ครบเป้าวันนี้แล้ว` for 5+.
+- The status resets with the Bangkok calendar day and remains limited to front-yard employees.
+- Admin Customer Feedback counts and the existing scoring pipeline are unchanged.
+- Added regression coverage for all three status bands, v3+v4 filtering, Bangkok day boundaries, hidden exact counts, and non-front-yard behavior.
+
+Verification:
+
+- Targeted employee dashboard API tests: 8/8 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; the same 5 pre-existing unused-variable warnings remain in `EmployeeDashboardView.tsx`.
+- `git diff --check`: passed.
+- Full Vitest suite: 406/409 passed; 3 failures are in the pre-existing `src/app/api/admin/customer-feedback/admin-access.test.ts` expectations that still assume pre-v4 query shapes. This feature does not modify that admin route/test.
+- No database command was run.
