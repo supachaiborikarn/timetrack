@@ -986,3 +986,27 @@ Verification:
 - Read-back confirmed the announcement is active and pinned.
 - Target department list read back as five front-yard departments across WKO/PAP/SPC.
 - Read-back found exactly 22 announcement notifications, all initially unread.
+
+
+## 2026-09-02 — Forced mandatory League announcement popup on dashboard
+
+Goal:
+
+Make the pinned League rules announcement appear immediately when employees enter the dashboard, even if the app previously cached an empty mandatory-announcement check.
+
+Implementation:
+
+- Dashboard routes `/` and `/admin` are now hard refresh points for mandatory announcements. Entering them always fetches `/api/announcements/unread-mandatory` with `cache: no-store`, bypassing the free-tier empty-result TTL.
+- Outside the dashboard, the existing free-tier TTL remains in place to avoid unnecessary polling.
+- Cached pinned announcements no longer expire locally at Bangkok midnight.
+- The mandatory-announcement API now treats active pinned announcements as mandatory until the targeted employee records an AnnouncementRead acknowledgement, instead of limiting them to announcements created on the current Bangkok date.
+- After acknowledgement, the existing read record prevents the popup from appearing again for that employee.
+- Production was checked before changing the rule: the only active pinned announcement was the new TimeTrack League rules announcement, so no historical pinned announcements will unexpectedly reappear.
+
+Verification:
+
+- Targeted Vitest: 4/4 passed across the mandatory-announcement API and GlobalAnnouncementModal dashboard refresh behavior.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed with no warnings.
+- `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
+- `git diff --check`: passed.

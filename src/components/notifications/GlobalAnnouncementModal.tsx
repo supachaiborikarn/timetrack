@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Megaphone, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
-import { formatBangkokDateTime, startOfDayBangkok } from "@/lib/date-utils";
+import { formatBangkokDateTime } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { freeTierIntervals } from "@/lib/free-tier";
 
@@ -47,6 +47,7 @@ export function GlobalAnnouncementModal({ onBlockingChange }: GlobalAnnouncement
 
     // Disable checking if user is on login/register pages
     const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+    const isDashboardPage = pathname === "/" || pathname === "/admin";
 
     useEffect(() => {
         onBlockingChange?.(isLoading || Boolean(announcement));
@@ -55,7 +56,7 @@ export function GlobalAnnouncementModal({ onBlockingChange }: GlobalAnnouncement
     const fetchUnreadMandatory = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await fetch("/api/announcements/unread-mandatory");
+            const res = await fetch("/api/announcements/unread-mandatory", { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
                 const nextAnnouncement = data.announcement || null;
@@ -82,14 +83,19 @@ export function GlobalAnnouncementModal({ onBlockingChange }: GlobalAnnouncement
             return;
         }
 
+        // Dashboard entry is a hard refresh point for mandatory announcements.
+        // This bypasses the free-tier empty-result TTL so an announcement created while
+        // the employee already has the app open appears immediately when they return home.
+        if (isDashboardPage) {
+            void fetchUnreadMandatory();
+            return;
+        }
+
         const cachedPending = sessionStorage.getItem(PENDING_ANNOUNCEMENT_KEY);
         if (cachedPending) {
             try {
                 const cachedAnnouncement = JSON.parse(cachedPending) as Announcement;
-                if (
-                    cachedAnnouncement.isPinned === true &&
-                    new Date(cachedAnnouncement.createdAt) >= startOfDayBangkok()
-                ) {
+                if (cachedAnnouncement.isPinned === true) {
                     setAnnouncement(cachedAnnouncement);
                     setIsLoading(false);
                     return;
@@ -109,7 +115,7 @@ export function GlobalAnnouncementModal({ onBlockingChange }: GlobalAnnouncement
         }
 
         void fetchUnreadMandatory();
-    }, [fetchUnreadMandatory, session?.user?.id, isAuthPage]);
+    }, [fetchUnreadMandatory, session?.user?.id, isAuthPage, isDashboardPage]);
 
     const handleAcknowledge = async () => {
         if (!announcement) return;

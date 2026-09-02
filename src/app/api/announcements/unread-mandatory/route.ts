@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { startOfDayBangkok } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -15,14 +14,11 @@ export async function GET() {
             select: { departmentId: true },
         });
 
-        // Only pinned announcements require acknowledgement and expire at Bangkok midnight.
-        const recentAnnouncements = await prisma.announcement.findMany({
+        // Pinned announcements are mandatory until the employee acknowledges them.
+        const pinnedAnnouncements = await prisma.announcement.findMany({
             where: {
                 isActive: true,
                 isPinned: true,
-                createdAt: {
-                    gte: startOfDayBangkok(),
-                },
             },
             include: {
                 reads: {
@@ -38,7 +34,7 @@ export async function GET() {
         });
 
         // Filter out read ones and by department
-        const unreadMandatory = recentAnnouncements.filter((a) => {
+        const unreadMandatory = pinnedAnnouncements.filter((a) => {
             // If already read, skip
             if (a.reads.length > 0) return false;
 
