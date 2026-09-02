@@ -714,3 +714,25 @@ Verification:
 - Employee Dashboard now shows only the coarse motivation status (`ยังไม่ครบ`, `ใกล้ครบ`, `ครบแล้ว`).
 - Removed `customerEvaluationTarget` from the employee Dashboard API payload; the fixed target remains server-side only for deriving status.
 - Admin counts/scoring are unchanged.
+
+## 2026-09-02 — Employee dashboard layout refresh
+
+Goal:
+
+Refresh the employee dashboard to make today's shift and required actions more prominent while preserving existing attendance flows and customer-feedback privacy.
+
+Implementation:
+
+- Reworked `EmployeeDashboardView` into a compact mobile-first card layout.
+- Promoted today's shift, check-in/break/check-out actions, worked duration, and shift progress to the top.
+- Kept customer-feedback daily status as coarse states only (not exact counts).
+- Reorganized monthly attendance summary, performance score, announcements, quick actions, and calendar.
+- Preserved cashier manual check-in, mood checkout, language switching, theme switching, and right-side menu flows.
+- Added explicit Bangkok formatting for attendance timestamps.
+
+Verification:
+
+- TypeScript: passed before release.
+- ESLint: passed before release.
+- Final production build run before push.
+- Production build: compile + TypeScript passed; build then hit the pre-existing unrelated `/apply/status` prerender `useState` null error.
