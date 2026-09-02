@@ -960,3 +960,29 @@ Verification:
 - Targeted ESLint: passed.
 - `npm run build`: passed; 184/184 static pages generated.
 - `git diff --check`: passed before commit.
+
+
+## 2026-09-02 — Published TimeTrack League rules announcement
+
+Goal:
+
+Explain to front-yard employees how League points are earned, how monthly championship points accumulate, who wins each level, and what rewards are available.
+
+Production data changes:
+
+- Created pinned announcement `🏆 TimeTrack League — ทำงานดี บริการดี มีรางวัล` in production, authored by admin account `benz`.
+- Targeted all departments currently marked `isFrontYard = true`: WKO FUEL, PAP FUEL/GAS, and SPC FUEL/GAS.
+- Sent ANNOUNCEMENT notifications to all 22 active front-yard employees, linking to the acknowledgement view for the new announcement.
+- Announcement explains Weekly League score = work 60 + customer quality 25 + mission consistency 15.
+- Work 60 breakdown is presence 25, punctuality 15, shift completion 10, and break discipline 10. Approved leave/day-off is explicitly not treated as absence.
+- Championship Points disclosed for weekly ranks: 1st 10, 2nd 6, 3rd 4, 4th-5th 2, others 0; monthly Station Champion is determined by accumulated championship points with average League score as tie-break context.
+- Reward choices disclosed: Weekly Champion up to ~300 THB, monthly Station Champion 700 THB, and Grand Champion 1,500 THB.
+- Fair Play explanation states repeat customers only add League credit once per employee/week, suspicious feedback can be excluded/reviewed, and employees should ask real customers for honest feedback without steering answers.
+- Kept hidden operational thresholds hidden: the announcement does not expose the numeric daily evaluation target or customer minimum sample.
+- Clarified League is for competition/rewards and does not automatically deduct or change salary.
+
+Verification:
+
+- Read-back confirmed the announcement is active and pinned.
+- Target department list read back as five front-yard departments across WKO/PAP/SPC.
+- Read-back found exactly 22 announcement notifications, all initially unread.
