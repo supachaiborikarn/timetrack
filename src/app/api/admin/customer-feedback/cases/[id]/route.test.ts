@@ -125,6 +125,23 @@ describe("customer feedback case updates", () => {
         expect(auditCreateMock).not.toHaveBeenCalled();
     });
 
+    it("serializes audit details so case actions commit successfully", async () => {
+        const response = await PATCH(patchRequest({ action: "start" }), {
+            params: Promise.resolve({ id: "case-1" }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(auditCreateMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                action: "CUSTOMER_FEEDBACK_CASE_UPDATED",
+                entity: "CustomerFeedbackCase",
+                entityId: "case-1",
+                details: JSON.stringify({ action: "start" }),
+                userId: "manager-1",
+            }),
+        });
+    });
+
     it("rejects an inactive station when assigning a previously unscoped case", async () => {
         accessMock.mockResolvedValue({
             ok: true,

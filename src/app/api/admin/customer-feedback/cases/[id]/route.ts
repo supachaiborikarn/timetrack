@@ -188,7 +188,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     action: "CUSTOMER_FEEDBACK_CASE_UPDATED",
                     entity: "CustomerFeedbackCase",
                     entityId: id,
-                    details: auditDetails as never,
+                    details: JSON.stringify(auditDetails),
                     userId: access.ctx.userId,
                 },
             });

@@ -161,6 +161,10 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
                     <label className="flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm"><input type="checkbox" checked={mineOnly} onChange={(event) => { setMineOnly(event.target.checked); setPage(1); setExpandedId(null); }} />เฉพาะที่รับผิดชอบ</label>
                     <Button size="sm" variant="outline" onClick={() => void load()}><RefreshCw className="mr-1 h-4 w-4" />รีเฟรช</Button>
                 </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    <p className="font-semibold">คิวติดตามปัญหาจากเสียงลูกค้า</p>
+                    <p className="mt-1 text-muted-foreground">เปิดรายละเอียด → รับทราบ → รับงานนี้ → เริ่มดำเนินการ → ปิดเคสเมื่อจัดการเสร็จ ส่วน “ยกเลิกเคส” ใช้เมื่อเป็นเคสผิดหรือไม่ต้องดำเนินการ</p>
+                </div>
                 <p className="text-sm text-muted-foreground">ระบบรีเฟรชทุก 30 วินาทีเมื่อหน้านี้เปิดอยู่ · URGENT รับทราบภายใน 2 ชม., HIGH 24 ชม., NORMAL 72 ชม.</p>
                 <div className="overflow-x-auto">
                     <Table>
@@ -204,7 +208,7 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
                                                             {(row.status === "OPEN" || row.status === "IN_PROGRESS") && (
                                                                 <>
                                                                     <Button size="sm" onClick={() => { const note = window.prompt("วิธีจัดการเคสนี้:"); if (note?.trim()) void act(row.id, { action: "resolve", resolutionNote: note }); }}>ปิดเคส</Button>
-                                                                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { const reason = window.prompt("เหตุผลที่ยกเลิก:"); if (reason?.trim()) void act(row.id, { action: "dismiss", dismissedReason: reason }); }}>ยกเลิก</Button>
+                                                                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { const reason = window.prompt("เหตุผลที่ยกเลิก:"); if (reason?.trim()) void act(row.id, { action: "dismiss", dismissedReason: reason }); }}>ยกเลิกเคส</Button>
                                                                 </>
                                                             )}
                                                         </div>

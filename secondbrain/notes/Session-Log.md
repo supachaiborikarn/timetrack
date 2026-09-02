@@ -1035,3 +1035,25 @@ Verification:
 - Targeted ESLint: passed.
 - npx tsc --noEmit: passed after allowing null display times for day-off rows.
 - NODE_ENV=production npm run build: passed; 184/184 static pages generated.
+
+
+## 2026-09-02 — Fixed customer-feedback case action rollback
+
+Problem:
+
+- Admin Customer Feedback > Cases rendered action buttons correctly, but clicks such as รับทราบ and เริ่มดำเนินการ returned 500 and left the case unchanged.
+- Production Vercel logs at 18:58 showed Prisma rejecting AuditLog.details because the schema expects String/Null while the case PATCH route supplied an object.
+- Because the audit insert runs inside the same transaction as the case update, the validation error rolled back the whole action.
+
+Fix:
+
+- Serialize customer-feedback case audit details with JSON.stringify before writing AuditLog.details.
+- Added a regression test asserting the case action commits and the audit payload is stored as a JSON string.
+- Added an inline usage guide on the Cases tab: เปิดรายละเอียด → รับทราบ → รับงานนี้ → เริ่มดำเนินการ → ปิดเคส.
+- Renamed the destructive action label from ยกเลิก to ยกเลิกเคส for clarity.
+
+Verification:
+
+- Targeted case route Vitest: 7/7 passed.
+- npx tsc --noEmit: passed.
+- Targeted ESLint for route, test, and Cases tab: passed.
