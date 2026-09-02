@@ -110,7 +110,8 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 
 ## 2026-09-02: Employee self-service pages share the dashboard retro visual system
 
-- `/history`, `/notifications`, and `/profile` use the same cream paper, Caltex-yellow, black instrument-panel, hard-border, and retro-control language as the employee dashboard instead of generic curved headers/cards.
+- `/history`, `/notifications`, `/profile`, and `/profile/documents` use the same cream paper, Caltex-yellow, black instrument-panel, hard-border, and retro-control language as the employee dashboard instead of generic curved headers/cards.
+- `/profile/documents` replaces wide horizontal table layouts with mobile-optimized tactile payslip cards featuring quick earnings/deductions/net breakdown, collapsible line items, and direct PDF download controls for payslips and payment receipts.
 - History is treated as a work log, so schedule context (including scheduled day off) is displayed alongside attendance records; current/future schedule data must not make future dates appear as past history.
 - The top employee dashboard card shows tomorrow's assignment using the already-normalized `tomorrowShift` from `/api/attendance/today`; day off and missing schedule are explicit states and no duplicate dashboard schedule query should be introduced.
 - Bottom Navigation may show notification unread count, but its count request must remain read-only and lightweight; do not call the notification-list endpoint from global navigation because that endpoint also performs stale-alert cleanup.

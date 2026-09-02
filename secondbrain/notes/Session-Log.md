@@ -7,6 +7,21 @@ updated: 2026-09-02
 
 # Session Log
 
+## 2026-09-02 — Redesigned Employee Payroll Documents page (/profile/documents)
+
+Goal:
+
+Bring `/profile/documents` into alignment with the current TimeTrack retro-tactile dashboard design system used across Employee Dashboard, Profile, History, and Notifications.
+
+Implementation:
+
+- Replaced legacy wide-table layout with tactile, mobile-friendly payslip instrument cards (`tt-paper-card tt-instrument-frame`).
+- Added dark retro summary meter panel (`PAYSLIP SUMMARY`) showing total periods, paid count, latest net pay, and archive readiness.
+- Integrated `EmployeePageHeader` with Caltex-yellow paper styling, `DOCUMENTS` eyebrow, and back navigation to `/profile`.
+- Enhanced card layout with quick 3-metric financial summary (Earnings, Deductions, Net Pay), collapsible line-item breakdown (base pay, OT, special income, adjustments, penalties, advance deductions, social security, tax), and tactile PDF download action buttons for payslips and payment receipts.
+- Restyled the Annual Tax Certificate (50 ทวิ) section to match the tactile instrument visual system.
+- Preserved 100% of underlying business logic and client-side PDF generation via worker.
+
 ## 2026-09-02 — Added Reward Points wallet and weekly reward catalog
 
 Goal:
