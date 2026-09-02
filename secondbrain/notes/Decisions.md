@@ -2,10 +2,19 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Decisions
+
+## 2026-09-02: Reward Points are separate from Championship Points
+
+- `League Score` measures weekly performance and `Championship Points (CP)` determine monthly competition ranking; neither is spendable.
+- `Reward Points (RP)` are a separate spendable wallet so redeeming a prize can never reduce or reorder the monthly Championship.
+- Weekly RP is frozen only when a weekly station period is finalized: 90-100 = 30 RP, 80-89.99 = 20 RP, 70-79.99 = 10 RP, below 70 = 0 RP.
+- Reward access requires an eligible work week, the normal minimum customer sample, Customer Quality >= 20/25, and no unresolved Fair Play review. Failure is shown explicitly as no eligible workdays, insufficient sample, customer quality below threshold, or Fair Play review.
+- Redemption reserves RP immediately (`PENDING` counts as spent). Cancelling a pending redemption returns RP and restores limited stock; fulfillment permanently consumes the points.
+- ADMIN/HR own the global reward catalog and featured weekly reward. Existing fixed champion rewards remain a separate award path and are not replaced by RP.
 
 ## 2026-08-27: Keep project memory in `secondbrain/`
 

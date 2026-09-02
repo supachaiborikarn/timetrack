@@ -8,7 +8,7 @@ async function requireLeagueAdmin() {
     if (!access.ok) return null;
     const scope = await getStationScope(access.ctx);
     if (!scope.ok) return null;
-    return { userId: access.ctx.userId, stationId: scope.stationId };
+    return { userId: access.ctx.userId, stationId: scope.stationId, role: access.ctx.role };
 }
 
 export async function GET() {
@@ -52,6 +52,7 @@ export async function GET() {
             })),
         })),
         selectedAwards,
+        canManageRewards: admin.role === "ADMIN" || admin.role === "HR",
     });
 }
 

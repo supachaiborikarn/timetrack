@@ -8,6 +8,7 @@ import {
     getMonthlyStationLeaderboard,
     rewardOptionsForAwardType,
 } from "@/lib/competition/league";
+import { getRewardCatalog, getRewardWalletForUser } from "@/lib/competition/reward-wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function GET() {
     const now = new Date();
     const week = getBangkokWeekBounds(now);
     const month = getBangkokMonthBounds(now);
-    const [weekly, monthly, awards, latestGrand] = await Promise.all([
+    const [weekly, monthly, awards, latestGrand, rewardWallet, rewardCatalog] = await Promise.all([
         calculateStationWeeklyLeague({ stationId: user.stationId, from: week.from, to: week.to, referenceTime: now }),
         getMonthlyStationLeaderboard(user.stationId, month.key),
         prisma.competitionAward.findMany({
@@ -52,6 +53,8 @@ export async function GET() {
             },
             orderBy: { endDate: "desc" },
         }),
+        getRewardWalletForUser(user.id),
+        getRewardCatalog(week.key),
     ]);
 
     const publicWeeklyStandings = weekly.standings.map((standing) => ({
@@ -63,6 +66,9 @@ export async function GET() {
         rank: standing.rank,
         isMe: standing.userId === user.id,
         isEligible: standing.isEligible,
+        isRewardEligible: standing.isRewardEligible,
+        rewardEligibilityReason: standing.rewardEligibilityReason,
+        rewardPointsPreview: standing.rewardPointsPreview,
         isProvisional: standing.isProvisional,
         fairPlayStatus: standing.fairPlayStatus,
     }));
@@ -87,6 +93,11 @@ export async function GET() {
             periodKey: latestGrand.periodKey,
             standings: latestGrand.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
         } : null,
+        rewardPoints: {
+            wallet: rewardWallet,
+            featured: rewardCatalog.featured,
+            catalog: rewardCatalog.items,
+        },
         awards: awards.map((award) => ({
             id: award.id,
             awardType: award.awardType,

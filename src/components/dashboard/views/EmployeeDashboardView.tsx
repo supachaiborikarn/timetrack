@@ -34,6 +34,7 @@ import {
   Sun,
   Star,
   Trophy,
+  Gift,
   UserRound,
   Wallet,
   CalendarCheck,
@@ -69,6 +70,32 @@ interface PerformanceSummary {
   customerPoints: number | null;
   customerPointsMax: number;
   customerIncluded: boolean;
+}
+
+type RewardEligibilityReason =
+  | "ELIGIBLE"
+  | "NO_REQUIRED_WORK_DAYS"
+  | "INSUFFICIENT_CUSTOMER_SAMPLE"
+  | "CUSTOMER_QUALITY_BELOW_MINIMUM"
+  | "FAIR_PLAY_REVIEW";
+
+interface EmployeeLeagueSummary {
+  eligible: boolean;
+  weekly?: {
+    me: {
+      totalScore: number;
+      rank: number;
+      customerPoints: number;
+      isRewardEligible: boolean;
+      rewardEligibilityReason: RewardEligibilityReason;
+      rewardPointsPreview: number;
+    } | null;
+  };
+  monthly?: { me: { championshipPoints: number } | null };
+  rewardPoints?: {
+    wallet: { balance: number; earnedPoints: number; spentPoints: number };
+    featured: { id: string; title: string; description: string | null; imageUrl: string | null; pointsCost: number; stock: number | null } | null;
+  };
 }
 
 type CustomerEvaluationStatus = "NOT_YET" | "NEAR" | "DONE";
@@ -331,6 +358,7 @@ export function EmployeeDashboardView() {
   const [displayPerformanceScore, setDisplayPerformanceScore] = useState(0);
   const [customerEvaluationStatus, setCustomerEvaluationStatus] = useState<CustomerEvaluationStatus | null>(null);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+  const [leagueData, setLeagueData] = useState<EmployeeLeagueSummary | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   const T = LANG[lang];
@@ -342,7 +370,16 @@ export function EmployeeDashboardView() {
       setDataLoading(true);
       const calYear = currentMonth.getFullYear();
       const calMonthIdx = currentMonth.getMonth();
-      const res = await fetch(`/api/employee/dashboard?calYear=${calYear}&calMonth=${calMonthIdx}`);
+      const [res, leagueRes] = await Promise.all([
+        fetch(`/api/employee/dashboard?calYear=${calYear}&calMonth=${calMonthIdx}`),
+        fetch("/api/league", { cache: "no-store" }),
+      ]);
+
+      if (leagueRes.ok) {
+        setLeagueData(await leagueRes.json());
+      } else {
+        setLeagueData(null);
+      }
 
       if (res.ok) {
         const data = await res.json();
@@ -366,6 +403,7 @@ export function EmployeeDashboardView() {
       console.error("Dashboard fetch error:", error);
       setPerformanceScore(null);
       setPerformanceSummary(null);
+      setLeagueData(null);
     } finally {
       setDataLoading(false);
     }
@@ -491,6 +529,21 @@ export function EmployeeDashboardView() {
   const compactWeekStart = startOfWeek(calendarAnchor, { weekStartsOn: 0 });
   const compactCalendarDays = Array.from({ length: 7 }, (_, index) => addDays(compactWeekStart, index));
   const missionLitSegments = customerEvaluationStatus === "DONE" ? 16 : customerEvaluationStatus === "NEAR" ? 12 : 6;
+  const myLeague = leagueData?.weekly?.me ?? null;
+  const myChampionshipPoints = leagueData?.monthly?.me?.championshipPoints ?? 0;
+  const rewardWallet = leagueData?.rewardPoints?.wallet ?? null;
+  const featuredReward = leagueData?.rewardPoints?.featured ?? null;
+  const rewardEligibilityText = !myLeague
+    ? "กำลังรอข้อมูล League"
+    : myLeague.rewardEligibilityReason === "ELIGIBLE"
+      ? "✓ มีสิทธิ์รับและแลกรางวัลสัปดาห์นี้"
+      : myLeague.rewardEligibilityReason === "CUSTOMER_QUALITY_BELOW_MINIMUM"
+        ? "🔒 ยังไม่มีสิทธิ์ — คะแนนบริการลูกค้าต้องถึง 20/25"
+        : myLeague.rewardEligibilityReason === "INSUFFICIENT_CUSTOMER_SAMPLE"
+          ? "⏳ รอข้อมูลเพิ่ม — จำนวนการประเมินยังไม่เพียงพอ"
+          : myLeague.rewardEligibilityReason === "FAIR_PLAY_REVIEW"
+            ? "🛡 รอตรวจ Fair Play ก่อนมีสิทธิ์รับรางวัล"
+            : "สัปดาห์นี้ยังไม่มีวันทำงานที่เข้าเกณฑ์";
 
   return (
     <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
@@ -689,20 +742,62 @@ export function EmployeeDashboardView() {
           </section>
         )}
 
-        {customerEvaluationStatus && (
+        {leagueData?.eligible && (
           <Link
             href="/league"
-            className="tt-retro-enter tt-retro-delay-2 tt-retro-control flex items-center gap-3 rounded-[18px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 px-3.5 py-3 text-white shadow-[0_3px_0_rgba(0,0,0,0.16)] active:translate-y-[1px]"
+            className="tt-retro-enter tt-retro-delay-2 tt-retro-control block overflow-hidden rounded-[20px] border-2 border-zinc-800/75 dark:border-white/20 bg-zinc-950 text-white shadow-[0_4px_0_rgba(0,0,0,0.18)] active:translate-y-[1px]"
           >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-amber-300/70 bg-[#fbbf24] text-zinc-950">
-              <Trophy className="h-6 w-6" />
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3.5 py-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300/70 bg-[#fbbf24] text-zinc-950">
+                  <Trophy className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[8px] font-black tracking-[0.18em] text-amber-300">WEEKLY STATION LEAGUE</p>
+                  <p className="truncate text-[13px] font-black">คะแนน · แต้มสะสม · ของรางวัล</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-amber-300" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-black tracking-[0.18em] text-amber-300">WEEKLY STATION LEAGUE</p>
-              <p className="text-[13px] font-black">แข่งคะแนน · ลุ้นแชมป์ · เลือกรางวัล</p>
-              <p className="mt-0.5 text-[9px] text-zinc-400">การประเมินซ้ำไม่เพิ่มแต้ม และมี Fair Play ก่อนประกาศผล</p>
+
+            <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
+              <div className="px-2 py-2.5 text-center">
+                <p className="text-[7px] font-black tracking-[0.1em] text-zinc-400">LEAGUE</p>
+                <p className="mt-0.5 text-[20px] font-black tabular-nums">{myLeague ? myLeague.totalScore.toFixed(1) : "—"}</p>
+                <p className="text-[7px] text-zinc-500">/100</p>
+              </div>
+              <div className="px-2 py-2.5 text-center">
+                <p className="text-[7px] font-black tracking-[0.1em] text-zinc-400">CHAMPIONSHIP</p>
+                <p className="mt-0.5 text-[20px] font-black tabular-nums text-amber-300">{myChampionshipPoints}</p>
+                <p className="text-[7px] text-zinc-500">CP</p>
+              </div>
+              <div className="px-2 py-2.5 text-center">
+                <p className="text-[7px] font-black tracking-[0.1em] text-zinc-400">REWARD POINTS</p>
+                <p className="mt-0.5 text-[20px] font-black tabular-nums text-emerald-300">{rewardWallet?.balance ?? 0}</p>
+                <p className="text-[7px] text-zinc-500">RP</p>
+              </div>
             </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-amber-300" />
+
+            <div className="grid grid-cols-[84px_1fr] gap-3 p-3">
+              <div
+                className="grid h-[76px] w-[84px] place-items-center overflow-hidden rounded-xl border border-white/15 bg-zinc-800 bg-cover bg-center"
+                style={featuredReward?.imageUrl ? { backgroundImage: `url(${featuredReward.imageUrl})` } : undefined}
+              >
+                {!featuredReward?.imageUrl ? <Gift className="h-8 w-8 text-amber-300" /> : null}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-black tracking-[0.12em] text-amber-300">🎁 ของรางวัลสัปดาห์นี้</p>
+                <p className="mt-0.5 truncate text-[13px] font-black">{featuredReward?.title ?? "รอผู้ดูแลประกาศของรางวัล"}</p>
+                {featuredReward ? (
+                  <p className="mt-1 text-[10px] font-bold text-emerald-300">{featuredReward.pointsCost} RP{featuredReward.stock !== null ? ` · เหลือ ${featuredReward.stock}` : ""}</p>
+                ) : null}
+                {myLeague ? <p className="mt-1 text-[9px] text-zinc-400">ถ้าจบสัปดาห์ตอนนี้ +{myLeague.rewardPointsPreview} RP</p> : null}
+              </div>
+            </div>
+
+            <div className={`border-t px-3 py-2 text-[9px] font-black ${myLeague?.rewardEligibilityReason === "ELIGIBLE" ? "border-emerald-800/60 bg-emerald-950/55 text-emerald-300" : myLeague?.rewardEligibilityReason === "CUSTOMER_QUALITY_BELOW_MINIMUM" ? "border-red-900/60 bg-red-950/55 text-red-300" : "border-amber-900/60 bg-amber-950/45 text-amber-200"}`}>
+              {rewardEligibilityText}
+            </div>
           </Link>
         )}
 

@@ -2,10 +2,54 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-08-29
+updated: 2026-09-02
 ---
 
 # Session Log
+
+## 2026-09-02 — Added Reward Points wallet and weekly reward catalog
+
+Goal:
+
+Make employee competition rewards visible and actionable without mixing spendable points with Championship Points. Add a weekly reward image/card on the employee dashboard and explicitly block reward eligibility when Customer Quality is below the approved threshold.
+
+Business rules implemented:
+
+- `League Score` remains the weekly /100 competition score.
+- `Championship Points (CP)` remain monthly ranking points and are never spent.
+- New `Reward Points (RP)` are spendable and are awarded only from finalized weekly station standings.
+- Reward eligibility requires an eligible work week, enough customer-feedback sample, Customer Quality at least **20/25**, and no unresolved Fair Play review.
+- Weekly RP tiers: League 90-100 = 30 RP, 80-89.99 = 20 RP, 70-79.99 = 10 RP, below 70 = 0 RP.
+- A worker may keep/see previously earned RP, but redemption is blocked for the current week while reward eligibility is not satisfied.
+- Cancelled redemptions return the reserved RP; limited-stock items also restore one stock unit.
+
+Implementation:
+
+- Added `rewardPoints` to `CompetitionStanding` plus `RewardCatalogItem`, `RewardRedemption`, and `RewardRedemptionStatus` in `prisma/schema.prisma`.
+- Added shared policy module `src/lib/competition/reward-policy.ts` and wallet/catalog query module `src/lib/competition/reward-wallet.ts`.
+- Weekly league calculation now returns `isRewardEligible`, `rewardEligibilityReason`, and `rewardPointsPreview`; weekly finalization freezes earned RP without changing CP ranking rules.
+- `/api/league` now returns RP wallet balance/history, active reward catalog, featured weekly reward, and reward eligibility state.
+- Added transactional employee redemption endpoint `/api/league/points/redeem`; balance/stock are rechecked in a serializable transaction and the action is audited.
+- Added ADMIN/HR reward management endpoint `/api/admin/league/rewards` for catalog items, featured weekly reward, pending redemptions, fulfillment, cancellation, stock restoration, and audit logging.
+- Employee Dashboard now shows League / CP / RP together, a photo-capable “ของรางวัลสัปดาห์นี้” card, projected weekly RP, and a clear eligibility message.
+- `/league` now shows the RP wallet, catalog, featured reward, redemption actions, and RP history while preserving the existing champion-reward flow.
+- `/admin/league` now has reward creation (including image upload), featured-week selection, catalog enable/disable/edit, and redemption fulfillment controls for ADMIN/HR.
+
+Verification (no production DB connection):
+
+- `npm run db:diff` compared datamodel files only; preview contains additive SQL only (new enum/column/tables/indexes/FKs; no DROP).
+- `npm run db:generate`: passed.
+- Reward policy + existing League tests: **16/16 passed**.
+- `npx tsc --noEmit`: passed.
+- Focused ESLint for all touched League/Reward/Dashboard files: passed.
+- `git diff --check`: passed.
+- Production build with `DATABASE_URL` overridden to an invalid localhost URL compiled and passed TypeScript, then hit the already-known unrelated `/apply/status` prerender `useState` null failure. No production DB was contacted.
+
+Deployment state / follow-up:
+
+- Schema and code are implemented locally but **production schema has not been pushed yet**.
+- Before `npm run db:push`, disclose and obtain explicit confirmation for production Neon host `ep-delicate-sound-a1mi5n1t`.
+- Do not push/deploy application code that expects these new tables until the additive production schema update has been applied successfully.
 
 ## 2026-08-26 — Station OT and early-leave payroll rules
 
@@ -1057,3 +1101,40 @@ Verification:
 - Targeted case route Vitest: 7/7 passed.
 - npx tsc --noEmit: passed.
 - Targeted ESLint for route, test, and Cases tab: passed.
+
+
+## 2026-09-02 — Added Reward Points wallet and reward catalog
+
+Goal:
+
+Extend TimeTrack League with a persistent Reward Points (RP) wallet, weekly reward eligibility, a visual reward catalog, employee redemption flow, and admin fulfillment controls.
+
+Business rules:
+
+- Weekly RP eligibility requires Customer Quality >= 20/25, enough customer sample, and Fair Play eligibility.
+- Weekly RP award tiers: League score >=90 gives 30 RP, >=80 gives 20 RP, >=70 gives 10 RP.
+- RP is separate from Championship Points (CP); existing champion awards remain unchanged.
+- Reward redemption deducts RP transactionally; cancellation restores RP and finite stock.
+
+Implementation:
+
+- Added rewardPoints to CompetitionStanding and new RewardCatalogItem / RewardRedemption models.
+- Added reward policy and wallet helpers, employee redemption API, admin reward catalog/fulfillment API, dashboard League/RP/reward preview, League wallet/catalog UI, and admin reward management UI.
+- Added policy tests covering eligibility, RP tiers, and wallet balance calculations.
+
+Verification before production schema update:
+
+- Prisma schema format: passed.
+- Schema-only db:diff: additive changes only; no DROP statements.
+- Targeted League + reward policy tests: 16/16 passed.
+- TypeScript: passed.
+- Targeted ESLint: passed.
+- Local Next build compiled and TypeScript completed, then failed at the known unrelated /apply/status prerender useState-null issue.
+
+Production schema update:
+
+- Operator explicitly confirmed production database work.
+- Target Neon host: ep-delicate-sound-a1mi5n1t.ap-southeast-1.aws.neon.tech (pooler used by Prisma).
+- npm run db:push completed successfully; Prisma reported database schema in sync.
+- Read-only verification succeeded: RewardCatalogItem and RewardRedemption are queryable, CompetitionStanding.rewardPoints is readable.
+- Initial production catalog/redemption counts were both 0; no synthetic reward items or redemptions were inserted.

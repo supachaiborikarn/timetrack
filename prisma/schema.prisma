@@ -110,6 +110,8 @@ model User {
   feedbackPeriodsClosed          ReviewPeriod[]                   @relation("ReviewPeriodClosedBy")
   competitionStandings           CompetitionStanding[]
   competitionAwards              CompetitionAward[]
+  rewardRedemptions              RewardRedemption[]               @relation("RewardRedemptionUser")
+  rewardRedemptionsFulfilled     RewardRedemption[]               @relation("RewardRedemptionFulfilledBy")
 
   @@index([stationId])
   @@index([departmentId])
@@ -315,6 +317,7 @@ model Station {
   dormitories          Dormitory[]
   competitionPeriods   CompetitionPeriod[]
   competitionAwards    CompetitionAward[]
+  rewardRedemptions    RewardRedemption[]
 
   @@index([code])
 }
@@ -750,6 +753,7 @@ model CompetitionStanding {
   fairPlayReasons             String[]
   finalRank                   Int?
   championshipPoints          Int                       @default(0)
+  rewardPoints                Int                       @default(0)
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
 
@@ -786,6 +790,46 @@ model CompetitionAward {
   @@unique([periodId, userId, awardType])
   @@index([userId, status])
   @@index([stationId, createdAt])
+}
+
+model RewardCatalogItem {
+  id              String             @id @default(cuid())
+  code            String             @unique
+  title           String
+  description     String?            @db.Text
+  imageUrl        String?            @db.Text
+  pointsCost      Int
+  stock           Int?
+  isActive        Boolean            @default(true)
+  featuredWeekKey String?            @unique
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  redemptions     RewardRedemption[]
+
+  @@index([isActive, pointsCost])
+}
+
+model RewardRedemption {
+  id                  String                 @id @default(cuid())
+  userId              String
+  stationId           String?
+  rewardItemId        String
+  pointsCost          Int
+  rewardTitleSnapshot String
+  status              RewardRedemptionStatus @default(PENDING)
+  fulfilledAt         DateTime?
+  fulfilledById       String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  user        User              @relation("RewardRedemptionUser", fields: [userId], references: [id], onDelete: Cascade)
+  station     Station?          @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  rewardItem  RewardCatalogItem @relation(fields: [rewardItemId], references: [id], onDelete: Restrict)
+  fulfilledBy User?             @relation("RewardRedemptionFulfilledBy", fields: [fulfilledById], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, createdAt])
+  @@index([stationId, status, createdAt])
+  @@index([rewardItemId, status])
 }
 
 model AttendanceAlertLog {
@@ -929,6 +973,12 @@ enum CompetitionAwardType {
 enum CompetitionAwardStatus {
   AVAILABLE
   SELECTED
+  FULFILLED
+  CANCELLED
+}
+
+enum RewardRedemptionStatus {
+  PENDING
   FULFILLED
   CANCELLED
 }

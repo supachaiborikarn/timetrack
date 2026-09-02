@@ -85,3 +85,29 @@ Employee self-service visibility path:
 5. Admin Customer Feedback routes and screens keep exact counts and the separate monthly 60-response benchmark.
 
 The combined score path is intentionally separate from Payroll. No performance or Customer Feedback score is persisted into payroll records or bonus amounts by this flow.
+## Competition Reward Points flow
+
+The employee competition has three separate score concepts:
+
+1. Live/final weekly `League Score` (/100) comes from work /60, customer /25, and mission /15.
+2. Final weekly rank grants `Championship Points (CP)` for monthly ranking.
+3. Final weekly performance may grant spendable `Reward Points (RP)` using `src/lib/competition/reward-policy.ts`.
+
+Reward eligibility is intentionally stricter than League ranking eligibility. A weekly standing can still rank for CP when it has the normal minimum customer sample, but RP requires Customer Quality >= 20/25 in addition to eligible workdays and resolved Fair Play. Live calculations expose the reason separately so UI can distinguish “sample not ready” from “quality below threshold.”
+
+Persistence:
+
+- `CompetitionStanding.rewardPoints` freezes RP earned from finalized `WEEKLY_STATION` periods.
+- `RewardCatalogItem` stores active rewards, RP cost, optional stock, optional image data/HTTPS URL, and the current featured week key.
+- `RewardRedemption` stores the employee, station snapshot, item, RP-cost/title snapshots, status, fulfillment actor, and timestamps.
+- Wallet balance = finalized weekly RP earned minus `PENDING` + `FULFILLED` redemption cost. `CANCELLED` rows do not consume RP.
+
+Read/write paths:
+
+- `src/lib/competition/reward-wallet.ts` returns wallet history and active/featured catalog data.
+- `/api/league` exposes only the authenticated employee's wallet plus public competition data.
+- `/api/league/points/redeem` rechecks current-week reward eligibility, then rechecks balance and stock inside a serializable transaction before creating a pending redemption.
+- `/api/admin/league/rewards` is restricted to ADMIN/HR and manages catalog, current weekly feature, fulfillment, cancellation, stock restoration, and audit logs.
+- Employee Dashboard is a compact summary; `/league` is the detailed wallet/catalog/redemption view; `/admin/league` is the operations surface.
+
+Champion awards (`CompetitionAward` and `/api/league/reward`) remain independent. RP redemption must not mutate CP or replace the champion-award workflow.

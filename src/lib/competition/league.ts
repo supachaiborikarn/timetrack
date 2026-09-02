@@ -6,6 +6,7 @@ import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/custom
 import { EMPLOYEE_DAILY_EVALUATION_TARGET } from "@/lib/customer-feedback/evaluation-target";
 import { ABUSE_SUSPECT_THRESHOLD } from "@/lib/customer-feedback/anti-abuse";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
+import { REWARD_CUSTOMER_QUALITY_MIN_POINTS, rewardPointsForLeagueScore, resolveRewardEligibility, type RewardEligibilityReason } from "@/lib/competition/reward-policy";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -52,6 +53,9 @@ export type LeagueStandingResult = {
     customerMinimumSample: number;
     customerScore64: number | null;
     isEligible: boolean;
+    isRewardEligible: boolean;
+    rewardEligibilityReason: RewardEligibilityReason;
+    rewardPointsPreview: number;
     isProvisional: boolean;
     fairPlayStatus: LeagueFairPlayStatus;
     fairPlayReasons: string[];
@@ -319,6 +323,13 @@ export async function calculateStationWeeklyLeague(params: {
                 ? "REVIEW"
                 : "CLEAR";
         const totalScore = round2(Math.min(100, performance.workPoints + customerPoints + missionPoints));
+        const rewardEligibility = resolveRewardEligibility({
+            requiredDays: performance.counts.requiredDays,
+            meetsMinimumCustomerSample: rubric.meetsMinimumSample,
+            customerPoints,
+            fairPlayNeedsReview: fairPlayReasons.length > 0,
+        });
+        const rewardPointsPreview = rewardEligibility.eligible ? rewardPointsForLeagueScore(totalScore) : 0;
 
         standings.push({
             userId: employee.id,
@@ -339,6 +350,9 @@ export async function calculateStationWeeklyLeague(params: {
             customerMinimumSample: rubric.minimumSample,
             customerScore64: rubric.meetsMinimumSample ? rubric.score64 : null,
             isEligible,
+            isRewardEligible: rewardEligibility.eligible,
+            rewardEligibilityReason: rewardEligibility.reason,
+            rewardPointsPreview,
             isProvisional: performance.isProvisional || referenceTime < params.to,
             fairPlayStatus,
             fairPlayReasons,
@@ -379,7 +393,7 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
         await tx.competitionStanding.updateMany({
             where: { periodId },
             data: period.type === "WEEKLY_STATION"
-                ? { finalRank: null, championshipPoints: 0 }
+                ? { finalRank: null, championshipPoints: 0, rewardPoints: 0 }
                 : { finalRank: null },
         });
         for (let index = 0; index < standings.length; index++) {
@@ -387,7 +401,13 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
             await tx.competitionStanding.update({
                 where: { id: standings[index].id },
                 data: period.type === "WEEKLY_STATION"
-                    ? { finalRank: rank, championshipPoints: championshipPointsForRank(rank) }
+                    ? {
+                        finalRank: rank,
+                        championshipPoints: championshipPointsForRank(rank),
+                        rewardPoints: Number(standings[index].customerPoints) >= REWARD_CUSTOMER_QUALITY_MIN_POINTS
+                            ? rewardPointsForLeagueScore(Number(standings[index].totalScore))
+                            : 0,
+                    }
                     : { finalRank: rank },
             });
         }
