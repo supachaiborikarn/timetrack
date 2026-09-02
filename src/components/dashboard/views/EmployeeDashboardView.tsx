@@ -413,7 +413,7 @@ export function EmployeeDashboardView() {
   return (
     <div className="min-h-screen bg-[#f4efe4] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
       <header
-        className="relative overflow-hidden bg-[#fbbf24] px-5 pt-7 pb-5 border-b border-black/15"
+        className="relative overflow-hidden bg-[#fbbf24] px-4 pt-5 pb-4 border-b border-black/15"
         style={{
           backgroundImage:
             "radial-gradient(circle at 12% 20%, rgba(255,255,255,0.2) 0 1px, transparent 1.5px), radial-gradient(circle at 85% 70%, rgba(0,0,0,0.05) 0 1px, transparent 1.5px)",
@@ -422,7 +422,7 @@ export function EmployeeDashboardView() {
       >
         <div className="max-w-md mx-auto flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[25px] font-black tracking-[-0.03em] text-black leading-tight truncate">
+            <h1 className="text-[23px] font-black tracking-[-0.03em] text-black leading-tight truncate">
               {T.welcome}, {session.user.name?.split(" ")[0] || "User"}
             </h1>
             <p className="text-[12px] font-bold text-black/55 mt-1 truncate">
@@ -436,7 +436,7 @@ export function EmployeeDashboardView() {
                 const index = LANG_CYCLE.indexOf(lang);
                 setLang(LANG_CYCLE[(index + 1) % LANG_CYCLE.length]);
               }}
-              className="h-10 min-w-12 px-2 rounded-full border border-black/25 bg-white/15 text-[10px] font-black text-black flex flex-col items-center justify-center leading-none"
+              className="h-9 min-w-11 px-2 rounded-full border border-black/25 bg-white/15 text-[10px] font-black text-black flex flex-col items-center justify-center leading-none"
               aria-label="เปลี่ยนภาษา"
             >
               <span className="text-base leading-none">{T.flag}</span>
@@ -444,14 +444,14 @@ export function EmployeeDashboardView() {
             </button>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="h-10 w-10 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
+              className="h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
               aria-label="สลับธีม"
             >
               {theme === "dark" ? <Sun className="w-4 h-4 text-black" /> : <Moon className="w-4 h-4 text-black" />}
             </button>
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="h-10 w-10 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
+              className="h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
               aria-label="เปิดเมนู"
             >
               <Menu className="w-5 h-5 text-black" />
@@ -460,9 +460,9 @@ export function EmployeeDashboardView() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-4 pb-10 space-y-3.5">
-        <section className="relative overflow-hidden rounded-[28px] border border-black/20 dark:border-white/15 bg-[#fffaf0] dark:bg-zinc-900 shadow-[0_3px_0_rgba(0,0,0,0.08)]">
-          <div className="flex items-center justify-between border-b border-black/15 dark:border-white/10 bg-zinc-950 text-white px-5 py-2.5">
+      <main className="max-w-md mx-auto px-3.5 pt-3 pb-8 space-y-2.5">
+        <section className="relative overflow-hidden rounded-[24px] border border-black/20 dark:border-white/15 bg-[#fffaf0] dark:bg-zinc-900 shadow-[0_3px_0_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between border-b border-black/15 dark:border-white/10 bg-zinc-950 text-white px-4 py-2">
             <p className="font-mono text-[11px] tracking-[0.12em] font-bold">
               <span className="text-[#fbbf24]">TODAY</span> / {format(now, lang === "th" ? "d MMM" : "MMM d", { locale: lang === "th" ? th : enUS })}
             </p>
@@ -472,61 +472,64 @@ export function EmployeeDashboardView() {
             </div>
           </div>
 
-          <div className="p-5">
-            <div className="grid grid-cols-[1fr_116px] gap-3 items-center">
+          <div className="p-4">
+            <div className={todayData?.shift ? "grid grid-cols-[1fr_96px] gap-3 items-center" : "block"}>
               <div className="min-w-0">
-                <p className="text-[11px] font-black tracking-[0.16em] uppercase text-zinc-500 dark:text-zinc-400">
+                <p className="text-[10px] font-black tracking-[0.16em] uppercase text-zinc-500 dark:text-zinc-400">
                   {T.shiftToday}
                 </p>
-                <h2 className="mt-1 text-[35px] font-black tracking-[-0.05em] leading-none">
-                  {todayData?.shift ? todayData.shift.name : T.shiftToday}
+                <h2 className="mt-1 text-[29px] font-black tracking-[-0.05em] leading-none">
+                  {todayData?.shift ? todayData.shift.name : T.noShift}
                 </h2>
-                <p className="mt-3 text-[24px] font-black tracking-[-0.03em] text-amber-500">
-                  {todayData?.shift ? `${todayData.shift.startTime} — ${todayData.shift.endTime}` : "—"}
-                </p>
+                {todayData?.shift && (
+                  <p className="mt-2 text-[20px] font-black tracking-[-0.03em] text-amber-500">
+                    {todayData.shift.startTime} — {todayData.shift.endTime}
+                  </p>
+                )}
 
-                <div className="mt-4 pt-4 border-t border-dashed border-black/25 dark:border-white/20 space-y-2.5">
-                  <div className={`flex items-center gap-2 text-[14px] font-black ${hasCheckedOut || hasCheckedIn ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"}`}>
-                    {hasCheckedOut || hasCheckedIn ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <Clock3 className="w-5 h-5 shrink-0" />}
-                    <span>
-                      {hasCheckedOut
-                        ? `${T.checkedOut} ${formatBangkokClock(todayData?.attendance?.checkOutTime)}`
-                        : hasCheckedIn
-                          ? `${T.checkedIn} ${formatBangkokClock(todayData?.attendance?.checkInTime)}`
-                          : T.notCheckedIn}
-                    </span>
-                  </div>
-                  {hasCheckedIn && (
-                    <div className="flex items-center gap-2 text-[12px] font-bold text-zinc-500 dark:text-zinc-400">
-                      <Clock3 className="w-4 h-4 shrink-0" />
-                      <span>{T.workedFor} <strong className="text-zinc-800 dark:text-zinc-200 font-black">{workedDuration}</strong> ชม.</span>
+                {todayData?.shift && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-black/25 dark:border-white/20 space-y-2.5">
+                    <div className={`flex items-center gap-2 text-[13px] font-black ${hasCheckedOut || hasCheckedIn ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+                      {hasCheckedOut || hasCheckedIn ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <Clock3 className="w-4 h-4 shrink-0" />}
+                      <span>
+                        {hasCheckedOut
+                          ? `${T.checkedOut} ${formatBangkokClock(todayData?.attendance?.checkOutTime)}`
+                          : hasCheckedIn
+                            ? `${T.checkedIn} ${formatBangkokClock(todayData?.attendance?.checkInTime)}`
+                            : T.notCheckedIn}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    {hasCheckedIn && (
+                      <div className="flex items-center gap-2 text-[12px] font-bold text-zinc-500 dark:text-zinc-400">
+                        <Clock3 className="w-4 h-4 shrink-0" />
+                        <span>{T.workedFor} <strong className="text-zinc-800 dark:text-zinc-200 font-black">{workedDuration}</strong> ชม.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
+              {todayData?.shift && (
               <div className="flex justify-center">
                 <div
-                  className="relative w-[112px] h-[112px] rounded-full p-[8px] shadow-inner"
+                  className="relative w-[96px] h-[96px] rounded-full p-[7px] shadow-inner"
                   style={{
                     background: `conic-gradient(#fbbf24 ${shiftProgress * 3.6}deg, rgba(24,24,27,0.09) 0deg)`,
                   }}
                   aria-label={`ความคืบหน้ากะ ${Math.round(shiftProgress)} เปอร์เซ็นต์`}
                 >
                   <div className="w-full h-full rounded-full border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 flex flex-col items-center justify-center">
-                    <Fuel className="w-8 h-8 text-zinc-800 dark:text-zinc-100" />
+                    <Fuel className="w-7 h-7 text-zinc-800 dark:text-zinc-100" />
                     <span className="mt-1 font-mono text-[10px] font-bold text-zinc-500 dark:text-zinc-400">SHIFT</span>
                   </div>
                 </div>
               </div>
+              )}
             </div>
 
-            <div className="mt-5">
-              {!todayData?.shift ? (
-                <div className="rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 py-3 px-4 text-center text-[12px] font-bold text-zinc-500 dark:text-zinc-400">
-                  {T.noShift}
-                </div>
-              ) : hasCheckedOut ? (
+            {todayData?.shift && (
+            <div className="mt-4">
+              {hasCheckedOut ? (
                 <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 py-3 px-4 text-center text-[13px] font-black text-emerald-700 dark:text-emerald-400">
                   ✓ {T.workComplete}
                 </div>
@@ -566,13 +569,14 @@ export function EmployeeDashboardView() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </section>
 
         {customerEvaluationStatus && (
-          <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 px-4 py-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+          <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 px-3.5 py-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full border border-black/20 dark:border-white/15 bg-[#fbbf24]/20 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full border border-black/20 dark:border-white/15 bg-[#fbbf24]/20 flex items-center justify-center shrink-0">
                 <Target className="w-5 h-5 text-zinc-800 dark:text-zinc-100" />
               </div>
               <div className="min-w-0 flex-1">
@@ -615,42 +619,42 @@ export function EmployeeDashboardView() {
           </Link>
         )}
 
-        <section className="rounded-[24px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
-          <div className="flex items-center gap-2 mb-3">
+        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 mb-2.5">
             <CalendarDays className="w-4.5 h-4.5 text-amber-500" />
             <h3 className="text-[13px] font-black">{T.monthSummary}</h3>
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2.5 text-center">
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2 text-center">
               <p className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400">{T.daysWorked}</p>
-              <p className="mt-1 text-[24px] font-black leading-none">{daysWorked}</p>
+              <p className="mt-1 text-[22px] font-black leading-none">{daysWorked}</p>
             </div>
-            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2.5 text-center">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2 text-center">
               <p className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400">{T.lateIn}</p>
-              <p className={`mt-1 text-[24px] font-black leading-none ${lateCount > 0 ? "text-red-500" : ""}`}>{lateCount}</p>
+              <p className={`mt-1 text-[22px] font-black leading-none ${lateCount > 0 ? "text-red-500" : ""}`}>{lateCount}</p>
             </div>
-            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2.5 text-center">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2 text-center">
               <p className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400">{T.leave}</p>
-              <p className="mt-1 text-[24px] font-black leading-none">{leaveCount}</p>
+              <p className="mt-1 text-[22px] font-black leading-none">{leaveCount}</p>
               {permissionCount > 0 && <p className="mt-1 text-[8px] font-bold text-zinc-400">{T.permission} {permissionCount}</p>}
             </div>
-            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2.5 text-center">
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/55 dark:bg-white/[0.03] p-2 text-center">
               <p className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400">{T.earlyOut}</p>
-              <p className={`mt-1 text-[24px] font-black leading-none ${earlyOutCount > 0 ? "text-red-500" : ""}`}>{earlyOutCount}</p>
+              <p className={`mt-1 text-[22px] font-black leading-none ${earlyOutCount > 0 ? "text-red-500" : ""}`}>{earlyOutCount}</p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="grid grid-cols-[1fr_auto] gap-4 items-center">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-[#fbbf24] border border-black/15 flex items-center justify-center shrink-0">
-                <Trophy className="w-6 h-6 text-black" />
+              <div className="w-10 h-10 rounded-full bg-[#fbbf24] border border-black/15 flex items-center justify-center shrink-0">
+                <Trophy className="w-5 h-5 text-black" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-black tracking-[0.08em] uppercase text-zinc-500 dark:text-zinc-400">{T.score}</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[42px] leading-none font-black tracking-[-0.06em]">{performanceScore}</span>
+                  <span className="text-[36px] leading-none font-black tracking-[-0.06em]">{performanceScore}</span>
                   <span className={`text-[10px] font-black ${performanceScore >= 90 ? "text-emerald-600 dark:text-emerald-400" : performanceScore >= 70 ? "text-amber-600 dark:text-amber-400" : "text-red-500"}`}>
                     {getPerformanceLabel(performanceScore)}
                   </span>
@@ -729,7 +733,7 @@ export function EmployeeDashboardView() {
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-amber-500" />

@@ -736,3 +736,25 @@ Verification:
 - ESLint: passed before release.
 - Final production build run before push.
 - Production build: compile + TypeScript passed; build then hit the pre-existing unrelated `/apply/status` prerender `useState` null error.
+
+
+## 2026-09-02 — Employee dashboard visual fidelity pass
+
+Goal:
+
+Bring the live employee dashboard closer to the approved retro-industrial mockup after reviewing the real Samsung Browser screenshot.
+
+Changes:
+
+- Reduced header, hero, mission, monthly summary, and performance card spacing/sizing to increase information density.
+- Reduced hero shift ring from 112px to 96px and tightened typography/action spacing.
+- Added a dedicated compact no-shift state: when no shift is scheduled, the hero no longer shows the SHIFT ring, attendance status, duplicate no-shift action box, or empty shift-time dash.
+- Kept all existing attendance/customer-feedback business logic unchanged.
+- Customer-feedback mission still exposes only coarse status, never the exact evaluation count or target.
+
+Verification:
+
+- `npx tsc --noEmit`: passed.
+- `npx eslint src/components/dashboard/views/EmployeeDashboardView.tsx`: passed.
+- `NODE_ENV=production npm run build`: passed, 180/180 static pages generated.
+- The earlier `/apply/status` prerender failure is confirmed to be caused by a shell-level `NODE_ENV=development`; production build succeeds when NODE_ENV is correct.
