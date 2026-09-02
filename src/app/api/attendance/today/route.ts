@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { startOfDayBangkok, addDays } from "@/lib/date-utils";
 import { isHousekeepingOvernightAttendance } from "@/lib/attendance-rules";
-import { resolveAllowedBreakMinutes } from "@/lib/break-rules";
+import { toAttendanceShiftDisplay } from "@/lib/attendance-shift-display";
 
 export async function GET() {
     try {
@@ -110,28 +110,8 @@ export async function GET() {
                     breakPenaltyAmount: Number(attendance.breakPenaltyAmount),
                 }
                 : null,
-            shift: shiftAssignment?.shift
-                ? {
-                    name: shiftAssignment.shift.name,
-                    startTime: shiftAssignment.shift.startTime,
-                    endTime: shiftAssignment.shift.endTime,
-                    breakMinutes: resolveAllowedBreakMinutes(
-                        user?.station?.code,
-                        shiftAssignment.shift.breakMinutes,
-                    ),
-                }
-                : null,
-            tomorrowShift: tomorrowShiftAssignment?.shift
-                ? {
-                    name: tomorrowShiftAssignment.shift.name,
-                    startTime: tomorrowShiftAssignment.shift.startTime,
-                    endTime: tomorrowShiftAssignment.shift.endTime,
-                    breakMinutes: resolveAllowedBreakMinutes(
-                        user?.station?.code,
-                        tomorrowShiftAssignment.shift.breakMinutes,
-                    ),
-                }
-                : null,
+            shift: toAttendanceShiftDisplay(shiftAssignment, user?.station?.code),
+            tomorrowShift: toAttendanceShiftDisplay(tomorrowShiftAssignment, user?.station?.code),
             user: user
                 ? {
                     name: user.name,

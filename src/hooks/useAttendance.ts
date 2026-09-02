@@ -19,9 +19,10 @@ interface AttendanceData {
 
 interface ShiftData {
     name: string;
-    startTime: string;
-    endTime: string;
+    startTime: string | null;
+    endTime: string | null;
     breakMinutes: number;
+    isDayOff: boolean;
 }
 
 interface UserData {

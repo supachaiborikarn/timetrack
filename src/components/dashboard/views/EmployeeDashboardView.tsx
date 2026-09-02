@@ -86,6 +86,8 @@ const LANG = {
     welcome: "สวัสดี",
     shiftToday: "กะวันนี้",
     noShift: "วันนี้ไม่มีตารางกะ",
+    dayOff: "วันหยุด",
+    dayOffMessage: "วันนี้เป็นวันหยุดตามตาราง ไม่ต้องลงเวลา",
     checkedIn: "เข้างานแล้ว",
     checkedOut: "เลิกงานแล้ว",
     notCheckedIn: "ยังไม่ได้เข้างาน",
@@ -131,6 +133,8 @@ const LANG = {
     welcome: "Welcome",
     shiftToday: "Today’s shift",
     noShift: "No shift scheduled today",
+    dayOff: "Day off",
+    dayOffMessage: "Today is your scheduled day off. No clock action required.",
     checkedIn: "Checked in",
     checkedOut: "Checked out",
     notCheckedIn: "Not checked in yet",
@@ -176,6 +180,8 @@ const LANG = {
     welcome: "ကြိုဆိုပါတယ်",
     shiftToday: "ယနေ့ အလုပ်ချိန်",
     noShift: "ယနေ့ အလုပ်ချိန် မရှိပါ",
+    dayOff: "နားရက်",
+    dayOffMessage: "ယနေ့သည် အလုပ်ပိတ်ရက်ဖြစ်၍ အလုပ်ချိန် မှတ်တမ်းတင်ရန် မလိုပါ",
     checkedIn: "အလုပ်ဝင်ပြီး",
     checkedOut: "အလုပ်ဆင်းပြီး",
     notCheckedIn: "အလုပ်မဝင်ရသေး",
@@ -229,7 +235,7 @@ function parseClockMinutes(value?: string | null) {
   return hours * 60 + minutes;
 }
 
-function getShiftProgress(startTime: string | undefined, endTime: string | undefined, now: Date) {
+function getShiftProgress(startTime: string | null | undefined, endTime: string | null | undefined, now: Date) {
   const start = parseClockMinutes(startTime);
   const rawEnd = parseClockMinutes(endTime);
   if (start === null || rawEnd === null) return 0;
@@ -465,7 +471,10 @@ export function EmployeeDashboardView() {
 
   const formatMoney = (amount: number) => new Intl.NumberFormat("th-TH").format(amount);
   const now = currentTime || new Date();
-  const shiftProgress = getShiftProgress(todayData?.shift?.startTime, todayData?.shift?.endTime, now);
+  const todayShift = todayData?.shift ?? null;
+  const isDayOff = todayShift?.isDayOff === true;
+  const workShift = todayShift && !isDayOff ? todayShift : null;
+  const shiftProgress = getShiftProgress(workShift?.startTime, workShift?.endTime, now);
   const workedDuration = formatWorkedDuration(
     todayData?.attendance?.checkInTime,
     todayData?.attendance?.checkOutTime,
@@ -540,20 +549,25 @@ export function EmployeeDashboardView() {
           <div className="grid grid-cols-[minmax(0,1fr)_148px] gap-2 items-center px-4 pt-1 pb-3">
             <div className="min-w-0 py-2">
               <p className="text-[10px] font-black tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                {todayData?.shift ? todayData.shift.name : T.shiftToday}
+                {isDayOff ? T.dayOff : workShift ? workShift.name : T.shiftToday}
               </p>
-              <h2 className={`mt-1 font-black tracking-[-0.055em] leading-[1.02] ${todayData?.shift ? "text-[34px]" : "text-[27px]"}`}>
-                {todayData?.shift ? T.shiftToday : T.noShift}
+              <h2 className={`mt-1 font-black tracking-[-0.055em] leading-[1.02] ${isDayOff || workShift ? "text-[34px]" : "text-[27px]"}`}>
+                {isDayOff ? T.dayOff : workShift ? T.shiftToday : T.noShift}
               </h2>
 
-              {todayData?.shift && (
+              {workShift && (
                 <p className="mt-3 whitespace-nowrap text-[24px] font-black tracking-[-0.035em] text-[#efa800]">
-                  {todayData.shift.startTime} — {todayData.shift.endTime}
+                  {workShift.startTime} — {workShift.endTime}
                 </p>
               )}
 
               <div className="mt-4 pt-3 border-t border-dashed border-zinc-600/50 space-y-2.5">
-                {todayData?.shift ? (
+                {isDayOff ? (
+                  <div className="flex items-center gap-2 text-[12px] font-black text-emerald-700 dark:text-emerald-400">
+                    <CalendarCheck className="w-5 h-5 shrink-0" />
+                    <span>{T.dayOffMessage}</span>
+                  </div>
+                ) : workShift ? (
                   <>
                     <div className={`flex items-center gap-2 text-[13px] font-black ${hasCheckedOut || hasCheckedIn ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-600 dark:text-zinc-300"}`}>
                       {hasCheckedOut || hasCheckedIn ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <Clock3 className="w-5 h-5 shrink-0" />}
@@ -583,11 +597,11 @@ export function EmployeeDashboardView() {
 
             <div className="flex justify-center">
               <div
-                className={`tt-shift-dial relative w-[148px] h-[148px] rounded-full ${todayData?.shift ? "" : "opacity-65"}`}
+                className={`tt-shift-dial relative w-[148px] h-[148px] rounded-full ${workShift ? "" : "opacity-65"}`}
                 style={{
-                  background: `conic-gradient(from -130deg, #fbbf24 0deg ${Math.max(todayData?.shift ? 8 : 0, shiftProgress * 2.6)}deg, rgba(39,39,42,0.10) ${Math.max(todayData?.shift ? 8 : 0, shiftProgress * 2.6)}deg 260deg, transparent 260deg 360deg)`,
+                  background: `conic-gradient(from -130deg, #fbbf24 0deg ${Math.max(workShift ? 8 : 0, shiftProgress * 2.6)}deg, rgba(39,39,42,0.10) ${Math.max(workShift ? 8 : 0, shiftProgress * 2.6)}deg 260deg, transparent 260deg 360deg)`,
                 }}
-                aria-label={todayData?.shift ? `ความคืบหน้ากะ ${Math.round(shiftProgress)} เปอร์เซ็นต์` : T.noShift}
+                aria-label={isDayOff ? T.dayOff : workShift ? `ความคืบหน้ากะ ${Math.round(shiftProgress)} เปอร์เซ็นต์` : T.noShift}
               >
                 <div className="tt-shift-dial-ticks absolute inset-[7px] rounded-full" aria-hidden="true" />
                 <div className="absolute inset-[17px] rounded-full border border-zinc-700/35 bg-[#f7f0e2] dark:bg-zinc-900 shadow-[inset_0_0_14px_rgba(0,0,0,0.08)] flex items-center justify-center text-zinc-700 dark:text-zinc-200">
@@ -605,7 +619,7 @@ export function EmployeeDashboardView() {
             </div>
           </div>
 
-          {todayData?.shift && (
+          {workShift && (
             <div className="grid grid-cols-2 gap-3 px-4 pb-4">
               {hasCheckedOut ? (
                 <div className="col-span-2 rounded-xl border border-emerald-700/30 bg-emerald-50/70 dark:bg-emerald-950/30 py-3 text-center text-[13px] font-black text-emerald-700 dark:text-emerald-400">
@@ -644,7 +658,7 @@ export function EmployeeDashboardView() {
           )}
         </section>
 
-        {customerEvaluationStatus && (
+        {customerEvaluationStatus && !isDayOff && (
           <section className="tt-retro-enter tt-retro-delay-1 tt-paper-card rounded-[18px] border border-zinc-700/35 dark:border-white/15 px-3.5 py-3 shadow-[0_2px_0_rgba(0,0,0,0.08)]">
             <div className="grid grid-cols-[52px_1px_1fr] gap-3 items-center">
               <div className={`w-12 h-12 rounded-full border-2 border-zinc-600/70 bg-[#f6ead1] dark:bg-zinc-800 flex items-center justify-center shadow-[inset_0_0_0_3px_rgba(255,255,255,0.5)] ${customerEvaluationStatus === "DONE" ? "tt-retro-pop" : ""}`}>
@@ -905,8 +919,8 @@ export function EmployeeDashboardView() {
         onCheckIn={handleCheckIn}
         onCheckOut={onCheckOutClick}
         onStartBreak={handleStartBreak}
-        hasShift={!!todayData?.shift}
-        shiftTime={todayData?.shift ? `${todayData.shift.startTime} - ${todayData.shift.endTime}` : undefined}
+        hasShift={!!workShift}
+        shiftTime={workShift?.startTime && workShift.endTime ? `${workShift.startTime} - ${workShift.endTime}` : undefined}
         checkInTime={todayData?.attendance?.checkInTime}
         checkOutTime={todayData?.attendance?.checkOutTime}
       />

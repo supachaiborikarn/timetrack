@@ -1010,3 +1010,28 @@ Verification:
 - Targeted ESLint: passed with no warnings.
 - `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
 - `git diff --check`: passed.
+
+
+## 2026-09-02 — Employee dashboard now respects scheduled day-off rows
+
+Problem:
+
+- A ShiftAssignment marked isDayOff=true still has a linked Shift relation for schedule consistency.
+- /api/attendance/today previously returned that linked shift name/time without checking isDayOff, so an employee such as Chon could see a work shift on the dashboard even though the September roster marked today as a day off.
+
+Fix:
+
+- Added attendance-shift display normalization. Day-off assignments now return name=วันหยุด, null start/end times, zero break minutes, and isDayOff=true instead of leaking the linked work-shift time.
+- Normal work assignments still use the station-specific allowed break calculation and return isDayOff=false.
+- Applied the same normalization to tomorrowShift for consistency.
+- Employee dashboard now distinguishes a scheduled day off from no schedule: it shows วันหยุด / Day off, hides work-shift time and check-in controls, and tells the employee no clock action is required.
+- ClockInModal receives hasShift=false on a day off.
+- The daily customer-feedback mission card is hidden on a scheduled day off, while the League link remains available for viewing standings.
+- No production schedule or attendance data was changed by this fix.
+
+Verification:
+
+- Regression test for day-off shift normalization: 2/2 passed.
+- Targeted ESLint: passed.
+- npx tsc --noEmit: passed after allowing null display times for day-off rows.
+- NODE_ENV=production npm run build: passed; 184/184 static pages generated.
