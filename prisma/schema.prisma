@@ -108,6 +108,8 @@ model User {
   feedbackReviewRequests         CustomerFeedbackReviewRequest[]  @relation("ReviewRequestEmployee")
   feedbackReviewRequestsReviewed CustomerFeedbackReviewRequest[]  @relation("ReviewRequestReviewedBy")
   feedbackPeriodsClosed          ReviewPeriod[]                   @relation("ReviewPeriodClosedBy")
+  competitionStandings           CompetitionStanding[]
+  competitionAwards              CompetitionAward[]
 
   @@index([stationId])
   @@index([departmentId])
@@ -311,6 +313,8 @@ model Station {
   jobApplications      JobApplication[]
   jobOpenings          JobOpening[]
   dormitories          Dormitory[]
+  competitionPeriods   CompetitionPeriod[]
+  competitionAwards    CompetitionAward[]
 
   @@index([code])
 }
@@ -699,6 +703,91 @@ model Notification {
   @@index([eventKey])
 }
 
+// ============================================================
+// Employee Competition League
+// คะแนนแข่งขันแยกจากคะแนนประเมินหลัก เพื่อให้ Fair Play / reward
+// ไม่แก้ประวัติเสียงลูกค้าต้นฉบับย้อนหลัง
+// ============================================================
+
+model CompetitionPeriod {
+  id          String                  @id @default(cuid())
+  type        CompetitionPeriodType
+  periodKey   String
+  stationId   String?
+  startDate   DateTime
+  endDate     DateTime
+  status      CompetitionPeriodStatus @default(OPEN)
+  finalizedAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  station   Station?              @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  standings CompetitionStanding[]
+  awards    CompetitionAward[]
+
+  @@unique([type, periodKey, stationId])
+  @@index([type, periodKey])
+  @@index([stationId, startDate])
+  @@index([status])
+}
+
+model CompetitionStanding {
+  id                          String                    @id @default(cuid())
+  periodId                    String
+  userId                      String
+  employeeLabelSnapshot       String
+  totalScore                  Decimal                   @db.Decimal(6, 2)
+  workPoints                  Decimal                   @db.Decimal(6, 2)
+  customerPoints              Decimal                   @db.Decimal(6, 2)
+  missionPoints               Decimal                   @db.Decimal(6, 2)
+  eligibleCustomerCount       Int                       @default(0)
+  excludedRepeatCustomerCount Int                       @default(0)
+  suspiciousCustomerCount     Int                       @default(0)
+  requiredDays                Int                       @default(0)
+  missionCompletedDays        Int                       @default(0)
+  isEligible                  Boolean                   @default(true)
+  fairPlayStatus              CompetitionFairPlayStatus @default(CLEAR)
+  fairPlayReasons             String[]
+  finalRank                   Int?
+  championshipPoints          Int                       @default(0)
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+
+  period CompetitionPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  user   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, userId])
+  @@index([userId, createdAt])
+  @@index([periodId, finalRank])
+  @@index([fairPlayStatus])
+}
+
+model CompetitionAward {
+  id              String                 @id @default(cuid())
+  periodId        String
+  userId          String
+  stationId       String?
+  awardType       CompetitionAwardType
+  title           String
+  rank            Int                    @default(1)
+  rewardCode      String?
+  rewardLabel     String?
+  rewardValueBaht Int?
+  status          CompetitionAwardStatus @default(AVAILABLE)
+  selectedAt      DateTime?
+  fulfilledAt     DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  period  CompetitionPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station Station?          @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  @@unique([periodId, userId, awardType])
+  @@index([userId, status])
+  @@index([stationId, createdAt])
+}
+
 model AttendanceAlertLog {
   id               String   @id @default(cuid())
   date             DateTime
@@ -809,6 +898,39 @@ enum AvailabilityStatus {
   AVAILABLE
   UNAVAILABLE
   PREFERRED_OFF
+}
+
+enum CompetitionPeriodType {
+  WEEKLY_STATION
+  MONTHLY_STATION
+  MONTHLY_GRAND
+}
+
+enum CompetitionPeriodStatus {
+  OPEN
+  PENDING_REVIEW
+  FINALIZED
+}
+
+enum CompetitionFairPlayStatus {
+  CLEAR
+  REVIEW
+  APPROVED
+  DISQUALIFIED
+  INELIGIBLE
+}
+
+enum CompetitionAwardType {
+  WEEKLY_CHAMPION
+  MONTHLY_STATION_CHAMPION
+  GRAND_CHAMPION
+}
+
+enum CompetitionAwardStatus {
+  AVAILABLE
+  SELECTED
+  FULFILLED
+  CANCELLED
 }
 
 // Engagement & Feedback
@@ -1291,7 +1413,7 @@ model CustomerFeedbackVisit {
   blockedReason        String?
   isTestAtOpen         Boolean                  @default(false)
   /// hash ของ signed visit token ใช้ตรวจ token ทุกครั้งที่ส่ง
-  sessionTokenHash     String               @unique
+  sessionTokenHash     String                   @unique
   /// HMAC ของ network signal เปลี่ยน secret ทุกวัน ไม่เก็บ IP ดิบ
   networkHashDaily     String?
   /// HMAC ของ client signal เปลี่ยน secret ทุกสัปดาห์
@@ -1326,11 +1448,11 @@ model CustomerFeedbackVisit {
   children    CustomerFeedbackVisit[]    @relation("VisitParent")
   responses   CustomerFeedbackResponse[]
 
+  @@unique([resolveNonceHash, qrCodeId, visitKind])
   @@index([qrCodeId])
   @@index([parentVisitId])
   @@index([disposition])
   @@index([openedAt])
-  @@unique([resolveNonceHash, qrCodeId, visitKind])
 }
 
 model CustomerFeedbackResponse {

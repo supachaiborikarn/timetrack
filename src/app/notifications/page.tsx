@@ -106,6 +106,8 @@ export default function NotificationsPage() {
             case "APPROVAL": return "✅";
             case "ANNOUNCEMENT": return "📢";
             case "SHIFT_REMINDER": return "⏰";
+            case "COMPETITION_AWARD": return "🏆";
+            case "COMPETITION_REWARD": return "🎁";
             default: return "🔔";
         }
     };
@@ -116,6 +118,8 @@ export default function NotificationsPage() {
             case "APPROVAL": return <Badge className="bg-green-100 text-green-700 border-none">อนุมัติ</Badge>;
             case "ANNOUNCEMENT": return <Badge className="bg-purple-100 text-purple-700 border-none">ประกาศ</Badge>;
             case "SHIFT_REMINDER": return <Badge className="bg-orange-100 text-orange-700 border-none">กะ</Badge>;
+            case "COMPETITION_AWARD": return <Badge className="bg-amber-100 text-amber-800 border-none">แชมป์</Badge>;
+            case "COMPETITION_REWARD": return <Badge className="bg-emerald-100 text-emerald-800 border-none">รางวัล</Badge>;
             default: return <Badge className="bg-slate-100 text-slate-700 border-none">ทั่วไป</Badge>;
         }
     };

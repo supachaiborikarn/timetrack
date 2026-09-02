@@ -791,3 +791,53 @@ Verification:
 - Attendance/check-in/break/check-out flows and existing API behavior were preserved.
 - Verification: targeted TypeScript and ESLint passed; `NODE_ENV=production npm run build` completed successfully with 180/180 static pages.
 - Workspace warning: concurrent break/payroll/performance work is present in other modified/untracked files. Do not stage or commit those files with this dashboard change.
+
+
+## 2026-09-02 — Station League, Fair Play, and reward selection
+
+Goal:
+
+Add a station-first employee competition system with weekly rewards, monthly station champions, a cross-station Grand Champion, and competition-specific anti-gaming controls that do not alter source customer feedback.
+
+Competition rules:
+
+- Weekly competition is separated by station for active front-yard employees.
+- League score is normalized to 100: work performance 60, customer quality 25, mission consistency 15.
+- Work score reuses the existing attendance-derived performance calculation rather than raw attendance counts.
+- Customer competition score uses only VALID employee-v3/v4 feedback that passes competition eligibility and the existing minimum sample.
+- The same pseudonymous weekly client signal can add competition credit only once per employee per week; repeated feedback remains stored as customer feedback but does not add League points.
+- SUSPECTED/high-abuse feedback and responses without a retained competition client signal do not add League points.
+- High repeat ratio / multiple suspicious responses / missing client signals can move a standing to Fair Play REVIEW. No single raw network signal directly invalidates source feedback.
+- Employee APIs do not expose exact eligible/repeat/suspicious feedback counts or the internal 5/day mission target. Those details are admin-only.
+- Managers are station-scoped for Fair Play and reward fulfillment; ADMIN/HR can see all stations.
+
+Season flow and rewards:
+
+- Weekly rank championship points: 1st=10, 2nd=6, 3rd=4, 4th-5th=2.
+- Monthly Station Champion is derived from finalized weekly snapshots and championship points, not recalculated raw feedback.
+- Monthly Grand Champion compares finalized Station Champions using normalized score.
+- Monthly finalization waits while any weekly period in that month is unresolved/PENDING_REVIEW.
+- Weekly Champion can choose Champion Meal (up to 300 THB) or Mystery Reward (~300 THB).
+- Monthly Station Champion can choose Voucher 700 THB or Family Meal up to 700 THB.
+- Grand Champion can choose Grand Voucher 1,500 THB or Premium Reward up to 1,500 THB.
+- Reward-credit wallet was intentionally deferred; MVP does not promise a stored credit balance without a ledger.
+
+Implementation:
+
+- Added CompetitionPeriod, CompetitionStanding, CompetitionAward models and competition enums in Prisma.
+- Added migration `prisma/migrations/20260902053000_add_competition_league/migration.sql`; migration must be applied before enabling the feature in production.
+- Added league calculation/finalization in `src/lib/competition/league.ts`.
+- Added employee `/league` page and APIs for leaderboard/reward selection.
+- Added `/admin/league` Fair Play + reward fulfillment UI/API and admin sidebar entry.
+- Added protected `/league` middleware matcher and competition notification badges.
+- Added Monday 07:30 Asia/Bangkok Vercel cron (`30 0 * * 1`) to snapshot the previous week and attempt idempotent monthly/grand finalization.
+- Dashboard adds a link to Weekly Station League without exposing exact customer counts.
+
+Verification:
+
+- `npx vitest run src/lib/competition/league.test.ts`: 5/5 passed (repeat client, suspected/high-abuse, high repeat ratio, missing client signal, Bangkok week boundary).
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint across league APIs/pages and changed existing UI: passed.
+- `npx prisma validate`: passed.
+- `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
+- `git diff --check`: passed before final cleanup.

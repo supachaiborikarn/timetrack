@@ -13,6 +13,7 @@ export const config = {
         "/announcements/:path*",
         "/availability/:path*",
         "/history/:path*",
+        "/league/:path*",
         "/notifications/:path*",
         "/performance/:path*",
         "/profile/:path*",

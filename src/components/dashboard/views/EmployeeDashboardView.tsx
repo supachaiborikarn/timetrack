@@ -675,6 +675,23 @@ export function EmployeeDashboardView() {
           </section>
         )}
 
+        {customerEvaluationStatus && (
+          <Link
+            href="/league"
+            className="tt-retro-enter tt-retro-delay-2 tt-retro-control flex items-center gap-3 rounded-[18px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 px-3.5 py-3 text-white shadow-[0_3px_0_rgba(0,0,0,0.16)] active:translate-y-[1px]"
+          >
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-amber-300/70 bg-[#fbbf24] text-zinc-950">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-black tracking-[0.18em] text-amber-300">WEEKLY STATION LEAGUE</p>
+              <p className="text-[13px] font-black">แข่งคะแนน · ลุ้นแชมป์ · เลือกรางวัล</p>
+              <p className="mt-0.5 text-[9px] text-zinc-400">การประเมินซ้ำไม่เพิ่มแต้ม และมี Fair Play ก่อนประกาศผล</p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-amber-300" />
+          </Link>
+        )}
+
         {session?.user?.role === "CASHIER" && (
           <Link
             href="/admin/attendance?manual=true"

@@ -21,6 +21,10 @@
         {
             "path": "/api/cron/customer-feedback-maintenance",
             "schedule": "15 18 * * *"
+        },
+        {
+            "path": "/api/cron/league-finalize",
+            "schedule": "30 0 * * 1"
         }
     ]
 }

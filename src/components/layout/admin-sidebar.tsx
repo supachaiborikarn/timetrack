@@ -47,6 +47,7 @@ import {
     Scale,
     BedDouble,
     MessageSquareHeart,
+    Trophy,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -156,6 +157,7 @@ const navItems: NavItem[] = [
         requiredPermissions: ["report.view"],
     },
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "League & Rewards", href: "/admin/league", icon: Trophy, roles: ["ADMIN", "HR", "MANAGER"] },
     {
         title: "เสียงลูกค้า",
         href: "/admin/customer-feedback",
