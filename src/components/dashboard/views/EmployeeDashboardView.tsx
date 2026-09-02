@@ -115,6 +115,9 @@ const LANG = {
     noShift: "วันนี้ไม่มีตารางกะ",
     dayOff: "วันหยุด",
     dayOffMessage: "วันนี้เป็นวันหยุดตามตาราง ไม่ต้องลงเวลา",
+    nextShift: "กะถัดไป",
+    tomorrow: "พรุ่งนี้",
+    noTomorrowShift: "ยังไม่มีตารางกะพรุ่งนี้",
     checkedIn: "เข้างานแล้ว",
     checkedOut: "เลิกงานแล้ว",
     notCheckedIn: "ยังไม่ได้เข้างาน",
@@ -162,6 +165,9 @@ const LANG = {
     noShift: "No shift scheduled today",
     dayOff: "Day off",
     dayOffMessage: "Today is your scheduled day off. No clock action required.",
+    nextShift: "Next shift",
+    tomorrow: "Tomorrow",
+    noTomorrowShift: "No shift scheduled tomorrow",
     checkedIn: "Checked in",
     checkedOut: "Checked out",
     notCheckedIn: "Not checked in yet",
@@ -209,6 +215,9 @@ const LANG = {
     noShift: "ယနေ့ အလုပ်ချိန် မရှိပါ",
     dayOff: "နားရက်",
     dayOffMessage: "ယနေ့သည် အလုပ်ပိတ်ရက်ဖြစ်၍ အလုပ်ချိန် မှတ်တမ်းတင်ရန် မလိုပါ",
+    nextShift: "နောက်အလုပ်ချိန်",
+    tomorrow: "မနက်ဖြန်",
+    noTomorrowShift: "မနက်ဖြန် အလုပ်ချိန် မရှိသေးပါ",
     checkedIn: "အလုပ်ဝင်ပြီး",
     checkedOut: "အလုပ်ဆင်းပြီး",
     notCheckedIn: "အလုပ်မဝင်ရသေး",
@@ -510,6 +519,7 @@ export function EmployeeDashboardView() {
   const formatMoney = (amount: number) => new Intl.NumberFormat("th-TH").format(amount);
   const now = currentTime || new Date();
   const todayShift = todayData?.shift ?? null;
+  const tomorrowShift = todayData?.tomorrowShift ?? null;
   const isDayOff = todayShift?.isDayOff === true;
   const workShift = todayShift && !isDayOff ? todayShift : null;
   const shiftProgress = getShiftProgress(workShift?.startTime, workShift?.endTime, now);
@@ -672,8 +682,39 @@ export function EmployeeDashboardView() {
             </div>
           </div>
 
+          <div className="border-t border-zinc-700/20 bg-zinc-900/[0.025] px-4 py-3 dark:border-white/10 dark:bg-white/[0.025]">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-zinc-700/30 bg-[#fbbf24]/20 text-zinc-700 dark:text-zinc-200">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[8px] font-black tracking-[0.16em] text-zinc-500 dark:text-zinc-400">NEXT / {T.tomorrow.toUpperCase()}</p>
+                <p className="mt-0.5 text-[11px] font-black text-zinc-700 dark:text-zinc-200">
+                  {T.nextShift} · {format(addDays(now, 1), lang === "th" ? "d MMM" : "MMM d", { locale: lang === "th" ? th : enUS })}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                {tomorrowShift?.isDayOff ? (
+                  <>
+                    <p className="text-[13px] font-black text-emerald-700 dark:text-emerald-400">{T.dayOff}</p>
+                    <p className="text-[8px] font-bold text-zinc-500">{lang === "th" ? "ไม่ต้องลงเวลา" : lang === "my" ? "အလုပ်မဝင်ရ" : "No clock action"}</p>
+                  </>
+                ) : tomorrowShift ? (
+                  <>
+                    <p className="font-mono text-[14px] font-black tracking-[-0.02em] text-[#d79500] dark:text-[#fbbf24]">
+                      {tomorrowShift.startTime || "--:--"}—{tomorrowShift.endTime || "--:--"}
+                    </p>
+                    <p className="max-w-[150px] truncate text-[8px] font-bold text-zinc-500">{tomorrowShift.name}</p>
+                  </>
+                ) : (
+                  <p className="max-w-[170px] text-[10px] font-black text-zinc-500 dark:text-zinc-400">{T.noTomorrowShift}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {workShift && (
-            <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+            <div className="grid grid-cols-2 gap-3 px-4 pt-3 pb-4">
               {hasCheckedOut ? (
                 <div className="col-span-2 rounded-xl border border-emerald-700/30 bg-emerald-50/70 dark:bg-emerald-950/30 py-3 text-center text-[13px] font-black text-emerald-700 dark:text-emerald-400">
                   ✓ {T.workComplete}

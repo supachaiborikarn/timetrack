@@ -106,3 +106,12 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Tied overall scores share the same displayed rank; secondary ordering uses work points, customer points, response count, and employee label.
 - The ranking screen must not poll automatically because repeated multi-table reads can consume the Neon free-tier quota while an admin leaves the tab open; refresh only on entry, date changes, or an explicit button click.
 - This ranking remains informational and does not write bonus, deduction, or payroll values automatically.
+
+
+## 2026-09-02: Employee self-service pages share the dashboard retro visual system
+
+- `/history`, `/notifications`, and `/profile` use the same cream paper, Caltex-yellow, black instrument-panel, hard-border, and retro-control language as the employee dashboard instead of generic curved headers/cards.
+- History is treated as a work log, so schedule context (including scheduled day off) is displayed alongside attendance records; current/future schedule data must not make future dates appear as past history.
+- The top employee dashboard card shows tomorrow's assignment using the already-normalized `tomorrowShift` from `/api/attendance/today`; day off and missing schedule are explicit states and no duplicate dashboard schedule query should be introduced.
+- Bottom Navigation may show notification unread count, but its count request must remain read-only and lightweight; do not call the notification-list endpoint from global navigation because that endpoint also performs stale-alert cleanup.
+- Citizen ID and bank account number are masked by default in employee Profile and require an explicit reveal action before the full value is shown.

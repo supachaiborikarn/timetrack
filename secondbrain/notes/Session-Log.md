@@ -1138,3 +1138,54 @@ Production schema update:
 - npm run db:push completed successfully; Prisma reported database schema in sync.
 - Read-only verification succeeded: RewardCatalogItem and RewardRedemption are queryable, CompetitionStanding.rewardPoints is readable.
 - Initial production catalog/redemption counts were both 0; no synthetic reward items or redemptions were inserted.
+
+
+## 2026-09-02 — Redesigned employee History / Notifications / Profile and exposed tomorrow shift
+
+Goal:
+
+- Bring the three Bottom Navigation self-service pages into the same retro station-instrument visual language as the redesigned employee dashboard.
+- Show tomorrow's scheduled shift directly inside the top TODAY card so employees can prepare for the next day without opening the schedule page.
+
+Implementation:
+
+- Added shared `EmployeePageHeader` for the yellow paper / retro-control employee-page header.
+- Rebuilt `/history` as WORK LOG / time cards with a black period summary panel, scheduled-shift context, day-off rows, missing-clock warnings, and direct time-correction entry points.
+- Extended `GET /api/attendance/history` with the employee's shift assignments for the requested Bangkok date range. The existing attendance payload remains and `schedule` is additive.
+- Rebuilt `/notifications` as an INBOX grouped by action-required / important / general, with unread status, secondary delete actions, and read-state broadcasts.
+- Added read-only `GET /api/notifications/unread-count` and an unread badge in Bottom Navigation. The nav count endpoint excludes stale daily notification types without performing cleanup writes.
+- Rebuilt `/profile` around an EMPLOYEE PASS and self-service menu for personal/contact/housing/financial/security data while preserving the existing edit-request, housing, password, PIN, Passkey, photo, and payslip flows. Citizen ID and bank account values are masked by default and can be explicitly revealed.
+- Added a compact NEXT / tomorrow strip to the existing top TODAY card. It uses the already-fetched, day-off-normalized `todayData.tomorrowShift`, so no extra dashboard database query was added. Tomorrow can show a work shift, scheduled day off, or no schedule. Thai / English / Burmese labels were added.
+
+Files / areas changed:
+
+- `src/components/layout/EmployeePageHeader.tsx`
+- `src/components/layout/BottomNavigation.tsx`
+- `src/components/dashboard/views/EmployeeDashboardView.tsx`
+- `src/app/history/page.tsx`
+- `src/app/api/attendance/history/route.ts`
+- `src/app/notifications/page.tsx`
+- `src/app/api/notifications/unread-count/route.ts`
+- `src/app/profile/page.tsx`
+
+Decisions:
+
+- Employee self-service pages should use the same cream/yellow/black retro visual system as the employee dashboard rather than generic CurvedHeader/cards.
+- History is a work-log timeline: scheduled day off and scheduled-shift context belong beside clock records.
+- Sensitive profile identifiers are masked by default on shared/mobile screens.
+- Bottom-nav unread count must be a read-only lightweight query; do not reuse the notification-list GET because that endpoint performs stale-alert cleanup writes.
+- Tomorrow's dashboard shift must reuse the normalized `tomorrowShift` already returned by `/api/attendance/today`; do not add a duplicate query.
+
+Verification:
+
+- `git diff --check`: passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for all changed TypeScript/TSX files: passed.
+- `npx vitest run src/lib/attendance-shift-display.test.ts`: 2/2 passed.
+- No local command connected to the production Neon database during this UI work, and no production data was changed.
+- Full Next production build was not run in this session to avoid unnecessarily evaluating unrelated build-time paths; TypeScript, ESLint, and the relevant shift-display regression test are green.
+
+Pending / risk:
+
+- Visual QA should still be done on the deployed/mobile-sized view after deployment because these pages were substantially restyled.
+- No commit or push was created in this session yet.

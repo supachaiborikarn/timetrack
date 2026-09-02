@@ -19,24 +19,19 @@ export async function GET(request: NextRequest) {
         }
 
         // Dates in DB are stored as Bangkok midnight in UTC (e.g. 2026-04-19 BKK = 2026-04-18T17:00:00Z)
-        // Frontend sends YYYY-MM-DD strings in Bangkok local time
-        // We need to convert to UTC range that covers the Bangkok dates
-        const start = new Date(startDate + "T00:00:00+07:00"); // Start of day in Bangkok
-        const end = new Date(endDate + "T23:59:59+07:00");     // End of day in Bangkok
+        // Frontend sends YYYY-MM-DD strings in Bangkok local time.
+        const start = new Date(startDate + "T00:00:00+07:00");
+        const end = new Date(endDate + "T23:59:59+07:00");
 
-        // Fetch records + user department info in parallel
-        const [records, userInfo] = await Promise.all([
+        // Attendance and scheduled shifts are returned together so the employee
+        // can understand day-off / missing-clock days without needing a second page.
+        const [records, userInfo, schedule] = await Promise.all([
             prisma.attendance.findMany({
                 where: {
                     userId: session.user.id,
-                    date: {
-                        gte: start,
-                        lte: end,
-                    },
+                    date: { gte: start, lte: end },
                 },
-                orderBy: {
-                    date: "desc",
-                },
+                orderBy: { date: "desc" },
             }),
             prisma.user.findUnique({
                 where: { id: session.user.id },
@@ -45,6 +40,25 @@ export async function GET(request: NextRequest) {
                         select: { isFrontYard: true },
                     },
                 },
+            }),
+            prisma.shiftAssignment.findMany({
+                where: {
+                    userId: session.user.id,
+                    date: { gte: start, lte: end },
+                },
+                select: {
+                    id: true,
+                    date: true,
+                    isDayOff: true,
+                    shift: {
+                        select: {
+                            name: true,
+                            startTime: true,
+                            endTime: true,
+                        },
+                    },
+                },
+                orderBy: { date: "desc" },
             }),
         ]);
 
@@ -62,6 +76,18 @@ export async function GET(request: NextRequest) {
                 breakDurationMin: r.breakDurationMin || null,
                 breakPenaltyAmount: Number(r.breakPenaltyAmount || 0),
                 note: r.note || null,
+            })),
+            schedule: schedule.map((assignment) => ({
+                id: assignment.id,
+                date: assignment.date.toISOString(),
+                isDayOff: assignment.isDayOff,
+                shift: assignment.isDayOff
+                    ? null
+                    : {
+                        name: assignment.shift.name,
+                        startTime: assignment.shift.startTime,
+                        endTime: assignment.shift.endTime,
+                    },
             })),
             isFrontYard: userInfo?.department?.isFrontYard || false,
         });
