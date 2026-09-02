@@ -1,30 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 
 const {
     authMock,
     userFindUniqueMock,
     attendanceFindManyMock,
     attendanceFindFirstMock,
-    shiftAssignmentCountMock,
+    shiftAssignmentFindManyMock,
     leaveFindManyMock,
     leaveBalanceFindUniqueMock,
     leaveBalanceCreateMock,
     advanceFindManyMock,
     announcementFindManyMock,
     customerFeedbackCountMock,
+    customerFeedbackFindManyMock,
 } = vi.hoisted(() => ({
     authMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
     attendanceFindManyMock: vi.fn(),
     attendanceFindFirstMock: vi.fn(),
-    shiftAssignmentCountMock: vi.fn(),
+    shiftAssignmentFindManyMock: vi.fn(),
     leaveFindManyMock: vi.fn(),
     leaveBalanceFindUniqueMock: vi.fn(),
     leaveBalanceCreateMock: vi.fn(),
     advanceFindManyMock: vi.fn(),
     announcementFindManyMock: vi.fn(),
     customerFeedbackCountMock: vi.fn(),
+    customerFeedbackFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: authMock }));
@@ -35,7 +38,7 @@ vi.mock("@/lib/prisma", () => ({
             findMany: attendanceFindManyMock,
             findFirst: attendanceFindFirstMock,
         },
-        shiftAssignment: { count: shiftAssignmentCountMock },
+        shiftAssignment: { findMany: shiftAssignmentFindManyMock },
         leave: { findMany: leaveFindManyMock },
         leaveBalance: {
             findUnique: leaveBalanceFindUniqueMock,
@@ -43,7 +46,10 @@ vi.mock("@/lib/prisma", () => ({
         },
         advance: { findMany: advanceFindManyMock },
         announcement: { findMany: announcementFindManyMock },
-        customerFeedbackResponse: { count: customerFeedbackCountMock },
+        customerFeedbackResponse: {
+            count: customerFeedbackCountMock,
+            findMany: customerFeedbackFindManyMock,
+        },
     },
 }));
 
@@ -62,7 +68,7 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
         });
         attendanceFindManyMock.mockResolvedValue([]);
         attendanceFindFirstMock.mockResolvedValue(null);
-        shiftAssignmentCountMock.mockResolvedValue(0);
+        shiftAssignmentFindManyMock.mockResolvedValue([]);
         leaveFindManyMock.mockResolvedValue([]);
         leaveBalanceFindUniqueMock.mockResolvedValue({
             sickLeave: 30,
@@ -75,6 +81,7 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
         advanceFindManyMock.mockResolvedValue([]);
         announcementFindManyMock.mockResolvedValue([]);
         customerFeedbackCountMock.mockResolvedValue(0);
+        customerFeedbackFindManyMock.mockResolvedValue([]);
     });
 
     afterEach(() => {
@@ -133,7 +140,47 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
         const { body } = await getDashboard();
 
         expect(customerFeedbackCountMock).not.toHaveBeenCalled();
+        expect(customerFeedbackFindManyMock).not.toHaveBeenCalled();
         expect(body.customerEvaluationStatus).toBeNull();
         expect(body).not.toHaveProperty("customerEvaluationCount");
+    });
+
+    it("combines sixty attendance points with forty customer points", async () => {
+        vi.setSystemTime(new Date("2026-09-02T05:00:00.000Z"));
+        const workDate = new Date("2026-09-01T00:00:00+07:00");
+        shiftAssignmentFindManyMock.mockResolvedValue([{
+            date: workDate,
+            isDayOff: false,
+            shift: { startTime: "08:00", endTime: "17:00", breakMinutes: 60, isNightShift: false },
+        }]);
+        attendanceFindManyMock
+            .mockResolvedValueOnce([{
+                date: workDate,
+                checkInTime: new Date("2026-09-01T08:00:00+07:00"),
+                checkOutTime: new Date("2026-09-01T17:00:00+07:00"),
+                lateMinutes: 0,
+                breakStartTime: null,
+                breakEndTime: null,
+                breakDurationMin: 60,
+            }])
+            .mockResolvedValueOnce([]);
+        customerFeedbackFindManyMock.mockResolvedValue(Array.from({ length: 10 }, (_, index) => ({
+            id: `response-${index}`,
+            answers: EMPLOYEE_SCORE_QUESTION_KEYS.map((questionKey) => ({ questionKey, choiceValues: ["NO"] })),
+        })));
+
+        const response = await GET(new NextRequest(
+            "http://localhost/api/employee/dashboard?calYear=2026&calMonth=8",
+        ));
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.performanceScore).toBe(60);
+        expect(body.performance).toMatchObject({
+            workPoints: 60,
+            customerPoints: 0,
+            customerIncluded: true,
+            isProvisional: false,
+        });
     });
 });

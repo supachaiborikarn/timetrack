@@ -61,6 +61,15 @@ interface AdvanceSummary {
   pendingAmount: number;
 }
 
+interface PerformanceSummary {
+  score: number | null;
+  isProvisional: boolean;
+  workPoints: number;
+  workPointsMax: number;
+  customerPoints: number | null;
+  customerPointsMax: number;
+  customerIncluded: boolean;
+}
 
 type CustomerEvaluationStatus = "NOT_YET" | "NEAR" | "DONE";
 
@@ -98,6 +107,11 @@ const LANG = {
     permission: "ขออนุญาต",
     earlyOut: "ออกก่อน",
     score: "คะแนนผลงาน",
+    scorePending: "รอข้อมูล",
+    scoreProvisional: "ชั่วคราว",
+    workScore: "เวลา",
+    customerScore: "ลูกค้า",
+    customerWaiting: "รอแบบประเมิน",
     breakUsed: "ใช้เวลาพักไปแล้ว",
     announcements: "ประกาศสำคัญ",
     noAnnouncement: "ไม่มีประกาศในขณะนี้",
@@ -138,6 +152,11 @@ const LANG = {
     permission: "Permission",
     earlyOut: "Early out",
     score: "Performance",
+    scorePending: "Waiting for data",
+    scoreProvisional: "Provisional",
+    workScore: "Attendance",
+    customerScore: "Customer",
+    customerWaiting: "Waiting for feedback",
     breakUsed: "Break used",
     announcements: "Announcements",
     noAnnouncement: "No announcements right now",
@@ -178,6 +197,11 @@ const LANG = {
     permission: "ခွင့်ပြုချက်",
     earlyOut: "စောထွက်",
     score: "စွမ်းဆောင်ရည်",
+    scorePending: "ဒေတာစောင့်နေသည်",
+    scoreProvisional: "ယာယီ",
+    workScore: "အလုပ်ချိန်",
+    customerScore: "ဖောက်သည်",
+    customerWaiting: "အကဲဖြတ်ချက် စောင့်နေသည်",
     breakUsed: "နားချိန် သုံးပြီး",
     announcements: "ကြေညာချက်",
     noAnnouncement: "ကြေညာချက်မရှိပါ",
@@ -296,7 +320,8 @@ export function EmployeeDashboardView() {
   const [leaveCount, setLeaveCount] = useState(0);
   const [permissionCount, setPermissionCount] = useState(0);
   const [breakMinutesToday, setBreakMinutesToday] = useState(0);
-  const [performanceScore, setPerformanceScore] = useState(100);
+  const [performanceScore, setPerformanceScore] = useState<number | null>(null);
+  const [performanceSummary, setPerformanceSummary] = useState<PerformanceSummary | null>(null);
   const [displayPerformanceScore, setDisplayPerformanceScore] = useState(0);
   const [customerEvaluationStatus, setCustomerEvaluationStatus] = useState<CustomerEvaluationStatus | null>(null);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
@@ -321,14 +346,20 @@ export function EmployeeDashboardView() {
         setLeaveCount(data.leaveCount ?? 0);
         setPermissionCount(data.permissionCount ?? 0);
         setBreakMinutesToday(data.breakMinutesToday ?? 0);
-        setPerformanceScore(data.performanceScore ?? 100);
+        setPerformanceScore(data.performanceScore ?? null);
+        setPerformanceSummary(data.performance ?? null);
         setCustomerEvaluationStatus(data.customerEvaluationStatus ?? null);
         setAdvanceSummary(data.advanceSummary ?? { totalAmount: 0, pendingAmount: 0 });
         setAnnouncements(data.announcements ?? []);
         setCalendarDays(data.calendarDays ?? []);
+      } else {
+        setPerformanceScore(null);
+        setPerformanceSummary(null);
       }
     } catch (error) {
       console.error("Dashboard fetch error:", error);
+      setPerformanceScore(null);
+      setPerformanceSummary(null);
     } finally {
       setDataLoading(false);
     }
@@ -353,6 +384,10 @@ export function EmployeeDashboardView() {
 
   useEffect(() => {
     if (dataLoading) return;
+    if (performanceScore === null) {
+      setDisplayPerformanceScore(0);
+      return;
+    }
 
     if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDisplayPerformanceScore(performanceScore);
@@ -698,14 +733,31 @@ export function EmployeeDashboardView() {
               </div>
               <div className="min-w-0">
                 <p className="text-[9px] font-black text-zinc-500 dark:text-zinc-400">{T.score}</p>
-                <span className="tt-retro-score block text-[39px] leading-[0.88] font-black tracking-[-0.07em]">{displayPerformanceScore}</span>
+                <span className="tt-retro-score block text-[39px] leading-[0.88] font-black tracking-[-0.07em]">
+                  {performanceScore === null ? "—" : displayPerformanceScore}
+                </span>
               </div>
             </div>
             <div className="mt-2 border-t border-zinc-600/25 pt-2 min-w-0">
-              <p className={`text-[9px] font-black truncate ${performanceScore >= 90 ? "text-emerald-600" : performanceScore >= 70 ? "text-amber-600" : "text-red-600"}`}>
-                {getPerformanceLabel(performanceScore)} ★
+              <p className={`text-[9px] font-black truncate ${performanceScore === null ? "text-zinc-400" : performanceScore >= 90 ? "text-emerald-600" : performanceScore >= 70 ? "text-amber-600" : "text-red-600"}`}>
+                {performanceScore === null
+                  ? T.scorePending
+                  : performanceSummary?.isProvisional
+                    ? `${T.scoreProvisional} ★`
+                    : `${getPerformanceLabel(performanceScore)} ★`}
               </p>
-              <p className="mt-0.5 text-[7.5px] font-bold text-zinc-500 dark:text-zinc-400 truncate">{T.breakUsed} {breakMinutesToday} นาที</p>
+              {performanceSummary ? (
+                <p className="mt-0.5 text-[7.5px] font-bold text-zinc-500 dark:text-zinc-400 truncate">
+                  {T.workScore} {performanceSummary.workPoints}/{performanceSummary.workPointsMax}
+                  {performanceSummary.customerIncluded && performanceSummary.customerPoints !== null
+                    ? ` · ${T.customerScore} ${performanceSummary.customerPoints}/${performanceSummary.customerPointsMax}`
+                    : performanceSummary.isProvisional
+                      ? ` · ${T.customerWaiting}`
+                      : ""}
+                </p>
+              ) : (
+                <p className="mt-0.5 text-[7.5px] font-bold text-zinc-400 truncate">{T.breakUsed} {breakMinutesToday} นาที</p>
+              )}
             </div>
           </section>
 

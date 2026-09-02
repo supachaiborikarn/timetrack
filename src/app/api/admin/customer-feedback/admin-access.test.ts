@@ -178,7 +178,7 @@ describe("customer feedback admin station and incident access", () => {
             where: {
                 reportDate: expect.objectContaining({ gte: expect.any(Date), lt: expect.any(Date) }),
                 isTest: false,
-                surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "station-v1"] },
+                surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] },
                 stationKey: "station-own",
                 targetType: "STATION",
             },
@@ -261,14 +261,14 @@ describe("customer feedback admin station and incident access", () => {
         expect(responseFindManyMock.mock.calls[0][0]).toEqual(expect.objectContaining({
             where: expect.objectContaining({
                 stationId: "station-own",
-                surveyVersion: "employee-v3",
+                surveyVersion: { in: ["employee-v3", "employee-v4"] },
                 validity: "VALID",
             }),
         }));
         expect(responseFindManyMock.mock.calls[1][0]).toEqual(expect.objectContaining({
             where: expect.objectContaining({
                 stationId: "station-own",
-                surveyVersion: "employee-v3",
+                surveyVersion: { in: ["employee-v3", "employee-v4"] },
                 validity: "VALID",
                 submittedAt: { gte: expect.any(Date), lt: expect.any(Date) },
             }),
@@ -440,7 +440,7 @@ describe("customer feedback admin station and incident access", () => {
             expect(visitFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
                 where: expect.objectContaining({
                     isTestAtOpen: false,
-                    surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "station-v1"] },
+                    surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] },
                     targetType: "STATION",
                 }),
             }));

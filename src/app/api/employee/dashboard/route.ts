@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
 import { getBangkokEvaluationDayBounds, getEmployeeDailyEvaluationStatus } from "@/lib/customer-feedback/evaluation-target";
+import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
+import { EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
+import { calculateEmployeePerformance } from "@/lib/employee-performance";
+import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
+
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * GET /api/employee/dashboard
@@ -24,16 +30,19 @@ export async function GET(request: NextRequest) {
         const calMonth = parseInt(searchParams.get("calMonth") || String(now.getMonth())); // 0-indexed
 
         const calDate = new Date(calYear, calMonth, 1);
-        const monthStart = startOfMonth(calDate);
-        const monthEnd   = endOfMonth(calDate);
-        const yearStart  = startOfYear(now);
-        const yearEnd    = endOfYear(now);
+        const monthStart = new Date(Date.UTC(calYear, calMonth, 1) - BANGKOK_OFFSET_MS);
+        const monthEndExclusive = new Date(Date.UTC(calYear, calMonth + 1, 1) - BANGKOK_OFFSET_MS);
+        const bangkokNow = new Date(now.getTime() + BANGKOK_OFFSET_MS);
+        const currentYear = bangkokNow.getUTCFullYear();
+        const yearStart = new Date(Date.UTC(currentYear, 0, 1) - BANGKOK_OFFSET_MS);
+        const yearEndExclusive = new Date(Date.UTC(currentYear + 1, 0, 1) - BANGKOK_OFFSET_MS);
 
         // Fetch current user early to get department info for frontyard logic
         const currentUser = await prisma.user.findUnique({
             where: { id: userId },
             select: { 
                 departmentId: true,
+                station: { select: { code: true } },
                 department: {
                     select: { isFrontYard: true }
                 }
@@ -42,11 +51,14 @@ export async function GET(request: NextRequest) {
 
         const isFrontYard = currentUser?.department?.isFrontYard || false;
         
-        const { startDate: payrollStart, endDate: payrollEnd } = getPayrollPeriod(calDate, isFrontYard);
+        const payrollPeriod = getPayrollPeriod(calDate, isFrontYard);
+        const payrollStart = startOfDayBangkok(payrollPeriod.startDate);
+        const payrollEnd = startOfDayBangkok(payrollPeriod.endDate);
+        const payrollEndExclusive = new Date(payrollEnd.getTime() + DAY_MS);
         const todayBangkok = startOfDayBangkok(now);
         const feedbackDayBounds = getBangkokEvaluationDayBounds(now);
         const periodEndUpToToday = new Date(Math.min(payrollEnd.getTime(), todayBangkok.getTime()));
-        const currentYear = now.getFullYear();
+        const feedbackPeriodEnd = new Date(Math.min(payrollEndExclusive.getTime(), now.getTime()));
 
         // ============================================================
         // PARALLEL BATCH: Run all independent queries simultaneously
@@ -54,28 +66,30 @@ export async function GET(request: NextRequest) {
         const [
             thisMonthAttendance,
             todayAttendance,
-            expectedDays,
-            approvedLeavesInPeriod,
+            shiftAssignments,
+            performanceLeaves,
             leaves,
             leaveBalance,
             advances,
             announcements,
             calAttendance,
             customerEvaluationCount,
+            customerPerformanceResponses,
         ] = await Promise.all([
             // 1. Attendance records for this payroll period
             prisma.attendance.findMany({
                 where: {
                     userId,
-                    date: { gte: payrollStart, lte: payrollEnd },
+                    date: { gte: payrollStart, lte: periodEndUpToToday },
                 },
                 select: {
                     date: true,
                     checkInTime: true,
                     checkOutTime: true,
-                    status: true,
                     lateMinutes: true,
-                    earlyLeaveMinutes: true,
+                    breakStartTime: true,
+                    breakEndTime: true,
+                    breakDurationMin: true,
                 },
             }),
 
@@ -85,23 +99,35 @@ export async function GET(request: NextRequest) {
                 select: { breakStartTime: true, breakEndTime: true, breakDurationMin: true },
             }),
 
-            // 3. Expected shift days count
-            prisma.shiftAssignment.count({
+            // 3. Shift days through today. Day-off rows are retained so they cannot enter the score.
+            prisma.shiftAssignment.findMany({
                 where: {
                     userId,
-                    isDayOff: false,
                     date: { gte: payrollStart, lte: periodEndUpToToday },
+                },
+                select: {
+                    date: true,
+                    isDayOff: true,
+                    shift: {
+                        select: {
+                            startTime: true,
+                            endTime: true,
+                            breakMinutes: true,
+                            isNightShift: true,
+                        },
+                    },
                 },
             }),
 
-            // 4. Approved leaves in period
+            // 4. Leave rows used for day-by-day performance status.
             prisma.leave.findMany({
                 where: {
                     userId,
-                    status: "APPROVED",
+                    status: { in: ["APPROVED", "PENDING"] },
                     startDate: { lte: periodEndUpToToday },
                     endDate: { gte: payrollStart },
                 },
+                select: { startDate: true, endDate: true, status: true },
             }),
 
             // 5. Leave counts this year
@@ -109,7 +135,7 @@ export async function GET(request: NextRequest) {
                 where: {
                     userId,
                     status: "APPROVED",
-                    startDate: { gte: yearStart, lte: yearEnd },
+                    startDate: { gte: yearStart, lt: yearEndExclusive },
                 },
                 select: { type: true },
             }),
@@ -152,7 +178,7 @@ export async function GET(request: NextRequest) {
             prisma.attendance.findMany({
                 where: {
                     userId,
-                    date: { gte: monthStart, lte: monthEnd },
+                    date: { gte: monthStart, lt: monthEndExclusive },
                 },
                 select: {
                     date: true,
@@ -177,16 +203,62 @@ export async function GET(request: NextRequest) {
                     },
                 })
                 : Promise.resolve(0),
+
+            // 11. Customer rubric responses for the same payroll period as attendance.
+            isFrontYard
+                ? prisma.customerFeedbackResponse.findMany({
+                    where: {
+                        kind: "STANDARD",
+                        targetType: "EMPLOYEE",
+                        employeeId: userId,
+                        surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                        validity: "VALID",
+                        submittedAt: { gte: payrollStart, lt: feedbackPeriodEnd },
+                    },
+                    select: {
+                        id: true,
+                        answers: {
+                            where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
+                            select: { questionKey: true, choiceValues: true },
+                        },
+                    },
+                })
+                : Promise.resolve([]),
         ]);
 
         // ============================================================
         // Post-processing (CPU-only, no DB)
         // ============================================================
 
-        // Attendance stats
-        const daysWorked    = thisMonthAttendance.filter(r => r.checkInTime).length;
-        const lateCount     = thisMonthAttendance.filter(r => (r.lateMinutes || 0) > 0).length;
-        const earlyOutCount = thisMonthAttendance.filter(r => (r.earlyLeaveMinutes || 0) > 0).length;
+        const rubricResponses: EmployeeScoreResponseInput[] = customerPerformanceResponses.map((response) => ({
+            responseId: response.id,
+            answers: response.answers.flatMap((answer) => {
+                const value = answer.choiceValues[0];
+                return value === "YES" || value === "NO" || value === "UNSURE"
+                    ? [{ questionKey: answer.questionKey, answer: value }]
+                    : [];
+            }),
+        }));
+        const customerRubric = summarizeEmployeeRubric(rubricResponses);
+        const performance = calculateEmployeePerformance({
+            assignments: shiftAssignments,
+            attendances: thisMonthAttendance,
+            leaves: performanceLeaves,
+            customer: {
+                applicable: isFrontYard,
+                score64: customerRubric.score64,
+                responseCount: customerRubric.responseCount,
+                minimumSample: customerRubric.minimumSample,
+                meetsMinimumSample: customerRubric.meetsMinimumSample,
+            },
+            stationCode: currentUser?.station?.code,
+            referenceTime: now,
+            attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+        });
+
+        const daysWorked = performance.counts.presentDays;
+        const lateCount = performance.counts.lateDays;
+        const earlyOutCount = performance.counts.earlyLeaveDays;
 
         // Break time
         let breakMinutesToday = 0;
@@ -198,20 +270,6 @@ export async function GET(request: NextRequest) {
                 breakMinutesToday = Math.floor((end.getTime() - todayAttendance.breakStartTime.getTime()) / 60000);
             }
         }
-
-        // Performance score
-        let approvedLeaveDays = 0;
-        approvedLeavesInPeriod.forEach(l => {
-            const lStart = l.startDate < payrollStart ? payrollStart : l.startDate;
-            const lEnd = l.endDate > periodEndUpToToday ? periodEndUpToToday : l.endDate;
-            const ms = lEnd.getTime() - lStart.getTime();
-            if (ms >= 0) {
-               approvedLeaveDays += Math.round(ms / (1000 * 60 * 60 * 24)) + 1;
-            }
-        });
-
-        const absentDays = Math.max(0, expectedDays - approvedLeaveDays - daysWorked);
-        const performanceScore = Math.max(0, 100 - (lateCount * 2) - (earlyOutCount * 2) - (absentDays * 5));
 
         // Leave counts
         const leaveCount      = leaves.filter(l => l.type !== "OTHER").length;
@@ -276,7 +334,20 @@ export async function GET(request: NextRequest) {
             lateCount,
             earlyOutCount,
             breakMinutesToday,
-            performanceScore,
+            performanceScore: performance.score,
+            performance: {
+                score: performance.score,
+                isProvisional: performance.isProvisional,
+                workPoints: performance.workPoints,
+                workPointsMax: performance.workPointsMax,
+                customerPoints: performance.customerPoints,
+                customerPointsMax: performance.customerPointsMax,
+                customerScore64: performance.customerIncluded ? performance.customerScore64 : null,
+                customerIncluded: performance.customerIncluded,
+                customerMinimumSample: performance.customerMinimumSample,
+                components: performance.components,
+                counts: performance.counts,
+            },
             customerEvaluationStatus: isFrontYard ? getEmployeeDailyEvaluationStatus(customerEvaluationCount) : null,
             leaveCount,
             permissionCount,

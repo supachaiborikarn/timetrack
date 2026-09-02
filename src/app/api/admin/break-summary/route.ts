@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+    BREAK_GRACE_MINUTES,
+    calculateBreakOverageMinutes,
+    resolveAllowedBreakMinutes,
+} from "@/lib/break-rules";
 
 export async function GET(request: NextRequest) {
     try {
@@ -60,19 +65,15 @@ export async function GET(request: NextRequest) {
                     include: { shift: true },
                 });
 
-                // Default allowed break: 90 min, SPC station: 60 min
-                let allowedBreakMin = 90;
-                if (record.user.station?.code === "SPC") {
-                    allowedBreakMin = 60;
-                } else if (assignment?.shift?.breakMinutes && assignment.shift.breakMinutes > 90) {
-                    allowedBreakMin = assignment.shift.breakMinutes;
-                }
-
-                const GRACE_PERIOD = 5;
-                const isOvertime = (record.breakDurationMin || 0) > (allowedBreakMin + GRACE_PERIOD);
-                const overtimeMinutes = isOvertime
-                    ? (record.breakDurationMin || 0) - allowedBreakMin
-                    : 0;
+                const allowedBreakMin = resolveAllowedBreakMinutes(
+                    record.user.station?.code,
+                    assignment?.shift?.breakMinutes,
+                );
+                const overtimeMinutes = calculateBreakOverageMinutes(
+                    record.breakDurationMin,
+                    allowedBreakMin,
+                );
+                const isOvertime = overtimeMinutes > 0;
 
                 return {
                     id: record.id,
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
                     breakEndTime: record.breakEndTime,
                     breakDurationMin: record.breakDurationMin,
                     allowedBreakMin,
+                    gracePeriodMin: BREAK_GRACE_MINUTES,
                     isOvertime,
                     overtimeMinutes,
                     penaltyAmount: Number(record.breakPenaltyAmount) || 0,

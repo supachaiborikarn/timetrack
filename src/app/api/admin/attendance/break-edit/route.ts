@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+    calculateBreakPenaltyAmount,
+    resolveAllowedBreakMinutes,
+} from "@/lib/break-rules";
 
 // PUT: Edit break times for an attendance record
 export async function PUT(request: NextRequest) {
@@ -52,23 +56,25 @@ export async function PUT(request: NextRequest) {
                 (newBreakEndTime.getTime() - newBreakStartTime.getTime()) / (1000 * 60)
             );
 
-            // Get station-specific break allowance
-            const user = await prisma.user.findUnique({
-                where: { id: attendance.userId },
-                include: { station: true }
+            const [user, assignment] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: attendance.userId },
+                    include: { station: true },
+                }),
+                prisma.shiftAssignment.findFirst({
+                    where: { userId: attendance.userId, date: attendance.date },
+                    include: { shift: true },
+                }),
+            ]);
+            const allowedBreakMinutes = resolveAllowedBreakMinutes(
+                user?.station?.code,
+                assignment?.shift?.breakMinutes,
+            );
+            breakPenaltyAmount = calculateBreakPenaltyAmount({
+                durationMinutes: breakDurationMin,
+                allowedMinutes: allowedBreakMinutes,
+                hourlyRate: attendance.user.hourlyRate,
             });
-
-            let ALLOWED_BREAK_MINS = 90;
-            if (user?.station?.code === "SPC") {
-                ALLOWED_BREAK_MINS = 60;
-            }
-
-            const GRACE_PERIOD_MINS = 5;
-
-            // Calculate penalty
-            if (breakDurationMin > (ALLOWED_BREAK_MINS + GRACE_PERIOD_MINS)) {
-                breakPenaltyAmount = Number(attendance.user.hourlyRate) * 1;
-            }
         }
 
         // Update the attendance record

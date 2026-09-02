@@ -110,6 +110,7 @@ interface AbsenceOverlap {
         name: string;
         nickName: string | null;
         employeeId: string;
+        reason: "DAY_OFF" | "APPROVED_LEAVE" | "ABSENT";
     }[];
 }
 
@@ -814,6 +815,7 @@ export default function PayrollPage() {
                                                         {overlap.absentEmployees.map((emp) => (
                                                             <Badge key={emp.id} variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 text-xs">
                                                                 {emp.nickName || emp.name}
+                                                                {emp.reason === "DAY_OFF" ? " · หยุด" : emp.reason === "APPROVED_LEAVE" ? " · ลา" : " · ขาด"}
                                                             </Badge>
                                                         ))}
                                                     </div>

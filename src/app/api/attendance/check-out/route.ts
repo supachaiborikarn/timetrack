@@ -14,6 +14,8 @@ import {
     isHousekeepingOvernightAttendance,
     resolveHousekeepingOvernightClose,
 } from "@/lib/attendance-rules";
+import { resolveAllowedBreakMinutes } from "@/lib/break-rules";
+import { getBangkokShiftWindow } from "@/lib/employee-performance";
 
 export async function POST(request: NextRequest) {
     try {
@@ -143,7 +145,10 @@ export async function POST(request: NextRequest) {
             include: { shift: true },
         });
 
-        const breakMinutes = shiftAssignment?.shift.breakMinutes || 60;
+        const breakMinutes = resolveAllowedBreakMinutes(
+            user.station?.code,
+            shiftAssignment?.shift.breakMinutes,
+        );
 
         if (isHousekeepingOvernightAttendance({
             checkInTime: attendance.checkInTime,
@@ -214,6 +219,14 @@ export async function POST(request: NextRequest) {
             finalOvertimeHours = overtimeHours;
         }
 
+        const earlyLeaveMinutes = shiftAssignment
+            ? Math.max(0, Math.floor((getBangkokShiftWindow({
+                date: attendanceDate,
+                isDayOff: shiftAssignment.isDayOff,
+                shift: shiftAssignment.shift,
+            }).end.getTime() - finalCheckOutTime.getTime()) / 60_000))
+            : 0;
+
         // Update attendance record
         const updatedAttendance = await prisma.attendance.update({
             where: { id: attendance.id },
@@ -226,6 +239,7 @@ export async function POST(request: NextRequest) {
                 checkOutStationId: checkOutStation?.id || null,
                 actualHours: finalTotalHours,
                 overtimeHours: finalOvertimeHours,
+                earlyLeaveMinutes,
             },
         });
 

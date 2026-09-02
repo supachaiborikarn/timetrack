@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getBangkokNow } from "@/lib/date-utils";
+import {
+    calculateBreakPenaltyAmount,
+    resolveAllowedBreakMinutes,
+} from "@/lib/break-rules";
 
 // POST: Supervisor starts or ends break for an employee
 export async function POST(request: NextRequest) {
@@ -24,7 +27,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing employeeId or action" }, { status: 400 });
         }
 
-        const now = getBangkokNow();
         // Use UTC time for database storage (matching employee APIs)
         const utcNow = new Date();
 
@@ -74,26 +76,25 @@ export async function POST(request: NextRequest) {
             // Use UTC time for calculation and storage (matching employee APIs)
             const durationMin = Math.floor((utcNow.getTime() - breakStart.getTime()) / (1000 * 60));
 
-            // Get employee's station for break duration override
-            const employee = await prisma.user.findUnique({
-                where: { id: employeeId },
-                include: { station: true }
+            const [employee, assignment] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: employeeId },
+                    include: { station: true },
+                }),
+                prisma.shiftAssignment.findFirst({
+                    where: { userId: employeeId, date: attendance.date },
+                    include: { shift: true },
+                }),
+            ]);
+            const allowedBreakMinutes = resolveAllowedBreakMinutes(
+                employee?.station?.code,
+                assignment?.shift?.breakMinutes,
+            );
+            const penaltyAmount = calculateBreakPenaltyAmount({
+                durationMinutes: durationMin,
+                allowedMinutes: allowedBreakMinutes,
+                hourlyRate: attendance.user.hourlyRate,
             });
-
-            // Default global break duration
-            let ALLOWED_BREAK_MINS = 90;
-
-            // Custom logic for Supachai (SPC) -> 60 minutes
-            if (employee?.station?.code === "SPC") {
-                ALLOWED_BREAK_MINS = 60;
-            }
-
-            let penaltyAmount = 0;
-            const GRACE_PERIOD_MINS = 5;
-
-            if (durationMin > (ALLOWED_BREAK_MINS + GRACE_PERIOD_MINS)) {
-                penaltyAmount = Number(attendance.user.hourlyRate) * 1;
-            }
 
             await prisma.attendance.update({
                 where: { id: attendance.id },
@@ -109,7 +110,8 @@ export async function POST(request: NextRequest) {
                 message: `จบพักให้ ${attendance.user.name} เรียบร้อย`,
                 breakEndTime: utcNow,
                 durationMin,
-                penaltyAmount
+                penaltyAmount,
+                allowedDuration: allowedBreakMinutes,
             });
         }
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { startOfDayBangkok, addDays } from "@/lib/date-utils";
 import { isHousekeepingOvernightAttendance } from "@/lib/attendance-rules";
+import { resolveAllowedBreakMinutes } from "@/lib/break-rules";
 
 export async function GET() {
     try {
@@ -17,7 +18,7 @@ export async function GET() {
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
             include: {
-                station: { select: { name: true } },
+                station: { select: { name: true, code: true } },
                 department: { select: { code: true, name: true } },
             },
         });
@@ -114,7 +115,10 @@ export async function GET() {
                     name: shiftAssignment.shift.name,
                     startTime: shiftAssignment.shift.startTime,
                     endTime: shiftAssignment.shift.endTime,
-                    breakMinutes: shiftAssignment.shift.breakMinutes,
+                    breakMinutes: resolveAllowedBreakMinutes(
+                        user?.station?.code,
+                        shiftAssignment.shift.breakMinutes,
+                    ),
                 }
                 : null,
             tomorrowShift: tomorrowShiftAssignment?.shift
@@ -122,7 +126,10 @@ export async function GET() {
                     name: tomorrowShiftAssignment.shift.name,
                     startTime: tomorrowShiftAssignment.shift.startTime,
                     endTime: tomorrowShiftAssignment.shift.endTime,
-                    breakMinutes: tomorrowShiftAssignment.shift.breakMinutes,
+                    breakMinutes: resolveAllowedBreakMinutes(
+                        user?.station?.code,
+                        tomorrowShiftAssignment.shift.breakMinutes,
+                    ),
                 }
                 : null,
             user: user

@@ -18,6 +18,7 @@ import {
     isHousekeepingOvernightAttendance,
     resolveHousekeepingOvernightClose,
 } from "@/lib/attendance-rules";
+import { resolveAllowedBreakMinutes } from "@/lib/break-rules";
 
 export async function POST(request: NextRequest) {
     try {
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
                         const hours = calculateWorkHours(
                             activeAttendance.checkInTime!,
                             finalShiftEnd,
-                            shift.breakMinutes || 60,
+                            resolveAllowedBreakMinutes(user.station?.code, shift.breakMinutes),
                         );
                         autoCheckOutTime = finalShiftEnd;
                         autoCloseHours = hours.totalHours;

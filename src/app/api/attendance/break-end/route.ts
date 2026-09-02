@@ -1,8 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+    calculateBreakPenaltyAmount,
+    resolveAllowedBreakMinutes,
+} from "@/lib/break-rules";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
     try {
         const session = await auth();
         if (!session?.user?.id) {
@@ -37,40 +41,25 @@ export async function POST(request: NextRequest) {
         const actualNow = new Date(); // Use actual UTC time
         const durationMin = Math.floor((actualNow.getTime() - breakStart.getTime()) / (1000 * 60));
 
-        // Check for Station-specific override
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            include: { station: true }
-        });
-
-        // Default global break duration
-        let ALLOWED_BREAK_MINS = 90;
-
-        // Custom logic for Supachai (SPC) -> 60 minutes
-        if (user?.station?.code === "SPC") {
-            ALLOWED_BREAK_MINS = 60;
-        }
-        // For others, we could respect shift config OR keep 90 as safety
-        else {
-            // Use attendance.date to find the shift assignment for the correct date
-            const assignment = await prisma.shiftAssignment.findFirst({
+        const [user, assignment] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: session.user.id },
+                include: { station: true },
+            }),
+            prisma.shiftAssignment.findFirst({
                 where: { userId: session.user.id, date: attendance.date },
-                include: { shift: true }
-            });
-            // Only use DB value if it exists AND is explicitly intended (e.g. > 60)
-            // For now, to be safe and match legacy behavior, we keep default 90 for non-SPC
-            if (assignment?.shift?.breakMinutes && assignment.shift.breakMinutes > 90) {
-                ALLOWED_BREAK_MINS = assignment.shift.breakMinutes;
-            }
-        }
-
-        let penaltyAmount = 0;
-        const GRACE_PERIOD_MINS = 5;
-
-        // Penalty Logic
-        if (durationMin > (ALLOWED_BREAK_MINS + GRACE_PERIOD_MINS)) {
-            penaltyAmount = Number(attendance.user.hourlyRate) * 1;
-        }
+                include: { shift: true },
+            }),
+        ]);
+        const allowedBreakMinutes = resolveAllowedBreakMinutes(
+            user?.station?.code,
+            assignment?.shift?.breakMinutes,
+        );
+        const penaltyAmount = calculateBreakPenaltyAmount({
+            durationMinutes: durationMin,
+            allowedMinutes: allowedBreakMinutes,
+            hourlyRate: attendance.user.hourlyRate,
+        });
 
         await prisma.attendance.update({
             where: { id: attendance.id },
@@ -86,7 +75,7 @@ export async function POST(request: NextRequest) {
             breakEndTime: actualNow,
             durationMin,
             penaltyAmount,
-            allowedDuration: ALLOWED_BREAK_MINS
+            allowedDuration: allowedBreakMinutes
         });
 
     } catch (error) {
