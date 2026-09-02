@@ -783,3 +783,11 @@ Verification:
 - `npx eslint src/components/dashboard/views/EmployeeDashboardView.tsx`: passed.
 - `git diff --check`: passed.
 - Production build launched with `NODE_ENV=production`; compilation succeeded. Final build completion was still being verified when this log entry was written.
+
+## 2026-09-02 — Rebuild employee dashboard to match approved retro mockup
+- Reworked the employee dashboard from a retro-themed version into a mockup-fidelity layout: textured yellow header, paper/instrument cards, left-side TODAY tab, analog shift gauge with tick marks/needle/station mark, segmented customer-feedback mission meter, compact monthly tiles, side-by-side performance + announcement cards, and compact 7-day calendar.
+- Employee bottom navigation center action now uses a clock with “เข้า/ออกงาน”; admin/HR/manager retain the existing plus action and workflow.
+- Customer-feedback mission remains coarse status only; no exact evaluation count or daily target is exposed.
+- Attendance/check-in/break/check-out flows and existing API behavior were preserved.
+- Verification: targeted TypeScript and ESLint passed; `NODE_ENV=production npm run build` completed successfully with 180/180 static pages.
+- Workspace warning: concurrent break/payroll/performance work is present in other modified/untracked files. Do not stage or commit those files with this dashboard change.
