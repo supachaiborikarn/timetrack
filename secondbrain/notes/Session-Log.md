@@ -839,8 +839,18 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Targeted ESLint across league APIs/pages and changed existing UI: passed.
 - `npx prisma validate`: passed.
+- `npm run db:diff`: generated the expected schema-only migration SQL without connecting to a database; committed migration was aligned to that output plus the required partial unique index for global periods.
 - `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
 - `git diff --check`: passed before final cleanup.
+
+## 2026-09-02 — Added the missing customer-feedback QR entry for May at WKO
+
+- Investigated why employee `WS1` (May) at `WKO` did not appear in the Customer Feedback QR print list.
+- Production data showed the active employee had no `nickName` and no employee QR, while the other employee labelled “เมย์” belonged to SPC and was inactive.
+- Updated `WS1.nickName` to `เมย์` through the normal admin employee form.
+- Created one production EMPLOYEE QR through the normal Customer Feedback admin flow with public label `เมย์` and position `พนักงานบริการ`.
+- The QR remains inactive, unprinted, and waiting for public-profile acknowledgement; no consent, activation, print confirmation, token rotation, or scan was forged.
+- Verified in the production UI that searching `WS1` now returns the correct WKO QR row with status `รอรับทราบข้อมูลสาธารณะ`.
 
 
 ## 2026-09-02 — Admin and cashier operational dashboard redesign
@@ -900,3 +910,53 @@ Verification:
 Git:
 
 - Feature commit: `c66da3d` (`feat: rank employees by combined performance`); queued with this documentation update for push to `origin/main`.
+
+
+## 2026-09-02 — Entered September station schedules and moved Golf/Bee to PAP
+
+Goal:
+
+Enter the confirmed September 2026 shift rosters for WKO, SPC, and PAP from the owner's handwritten/table references, and correct two front-yard employees whose current station assignment no longer matched the new roster.
+
+Production data changes:
+
+- Production Neon host: ep-delicate-sound-a1mi5n1t. No schema or code change was required.
+- Moved Golf (employeeId EMP0799F) from SPC to PAP and Bee (employeeId FYC641B) from WKO to PAP. Both were remapped from their old station-specific FUEL department to PAP's FUEL department so front-yard/payroll rules remain station-consistent.
+- Employee customer-feedback QR rows were checked before the move. Their EMPLOYEE QR records do not pin an old stationId, so no QR replacement was needed.
+- Replaced September ShiftAssignment rows only for the 18 employees covered by the confirmed rosters, then recreated the month atomically.
+- WKO: 240 assignments = 206 working shifts + 34 day-off rows, following the confirmed Monday-Sunday rotating 05:45/06:00/06:30/07:00/07:30/08:00 pattern.
+- SPC: 150 assignments for ต้อย 06:00-18:00, ปอ 06:00-18:00, เอ็ม (sup011) 07:00-19:00, ตั้ม 10:00-22:00, and วิน 18:00-06:00.
+- PAP: 150 assignments for นิด 08:00-20:00, กอล์ฟ 08:00-20:00, บี 07:00-19:00, น้ำ 05:45-17:45, and น้อย 05:45-17:45.
+- Eight pre-existing September rows within the targeted employee set were replaced by the confirmed roster.
+
+Verification:
+
+- Read-back found exactly 540 September rows for the targeted employees: WKO 240, SPC 150, PAP 150.
+- WKO read-back = 206 work + 34 day-off rows; total month read-back = 506 work + 34 day-off rows.
+- Full expected-vs-stored comparison across user/date/shift/day-off returned mismatchCount = 0.
+- Golf and Bee both read back as station PAP and department FUEL/PAP.
+- Spot checks for 2026-09-01 and Sunday 2026-09-06 matched the confirmed roster, including WKO day-off rotation.
+
+
+## 2026-09-02 — Fixed shift schedule page client crash
+
+Problem:
+
+- The admin shift schedule route and `/api/admin/schedule` were healthy in production, but the schedule UI could crash after schedule data loaded.
+- Production logs showed the page and API returning HTTP 200, pointing to a client-side render failure rather than bad September shift data.
+
+Root cause and fix:
+
+- `useLocalStorageState` parsed JSON into a fresh object/array on every `getSnapshot()` call.
+- React `useSyncExternalStore` requires an unchanged snapshot to preserve reference identity; the fresh array used by `ShiftTemplateManager` could therefore cause an infinite render/update loop.
+- Added a per-key/raw-value snapshot cache so unchanged localStorage data returns the same parsed reference.
+- Added a stable server snapshot and regression tests for parsed array snapshots, local writes, and native storage events.
+
+Verification:
+
+- September production ShiftAssignment data and Shift relations were checked and found valid; no production schedule rows were changed for this fix.
+- Targeted Vitest: 2/2 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: passed.
+- `npm run build`: passed; 184/184 static pages generated.
+- `git diff --check`: passed before commit.

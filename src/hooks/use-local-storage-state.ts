@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 
 const STORAGE_EVENT = "timetrack:local-storage-change";
 
@@ -9,6 +9,12 @@ type SerializeValue<T> = (value: T) => string;
 
 interface StorageEventDetail {
     key: string;
+}
+
+interface SnapshotCache<T> {
+    key: string;
+    rawValue: string | null;
+    value: T;
 }
 
 function isStorageEventForKey(event: Event, key: string) {
@@ -39,6 +45,9 @@ export function useLocalStorageState<T>(
     parseValue: ParseValue<T>,
     serializeValue: SerializeValue<T>,
 ) {
+    const defaultValueRef = useRef(defaultValue);
+    const snapshotCacheRef = useRef<SnapshotCache<T> | null>(null);
+
     const subscribe = useCallback((onStoreChange: () => void) => {
         if (typeof window === "undefined") {
             return () => {};
@@ -61,13 +70,23 @@ export function useLocalStorageState<T>(
 
     const getSnapshot = useCallback(() => {
         if (typeof window === "undefined") {
-            return defaultValue;
+            return defaultValueRef.current;
         }
 
-        return parseValue(window.localStorage.getItem(key));
-    }, [defaultValue, key, parseValue]);
+        const rawValue = window.localStorage.getItem(key);
+        const cached = snapshotCacheRef.current;
 
-    const value = useSyncExternalStore(subscribe, getSnapshot, () => defaultValue);
+        if (cached && cached.key === key && cached.rawValue === rawValue) {
+            return cached.value;
+        }
+
+        const value = parseValue(rawValue);
+        snapshotCacheRef.current = { key, rawValue, value };
+        return value;
+    }, [key, parseValue]);
+
+    const getServerSnapshot = useCallback(() => defaultValueRef.current, []);
+    const value = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
     const setValue = useCallback((nextValue: T) => {
         if (typeof window === "undefined") {
