@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 
@@ -20,6 +21,9 @@ const {
     dailyReasonGroupByMock,
     stationFindManyMock,
     userFindManyMock,
+    attendanceFindManyMock,
+    shiftAssignmentFindManyMock,
+    leaveFindManyMock,
     transactionMock,
     auditCreateMock,
     createCaseWithNotificationsMock,
@@ -41,6 +45,9 @@ const {
     dailyReasonGroupByMock: vi.fn(),
     stationFindManyMock: vi.fn(),
     userFindManyMock: vi.fn(),
+    attendanceFindManyMock: vi.fn(),
+    shiftAssignmentFindManyMock: vi.fn(),
+    leaveFindManyMock: vi.fn(),
     transactionMock: vi.fn(),
     auditCreateMock: vi.fn(),
     createCaseWithNotificationsMock: vi.fn(),
@@ -85,6 +92,9 @@ vi.mock("@/lib/prisma", () => ({
         customerFeedbackDailyReasonAggregate: { groupBy: dailyReasonGroupByMock },
         station: { findMany: stationFindManyMock },
         user: { findMany: userFindManyMock },
+        attendance: { findMany: attendanceFindManyMock },
+        shiftAssignment: { findMany: shiftAssignmentFindManyMock },
+        leave: { findMany: leaveFindManyMock },
         auditLog: { create: auditCreateMock },
         $transaction: transactionMock,
     },
@@ -138,6 +148,9 @@ describe("customer feedback admin station and incident access", () => {
         dailyReasonGroupByMock.mockResolvedValue([]);
         stationFindManyMock.mockResolvedValue([]);
         userFindManyMock.mockResolvedValue([]);
+        attendanceFindManyMock.mockResolvedValue([]);
+        shiftAssignmentFindManyMock.mockResolvedValue([]);
+        leaveFindManyMock.mockResolvedValue([]);
     });
 
     it("scopes summary to the manager station, excludes employee QR from station score, and hides incident case count", async () => {
@@ -226,11 +239,19 @@ describe("customer feedback admin station and incident access", () => {
     it("adds current Bangkok-month evaluation progress to employee scores under the same station scope", async () => {
         userFindManyMock.mockResolvedValue([
             {
+                id: "employee-1",
+                name: "พนักงานหนึ่ง",
+                nickName: "นัท",
+                stationId: "station-own",
+                station: { name: "สถานีเรา", code: "WKO" },
+                department: { isFrontYard: true },
+            },
+            {
                 id: "employee-zero",
                 name: "พนักงานศูนย์",
                 nickName: "ศูนย์",
                 stationId: "station-own",
-                station: { name: "สถานีเรา" },
+                station: { name: "สถานีเรา", code: "WKO" },
                 department: { isFrontYard: true },
             },
         ]);
@@ -289,6 +310,96 @@ describe("customer feedback admin station and incident access", () => {
                 score64: null,
             }),
         ]));
+    });
+
+    it("ranks combined attendance and customer performance instead of customer score alone", async () => {
+        const workDate = new Date("2026-08-24T00:00:00+07:00");
+        userFindManyMock.mockResolvedValue([
+            {
+                id: "employee-present",
+                name: "คนมาทำงาน",
+                nickName: null,
+                stationId: "station-own",
+                station: { name: "สถานีเรา", code: "WKO" },
+                department: { isFrontYard: true },
+            },
+            {
+                id: "employee-absent",
+                name: "คนขาดงาน",
+                nickName: null,
+                stationId: "station-own",
+                station: { name: "สถานีเรา", code: "WKO" },
+                department: { isFrontYard: true },
+            },
+        ]);
+        const feedback = [
+            ...Array.from({ length: 10 }, (_, index) => ({
+                id: `present-${index}`,
+                employeeId: "employee-present",
+                submittedAt: new Date(`2026-08-${String(10 + index).padStart(2, "0")}T01:00:00.000Z`),
+                answers: EMPLOYEE_SCORE_QUESTION_KEYS.map((questionKey) => ({ questionKey, choiceValues: ["NO"] })),
+            })),
+            ...Array.from({ length: 10 }, (_, index) => ({
+                id: `absent-${index}`,
+                employeeId: "employee-absent",
+                submittedAt: new Date(`2026-08-${String(10 + index).padStart(2, "0")}T02:00:00.000Z`),
+                answers: EMPLOYEE_SCORE_QUESTION_KEYS.map((questionKey) => ({ questionKey, choiceValues: ["YES"] })),
+            })),
+        ];
+        responseFindManyMock
+            .mockResolvedValueOnce(feedback)
+            .mockResolvedValueOnce([]);
+        shiftAssignmentFindManyMock.mockResolvedValue([
+            {
+                userId: "employee-present",
+                date: workDate,
+                isDayOff: false,
+                shift: { startTime: "08:00", endTime: "17:00", breakMinutes: 60, isNightShift: false },
+            },
+            {
+                userId: "employee-absent",
+                date: workDate,
+                isDayOff: false,
+                shift: { startTime: "08:00", endTime: "17:00", breakMinutes: 60, isNightShift: false },
+            },
+        ]);
+        attendanceFindManyMock.mockResolvedValue([{
+            userId: "employee-present",
+            date: workDate,
+            checkInTime: new Date("2026-08-24T08:00:00+07:00"),
+            checkOutTime: new Date("2026-08-24T17:00:00+07:00"),
+            lateMinutes: 0,
+            breakStartTime: null,
+            breakEndTime: null,
+            breakDurationMin: 60,
+        }]);
+
+        const response = await getEmployeeScores(new NextRequest(
+            "http://localhost/api/admin/customer-feedback/employee-scores?from=2026-08-01&to=2026-08-30&stationId=station-other"
+        ));
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.employees.map((employee: { employeeId: string }) => employee.employeeId)).toEqual([
+            "employee-present",
+            "employee-absent",
+        ]);
+        expect(body.employees[0]).toMatchObject({
+            rank: 1,
+            overallScore: 60,
+            workPoints: 60,
+            customerPoints: 0,
+            score64: 0,
+            counts: { presentDays: 1, absentDays: 0 },
+        });
+        expect(body.employees[1]).toMatchObject({
+            rank: 2,
+            overallScore: 40,
+            workPoints: 0,
+            customerPoints: 40,
+            score64: 64,
+            counts: { presentDays: 0, absentDays: 1 },
+        });
     });
 
     it("scopes the case queue and removes incident cases without view_incident", async () => {

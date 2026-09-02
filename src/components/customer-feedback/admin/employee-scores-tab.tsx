@@ -22,6 +22,7 @@ type Criterion = {
 
 type EmployeeScore = {
     employeeId: string;
+    rank: number | null;
     label: string;
     stationId: string | null;
     stationLabel: string | null;
@@ -31,6 +32,37 @@ type EmployeeScore = {
     minimumSample: number;
     meetsMinimumSample: boolean;
     score64: number | null;
+    overallScore: number | null;
+    workPoints: number;
+    workPointsMax: number;
+    customerPoints: number | null;
+    customerPointsMax: number;
+    customerIncluded: boolean;
+    isProvisional: boolean;
+    components: {
+        presence: number;
+        punctuality: number;
+        completion: number;
+        breakDiscipline: number;
+    };
+    counts: {
+        scheduledDays: number;
+        requiredDays: number;
+        presentDays: number;
+        absentDays: number;
+        approvedLeaveDays: number;
+        pendingLeaveDays: number;
+        dayOffDays: number;
+        upcomingDays: number;
+        inProgressDays: number;
+        lateDays: number;
+        earlyLeaveDays: number;
+        overBreakDays: number;
+        leaveAttendanceOverlapDays: number;
+        duplicateLeaveDays: number;
+        unscheduledAttendanceDays: number;
+    };
+    dataIssues: string[];
     earnedWeight: number;
     evaluableWeight: number;
     excludedWeight: number;
@@ -40,8 +72,12 @@ type EmployeeScore = {
 type ScoreResponse = {
     rubricVersion: string;
     totalPoints: number;
+    overallPoints: number;
+    workPoints: number;
+    customerPoints: number;
     from: string;
     toExclusive: string;
+    calculatedAt: string;
     monthlyEvaluationTarget: number;
     monthlyFrom: string;
     monthlyToExclusive: string;
@@ -60,6 +96,7 @@ export function EmployeeScoresTab() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [view, setView] = useState<ScoreView>("overview");
     const [employeeSearch, setEmployeeSearch] = useState("");
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const [from, setFrom] = useState(() => isoDateInput(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
     const [to, setTo] = useState(() => isoDateInput(new Date()));
 
@@ -73,6 +110,7 @@ export function EmployeeScoresTab() {
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.error ?? "โหลดคะแนนพนักงานไม่สำเร็จ");
             setData(body as ScoreResponse);
+            setLastUpdatedAt(new Date((body as ScoreResponse).calculatedAt));
             setSelectedId((current) => {
                 const employees = (body as ScoreResponse).employees;
                 return current && employees.some((item) => item.employeeId === current)
@@ -141,10 +179,10 @@ export function EmployeeScoresTab() {
                     <CardContent className="pt-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <div className="text-xs text-muted-foreground">ยอดผู้ประเมินเดือนนี้</div>
+                                <div className="text-xs text-muted-foreground">แบบประเมิน VALID เดือนนี้</div>
                                 <div className="mt-1 text-2xl font-bold">
                                     {selected.monthlyEvaluationCount}
-                                    <span className="ml-1 text-sm font-normal text-muted-foreground">/ {monthlyTarget} คน</span>
+                                    <span className="ml-1 text-sm font-normal text-muted-foreground">/ {monthlyTarget} แบบ</span>
                                 </div>
                             </div>
                             <Badge variant={selected.monthlyEvaluationCount >= monthlyTarget ? "default" : "secondary"}>
@@ -170,13 +208,36 @@ export function EmployeeScoresTab() {
                     </CardContent>
                 </Card>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Card>
                         <CardContent className="pt-5">
-                            <div className="text-xs text-muted-foreground">คะแนนรวม</div>
+                            <div className="text-xs text-muted-foreground">คะแนนผลงานรวม</div>
                             <div className="mt-1 text-2xl font-bold">
-                                {selected.score64 === null ? "—" : selected.score64.toFixed(1)}
-                                <span className="ml-1 text-sm font-normal text-muted-foreground">/ 64</span>
+                                {selected.overallScore === null ? "—" : selected.overallScore.toFixed(0)}
+                                <span className="ml-1 text-sm font-normal text-muted-foreground">/ 100</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">อันดับ {selected.rank ?? "รอข้อมูลครบ"}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-5">
+                            <div className="text-xs text-muted-foreground">เวลาทำงาน</div>
+                            <div className="mt-1 text-2xl font-bold">
+                                {selected.workPoints.toFixed(1)}
+                                <span className="ml-1 text-sm font-normal text-muted-foreground">/ {selected.workPointsMax}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">มาทำงาน {selected.counts.presentDays}/{selected.counts.requiredDays} วัน</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-5">
+                            <div className="text-xs text-muted-foreground">คะแนนลูกค้า</div>
+                            <div className="mt-1 text-2xl font-bold">
+                                {selected.customerPoints === null ? "—" : selected.customerPoints.toFixed(1)}
+                                <span className="ml-1 text-sm font-normal text-muted-foreground">/ {selected.customerPointsMax}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {selected.score64 === null ? "รอข้อมูลลูกค้าครบ" : `${selected.score64.toFixed(1)} / 64`}
                             </div>
                         </CardContent>
                     </Card>
@@ -187,30 +248,55 @@ export function EmployeeScoresTab() {
                             <div className="text-xs text-muted-foreground">ขั้นต่ำ {selected.minimumSample}</div>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <div className="text-xs text-muted-foreground">ตอบ YES</div>
-                            <div className="mt-1 text-2xl font-bold">{selectedAnswerCounts?.yes ?? 0}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <div className="text-xs text-muted-foreground">ตอบ NO</div>
-                            <div className="mt-1 text-2xl font-bold">{selectedAnswerCounts?.no ?? 0}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <div className="text-xs text-muted-foreground">ไม่แน่ใจ</div>
-                            <div className="mt-1 text-2xl font-bold">{selectedAnswerCounts?.unsure ?? 0}</div>
-                        </CardContent>
-                    </Card>
                 </div>
 
                 <Card>
                     <CardHeader>
+                        <CardTitle>รายละเอียดเวลาทำงาน 60 คะแนน</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-lg border p-3">
+                                <div className="text-xs text-muted-foreground">การมาทำงาน</div>
+                                <div className="mt-1 text-xl font-bold">{selected.components.presence.toFixed(1)} / 25</div>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <div className="text-xs text-muted-foreground">ตรงเวลา</div>
+                                <div className="mt-1 text-xl font-bold">{selected.components.punctuality.toFixed(1)} / 15</div>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <div className="text-xs text-muted-foreground">อยู่ครบกะ</div>
+                                <div className="mt-1 text-xl font-bold">{selected.components.completion.toFixed(1)} / 10</div>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <div className="text-xs text-muted-foreground">พักตามกำหนด</div>
+                                <div className="mt-1 text-xl font-bold">{selected.components.breakDiscipline.toFixed(1)} / 10</div>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-sm">
+                            <Badge variant="outline">มา {selected.counts.presentDays} วัน</Badge>
+                            <Badge variant="outline">ขาด {selected.counts.absentDays} วัน</Badge>
+                            <Badge variant="outline">สาย {selected.counts.lateDays} วัน</Badge>
+                            <Badge variant="outline">ออกก่อน {selected.counts.earlyLeaveDays} วัน</Badge>
+                            <Badge variant="outline">พักเกิน {selected.counts.overBreakDays} วัน</Badge>
+                            <Badge variant="outline">ลาอนุมัติ {selected.counts.approvedLeaveDays} วัน</Badge>
+                            <Badge variant="outline">วันหยุด {selected.counts.dayOffDays} วัน</Badge>
+                        </div>
+                        {selected.dataIssues.length > 0 && (
+                            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                                <div className="font-semibold text-destructive">พบข้อมูลที่ต้องตรวจสอบ</div>
+                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                    {selected.dataIssues.map((issue) => <li key={issue}>{issue}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle className="flex flex-wrap items-center gap-2">
-                            รายละเอียดคะแนน — {selected.label}
+                            รายละเอียดคะแนนลูกค้า — {selected.label}
                             {selected.stationLabel && <Badge variant="secondary">{selected.stationLabel}</Badge>}
                             {selected.score64 !== null && <Badge variant="outline">{selected.score64.toFixed(1)} / 64</Badge>}
                         </CardTitle>
@@ -251,8 +337,13 @@ export function EmployeeScoresTab() {
                                 </TableBody>
                             </Table>
                         </div>
+                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                            <span>YES {selectedAnswerCounts?.yes ?? 0}</span>
+                            <span>NO {selectedAnswerCounts?.no ?? 0}</span>
+                            <span>ไม่แน่ใจ {selectedAnswerCounts?.unsure ?? 0}</span>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                            “ไม่แน่ใจ” ถูกตัดออกจากฐานคะแนนของข้อนั้น ไม่คิดเป็นศูนย์ คะแนนนี้เป็นหลักฐานประกอบโบนัสเท่านั้น และยังไม่เขียนเข้า Payroll อัตโนมัติ
+                            “ไม่แน่ใจ” ถูกตัดออกจากฐานคะแนนของข้อนั้น คะแนนผลงานรวมยังไม่เขียนเข้า Payroll อัตโนมัติ
                         </p>
                     </CardContent>
                 </Card>
@@ -277,8 +368,8 @@ export function EmployeeScoresTab() {
                         โหลดคะแนน
                     </Button>
                     <div className="ml-auto text-right text-sm text-muted-foreground">
-                        <div>เกณฑ์บริการหน้าลาน {data?.totalPoints ?? 64} คะแนน</div>
-                        <div>YES = เต็ม · NO = 0 · ไม่แน่ใจ = ไม่นำมาหัก</div>
+                        <div>คะแนนรวม 100 = เวลาทำงาน {data?.workPoints ?? 60} + ลูกค้า {data?.customerPoints ?? 40}</div>
+                        <div>โหลดเมื่อเปิดหน้า เปลี่ยนวันที่ หรือกดปุ่ม{lastUpdatedAt ? ` · ล่าสุด ${lastUpdatedAt.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}</div>
                     </div>
                 </CardContent>
             </Card>
@@ -308,35 +399,49 @@ export function EmployeeScoresTab() {
                 <div className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>คะแนนพนักงานจากเสียงลูกค้า</CardTitle>
+                            <CardTitle>อันดับผลงานรวม</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead className="text-center">อันดับ</TableHead>
                                             <TableHead>พนักงาน</TableHead>
-                                            <TableHead>สถานีล่าสุด</TableHead>
-                                            <TableHead className="text-right">แบบประเมิน VALID</TableHead>
+                                            <TableHead>สถานี</TableHead>
+                                            <TableHead className="text-right">เวลาทำงาน / 60</TableHead>
+                                            <TableHead className="text-right">ลูกค้า / 40</TableHead>
                                             <TableHead>เป้าเดือนนี้</TableHead>
-                                            <TableHead className="text-right">คะแนน / 64</TableHead>
-                                            <TableHead>สถานะข้อมูล</TableHead>
+                                            <TableHead className="text-right">คะแนนรวม / 100</TableHead>
+                                            <TableHead>สถานะ</TableHead>
                                             <TableHead className="text-right">ดูรายคน</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
-                                            <TableRow><TableCell colSpan={7} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={9} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
                                         ) : !data || data.employees.length === 0 ? (
-                                            <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">ยังไม่มีคำตอบ employee-v3/v4 ในช่วงวันที่เลือก</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">ไม่พบพนักงานหน้าลานที่ทำงานอยู่ในขอบเขตนี้</TableCell></TableRow>
                                         ) : data.employees.map((employee) => (
                                             <TableRow key={employee.employeeId}>
+                                                <TableCell className="text-center text-lg font-bold">{employee.rank ?? "—"}</TableCell>
                                                 <TableCell className="font-medium">{employee.label}</TableCell>
                                                 <TableCell>{employee.stationLabel ?? "-"}</TableCell>
-                                                <TableCell className="text-right">{employee.responseCount}</TableCell>
+                                                <TableCell className="min-w-[145px] text-right">
+                                                    <div className="font-semibold">{employee.workPoints.toFixed(1)} / {employee.workPointsMax}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        มา {employee.counts.presentDays}/{employee.counts.requiredDays} · ขาด {employee.counts.absentDays} · สาย {employee.counts.lateDays}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="min-w-[135px] text-right">
+                                                    <div className="font-semibold">
+                                                        {employee.customerPoints === null ? "—" : employee.customerPoints.toFixed(1)} / {employee.customerPointsMax}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">VALID {employee.responseCount}/{employee.minimumSample}</div>
+                                                </TableCell>
                                                 <TableCell className="min-w-[180px]">
                                                     <div className="flex items-center justify-between gap-2 text-xs">
-                                                        <span className="font-semibold">{employee.monthlyEvaluationCount} / {monthlyTarget} คน</span>
+                                                        <span className="font-semibold">{employee.monthlyEvaluationCount} / {monthlyTarget} แบบ</span>
                                                         <span className="text-muted-foreground">
                                                             {employee.monthlyEvaluationCount >= monthlyTarget
                                                                 ? "ถึงเป้าแล้ว"
@@ -356,12 +461,21 @@ export function EmployeeScoresTab() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right text-lg font-bold">
-                                                    {employee.score64 === null ? "—" : employee.score64.toFixed(1)}
+                                                    {employee.overallScore === null ? "—" : employee.overallScore.toFixed(0)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {employee.meetsMinimumSample
-                                                        ? <Badge>พร้อมใช้เป็นหลักฐาน</Badge>
-                                                        : <Badge variant="secondary">ข้อมูลยังไม่พอ {employee.responseCount}/{employee.minimumSample}</Badge>}
+                                                    <div className="flex min-w-[170px] flex-col items-start gap-1">
+                                                        {employee.overallScore === null
+                                                            ? employee.counts.requiredDays === 0
+                                                                ? <Badge variant="secondary">ยังไม่มีวันทำงานในช่วงนี้</Badge>
+                                                                : <Badge variant="secondary">รอลูกค้าครบ {employee.responseCount}/{employee.minimumSample}</Badge>
+                                                            : employee.isProvisional
+                                                                ? <Badge variant="secondary">คะแนนระหว่างงวด</Badge>
+                                                                : <Badge>พร้อมจัดอันดับ</Badge>}
+                                                        {employee.dataIssues.length > 0 && (
+                                                            <Badge variant="destructive">ตรวจข้อมูล {employee.dataIssues.length} จุด</Badge>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button size="sm" variant="outline" onClick={() => openIndividual(employee.employeeId)}>
@@ -416,8 +530,8 @@ export function EmployeeScoresTab() {
                                                 <span className="block truncate text-xs font-normal text-muted-foreground">{employee.stationLabel ?? "ไม่ระบุสถานี"}</span>
                                             </span>
                                             <span className="shrink-0 text-right">
-                                                <span className="block font-semibold">{employee.score64 === null ? "—" : employee.score64.toFixed(1)}</span>
-                                                <span className="block text-[11px] font-normal text-muted-foreground">/ 64</span>
+                                                <span className="block font-semibold">{employee.overallScore === null ? "—" : employee.overallScore.toFixed(0)}</span>
+                                                <span className="block text-[11px] font-normal text-muted-foreground">/ 100</span>
                                             </span>
                                         </Button>
                                     ))}

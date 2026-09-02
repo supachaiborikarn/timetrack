@@ -867,3 +867,36 @@ Verification:
 - Targeted ESLint for the dashboard API, both dashboard views, and root role routing: passed with no warnings.
 - `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
 - Existing middleware deprecation warning remains unrelated.
+
+## 2026-09-02 — Combined admin employee performance ranking
+
+Goal:
+
+Replace the customer-only ordering in Customer Feedback admin with a real employee performance ranking that includes work time and customer quality.
+
+Implementation:
+
+- `/api/admin/customer-feedback/employee-scores` now loads active front-yard employees plus their shifts, attendance, approved/pending leave, and VALID employee-v3/v4 feedback for the selected Bangkok date range.
+- Reused `calculateEmployeePerformance()` so the admin table and employee dashboard use the same work rules: presence 25, punctuality 15, shift completion 10, break discipline 10, and customer quality 40.
+- Approved leave and day-off rows are excluded from required days; an unexcused missing check-in counts as absent after the shared attendance grace period.
+- Combined /100 scores are ranked only when at least one required workday and the existing 10-response customer minimum sample are available.
+- Complete rows sort by combined score, then work score, customer score, response count, and employee label; equal combined scores share a displayed rank.
+- The overview now shows rank, work /60, customer /40, attendance counts, current-month evaluation progress, combined /100, data readiness, and data-error warnings.
+- Individual detail now shows all four work components, present/absent/late/early/break/leave/day-off counts, overlap/duplicate/unscheduled data issues, and the existing customer rubric details.
+- The page does not poll automatically so the ranking cannot consume the Neon free-tier quota while left open; it loads on entry, date changes, and the explicit refresh button.
+- Changed the monthly progress unit from `คน` to `แบบ` because the value counts submitted VALID responses rather than verified unique customers.
+- The combined ranking remains informational and does not write to Payroll.
+
+Verification:
+
+- Targeted performance, API, and UI tests: 25/25 passed, including a regression check that no 60-second score API interval is registered.
+- Full Vitest suite: 68 files and 432/432 tests passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for the changed API, UI, and tests: passed with no warnings.
+- `NODE_ENV=production npm run build`: passed; 184/184 static pages generated after allowing the build to fetch Inter from Google Fonts.
+- `git diff --check`: passed before the documentation update and will be rechecked at handoff.
+- No database command or production data mutation was run.
+
+Git:
+
+- Not committed or pushed in this session yet.

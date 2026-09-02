@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - architecture
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Architecture
@@ -68,17 +68,20 @@ Current employee QR flow uses `employee-v3` for new visits while retaining v1/v2
 
 Admin score path:
 
-1. `/api/admin/customer-feedback/employee-scores` reads only STANDARD, VALID, EMPLOYEE, `employee-v3` responses within the requested date/station scope.
-2. `src/lib/customer-feedback/employee-score.ts` computes per-criterion YES rates with fixed Caltex weights and excludes UNSURE from that criterion's denominator.
-3. Numeric scores remain hidden below the existing 10-response minimum sample.
-4. `คะแนนพนักงาน` in `/admin/customer-feedback` has `ภาพรวมคะแนน` and `รายบุคคล` subviews. Overview ranks employees and links into individual detail; individual detail supports employee/station search and shows score /64, VALID sample status, YES/NO/UNSURE totals and all 9 weighted criteria.
+1. `/api/admin/customer-feedback/employee-scores` loads active front-yard employees under the authenticated station scope, then bulk-loads shifts, attendance, approved/pending leave, and STANDARD + VALID + EMPLOYEE `employee-v3/v4` responses for the selected Bangkok date range.
+2. `src/lib/customer-feedback/employee-score.ts` computes customer quality /64 from fixed Caltex criterion weights and excludes UNSURE from each criterion's denominator.
+3. `src/lib/employee-performance.ts` computes work /60 from presence, punctuality, shift completion, and break discipline, then converts customer quality to /40.
+4. An employee receives a combined /100 score and rank only after at least one required workday and the existing 10-response customer minimum sample are available.
+5. The API sorts complete scores first and returns attendance counts plus overlap/duplicate/unscheduled data issues for admin review.
+6. `คะแนนพนักงาน` in `/admin/customer-feedback` shows the combined ranking and an individual breakdown for work /60, customer /40, attendance events, data issues, evaluation progress, and all customer criteria.
+7. The screen does not poll automatically to protect the Neon free-tier quota. It loads on entry, date-range changes, and the explicit refresh button.
 
 Employee self-service visibility path:
 
-1. `/api/employee/dashboard` does not query or return Customer Feedback response counts or targets.
+1. `/api/employee/dashboard` uses VALID customer responses for its private performance calculation but does not return exact response counts, collection targets, or minimum-sample thresholds.
 2. `EmployeeDashboardView` contains no collection-progress card or count state.
 3. `/api/customer-feedback/me` uses the exact count internally only to decide whether the minimum sample is met; its response omits exact counts, the minimum threshold, rating distributions, suspected-response counts and per-reason counts.
 4. `CustomerFeedbackSelfSummary` shows a neutral collection message before the score is ready. Afterward it shows the score, positive/negative rates and ordered reason topics without response totals.
 5. Admin Customer Feedback routes and screens keep exact counts and the separate monthly 60-response benchmark.
 
-The score path is intentionally separate from Payroll. No Customer Feedback score is persisted into payroll records or bonus amounts by this flow.
+The combined score path is intentionally separate from Payroll. No performance or Customer Feedback score is persisted into payroll records or bonus amounts by this flow.

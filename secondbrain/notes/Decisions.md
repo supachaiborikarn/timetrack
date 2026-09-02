@@ -85,3 +85,15 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Customer-feedback score is only evidence for a future bonus calculation; it must not alter Payroll automatically without a separately approved bonus rule.
 - Admin management monitoring keeps the existing monthly benchmark of 60 VALID `employee-v3` evaluations per Bangkok calendar month.
 - Employee self-service must not expose evaluation counts, collection targets, minimum-sample thresholds, distributions or per-reason counts. Employees see a neutral collection status until a score is ready, then see only the score, rates and ordered reason topics. Admin monitoring retains the monthly 60-response benchmark and exact counts.
+
+## 2026-09-02: Admin employee ranking uses complete 60/40 performance score
+
+- The Customer Feedback admin employee table ranks active front-yard employees by the same performance inputs used on the employee dashboard: attendance-derived work performance 60 points and VALID customer quality 40 points.
+- Work performance is presence 25, punctuality 15, shift completion 10, and break discipline 10.
+- Attendance, shifts, leave, and customer responses use the same selected Bangkok date range so the two score components describe one period.
+- Approved leave and day-off assignments are excluded from required workdays; an unexcused missing check-in counts as absent after the shift start plus the shared attendance grace period.
+- A combined rank is assigned only when the employee has at least one required workday and the customer rubric has reached the existing 10-response minimum sample.
+- Incomplete rows remain visible below ranked employees with the missing-data reason, work score, customer sample progress, and operational data issues.
+- Tied overall scores share the same displayed rank; secondary ordering uses work points, customer points, response count, and employee label.
+- The ranking screen must not poll automatically because repeated multi-table reads can consume the Neon free-tier quota while an admin leaves the tab open; refresh only on entry, date changes, or an explicit button click.
+- This ranking remains informational and does not write bonus, deduction, or payroll values automatically.
