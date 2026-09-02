@@ -1,186 +1,122 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startOfDayBangkok, getBangkokNow } from "@/lib/date-utils";
+import { startOfDayBangkok } from "@/lib/date-utils";
+import { calculateBreakOverageMinutes, resolveAllowedBreakMinutes } from "@/lib/break-rules";
 
-// GET: Dashboard stats for manager
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ATTENDANCE_GRACE_MINUTES = 5;
+const CHECKOUT_GRACE_MINUTES = 15;
+
+type ActionTone = "critical" | "warning" | "info" | "success";
+type ActionCategory = "attendance" | "break" | "approval" | "shift" | "league" | "reward" | "feedback" | "advance";
+
+type DashboardActionItem = {
+    id: string;
+    tone: ActionTone;
+    category: ActionCategory;
+    title: string;
+    detail: string;
+    count: number;
+    href: string;
+};
+
+function clockMinutes(value: string | null | undefined): number | null {
+    if (!value) return null;
+    const [hour, minute] = value.split(":").map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    return hour * 60 + minute;
+}
+
+function isShiftStartOverdue(startTime: string, nowMinutes: number) {
+    const start = clockMinutes(startTime);
+    return start !== null && nowMinutes > start + ATTENDANCE_GRACE_MINUTES;
+}
+
+function isShiftEndOverdue(startTime: string, endTime: string, nowMinutes: number) {
+    const start = clockMinutes(startTime);
+    const rawEnd = clockMinutes(endTime);
+    if (start === null || rawEnd === null) return false;
+    let end = rawEnd;
+    let current = nowMinutes;
+    if (end <= start) {
+        end += 24 * 60;
+        if (current < start) current += 24 * 60;
+    }
+    return current > end + CHECKOUT_GRACE_MINUTES;
+}
+
+function monthBoundsBangkok(reference: Date) {
+    const shifted = new Date(reference.getTime() + BANGKOK_OFFSET_MS);
+    const year = shifted.getUTCFullYear();
+    const month = shifted.getUTCMonth();
+    return {
+        from: new Date(Date.UTC(year, month, 1) - BANGKOK_OFFSET_MS),
+        toExclusive: new Date(Date.UTC(year, month + 1, 1) - BANGKOK_OFFSET_MS),
+    };
+}
+
 export async function GET(request: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Only admin roles can access
+        if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const { searchParams } = new URL(request.url);
-        const isLight = searchParams.get("light") === "true";
-
-        const now = getBangkokNow();
-        const today = startOfDayBangkok();
-
-        // Get manager's station for filtering (if manager role)
-        let stationFilter: { stationId?: string } = {};
-        if (session.user.role === "MANAGER") {
-            const user = await prisma.user.findUnique({
-                where: { id: session.user.id },
-                select: { stationId: true },
-            });
-            if (user?.stationId) {
-                stationFilter = { stationId: user.stationId };
-            }
+        const role = session.user.role;
+        const isCashier = role === "CASHIER";
+        const isStationScoped = role === "MANAGER" || role === "CASHIER";
+        const viewer = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+                stationId: true,
+                station: { select: { id: true, code: true, name: true } },
+            },
+        });
+        if (isStationScoped && !viewer?.stationId) {
+            return NextResponse.json({ error: "ไม่พบสถานีที่รับผิดชอบ" }, { status: 403 });
         }
 
-        // === LIGHT MODE: Return only counts for polling (saves ~80% per request) ===
-        if (isLight) {
-            const [
-                totalEmployees,
-                todayAttendance,
-                pendingShiftSwaps,
-                pendingTimeCorrections,
-                pendingLeavesCount,
-                openShifts,
-                todayAssignmentsCount,
-            ] = await Promise.all([
-                prisma.user.count({
-                    where: { isActive: true, employeeStatus: "ACTIVE", role: "EMPLOYEE", ...stationFilter },
-                }),
-                prisma.attendance.count({
-                    where: {
-                        date: today,
-                        checkInTime: { not: null },
-                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
-                    },
-                }),
-                prisma.shiftSwap.count({ where: { status: "PENDING", targetAccepted: true } }),
-                prisma.timeCorrection.count({
-                    where: {
-                        status: "PENDING",
-                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
-                    },
-                }),
-                prisma.leave.count({
-                    where: {
-                        status: "PENDING",
-                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
-                    },
-                }),
-                prisma.shiftPool.count({ where: { status: "OPEN", date: { gte: today } } }),
-                prisma.shiftAssignment.count({
-                    where: {
-                        date: today,
-                        isDayOff: false,
-                        user: stationFilter.stationId ? { stationId: stationFilter.stationId } : undefined,
-                    },
-                }),
-            ]);
+        const stationId = isStationScoped ? viewer!.stationId! : null;
+        const userStationFilter = stationId ? { stationId } : {};
+        const userRelationFilter = {
+            isActive: true,
+            employeeStatus: "ACTIVE" as const,
+            role: "EMPLOYEE" as const,
+            ...userStationFilter,
+        };
+        const nowReal = new Date();
+        const bangkokClock = new Date(nowReal.getTime() + BANGKOK_OFFSET_MS);
+        const nowMinutes = bangkokClock.getUTCHours() * 60 + bangkokClock.getUTCMinutes();
+        const today = startOfDayBangkok(nowReal);
+        const tomorrow = new Date(today.getTime() + DAY_MS);
+        const isLight = new URL(request.url).searchParams.get("light") === "true";
 
-            const attendanceRate = todayAssignmentsCount > 0
-                ? Math.round((todayAttendance / todayAssignmentsCount) * 100)
-                : 0;
+        const scopedShiftIds = stationId
+            ? (await prisma.shift.findMany({
+                where: { OR: [{ stationId }, { stationId: null }] },
+                select: { id: true },
+            })).map((shift) => shift.id)
+            : null;
 
-            return NextResponse.json({
-                stats: {
-                    totalEmployees,
-                    todayAttendance,
-                    todayExpected: todayAssignmentsCount,
-                    attendanceRate,
-                    pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeavesCount,
-                    pendingShiftSwaps,
-                    pendingTimeCorrections,
-                    pendingLeaves: pendingLeavesCount,
-                    openShifts,
-                },
-            });
-        }
-
-        // === FULL MODE: Complete dashboard data (initial page load only) ===
-
-        // Count stats in parallel
-        const counts = await Promise.all([
-            // Total active employees
-            prisma.user.count({
-                where: {
-                    isActive: true,
-                    employeeStatus: "ACTIVE",
-                    role: "EMPLOYEE",
-                    ...stationFilter,
-                },
-            }),
-
-            // Today's attendance count
-            prisma.attendance.count({
-                where: {
-                    date: today,
-                    checkInTime: { not: null },
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
-            }),
-
-            // Pending shift swap requests
-            prisma.shiftSwap.count({
-                where: {
-                    status: "PENDING",
-                    targetAccepted: true, // Target accepted, waiting manager approval
-                },
-            }),
-
-            // Pending time corrections
-            prisma.timeCorrection.count({
-                where: {
-                    status: "PENDING",
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
-            }),
-
-            // Pending leaves
-            prisma.leave.count({
-                where: {
-                    status: "PENDING",
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
-            }),
-
-            // Open shifts in pool
-            prisma.shiftPool.count({
-                where: {
-                    status: "OPEN",
-                    date: { gte: today },
-                },
-            }),
-
-            // Today's shift assignments count
-            prisma.shiftAssignment.count({
-                where: {
-                    date: today,
-                    isDayOff: false,
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
-            }),
-
-            // Fetch details for Absent logic (Assignments)
+        const [
+            totalEmployees,
+            assignments,
+            attendanceRows,
+            todayLeaves,
+            pendingShiftSwaps,
+            pendingTimeCorrections,
+            pendingLeaves,
+            pendingAdvances,
+            openShifts,
+        ] = await Promise.all([
+            prisma.user.count({ where: userRelationFilter }),
             prisma.shiftAssignment.findMany({
-                where: {
-                    date: today,
-                    isDayOff: false,
-                    user: {
-                        isActive: true,
-                        role: "EMPLOYEE",
-                        ...stationFilter,
-                    }
-                },
-                include: {
+                where: { date: today, isDayOff: false, user: userRelationFilter },
+                select: {
+                    userId: true,
                     user: {
                         select: {
                             id: true,
@@ -189,152 +125,378 @@ export async function GET(request: NextRequest) {
                             phone: true,
                             photoUrl: true,
                             department: { select: { name: true } },
-                            station: { select: { name: true } },
-                        }
+                            station: { select: { id: true, code: true, name: true } },
+                        },
                     },
                     shift: {
-                        select: {
-                            name: true,
-                            startTime: true,
-                            endTime: true,
-                        }
-                    }
-                }
-            }),
-
-            // Fetch details for Absent logic (Attendance)
-            prisma.attendance.findMany({
-                where: {
-                    date: today,
-                    checkInTime: { not: null },
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
+                        select: { id: true, name: true, startTime: true, endTime: true, breakMinutes: true },
+                    },
                 },
-                select: { 
+                orderBy: [{ shift: { startTime: "asc" } }, { user: { name: "asc" } }],
+            }),
+            prisma.attendance.findMany({
+                where: { date: today, user: userRelationFilter },
+                select: {
                     userId: true,
+                    checkInTime: true,
+                    checkOutTime: true,
+                    lateMinutes: true,
+                    breakStartTime: true,
+                    breakEndTime: true,
+                    breakDurationMin: true,
                     user: {
                         select: {
                             name: true,
                             nickName: true,
-                            station: { select: { name: true } }
-                        }
-                    }
-                }
+                            station: { select: { code: true, name: true } },
+                        },
+                    },
+                },
             }),
-
-            // Fetch Leaves for today to check context
             prisma.leave.findMany({
                 where: {
-                    startDate: { lte: today },
+                    startDate: { lt: tomorrow },
                     endDate: { gte: today },
                     status: { in: ["PENDING", "APPROVED", "REJECTED"] },
-                    user: {
-                        isActive: true,
-                        role: "EMPLOYEE",
-                        ...stationFilter,
-                    }
+                    user: userRelationFilter,
                 },
-                select: {
-                    userId: true,
-                    type: true,
-                    status: true,
-                    reason: true,
-                }
-            })
+                select: { userId: true, type: true, status: true },
+            }),
+            prisma.shiftSwap.count({
+                where: {
+                    status: "PENDING",
+                    targetAccepted: true,
+                    ...(stationId ? { requester: { stationId } } : {}),
+                },
+            }),
+            prisma.timeCorrection.count({
+                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+            }),
+            prisma.leave.count({
+                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+            }),
+            prisma.advance.count({
+                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+            }),
+            prisma.shiftPool.count({
+                where: {
+                    status: "OPEN",
+                    date: { gte: today },
+                    ...(scopedShiftIds ? { shiftId: { in: scopedShiftIds } } : {}),
+                },
+            }),
         ]);
 
-        const totalEmployees = counts[0];
-        const todayAttendance = counts[1];
-        const pendingShiftSwaps = counts[2];
-        const pendingTimeCorrections = counts[3];
-        const pendingLeavesCount = counts[4];
-        const openShifts = counts[5];
-        const todayAssignmentsCount = counts[6];
-        const todayAssignmentsList = counts[7];
-        const todayAttendanceList = counts[8];
-        const todayLeavesList = counts[9];
+        const attendanceByUser = new Map(attendanceRows.map((row) => [row.userId, row]));
+        const assignmentByUser = new Map(assignments.map((row) => [row.userId, row]));
+        const leaveByUser = new Map(todayLeaves.map((row) => [row.userId, row]));
 
-        // Create Maps for fast lookup
-        const presentUserIds = new Set(todayAttendanceList.map(a => a.userId));
-        const leaveMap = new Map(); // userId -> Leave Record
-        todayLeavesList.forEach(l => leaveMap.set(l.userId, l));
-
-        // Group assignments by station for overlap calculation
-        const stationAssignmentsMap = new Map<string, string[]>(); // stationName -> userIds[]
-
-        // 1. Identify Absent Candidates (Shift but no Check-in)
-        let absentCandidates = todayAssignmentsList.filter(sa => !presentUserIds.has(sa.user.id));
-
-        // 2. Filter out APPROVED leaves (Authorized Absence)
-        // We only want to show "Unexpected" absences or "Pending" leaves
-        absentCandidates = absentCandidates.filter(sa => {
-            const leave = leaveMap.get(sa.user.id);
-            // If on APPROVED leave, they are NOT "Absent" in the negative sense
-            if (leave && leave.status === "APPROVED") return false;
-            return true;
+        const notArrivedAssignments = assignments.filter((assignment) => {
+            const attendance = attendanceByUser.get(assignment.userId);
+            const leave = leaveByUser.get(assignment.userId);
+            return !attendance?.checkInTime && leave?.status !== "APPROVED";
         });
+        const overdueAssignments = notArrivedAssignments.filter((assignment) =>
+            isShiftStartOverdue(assignment.shift.startTime, nowMinutes),
+        );
 
-        // 3. Build Overlap Map
-        absentCandidates.forEach(sa => {
-            const stationName = sa.user.station?.name || "Unknown";
-            if (!stationAssignmentsMap.has(stationName)) {
-                stationAssignmentsMap.set(stationName, []);
-            }
-            stationAssignmentsMap.get(stationName)!.push(sa.user.name);
-        });
-
-        // 4. Map to final response format
-        const absentEmployees = absentCandidates.map(sa => {
-            const leave = leaveMap.get(sa.user.id);
-            const stationName = sa.user.station?.name || "Unknown";
-
-            // Get others in same station (excluding self)
-            const othersInStation = stationAssignmentsMap.get(stationName) || [];
-            const overlaps = othersInStation.filter(name => name !== sa.user.name);
-
+        const absentEmployees = overdueAssignments.map((assignment) => {
+            const leave = leaveByUser.get(assignment.userId);
             return {
-                id: sa.user.id,
-                name: sa.user.name,
-                nickName: sa.user.nickName,
-                phone: sa.user.phone,
-                photoUrl: sa.user.photoUrl,
-                department: sa.user.department?.name || "-",
-                station: stationName,
-                shiftName: sa.shift.name,
-                shiftTime: `${sa.shift.startTime} - ${sa.shift.endTime}`,
-                // Enhanced Context
-                leaveStatus: leave ? leave.status : null,
-                leaveType: leave ? leave.type : null,
-                overlaps: overlaps // List of other absent names in same station
+                id: assignment.user.id,
+                name: assignment.user.name,
+                nickName: assignment.user.nickName,
+                phone: assignment.user.phone,
+                photoUrl: assignment.user.photoUrl,
+                department: assignment.user.department?.name || "-",
+                station: assignment.user.station?.name || "-",
+                shiftName: assignment.shift.name,
+                shiftTime: `${assignment.shift.startTime} - ${assignment.shift.endTime}`,
+                leaveStatus: leave?.status ?? null,
+                leaveType: leave?.type ?? null,
+                overlaps: [] as string[],
             };
         });
 
-        // 5. Build Present Employees Map
-        const presentEmployees = todayAttendanceList.map(a => ({
-            id: a.userId,
-            name: a.user?.name || "Unknown",
-            nickName: a.user?.nickName || null,
-            station: a.user?.station?.name || "Unknown"
+        const notArrivedEmployees = notArrivedAssignments.map((assignment) => ({
+            id: assignment.user.id,
+            name: assignment.user.name,
+            nickName: assignment.user.nickName,
+            station: assignment.user.station?.name || "-",
+            shiftName: assignment.shift.name,
+            shiftTime: `${assignment.shift.startTime} - ${assignment.shift.endTime}`,
+            overdue: isShiftStartOverdue(assignment.shift.startTime, nowMinutes),
         }));
 
-        // Calculate attendance percentage
-        const attendanceRate = todayAssignmentsCount > 0
-            ? Math.round((todayAttendance / todayAssignmentsCount) * 100)
-            : 0;
+        const presentEmployees = attendanceRows
+            .filter((row) => Boolean(row.checkInTime))
+            .map((row) => ({
+                id: row.userId,
+                name: row.user.name,
+                nickName: row.user.nickName,
+                station: row.user.station?.name || "-",
+                checkedOut: Boolean(row.checkOutTime),
+            }));
 
-        // Monthly attendance date range
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        monthStart.setHours(monthStart.getHours() - 7); // Adjust for Bangkok TZ
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        monthEnd.setHours(monthEnd.getHours() - 7);
+        const lateEmployees = attendanceRows
+            .filter((row) => Boolean(row.checkInTime) && (row.lateMinutes ?? 0) > ATTENDANCE_GRACE_MINUTES)
+            .map((row) => ({
+                id: row.userId,
+                name: row.user.name,
+                nickName: row.user.nickName,
+                station: row.user.station?.name || "-",
+                lateMinutes: row.lateMinutes ?? 0,
+                checkInTime: row.checkInTime?.toISOString() ?? null,
+            }))
+            .sort((a, b) => b.lateMinutes - a.lateMinutes);
 
-        // ============================================================
-        // PARALLEL: Run all remaining queries simultaneously
-        // ============================================================
-        const [recentRequests, recentLeaves, recentTimeCorrections, monthlyRecords] = await Promise.all([
-            prisma.shiftSwap.findMany({
-                where: { status: "PENDING" },
+        const activeBreakRows = attendanceRows.filter((row) => row.breakStartTime && !row.breakEndTime && !row.checkOutTime);
+        const overBreakEmployees = activeBreakRows.flatMap((row) => {
+            const assignment = assignmentByUser.get(row.userId);
+            if (!row.breakStartTime) return [];
+            const durationMinutes = Math.max(0, Math.floor((nowReal.getTime() - row.breakStartTime.getTime()) / 60000));
+            const allowedMinutes = resolveAllowedBreakMinutes(
+                row.user.station?.code,
+                assignment?.shift.breakMinutes,
+            );
+            const overMinutes = calculateBreakOverageMinutes(durationMinutes, allowedMinutes);
+            if (overMinutes <= 0) return [];
+            return [{
+                id: row.userId,
+                name: row.user.name,
+                nickName: row.user.nickName,
+                station: row.user.station?.name || "-",
+                durationMinutes,
+                allowedMinutes,
+                overMinutes,
+            }];
+        }).sort((a, b) => b.overMinutes - a.overMinutes);
+
+        const checkoutOverdueEmployees = attendanceRows.flatMap((row) => {
+            const assignment = assignmentByUser.get(row.userId);
+            if (!assignment || !row.checkInTime || row.checkOutTime) return [];
+            if (!isShiftEndOverdue(assignment.shift.startTime, assignment.shift.endTime, nowMinutes)) return [];
+            return [{
+                id: row.userId,
+                name: row.user.name,
+                nickName: row.user.nickName,
+                station: row.user.station?.name || "-",
+                shiftTime: `${assignment.shift.startTime} - ${assignment.shift.endTime}`,
+            }];
+        });
+
+        const expectedAssignments = assignments.filter((assignment) => leaveByUser.get(assignment.userId)?.status !== "APPROVED");
+        const todayExpected = expectedAssignments.length;
+        const todayAttendance = expectedAssignments.filter((assignment) => Boolean(attendanceByUser.get(assignment.userId)?.checkInTime)).length;
+        const workingNow = attendanceRows.filter((row) => row.checkInTime && !row.checkOutTime).length;
+        const checkedOutToday = attendanceRows.filter((row) => row.checkOutTime).length;
+        const onBreak = activeBreakRows.length;
+        const todayOnLeave = todayLeaves.filter((row) => row.status === "APPROVED").length;
+        const attendanceRate = todayExpected > 0 ? Math.min(100, Math.round((todayAttendance / todayExpected) * 100)) : 0;
+        const pendingApprovals = pendingShiftSwaps + pendingTimeCorrections + pendingLeaves;
+
+        const [leaguePendingReviews, rewardsToFulfill, customerOpenCases, customerReviewRequests] = isCashier
+            ? [0, 0, 0, 0]
+            : await Promise.all([
+                prisma.competitionStanding.count({
+                    where: {
+                        fairPlayStatus: "REVIEW",
+                        isEligible: true,
+                        period: {
+                            status: "PENDING_REVIEW",
+                            ...(stationId ? { stationId } : {}),
+                        },
+                    },
+                }),
+                prisma.competitionAward.count({
+                    where: { status: "SELECTED", ...(stationId ? { stationId } : {}) },
+                }),
+                prisma.customerFeedbackCase.count({
+                    where: {
+                        status: { in: ["OPEN", "IN_PROGRESS"] },
+                        ...(stationId ? { stationId } : {}),
+                    },
+                }),
+                role === "ADMIN" || role === "HR"
+                    ? prisma.customerFeedbackReviewRequest.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } })
+                    : Promise.resolve(0),
+            ]);
+
+        const actionItems: DashboardActionItem[] = [];
+        if (absentEmployees.length > 0) {
+            actionItems.push({
+                id: "attendance-missing",
+                tone: "critical",
+                category: "attendance",
+                title: `เลยเวลาเข้างาน ${absentEmployees.length} คน`,
+                detail: "ตรวจว่าขาดงาน ลา หรือจำเป็นต้องลงเวลาแทน",
+                count: absentEmployees.length,
+                href: "/admin/attendance",
+            });
+        }
+        if (overBreakEmployees.length > 0) {
+            actionItems.push({
+                id: "break-over",
+                tone: "warning",
+                category: "break",
+                title: `พักเกินเวลา ${overBreakEmployees.length} คน`,
+                detail: isCashier ? "ติดตามพนักงานและตรวจเวลาในหน้าลงเวลา" : "ตรวจรายละเอียดเวลาพักก่อนสรุป Attendance",
+                count: overBreakEmployees.length,
+                href: isCashier ? "/admin/attendance" : "/admin/reports/break-summary",
+            });
+        }
+        if (checkoutOverdueEmployees.length > 0) {
+            actionItems.push({
+                id: "checkout-overdue",
+                tone: "warning",
+                category: "attendance",
+                title: `เลยกะแล้วยังไม่ออกงาน ${checkoutOverdueEmployees.length} คน`,
+                detail: "ตรวจว่าลืมเช็คเอาต์หรือยังทำงานต่อจริง",
+                count: checkoutOverdueEmployees.length,
+                href: "/admin/attendance",
+            });
+        }
+        if (!isCashier && pendingApprovals > 0) {
+            actionItems.push({
+                id: "approvals",
+                tone: "info",
+                category: "approval",
+                title: `คำขอรอตัดสินใจ ${pendingApprovals} รายการ`,
+                detail: `ลา ${pendingLeaves} • แก้เวลา ${pendingTimeCorrections} • สลับกะ ${pendingShiftSwaps}`,
+                count: pendingApprovals,
+                href: "/admin/approvals",
+            });
+        }
+        if (isCashier && pendingAdvances > 0) {
+            actionItems.push({
+                id: "advances",
+                tone: "info",
+                category: "advance",
+                title: `รายการเบิกค่าแรงค้าง ${pendingAdvances} รายการ`,
+                detail: "ตรวจเอกสาร/บันทึกรายการตามหน้าที่เสมียน",
+                count: pendingAdvances,
+                href: "/admin/advances",
+            });
+        }
+        if (!isCashier && leaguePendingReviews > 0) {
+            actionItems.push({
+                id: "league-fair-play",
+                tone: "warning",
+                category: "league",
+                title: `League รอตรวจ Fair Play ${leaguePendingReviews} คน`,
+                detail: "ตรวจสัญญาณคะแนนผิดปกติก่อนรับรองแชมป์",
+                count: leaguePendingReviews,
+                href: "/admin/league",
+            });
+        }
+        if (!isCashier && rewardsToFulfill > 0) {
+            actionItems.push({
+                id: "league-rewards",
+                tone: "info",
+                category: "reward",
+                title: `รางวัลที่เลือกแล้วรอมอบ ${rewardsToFulfill} รายการ`,
+                detail: "เตรียมของรางวัลและกดยืนยันเมื่อมอบจริง",
+                count: rewardsToFulfill,
+                href: "/admin/league",
+            });
+        }
+        if (!isCashier && customerOpenCases > 0) {
+            actionItems.push({
+                id: "customer-cases",
+                tone: "critical",
+                category: "feedback",
+                title: `เคสเสียงลูกค้าเปิดอยู่ ${customerOpenCases} เคส`,
+                detail: "จัดลำดับเคสที่ต้องติดตามและปิดประเด็น",
+                count: customerOpenCases,
+                href: "/admin/customer-feedback?tab=cases",
+            });
+        }
+        if ((role === "ADMIN" || role === "HR") && customerReviewRequests > 0) {
+            actionItems.push({
+                id: "feedback-reviews",
+                tone: "warning",
+                category: "feedback",
+                title: `คำขอทบทวนคะแนน ${customerReviewRequests} รายการ`,
+                detail: "ตรวจข้อโต้แย้งของพนักงานก่อนใช้คะแนนในรอบประเมิน",
+                count: customerReviewRequests,
+                href: "/admin/customer-feedback?tab=reviews",
+            });
+        }
+        if (!isCashier && openShifts > 0) {
+            actionItems.push({
+                id: "open-shifts",
+                tone: "info",
+                category: "shift",
+                title: `กะเปิดรอคน ${openShifts} กะ`,
+                detail: "ตรวจ Shift Pool ก่อนเกิดกำลังคนขาด",
+                count: openShifts,
+                href: "/admin/shift-pool",
+            });
+        }
+
+        const toneOrder: Record<ActionTone, number> = { critical: 0, warning: 1, info: 2, success: 3 };
+        actionItems.sort((a, b) => toneOrder[a.tone] - toneOrder[b.tone] || b.count - a.count);
+
+        const stats = {
+            totalEmployees,
+            todayAttendance,
+            todayExpected,
+            todayNotArrived: notArrivedEmployees.length,
+            todayAbsent: absentEmployees.length,
+            todayOnLeave,
+            attendanceRate,
+            lateToday: lateEmployees.length,
+            workingNow,
+            checkedOutToday,
+            onBreak,
+            overBreak: overBreakEmployees.length,
+            checkoutOverdue: checkoutOverdueEmployees.length,
+            pendingApprovals,
+            pendingShiftSwaps,
+            pendingTimeCorrections,
+            pendingLeaves,
+            pendingAdvances,
+            openShifts,
+            leaguePendingReviews,
+            rewardsToFulfill,
+            customerOpenCases,
+            customerReviewRequests,
+            needsAttention: actionItems.reduce((sum, item) => sum + item.count, 0),
+            absentEmployees,
+            notArrivedEmployees,
+            presentEmployees,
+            lateEmployees,
+            overBreakEmployees,
+            checkoutOverdueEmployees,
+        };
+
+        if (isLight) {
+            const response = NextResponse.json({
+                role,
+                scope: { station: stationId ? viewer?.station : null },
+                stats: {
+                    totalEmployees: stats.totalEmployees,
+                    todayAttendance: stats.todayAttendance,
+                    todayExpected: stats.todayExpected,
+                    todayAbsent: stats.todayAbsent,
+                    lateToday: stats.lateToday,
+                    overBreak: stats.overBreak,
+                    pendingApprovals: stats.pendingApprovals,
+                    leaguePendingReviews: stats.leaguePendingReviews,
+                    rewardsToFulfill: stats.rewardsToFulfill,
+                    customerOpenCases: stats.customerOpenCases,
+                    needsAttention: stats.needsAttention,
+                },
+                actionItems,
+            });
+            response.headers.set("Cache-Control", "private, no-store");
+            return response;
+        }
+
+        const { from: monthStart, toExclusive: monthEndExclusive } = monthBoundsBangkok(nowReal);
+        const [recentSwaps, recentLeaves, recentCorrections, monthlyRecords] = await Promise.all([
+            isCashier ? Promise.resolve([]) : prisma.shiftSwap.findMany({
+                where: { status: "PENDING", ...(stationId ? { requester: { stationId } } : {}) },
                 orderBy: { createdAt: "desc" },
                 take: 5,
                 include: {
@@ -342,137 +504,83 @@ export async function GET(request: NextRequest) {
                     target: { select: { name: true, employeeId: true } },
                 },
             }),
-            prisma.leave.findMany({
-                where: {
-                    status: "PENDING",
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
+            isCashier ? Promise.resolve([]) : prisma.leave.findMany({
+                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
                 orderBy: { createdAt: "desc" },
                 take: 5,
-                include: {
-                    user: { select: { name: true, employeeId: true } },
-                },
+                include: { user: { select: { name: true, employeeId: true } } },
             }),
-            prisma.timeCorrection.findMany({
-                where: {
-                    status: "PENDING",
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : undefined,
-                },
+            isCashier ? Promise.resolve([]) : prisma.timeCorrection.findMany({
+                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
                 orderBy: { createdAt: "desc" },
                 take: 5,
-                include: {
-                    user: { select: { name: true, employeeId: true } },
-                },
+                include: { user: { select: { name: true, employeeId: true } } },
             }),
             prisma.attendance.findMany({
                 where: {
-                    date: { gte: monthStart, lte: monthEnd },
-                    user: stationFilter.stationId
-                        ? { stationId: stationFilter.stationId }
-                        : { isActive: true, role: "EMPLOYEE" },
+                    date: { gte: monthStart, lt: monthEndExclusive },
+                    user: userRelationFilter,
                 },
-                select: {
-                    date: true,
-                    status: true,
-                    lateMinutes: true,
-                    checkInTime: true,
-                },
+                select: { date: true, lateMinutes: true, checkInTime: true },
             }),
         ]);
 
-        // Combine all requests into a unified format for dashboard display
-        const allRequests: Array<{
+        const requests: Array<{
             id: string;
             type: "shift_swap" | "leave" | "time_correction";
             employeeName: string;
             description: string;
             createdAt: string;
         }> = [];
+        recentSwaps.forEach((swap) => requests.push({
+            id: swap.id,
+            type: "shift_swap",
+            employeeName: swap.requester?.name || "Unknown",
+            description: `ขอสลับกะกับ ${swap.target?.name || "Unknown"}`,
+            createdAt: swap.createdAt.toISOString(),
+        }));
+        recentLeaves.forEach((leave) => requests.push({
+            id: leave.id,
+            type: "leave",
+            employeeName: leave.user?.name || "Unknown",
+            description: `ขอลา ${leave.type === "SICK" ? "ป่วย" : leave.type === "VACATION" ? "พักร้อน" : leave.type === "PERSONAL" ? "กิจ" : leave.type}`,
+            createdAt: leave.createdAt.toISOString(),
+        }));
+        recentCorrections.forEach((correction) => requests.push({
+            id: correction.id,
+            type: "time_correction",
+            employeeName: correction.user?.name || "Unknown",
+            description: `ขอแก้ไขเวลา${correction.requestType === "CHECK_IN" ? "เข้างาน" : "ออกงาน"}`,
+            createdAt: correction.createdAt.toISOString(),
+        }));
+        requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-        recentRequests.forEach((swap) => {
-            allRequests.push({
-                id: swap.id,
-                type: "shift_swap",
-                employeeName: swap.requester?.name || "Unknown",
-                description: `ขอสลับกะกับ ${swap.target?.name || "Unknown"}`,
-                createdAt: swap.createdAt.toISOString(),
-            });
-        });
-
-        recentLeaves.forEach((leave) => {
-            allRequests.push({
-                id: leave.id,
-                type: "leave",
-                employeeName: leave.user?.name || "Unknown",
-                description: `ขอลา ${leave.type === "SICK" ? "ป่วย" : leave.type === "VACATION" ? "พักร้อน" : leave.type === "PERSONAL" ? "กิจ" : leave.type}`,
-                createdAt: leave.createdAt.toISOString(),
-            });
-        });
-
-        recentTimeCorrections.forEach((tc) => {
-            allRequests.push({
-                id: tc.id,
-                type: "time_correction",
-                employeeName: tc.user?.name || "Unknown",
-                description: `ขอแก้ไขเวลา${tc.requestType === "CHECK_IN" ? "เข้างาน" : "ออกงาน"}`,
-                createdAt: tc.createdAt.toISOString(),
-            });
-        });
-
-        allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        const topRequests = allRequests.slice(0, 5);
-
-        // Aggregate monthly records by day
         const dailyMap = new Map<string, { onTime: number; late: number; absent: number }>();
-        monthlyRecords.forEach((rec) => {
-            const d = new Date(rec.date.getTime() + 7 * 60 * 60 * 1000);
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            if (!dailyMap.has(key)) {
-                dailyMap.set(key, { onTime: 0, late: 0, absent: 0 });
-            }
-            const entry = dailyMap.get(key)!;
-            if (!rec.checkInTime) {
-                entry.absent++;
-            } else if (rec.lateMinutes && rec.lateMinutes > 0) {
-                entry.late++;
-            } else {
-                entry.onTime++;
-            }
+        monthlyRecords.forEach((record) => {
+            const shifted = new Date(record.date.getTime() + BANGKOK_OFFSET_MS);
+            const key = shifted.toISOString().slice(0, 10);
+            const bucket = dailyMap.get(key) ?? { onTime: 0, late: 0, absent: 0 };
+            if (!record.checkInTime) bucket.absent++;
+            else if ((record.lateMinutes ?? 0) > ATTENDANCE_GRACE_MINUTES) bucket.late++;
+            else bucket.onTime++;
+            dailyMap.set(key, bucket);
         });
-
-        const monthlyAttendance = Array.from(dailyMap.entries())
-            .map(([date, counts]) => ({ date, ...counts }))
+        const monthlyAttendance = [...dailyMap.entries()]
+            .map(([date, value]) => ({ date, ...value }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
         const response = NextResponse.json({
-            stats: {
-                totalEmployees,
-                todayAttendance,
-                todayExpected: todayAssignmentsCount,
-                attendanceRate,
-                pendingApprovals: pendingShiftSwaps + pendingTimeCorrections + pendingLeavesCount,
-                pendingShiftSwaps,
-                pendingTimeCorrections,
-                pendingLeaves: pendingLeavesCount,
-                openShifts,
-                absentEmployees,
-                presentEmployees,
+            role,
+            scope: {
+                station: stationId ? viewer?.station : null,
+                label: stationId ? viewer?.station?.name ?? "สถานีของฉัน" : "ทุกสถานี",
             },
-            recent: {
-                requests: topRequests,
-                shiftSwaps: recentRequests,
-                leaves: recentLeaves,
-                timeCorrections: recentTimeCorrections,
-            },
+            stats,
+            actionItems,
+            recent: { requests: requests.slice(0, 5) },
             monthlyAttendance,
         });
-
-        // Cache for 30s, serve stale for 60s while revalidating
-        response.headers.set("Cache-Control", "private, s-maxage=30, stale-while-revalidate=60");
+        response.headers.set("Cache-Control", "private, no-store");
         return response;
     } catch (error) {
         console.error("Error fetching dashboard stats:", error);

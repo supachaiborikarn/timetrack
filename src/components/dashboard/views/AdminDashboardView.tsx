@@ -1,531 +1,418 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+    AlertTriangle,
+    ArrowRight,
+    Banknote,
+    CalendarDays,
+    CheckCircle2,
+    Clock3,
+    Coffee,
+    FileText,
+    Gift,
+    Loader2,
+    MessageSquareHeart,
+    Plus,
+    RefreshCw,
+    ShieldAlert,
+    Shuffle,
+    Trophy,
+    UserCheck,
+    Users,
+    Wallet,
+} from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AttendanceChart, LatenessTrendChart } from "@/components/analytics";
+import { Button } from "@/components/ui/button";
 import { AttendanceCalendar } from "@/components/dashboard";
 import { AnnouncementBanner } from "@/components/dashboard/AnnouncementBanner";
-import { statCardColors } from "@/lib/pastel-colors";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-    Users,
-    Clock,
-    ClipboardCheck,
-    TrendingUp,
-    ArrowRight,
-    Shuffle,
-    Calendar,
-    FileText,
-    QrCode,
-    Wallet,
-    CheckCircle2,
-    AlertCircle,
-    Loader2,
-    CalendarDays,
-    Building2,
-    BarChart3,
-    Banknote,
-    Phone,
-    MapPin,
-} from "lucide-react";
 
-interface AbsentEmployee {
+type ActionItem = {
     id: string;
-    name: string;
-    nickName: string | null;
-    phone: string | null;
-    photoUrl: string | null;
-    department: string;
-    station: string;
-    shiftName: string;
-    shiftTime: string;
-    leaveStatus: string | null;
-    leaveType: string | null;
-    overlaps: string[];
-}
+    tone: "critical" | "warning" | "info" | "success";
+    category: string;
+    title: string;
+    detail: string;
+    count: number;
+    href: string;
+};
 
 interface DashboardStats {
     totalEmployees: number;
     todayAttendance: number;
     todayExpected: number;
+    todayNotArrived: number;
+    todayAbsent: number;
+    todayOnLeave: number;
     attendanceRate: number;
+    lateToday: number;
+    workingNow: number;
+    checkedOutToday: number;
+    onBreak: number;
+    overBreak: number;
+    checkoutOverdue: number;
     pendingApprovals: number;
     pendingShiftSwaps: number;
     pendingTimeCorrections: number;
     pendingLeaves: number;
+    pendingAdvances: number;
     openShifts: number;
-    absentEmployees: AbsentEmployee[];
+    leaguePendingReviews: number;
+    rewardsToFulfill: number;
+    customerOpenCases: number;
+    customerReviewRequests: number;
+    needsAttention: number;
+    absentEmployees: Array<{
+        id: string;
+        name: string;
+        nickName: string | null;
+        station: string;
+        shiftName: string;
+        shiftTime: string;
+    }>;
+    lateEmployees: Array<{
+        id: string;
+        name: string;
+        nickName: string | null;
+        station: string;
+        lateMinutes: number;
+    }>;
+    overBreakEmployees: Array<{
+        id: string;
+        name: string;
+        nickName: string | null;
+        station: string;
+        durationMinutes: number;
+        allowedMinutes: number;
+        overMinutes: number;
+    }>;
 }
 
-interface RecentRequest {
-    id: string;
-    type: "shift_swap" | "leave" | "time_correction";
-    employeeName: string;
-    description: string;
-    createdAt: string;
+interface DashboardData {
+    role: string;
+    scope: { station: { id: string; code: string; name: string } | null; label: string };
+    stats: DashboardStats;
+    actionItems: ActionItem[];
+    recent: {
+        requests: Array<{
+            id: string;
+            type: "shift_swap" | "leave" | "time_correction";
+            employeeName: string;
+            description: string;
+            createdAt: string;
+        }>;
+    };
+    monthlyAttendance: Array<{ date: string; onTime: number; late: number; absent: number }>;
 }
 
-interface AnalyticsData {
-    weekly: Array<{ day: string; onTime: number; late: number; absent: number }>;
-    trend: Array<{ date: string; lateCount: number; avgLateMinutes: number }>;
+const toneStyles = {
+    critical: {
+        box: "border-red-200 bg-red-50/60 dark:border-red-950 dark:bg-red-950/20",
+        icon: "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400",
+    },
+    warning: {
+        box: "border-amber-200 bg-amber-50/60 dark:border-amber-950 dark:bg-amber-950/20",
+        icon: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+    },
+    info: {
+        box: "border-sky-200 bg-sky-50/60 dark:border-sky-950 dark:bg-sky-950/20",
+        icon: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",
+    },
+    success: {
+        box: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-950 dark:bg-emerald-950/20",
+        icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+    },
+} as const;
+
+function actionIcon(category: string) {
+    if (category === "league") return Trophy;
+    if (category === "reward") return Gift;
+    if (category === "feedback") return MessageSquareHeart;
+    if (category === "break") return Coffee;
+    if (category === "approval") return UserCheck;
+    if (category === "shift") return Shuffle;
+    if (category === "advance") return Banknote;
+    return AlertTriangle;
 }
 
-interface MonthlyAttendanceDay {
-    date: string;
-    onTime: number;
-    late: number;
-    absent: number;
+function employeeLabel(employee: { name: string; nickName: string | null }) {
+    return employee.nickName || employee.name;
 }
-
-const getRequestIcon = (type: string) => {
-    switch (type) {
-        case "shift_swap":
-            return <Shuffle className="w-4 h-4 text-purple-500" />;
-        case "leave":
-            return <Calendar className="w-4 h-4 text-blue-500" />;
-        case "time_correction":
-            return <Clock className="w-4 h-4 text-amber-500" />;
-        default:
-            return <AlertCircle className="w-4 h-4 text-slate-500" />;
-    }
-};
-
-const getRequestLabel = (type: string) => {
-    switch (type) {
-        case "shift_swap":
-            return "สลับกะ";
-        case "leave":
-            return "ลางาน";
-        case "time_correction":
-            return "แก้ไขเวลา";
-        default:
-            return type;
-    }
-};
 
 export function AdminDashboardView() {
     const { data: session, status } = useSession();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
-    const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-    const [monthlyAttendance, setMonthlyAttendance] = useState<MonthlyAttendanceDay[]>([]);
+    const [data, setData] = useState<DashboardData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isAbsentDialogOpen, setIsAbsentDialogOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            void fetchDashboardData();
-            void fetchAnalytics();
-        }
-    }, [session?.user?.id]);
-
-    const fetchDashboardData = async () => {
+    const fetchDashboard = async (refresh = false) => {
+        if (refresh) setIsRefreshing(true);
+        else setIsLoading(true);
         try {
-            const res = await fetch("/api/admin/dashboard");
-            if (res.ok) {
-                const data = await res.json();
-                setStats(data.stats);
-                setRecentRequests(data.recent?.requests || []);
-                setMonthlyAttendance(data.monthlyAttendance || []);
-            }
+            const response = await fetch("/api/admin/dashboard", { cache: "no-store" });
+            if (response.ok) setData(await response.json());
         } catch (error) {
-            console.error("Failed to fetch dashboard data:", error);
+            console.error("Failed to fetch admin control center:", error);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
-    const fetchAnalytics = async () => {
-        try {
-            const res = await fetch("/api/admin/analytics");
-            if (res.ok) {
-                const data = await res.json();
-                setAnalytics(data);
-            }
-        } catch (error) {
-            console.error("Failed to fetch analytics:", error);
-        }
-    };
+    useEffect(() => {
+        if (session?.user?.id) void fetchDashboard();
+    }, [session?.user?.id]);
 
-    if (status === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
+    if (status === "loading" || isLoading) {
+        return <div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" /></div>;
     }
+    if (!session?.user || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) redirect("/");
 
-    if (!session || !session.user || !["ADMIN", "HR", "MANAGER", "CASHIER"].includes(session.user.role)) {
-        redirect("/");
-    }
+    const role = session.user.role;
+    const isCashier = role === "CASHIER";
+    const stats = data?.stats;
+    const actionItems = data?.actionItems ?? [];
+    const urgentCount = actionItems.filter((item) => item.tone === "critical" || item.tone === "warning").reduce((sum, item) => sum + item.count, 0);
+    const scopeLabel = data?.scope?.label || "ทุกสถานี";
 
-    const { role } = session.user;
-
-    const allStatsCards = [
-        {
-            title: "พนักงานทั้งหมด",
-            value: stats?.totalEmployees || 0,
-            icon: Users,
-            color: statCardColors.employees.icon,
-            bgColor: statCardColors.employees.iconBg,
-            href: "/admin/employees",
-            roles: ["ADMIN", "HR"],
-        },
-        {
-            title: "เข้างานวันนี้",
-            value: `${stats?.todayAttendance || 0}/${stats?.todayExpected || 0}`,
-            subtitle: `${stats?.attendanceRate || 0}%`,
-            icon: Clock,
-            color: statCardColors.attendance.icon,
-            bgColor: statCardColors.attendance.iconBg,
-            href: "/admin/attendance",
-        },
-        {
-            title: "รอการอนุมัติ",
-            value: stats?.pendingApprovals || 0,
-            icon: ClipboardCheck,
-            color: stats?.pendingApprovals && stats.pendingApprovals > 0 ? "text-amber-500 dark:text-amber-400" : "text-slate-500",
-            bgColor: stats?.pendingApprovals && stats.pendingApprovals > 0 ? statCardColors.approvals.iconBg : "bg-slate-100 dark:bg-slate-800/40",
-            href: "/admin/approvals",
-            badge: stats?.pendingApprovals ? stats.pendingApprovals : undefined,
-        },
-        {
-            title: "Open Shifts",
-            value: stats?.openShifts || 0,
-            icon: Shuffle,
-            color: statCardColors.shifts.icon,
-            bgColor: statCardColors.shifts.iconBg,
-            href: "/admin/shift-pool",
-        },
-    ];
-
-    const statsCards = allStatsCards.filter((card) => !card.roles || card.roles.includes(role));
-
-    const allQuickActions = [
-        { title: "จัดการพนักงาน", icon: Users, href: "/admin/employees", color: "text-blue-500", roles: ["ADMIN", "HR"] },
-        { title: "สถานี/แผนก", icon: Building2, href: "/admin/stations", color: "text-cyan-500", roles: ["ADMIN", "HR"] },
-        { title: "ตารางกะ", icon: Calendar, href: "/admin/shifts", color: "text-indigo-500" },
-        { title: "ลงเวลาทำงาน", icon: Clock, href: "/admin/attendance", color: "text-green-500" },
-        { title: "Shift Pool", icon: Shuffle, href: "/admin/shift-pool", color: "text-purple-500" },
-        { title: "Availability", icon: CalendarDays, href: "/admin/availability", color: "text-pink-500" },
-        { title: "เงินเดือน", icon: Wallet, href: "/admin/payroll", color: "text-green-500", roles: ["ADMIN", "HR"] },
-        { title: "เบิกค่าแรง", icon: Banknote, href: "/admin/advances", color: "text-green-500", roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
-        { title: "รายงาน", icon: FileText, href: "/admin/reports", color: "text-orange-500", roles: ["ADMIN", "HR", "MANAGER"] },
-        { title: "QR Codes", icon: QrCode, href: "/admin/qr-codes", color: "text-teal-500", roles: ["ADMIN", "HR"] },
-    ];
-
-    const quickActions = allQuickActions.filter((action) => !action.roles || action.roles.includes(role));
+    const quickActions = isCashier
+        ? [
+            { label: "เช็คอินแทน", href: "/admin/attendance?manual=true", icon: Plus, description: "ลงเวลาแทนพนักงานที่ไม่มีมือถือ" },
+            { label: "Attendance", href: "/admin/attendance", icon: Clock3, description: "ตรวจเข้าออกงานของสถานี" },
+            { label: "ตารางกะ", href: "/admin/shifts", icon: CalendarDays, description: "ดูคนประจำกะและตารางวันนี้" },
+            { label: "เบิกค่าแรง", href: "/admin/advances", icon: Banknote, description: "บันทึกและติดตามรายการเบิก" },
+        ]
+        : [
+            { label: "Attendance", href: "/admin/attendance", icon: Clock3, description: "ตรวจเวลาและความผิดปกติวันนี้" },
+            { label: "คำขออนุมัติ", href: "/admin/approvals", icon: UserCheck, description: `${stats?.pendingApprovals ?? 0} รายการรอตัดสินใจ` },
+            { label: "League & Rewards", href: "/admin/league", icon: Trophy, description: "Fair Play, แชมป์ และการมอบรางวัล" },
+            { label: "เสียงลูกค้า", href: "/admin/customer-feedback", icon: MessageSquareHeart, description: "เคส คะแนน และคำขอทบทวน" },
+            { label: "Shift Pool", href: "/admin/shift-pool", icon: Shuffle, description: `${stats?.openShifts ?? 0} กะเปิดรอคน` },
+            { label: "รายงาน", href: "/admin/reports", icon: FileText, description: "สรุปเวลาทำงานและการจ่าย" },
+        ];
 
     return (
-        <>
-            <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-6">
+            <div className="relative overflow-hidden rounded-[28px] border border-zinc-800/20 bg-[#fbbf24] p-6 text-black shadow-sm">
+                <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: "radial-gradient(#111 0.8px, transparent 0.8px)", backgroundSize: "10px 10px" }} />
+                <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-                        <p className="text-muted-foreground">
-                            สวัสดี, {session.user.name} • {new Date().toLocaleDateString("th-TH", {
-                                weekday: "long",
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                            })}
+                        <p className="text-[10px] font-black tracking-[0.22em] uppercase">
+                            {isCashier ? "STATION OPERATIONS" : role === "MANAGER" ? "STATION CONTROL" : role === "HR" ? "PEOPLE CONTROL CENTER" : "CONTROL CENTER"}
+                        </p>
+                        <h1 className="mt-2 text-3xl font-black">วันนี้ต้องจัดการอะไรบ้าง</h1>
+                        <p className="mt-2 text-sm font-bold text-black/60">
+                            {session.user.name} • {scopeLabel} • {new Intl.DateTimeFormat("th-TH", { dateStyle: "full", timeZone: "Asia/Bangkok" }).format(new Date())}
                         </p>
                     </div>
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-2xl border border-black/20 bg-[#f7e6b7] px-5 py-4 min-w-[180px]">
+                            <p className="text-[10px] font-black text-black/50 tracking-wider">TODAY STATUS</p>
+                            <div className="mt-1 flex items-center gap-2">
+                                {urgentCount > 0 ? <ShieldAlert className="w-6 h-6 text-red-600" /> : <CheckCircle2 className="w-6 h-6 text-emerald-700" />}
+                                <span className="text-lg font-black">{urgentCount > 0 ? `${urgentCount} จุดต้องตาม` : "เรียบร้อย"}</span>
+                            </div>
+                        </div>
+                        <Button onClick={() => void fetchDashboard(true)} variant="outline" className="h-14 bg-white/60 border-black/20 text-black hover:bg-white">
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} /> รีเฟรช
+                        </Button>
+                    </div>
                 </div>
+            </div>
 
-                <AnnouncementBanner />
+            <AnnouncementBanner />
 
-                {isLoading ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {[...Array(4)].map((_, i) => (
-                            <Card key={i} className="animate-pulse">
-                                <CardContent className="p-6">
-                                    <div className="h-16 bg-muted rounded" />
+            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {[
+                    { title: "เข้าทำงานแล้ว", value: `${stats?.todayAttendance ?? 0}/${stats?.todayExpected ?? 0}`, sub: `${stats?.attendanceRate ?? 0}% ของกะวันนี้`, icon: Users, alert: false, href: "/admin/attendance" },
+                    { title: "เลยเวลาเข้างาน", value: stats?.todayAbsent ?? 0, sub: `ยังไม่มาอีก ${stats?.todayNotArrived ?? 0} คนรวมกะที่ยังไม่ถึงเวลา`, icon: AlertTriangle, alert: (stats?.todayAbsent ?? 0) > 0, href: "/admin/attendance" },
+                    { title: "มาสายวันนี้", value: stats?.lateToday ?? 0, sub: "นับเมื่อเกิน grace 5 นาที", icon: Clock3, alert: (stats?.lateToday ?? 0) > 0, href: "/admin/attendance" },
+                    { title: "พักเกินเวลา", value: stats?.overBreak ?? 0, sub: `${stats?.onBreak ?? 0} คนกำลังพัก`, icon: Coffee, alert: (stats?.overBreak ?? 0) > 0, href: isCashier ? "/admin/attendance" : "/admin/reports/break-summary" },
+                ].map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                        <Link key={metric.title} href={metric.href}>
+                            <Card className={`h-full transition-all hover:-translate-y-0.5 hover:shadow-md ${metric.alert ? "border-red-200 dark:border-red-950" : ""}`}>
+                                <CardContent className="p-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <p className={`text-3xl font-black ${metric.alert ? "text-red-600" : ""}`}>{metric.value}</p>
+                                            <p className="mt-1 text-sm font-bold">{metric.title}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">{metric.sub}</p>
+                                        </div>
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${metric.alert ? "bg-red-100 text-red-600 dark:bg-red-950" : "bg-muted text-muted-foreground"}`}>
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {statsCards.map((stat) => {
-                            const Icon = stat.icon;
-                            return (
-                                <Link key={stat.title} href={stat.href}>
-                                    <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer h-full">
-                                        <CardContent className="p-4 lg:p-6">
-                                            <div className="flex items-start justify-between">
-                                                <div className={`p-2 lg:p-3 rounded-xl ${stat.bgColor}`}>
-                                                    <Icon className={`w-5 h-5 lg:w-6 lg:h-6 ${stat.color}`} />
-                                                </div>
-                                                {stat.badge && stat.badge > 0 && (
-                                                    <Badge variant="destructive" className="text-xs">
-                                                        {stat.badge}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <div className="mt-3 lg:mt-4">
-                                                <p className="text-xl lg:text-2xl font-bold text-foreground">
-                                                    {stat.value}
-                                                </p>
-                                                {stat.subtitle && (
-                                                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                                                )}
-                                                <p className="text-xs lg:text-sm text-muted-foreground mt-1">
-                                                    {stat.title}
-                                                </p>
-                                                {stat.title === "เข้างานวันนี้" && stats?.absentEmployees && stats.absentEmployees.length > 0 && (
-                                                    <button
-                                                        onClick={(e) => { e.preventDefault(); setIsAbsentDialogOpen(true); }}
-                                                        className="text-xs text-red-500 hover:underline font-medium mt-1"
-                                                    >
-                                                        ขาด {stats.absentEmployees.length} คน →
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            );
-                        })}
-                    </div>
-                )}
+                        </Link>
+                    );
+                })}
+            </div>
 
-                <Dialog open={isAbsentDialogOpen} onOpenChange={setIsAbsentDialogOpen}>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <AlertCircle className="h-5 w-5 text-red-500" />
-                                รายชื่อผู้ขาดงานวันนี้ ({stats?.absentEmployees.length || 0})
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="max-h-[60vh] overflow-y-auto space-y-4">
-                            {stats?.absentEmployees.map((emp) => (
-                                <div key={emp.id} className="flex items-start space-x-3 p-3 rounded-lg border bg-card relative">
-                                    <Avatar>
-                                        <AvatarImage src={emp.photoUrl || undefined} />
-                                        <AvatarFallback>{emp.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-medium text-sm">
-                                                {emp.name} {emp.nickName ? `(${emp.nickName})` : ""}
-                                            </p>
-                                            {emp.leaveStatus && (
-                                                <Badge variant={emp.leaveStatus === "PENDING" ? "outline" : "destructive"}>
-                                                    {emp.leaveStatus === "PENDING" ? "รออนุมัติลา" : "ลาถูกปฏิเสธ"}
-                                                    ({emp.leaveType})
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center text-xs text-muted-foreground gap-1">
-                                            <MapPin className="h-3 w-3" />
-                                            {emp.station}
-                                        </div>
-                                        <div className="flex items-center text-xs text-muted-foreground gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            {emp.shiftName} ({emp.shiftTime})
-                                        </div>
-
-                                        {emp.overlaps.length > 0 && (
-                                            <div className="mt-2 text-xs bg-red-50 text-red-600 p-2 rounded-md border border-red-100 flex items-start gap-1">
-                                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
-                                                <span>
-                                                    <strong>หยุดชนกัน:</strong> {emp.overlaps.join(", ")} ก็หยุดที่สถานีนี้เช่นกัน
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {emp.phone && (
-                                            <div className="pt-1">
-                                                <a href={`tel:${emp.phone}`} className="inline-flex items-center text-xs text-blue-600 hover:underline gap-1">
-                                                    <Phone className="h-3 w-3" />
-                                                    {emp.phone}
-                                                </a>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                <div className="grid lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] gap-6">
+                <Card className="overflow-hidden">
+                    <CardHeader className="border-b bg-muted/20">
+                        <div className="flex items-center justify-between gap-4">
                             <div>
-                                <CardTitle className="text-lg">คำขอรออนุมัติ</CardTitle>
-                                <CardDescription>คำขอล่าสุดที่รอการอนุมัติ</CardDescription>
+                                <CardTitle className="text-xl">Action Center</CardTitle>
+                                <CardDescription>เรียงเรื่องที่ต้องตัดสินใจ/ติดตามก่อนตามความเร่งด่วน</CardDescription>
                             </div>
-                            <Button variant="ghost" size="sm" asChild>
-                                <Link href="/admin/approvals">
-                                    ดูทั้งหมด <ArrowRight className="w-4 h-4 ml-1" />
-                                </Link>
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoading ? (
-                                <div className="space-y-3">
-                                    {[...Array(3)].map((_, i) => (
-                                        <div key={i} className="h-16 bg-muted rounded animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : recentRequests.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-green-500/50" />
-                                    <p>ไม่มีคำขอที่รออนุมัติ</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {recentRequests.slice(0, 5).map((request) => (
-                                        <div
-                                            key={request.id}
-                                            className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                                        >
-                                            <div className="p-2 rounded-lg bg-background">
-                                                {getRequestIcon(request.type)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm text-foreground truncate">
-                                                    {request.employeeName}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {request.description}
-                                                </p>
-                                            </div>
-                                            <Badge variant="outline" className="shrink-0">
-                                                {getRequestLabel(request.type)}
-                                            </Badge>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg">เมนูด่วน</CardTitle>
-                            <CardDescription>ลัดไปยังเมนูที่ใช้บ่อย</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-2 gap-2">
-                                {quickActions.map((action) => {
-                                    const Icon = action.icon;
+                            <Badge variant={urgentCount > 0 ? "destructive" : "secondary"}>{actionItems.length} เรื่อง</Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        {actionItems.length === 0 ? (
+                            <div className="py-12 text-center">
+                                <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500/70" />
+                                <p className="mt-3 font-bold">ไม่มีงานเร่งด่วนค้างอยู่</p>
+                                <p className="mt-1 text-sm text-muted-foreground">สถานการณ์วันนี้อยู่ในเกณฑ์ปกติ</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2.5">
+                                {actionItems.map((item) => {
+                                    const Icon = actionIcon(item.category);
+                                    const style = toneStyles[item.tone];
                                     return (
-                                        <Link key={action.title} href={action.href}>
-                                            <Button
-                                                variant="outline"
-                                                className="w-full h-auto py-3 flex-col gap-1.5 hover:bg-muted"
-                                            >
-                                                <Icon className={`w-5 h-5 ${action.color}`} />
-                                                <span className="text-xs">{action.title}</span>
-                                            </Button>
+                                        <Link key={item.id} href={item.href} className={`block rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 ${style.box}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${style.icon}`}><Icon className="w-5 h-5" /></div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-black">{item.title}</p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                                                </div>
+                                                <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                                            </div>
                                         </Link>
                                     );
                                 })}
                             </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">หน้างานขณะนี้</CardTitle>
+                            <CardDescription>สถานะคนที่อยู่ในระบบวันนี้</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-3">
+                            {[
+                                ["กำลังทำงาน", stats?.workingNow ?? 0],
+                                ["พักอยู่", stats?.onBreak ?? 0],
+                                ["ออกงานแล้ว", stats?.checkedOutToday ?? 0],
+                                ["ลาวันนี้", stats?.todayOnLeave ?? 0],
+                            ].map(([label, value]) => (
+                                <div key={String(label)} className="rounded-xl border bg-muted/20 p-3 text-center">
+                                    <p className="text-2xl font-black">{value}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+
+                    {isCashier ? (
+                        <Card className="border-[#fbbf24]/50 bg-[#fbbf24]/5">
+                            <CardHeader>
+                                <CardTitle className="text-lg">งานเสมียนสถานี</CardTitle>
+                                <CardDescription>งานที่ควรใช้บ่อยระหว่างกะ</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <Button asChild className="w-full justify-between bg-[#fbbf24] text-black hover:bg-[#eeb31d]">
+                                    <Link href="/admin/attendance?manual=true"><span className="flex items-center"><Plus className="w-4 h-4 mr-2" />เช็คอินแทน</span><ArrowRight className="w-4 h-4" /></Link>
+                                </Button>
+                                <Button asChild variant="outline" className="w-full justify-between">
+                                    <Link href="/"><span>กลับหน้า Station Operations / ลงเวลาของฉัน</span><ArrowRight className="w-4 h-4" /></Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">การแข่งขัน & ลูกค้า</CardTitle>
+                                <CardDescription>งานใหม่ที่ต้องปิดก่อนประกาศผล/ใช้คะแนน</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <Link href="/admin/league" className="flex items-center justify-between rounded-xl border p-3 hover:bg-muted/40">
+                                    <div className="flex items-center gap-3"><Trophy className="w-5 h-5 text-amber-500" /><div><p className="text-sm font-bold">League</p><p className="text-xs text-muted-foreground">Fair Play {stats?.leaguePendingReviews ?? 0} • รอมอบ {stats?.rewardsToFulfill ?? 0}</p></div></div><ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                </Link>
+                                <Link href="/admin/customer-feedback" className="flex items-center justify-between rounded-xl border p-3 hover:bg-muted/40">
+                                    <div className="flex items-center gap-3"><MessageSquareHeart className="w-5 h-5 text-pink-500" /><div><p className="text-sm font-bold">เสียงลูกค้า</p><p className="text-xs text-muted-foreground">เคสเปิด {stats?.customerOpenCases ?? 0} • ทบทวน {stats?.customerReviewRequests ?? 0}</p></div></div><ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
+
+            {(stats?.absentEmployees.length ?? 0) + (stats?.overBreakEmployees.length ?? 0) + (stats?.lateEmployees.length ?? 0) > 0 && (
+                <div className="grid lg:grid-cols-3 gap-4">
+                    <Card className="border-red-200 dark:border-red-950">
+                        <CardHeader className="pb-3"><CardTitle className="text-base text-red-600">เลยเวลาเข้างาน</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            {stats?.absentEmployees.slice(0, 5).map((employee) => (
+                                <div key={employee.id} className="rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2"><p className="text-sm font-bold">{employeeLabel(employee)}</p><p className="text-xs text-muted-foreground">{employee.station} • {employee.shiftTime}</p></div>
+                            ))}
+                            {(stats?.absentEmployees.length ?? 0) > 5 && <p className="text-xs text-muted-foreground">และอีก {(stats?.absentEmployees.length ?? 0) - 5} คน</p>}
+                        </CardContent>
+                    </Card>
+                    <Card className="border-amber-200 dark:border-amber-950">
+                        <CardHeader className="pb-3"><CardTitle className="text-base text-amber-700 dark:text-amber-400">พักเกินเวลา</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            {stats?.overBreakEmployees.slice(0, 5).map((employee) => (
+                                <div key={employee.id} className="rounded-lg bg-amber-50 dark:bg-amber-950/20 px-3 py-2 flex justify-between gap-2"><div><p className="text-sm font-bold">{employeeLabel(employee)}</p><p className="text-xs text-muted-foreground">พัก {employee.durationMinutes}/{employee.allowedMinutes} นาที</p></div><span className="font-black text-amber-700">+{employee.overMinutes}</span></div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-3"><CardTitle className="text-base">มาสายวันนี้</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            {stats?.lateEmployees.slice(0, 5).map((employee) => (
+                                <div key={employee.id} className="rounded-lg bg-muted/30 px-3 py-2 flex justify-between gap-2"><div><p className="text-sm font-bold">{employeeLabel(employee)}</p><p className="text-xs text-muted-foreground">{employee.station}</p></div><span className="font-black text-red-600">+{employee.lateMinutes} นาที</span></div>
+                            ))}
                         </CardContent>
                     </Card>
                 </div>
+            )}
 
-                <AttendanceCalendar data={monthlyAttendance} />
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">เครื่องมือที่ใช้บ่อย</CardTitle>
+                    <CardDescription>{isCashier ? "เฉพาะงานสถานีและสิทธิ์ของเสมียน" : "ลัดไปยังงานควบคุมหลัก"}</CardDescription>
+                </CardHeader>
+                <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {quickActions.map((action) => {
+                        const Icon = action.icon;
+                        return (
+                            <Link key={action.label} href={action.href} className="rounded-xl border p-4 hover:bg-muted/40 transition-colors">
+                                <div className="flex items-center justify-between"><Icon className="w-5 h-5" /><ArrowRight className="w-4 h-4 text-muted-foreground" /></div>
+                                <p className="mt-3 font-bold">{action.label}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{action.description}</p>
+                            </Link>
+                        );
+                    })}
+                </CardContent>
+            </Card>
 
-                {analytics && (
-                    <div className="grid lg:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center gap-2">
-                                    <BarChart3 className="w-5 h-5 text-blue-500" />
-                                    <CardTitle className="text-lg">สถิติ Attendance รายสัปดาห์</CardTitle>
-                                </div>
-                                <CardDescription>ข้อมูล 7 วันล่าสุด</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <AttendanceChart data={analytics.weekly} />
-                            </CardContent>
-                        </Card>
+            {(data?.monthlyAttendance.length ?? 0) > 0 && <AttendanceCalendar data={data?.monthlyAttendance ?? []} />}
 
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-orange-500" />
-                                    <CardTitle className="text-lg">Trend การมาสาย</CardTitle>
-                                </div>
-                                <CardDescription>ข้อมูล 30 วันล่าสุด</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <LatenessTrendChart data={analytics.trend} />
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                {stats && stats.pendingApprovals > 0 && (
-                    <Card className="border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/10">
-                        <CardContent className="p-4">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                                        <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-foreground">
-                                            มี {stats.pendingApprovals} รายการรออนุมัติ
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            สลับกะ: {stats.pendingShiftSwaps} • ลางาน: {stats.pendingLeaves} • แก้ไขเวลา: {stats.pendingTimeCorrections}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button asChild className="shrink-0">
-                                    <Link href="/admin/approvals">
-                                        ไปอนุมัติ <ArrowRight className="w-4 h-4 ml-1" />
-                                    </Link>
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {new Date().getDate() >= 25 && ["ADMIN", "HR"].includes(role) && (
-                    <Card className="border-blue-500/50 bg-blue-500/5">
-                        <CardContent className="p-4">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-blue-500/10">
-                                        <Wallet className="w-5 h-5 text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-foreground">
-                                            ใกล้ถึงกำหนดจ่ายเงินเดือน
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            กรุณาตรวจสอบและปิดงวดบัญชีประจำเดือน
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button asChild className="shrink-0" variant="secondary">
-                                    <Link href="/admin/reports/payroll">
-                                        จัดการเงินเดือน <ArrowRight className="w-4 h-4 ml-1" />
-                                    </Link>
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-        </>
+            {new Date().getDate() >= 25 && ["ADMIN", "HR"].includes(role) && (
+                <Card className="border-blue-300 bg-blue-50/60 dark:border-blue-950 dark:bg-blue-950/20">
+                    <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center"><Wallet className="w-5 h-5 text-blue-600" /></div>
+                            <div><p className="font-black">ใกล้รอบสรุปเงินเดือน</p><p className="text-sm text-muted-foreground">ตรวจ Attendance/รายการหัก/รายได้พิเศษให้เรียบร้อยก่อนปิดงวด</p></div>
+                        </div>
+                        <Button asChild><Link href="/admin/payroll">ไปตรวจเงินเดือน <ArrowRight className="w-4 h-4 ml-1" /></Link></Button>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }

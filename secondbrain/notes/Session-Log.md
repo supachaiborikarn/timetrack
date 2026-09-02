@@ -841,3 +841,29 @@ Verification:
 - `npx prisma validate`: passed.
 - `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
 - `git diff --check`: passed before final cleanup.
+
+
+## 2026-09-02 — Admin and cashier operational dashboard redesign
+
+Goal:
+
+Redesign the home/admin dashboards around the current TimeTrack workflows so each role sees what requires action now instead of a generic summary.
+
+Implementation:
+
+- Reworked `/api/admin/dashboard` into a role-aware operational feed for ADMIN/HR/MANAGER/CASHIER.
+- MANAGER and CASHIER dashboard data is station-scoped; CASHIER does not receive League Fair Play/customer-feedback management counts.
+- Distinguished employees who simply have not arrived yet from employees whose shift start plus the 5-minute grace has already passed. Approved leave is excluded from the expected-to-work denominator.
+- Added current operational signals: working now, on break, break overtime, checkout overdue, late arrivals, open shifts, approvals, advances, League Fair Play reviews, selected rewards awaiting fulfillment, customer cases, and feedback review requests.
+- Rebuilt mobile `AdminHomeView` as a retro-styled Action Center. ADMIN/HR/MANAGER see control-center workflows; CASHIER sees Station Operations, manual check-in/attendance/shift/advance tools, and station-only anomalies.
+- CASHIER now lands on Station Operations at `/` instead of the employee dashboard, while preserving the existing bottom-nav clock, `ClockInModal`, break flow, and mood checkout for the cashier's own attendance.
+- Rebuilt desktop `/admin` dashboard around the same Action Center data so mobile home and desktop admin no longer present conflicting operational priorities.
+- Removed dashboard announcement authoring from the home surface; announcements remain visible but creation/management stays in the dedicated announcement workflow.
+- Preserved `?light=true` dashboard compatibility for sidebar pending-count polling.
+
+Verification:
+
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for the dashboard API, both dashboard views, and root role routing: passed with no warnings.
+- `NODE_ENV=production npm run build`: passed; 184/184 static pages generated.
+- Existing middleware deprecation warning remains unrelated.
