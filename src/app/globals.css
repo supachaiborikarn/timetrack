@@ -156,3 +156,98 @@
     @apply bg-black/20 backdrop-blur-lg border border-white/10;
   }
 }
+
+/* Employee dashboard retro motion */
+.tt-retro-enter {
+  animation: tt-retro-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tt-retro-delay-1 { animation-delay: 70ms; }
+.tt-retro-delay-2 { animation-delay: 140ms; }
+.tt-retro-delay-3 { animation-delay: 210ms; }
+.tt-retro-delay-4 { animation-delay: 280ms; }
+.tt-retro-delay-5 { animation-delay: 350ms; }
+
+.tt-retro-control {
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  will-change: transform;
+}
+
+.tt-retro-control:active {
+  transform: translateY(2px) scale(0.97);
+  filter: saturate(0.96);
+}
+
+.tt-retro-orbit {
+  animation: tt-retro-spin 9s linear infinite;
+  transform-origin: center;
+}
+
+.tt-retro-meter {
+  transform: skewX(-12deg);
+  transform-origin: left center;
+}
+
+.tt-retro-meter-on {
+  animation: tt-retro-meter-fill 430ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tt-retro-pop {
+  animation: tt-retro-pop 400ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.tt-retro-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-retro-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    rgba(24, 24, 27, 0.65) 4px
+  );
+  mix-blend-mode: multiply;
+}
+
+@keyframes tt-retro-enter {
+  0% { opacity: 0; transform: translateY(10px) scale(0.985); }
+  70% { opacity: 1; transform: translateY(-1px) scale(1); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes tt-retro-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tt-retro-meter-fill {
+  from { opacity: 0.35; transform: skewX(-12deg) scaleX(0.15); }
+  to { opacity: 1; transform: skewX(-12deg) scaleX(1); }
+}
+
+@keyframes tt-retro-pop {
+  0% { opacity: 0.6; transform: scale(0.82); }
+  70% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-retro-enter,
+  .tt-retro-orbit,
+  .tt-retro-meter-on,
+  .tt-retro-pop {
+    animation: none !important;
+  }
+
+  .tt-retro-control {
+    transition: none !important;
+  }
+
+  .tt-retro-control:active {
+    transform: none !important;
+  }
+}

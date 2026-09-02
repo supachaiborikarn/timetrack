@@ -281,6 +281,7 @@ export function EmployeeDashboardView() {
   const [permissionCount, setPermissionCount] = useState(0);
   const [breakMinutesToday, setBreakMinutesToday] = useState(0);
   const [performanceScore, setPerformanceScore] = useState(100);
+  const [displayPerformanceScore, setDisplayPerformanceScore] = useState(0);
   const [customerEvaluationStatus, setCustomerEvaluationStatus] = useState<CustomerEvaluationStatus | null>(null);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -333,6 +334,29 @@ export function EmployeeDashboardView() {
   useEffect(() => {
     void fetchDashboardData();
   }, [fetchDashboardData]);
+
+  useEffect(() => {
+    if (dataLoading) return;
+
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplayPerformanceScore(performanceScore);
+      return;
+    }
+
+    const durationMs = 650;
+    const startedAt = window.performance.now();
+    let frameId = 0;
+
+    const tick = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startedAt) / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayPerformanceScore(Math.round(performanceScore * eased));
+      if (progress < 1) frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [dataLoading, performanceScore]);
 
   const onCheckOutClick = () => {
     window.requestAnimationFrame(() => setIsMoodDialogOpen(true));
@@ -436,7 +460,7 @@ export function EmployeeDashboardView() {
                 const index = LANG_CYCLE.indexOf(lang);
                 setLang(LANG_CYCLE[(index + 1) % LANG_CYCLE.length]);
               }}
-              className="h-9 min-w-11 px-2 rounded-full border border-black/25 bg-white/15 text-[10px] font-black text-black flex flex-col items-center justify-center leading-none"
+              className="tt-retro-control h-9 min-w-11 px-2 rounded-full border border-black/25 bg-white/15 text-[10px] font-black text-black flex flex-col items-center justify-center leading-none"
               aria-label="เปลี่ยนภาษา"
             >
               <span className="text-base leading-none">{T.flag}</span>
@@ -444,14 +468,14 @@ export function EmployeeDashboardView() {
             </button>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
+              className="tt-retro-control h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
               aria-label="สลับธีม"
             >
               {theme === "dark" ? <Sun className="w-4 h-4 text-black" /> : <Moon className="w-4 h-4 text-black" />}
             </button>
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
+              className="tt-retro-control h-9 w-9 rounded-full border border-black/25 bg-white/15 flex items-center justify-center"
               aria-label="เปิดเมนู"
             >
               <Menu className="w-5 h-5 text-black" />
@@ -461,7 +485,7 @@ export function EmployeeDashboardView() {
       </header>
 
       <main className="max-w-md mx-auto px-3.5 pt-3 pb-8 space-y-2.5">
-        <section className="relative overflow-hidden rounded-[24px] border border-black/20 dark:border-white/15 bg-[#fffaf0] dark:bg-zinc-900 shadow-[0_3px_0_rgba(0,0,0,0.08)]">
+        <section className="tt-retro-enter tt-retro-panel relative overflow-hidden rounded-[24px] border border-black/20 dark:border-white/15 bg-[#fffaf0] dark:bg-zinc-900 shadow-[0_3px_0_rgba(0,0,0,0.08)]">
           <div className="flex items-center justify-between border-b border-black/15 dark:border-white/10 bg-zinc-950 text-white px-4 py-2">
             <p className="font-mono text-[11px] tracking-[0.12em] font-bold">
               <span className="text-[#fbbf24]">TODAY</span> / {format(now, lang === "th" ? "d MMM" : "MMM d", { locale: lang === "th" ? th : enUS })}
@@ -518,7 +542,10 @@ export function EmployeeDashboardView() {
                   }}
                   aria-label={`ความคืบหน้ากะ ${Math.round(shiftProgress)} เปอร์เซ็นต์`}
                 >
-                  <div className="w-full h-full rounded-full border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 flex flex-col items-center justify-center">
+                  <span className="tt-retro-orbit pointer-events-none absolute -inset-1 rounded-full" aria-hidden="true">
+                    <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full border border-black/20 bg-[#fbbf24] shadow-[0_0_0_3px_rgba(251,191,36,0.16)]" />
+                  </span>
+                  <div className="relative z-[1] w-full h-full rounded-full border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 flex flex-col items-center justify-center">
                     <Fuel className="w-7 h-7 text-zinc-800 dark:text-zinc-100" />
                     <span className="mt-1 font-mono text-[10px] font-bold text-zinc-500 dark:text-zinc-400">SHIFT</span>
                   </div>
@@ -537,7 +564,7 @@ export function EmployeeDashboardView() {
                 <button
                   onClick={() => void handleCheckIn()}
                   disabled={isChecking}
-                  className="w-full min-h-12 rounded-2xl border border-black bg-[#fbbf24] text-black font-black text-[15px] flex items-center justify-center gap-2 shadow-[0_3px_0_rgba(0,0,0,0.18)] active:translate-y-[2px] active:shadow-none disabled:opacity-60"
+                  className="tt-retro-control w-full min-h-12 rounded-2xl border border-black bg-[#fbbf24] text-black font-black text-[15px] flex items-center justify-center gap-2 shadow-[0_3px_0_rgba(0,0,0,0.18)] active:translate-y-[2px] active:shadow-none disabled:opacity-60"
                 >
                   {isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
                   {T.checkIn}
@@ -547,7 +574,7 @@ export function EmployeeDashboardView() {
                   <button
                     onClick={() => void (isOnBreak ? handleEndBreak() : handleStartBreak())}
                     disabled={isChecking || (hasTakenBreak && !isOnBreak)}
-                    className="min-h-12 rounded-2xl border border-black/30 dark:border-white/20 bg-white/70 dark:bg-white/5 font-black text-[14px] flex items-center justify-center gap-2 disabled:opacity-45 active:scale-[0.98]"
+                    className="tt-retro-control min-h-12 rounded-2xl border border-black/30 dark:border-white/20 bg-white/70 dark:bg-white/5 font-black text-[14px] flex items-center justify-center gap-2 disabled:opacity-45 active:scale-[0.98]"
                   >
                     {isChecking ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -561,7 +588,7 @@ export function EmployeeDashboardView() {
                   <button
                     onClick={onCheckOutClick}
                     disabled={isChecking}
-                    className="min-h-12 rounded-2xl border border-black bg-[#fbbf24] text-black font-black text-[14px] flex items-center justify-center gap-2 shadow-[0_3px_0_rgba(0,0,0,0.18)] active:translate-y-[2px] active:shadow-none disabled:opacity-60"
+                    className="tt-retro-control min-h-12 rounded-2xl border border-black bg-[#fbbf24] text-black font-black text-[14px] flex items-center justify-center gap-2 shadow-[0_3px_0_rgba(0,0,0,0.18)] active:translate-y-[2px] active:shadow-none disabled:opacity-60"
                   >
                     <LogOut className="w-5 h-5" />
                     {T.checkOut}
@@ -574,9 +601,9 @@ export function EmployeeDashboardView() {
         </section>
 
         {customerEvaluationStatus && (
-          <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 px-3.5 py-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+          <section className="tt-retro-enter tt-retro-delay-1 rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 px-3.5 py-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full border border-black/20 dark:border-white/15 bg-[#fbbf24]/20 flex items-center justify-center shrink-0">
+              <div className={`w-10 h-10 rounded-full border border-black/20 dark:border-white/15 bg-[#fbbf24]/20 flex items-center justify-center shrink-0 ${customerEvaluationStatus === "DONE" ? "tt-retro-pop" : ""}`}>
                 <Target className="w-5 h-5 text-zinc-800 dark:text-zinc-100" />
               </div>
               <div className="min-w-0 flex-1">
@@ -590,7 +617,8 @@ export function EmployeeDashboardView() {
                   {[0, 1, 2].map((index) => (
                     <span
                       key={index}
-                      className={`h-2.5 rounded-sm skew-x-[-12deg] ${index < missionLevel ? (customerEvaluationStatus === "DONE" ? "bg-emerald-500" : "bg-[#fbbf24]") : "bg-zinc-200 dark:bg-zinc-700"}`}
+                      className={`tt-retro-meter h-2.5 rounded-sm ${index < missionLevel ? `tt-retro-meter-on ${customerEvaluationStatus === "DONE" ? "bg-emerald-500" : "bg-[#fbbf24]"}` : "bg-zinc-200 dark:bg-zinc-700"}`}
+                      style={index < missionLevel ? { animationDelay: `${180 + index * 90}ms` } : undefined}
                     />
                   ))}
                 </div>
@@ -602,7 +630,7 @@ export function EmployeeDashboardView() {
         {session?.user?.role === "CASHIER" && (
           <Link
             href="/admin/attendance?manual=true"
-            className="block rounded-[22px] border border-blue-300/60 bg-blue-600 text-white p-4 shadow-[0_2px_0_rgba(30,64,175,0.3)] active:scale-[0.99]"
+            className="tt-retro-enter tt-retro-delay-2 tt-retro-control block rounded-[22px] border border-blue-300/60 bg-blue-600 text-white p-4 shadow-[0_2px_0_rgba(30,64,175,0.3)] active:scale-[0.99]"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -619,7 +647,7 @@ export function EmployeeDashboardView() {
           </Link>
         )}
 
-        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="tt-retro-enter tt-retro-delay-2 rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 mb-2.5">
             <CalendarDays className="w-4.5 h-4.5 text-amber-500" />
             <h3 className="text-[13px] font-black">{T.monthSummary}</h3>
@@ -645,7 +673,7 @@ export function EmployeeDashboardView() {
           </div>
         </section>
 
-        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="tt-retro-enter tt-retro-delay-3 rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="grid grid-cols-[1fr_auto] gap-4 items-center">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full bg-[#fbbf24] border border-black/15 flex items-center justify-center shrink-0">
@@ -654,7 +682,7 @@ export function EmployeeDashboardView() {
               <div className="min-w-0">
                 <p className="text-[10px] font-black tracking-[0.08em] uppercase text-zinc-500 dark:text-zinc-400">{T.score}</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[36px] leading-none font-black tracking-[-0.06em]">{performanceScore}</span>
+                  <span className="tt-retro-score text-[36px] leading-none font-black tracking-[-0.06em]">{displayPerformanceScore}</span>
                   <span className={`text-[10px] font-black ${performanceScore >= 90 ? "text-emerald-600 dark:text-emerald-400" : performanceScore >= 70 ? "text-amber-600 dark:text-amber-400" : "text-red-500"}`}>
                     {getPerformanceLabel(performanceScore)}
                   </span>
@@ -669,7 +697,7 @@ export function EmployeeDashboardView() {
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 overflow-hidden shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="tt-retro-enter tt-retro-delay-4 rounded-[24px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 overflow-hidden shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-black/10 dark:border-white/10">
             <div className="flex items-center gap-2 min-w-0">
               <Megaphone className="w-5 h-5 text-amber-500 shrink-0" />
@@ -704,12 +732,12 @@ export function EmployeeDashboardView() {
           )}
         </section>
 
-        <section className="space-y-2.5">
+        <section className="tt-retro-enter tt-retro-delay-5 space-y-2.5">
           <p className="px-1 text-[10px] font-black tracking-[0.12em] uppercase text-zinc-500 dark:text-zinc-400">{T.quickActions}</p>
           <div className="grid grid-cols-2 gap-2.5">
             <Link
               href="/requests/time-correction"
-              className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)] active:scale-[0.98]"
+              className="tt-retro-control rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
             >
               <div className="flex items-center justify-between">
                 <CalendarCheck className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
@@ -721,7 +749,7 @@ export function EmployeeDashboardView() {
 
             <Link
               href="/advances"
-              className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)] active:scale-[0.98]"
+              className="tt-retro-control rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
             >
               <div className="flex items-center justify-between">
                 <Wallet className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
@@ -733,7 +761,7 @@ export function EmployeeDashboardView() {
           </div>
         </section>
 
-        <section className="rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+        <section className="tt-retro-enter tt-retro-delay-5 rounded-[22px] border border-black/15 dark:border-white/10 bg-[#fffaf0] dark:bg-zinc-900 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-amber-500" />

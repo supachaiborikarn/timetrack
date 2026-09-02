@@ -758,3 +758,28 @@ Verification:
 - `npx eslint src/components/dashboard/views/EmployeeDashboardView.tsx`: passed.
 - `NODE_ENV=production npm run build`: passed, 180/180 static pages generated.
 - The earlier `/apply/status` prerender failure is confirmed to be caused by a shell-level `NODE_ENV=development`; production build succeeds when NODE_ENV is correct.
+
+
+## 2026-09-02 — Employee dashboard retro motion pass
+
+Goal:
+
+Bring the approved retro dashboard mockup closer to the live employee experience through restrained motion without changing attendance/customer-feedback business logic.
+
+Implementation:
+
+- Added staggered card entrance motion for the employee dashboard.
+- Added a slow orbit indicator around the live shift progress dial.
+- Added sequential fill animation for the 3-state customer-feedback mission meter without exposing exact response counts or the 5/day target.
+- Added count-up motion for the performance score.
+- Added tactile press feedback to dashboard controls and primary attendance actions.
+- Added a very subtle scanline texture to the shift hero for the industrial-retro visual language.
+- Added `prefers-reduced-motion` fallbacks that disable decorative motion and tactile transforms when the device requests reduced motion.
+- No API, attendance, payroll, customer-feedback scoring, or admin behavior changed.
+
+Verification:
+
+- `npx tsc --noEmit`: passed.
+- `npx eslint src/components/dashboard/views/EmployeeDashboardView.tsx`: passed.
+- `git diff --check`: passed.
+- Production build launched with `NODE_ENV=production`; compilation succeeded. Final build completion was still being verified when this log entry was written.
