@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -137,153 +137,145 @@ export default function PayrollReportPage() {
     if (!session || !["ADMIN", "HR"].includes(session.user.role)) redirect("/");
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">รายงานสรุปเงินเดือน</h1>
-                    <p className="text-muted-foreground">ภาพรวมรายจ่ายเงินเดือนแยกตามแผนกและประเภทการจ่าย</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => handleExport('excel')} disabled={!reportData}>
-                        <Download className="w-4 h-4 mr-2" /> Excel
-                    </Button>
-                    <Button
-                        onClick={async () => {
-                            if (!confirm("ยืนยันการปิดงวดบัญชี? ข้อมูลจะถูกบันทึกสำหรับพนักงาน")) return;
-                            try {
-                                const res = await fetch("/api/admin/payroll/finalize", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ startDate, endDate, stationId: stationId === "all" ? undefined : stationId })
-                                });
-                                const response = await res.json().catch(() => null);
-                                if (res.ok) alert(response?.status === "FINALIZED" ? "ปิดงวดบัญชีเรียบร้อย" : "บันทึกรายการที่กรองไว้แล้ว");
-                                else alert(response?.error || "เกิดข้อผิดพลาด");
-                            } catch {
-                                alert("Failed to connect");
-                            }
-                        }}
-                        disabled={!reportData}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                        <Building2 className="w-4 h-4 mr-2" /> ปิดงวดบัญชี
-                    </Button>
+        <div className="space-y-6 font-sans">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <PieChart className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">PAYROLL ANALYTICS</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">รายงานสรุปเงินเดือน</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">ภาพรวมรายจ่ายเงินเดือนแยกตามแผนกและประเภทการจ่าย</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleExport('excel')}
+                            disabled={!reportData}
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all text-xs"
+                        >
+                            <Download className="w-4 h-4 mr-1.5" /> Excel
+                        </Button>
+                        <Button
+                            onClick={async () => {
+                                if (!confirm("ยืนยันการปิดงวดบัญชี? ข้อมูลจะถูกบันทึกสำหรับพนักงาน")) return;
+                                try {
+                                    const res = await fetch("/api/admin/payroll/finalize", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ startDate, endDate, stationId: stationId === "all" ? undefined : stationId })
+                                    });
+                                    const response = await res.json().catch(() => null);
+                                    if (res.ok) alert(response?.status === "FINALIZED" ? "ปิดงวดบัญชีเรียบร้อย" : "บันทึกรายการที่กรองไว้แล้ว");
+                                    else alert(response?.error || "เกิดข้อผิดพลาด");
+                                } catch {
+                                    alert("Failed to connect");
+                                }
+                            }}
+                            disabled={!reportData}
+                            className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 transition-all text-xs shadow-sm"
+                        >
+                            <Building2 className="w-4 h-4 mr-1.5" /> ปิดงวดบัญชี
+                        </Button>
+                    </div>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card>
-                <CardContent className="py-4">
-                    <div className="flex flex-wrap items-end gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">ช่วงเวลา</label>
-                            <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => {
-                                    setStartDate(format(startOfMonth(now), "yyyy-MM-dd"));
-                                    setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
-                                }}>เดือนนี้</Button>
-                                <Button size="sm" variant="outline" onClick={() => {
-                                    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                                    setStartDate(format(startOfMonth(lastMonth), "yyyy-MM-dd"));
-                                    setEndDate(format(endOfMonth(lastMonth), "yyyy-MM-dd"));
-                                }}>เดือนก่อน</Button>
-                            </div>
+            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex flex-wrap items-end gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">ช่วงเวลาด่วน</label>
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="tt-retro-control text-xs font-bold rounded-xl h-9" onClick={() => {
+                                setStartDate(format(startOfMonth(now), "yyyy-MM-dd"));
+                                setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
+                            }}>เดือนนี้</Button>
+                            <Button size="sm" variant="outline" className="tt-retro-control text-xs font-bold rounded-xl h-9" onClick={() => {
+                                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                setStartDate(format(startOfMonth(lastMonth), "yyyy-MM-dd"));
+                                setEndDate(format(endOfMonth(lastMonth), "yyyy-MM-dd"));
+                            }}>เดือนก่อน</Button>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">เริ่มต้น</label>
-                            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">สิ้นสุด</label>
-                            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">สถานี</label>
-                            <Select value={stationId} onValueChange={setStationId}>
-                                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">ทั้งหมด</SelectItem>
-                                    {stations.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Button onClick={generateReport} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
-                            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PieChart className="w-4 h-4 mr-2" />}
-                            ดูรายงาน
-                        </Button>
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">เริ่มต้น</label>
+                        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">สิ้นสุด</label>
+                        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">สถานี</label>
+                        <Select value={stationId} onValueChange={setStationId}>
+                            <SelectTrigger className="w-44 h-9 rounded-xl font-bold bg-white dark:bg-zinc-900 border-zinc-700/30"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">ทั้งหมด</SelectItem>
+                                {stations.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button onClick={generateReport} disabled={isLoading} className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-9 px-4 text-xs shadow-sm">
+                        {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PieChart className="w-4 h-4 mr-2" />}
+                        ดูรายงาน
+                    </Button>
+                </div>
+            </div>
 
             {/* Content */}
             {reportData ? (
                 <>
                     {/* KPI Cards - Row 1: Income */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">ค่าแรงปกติ</p>
-                                <p className="text-xl font-bold text-blue-600">฿{reportData.summary.totalRegularPay.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">ค่าล่วงเวลา (OT)</p>
-                                <p className="text-xl font-bold text-purple-600">฿{reportData.summary.totalOvertimePay.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">รวมหักทั้งหมด</p>
-                                <p className="text-xl font-bold text-red-500">-฿{reportData.summary.totalDeductions.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-green-200 dark:border-green-800">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground mb-1">ยอดจ่ายสุทธิ</p>
-                                <p className="text-2xl font-bold text-green-600">฿{reportData.summary.grandTotal.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">ค่าแรงปกติ</p>
+                            <p className="text-xl font-black font-mono text-blue-600 dark:text-blue-400">฿{reportData.summary.totalRegularPay.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">ค่าล่วงเวลา (OT)</p>
+                            <p className="text-xl font-black font-mono text-purple-600 dark:text-purple-400">฿{reportData.summary.totalOvertimePay.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">รวมหักทั้งหมด</p>
+                            <p className="text-xl font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalDeductions.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1">ยอดจ่ายสุทธิ</p>
+                            <p className="text-2xl font-black font-mono text-zinc-950 dark:text-white">฿{reportData.summary.grandTotal.toLocaleString()}</p>
+                        </div>
                     </div>
 
                     {/* KPI Cards - Row 2: Deduction breakdown */}
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">หักสาย</p>
-                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalLatePenalty.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">หักกลับก่อนเกณฑ์</p>
-                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalEarlyLeavePenalty.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">หักเบิกล่วงหน้า</p>
-                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalAdvanceDeduction.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">ค่าใช้จ่ายอื่นๆ</p>
-                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalOtherExpenses.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">ประกันสังคม</p>
-                                <p className="text-sm font-semibold text-red-400">-฿{reportData.summary.totalSocialSecurity.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-xs text-muted-foreground mb-1">พนักงาน</p>
-                                <p className="text-sm font-semibold text-foreground">{reportData.summary.totalEmployees} คน</p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3.5">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">หักสาย</p>
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalLatePenalty.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">หักกลับก่อนเกณฑ์</p>
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalEarlyLeavePenalty.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">หักเบิกล่วงหน้า</p>
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalAdvanceDeduction.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">ค่าใช้จ่ายอื่นๆ</p>
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalOtherExpenses.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">ประกันสังคม</p>
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{reportData.summary.totalSocialSecurity.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-[11px] font-bold text-zinc-500 mb-1">พนักงาน</p>
+                            <p className="text-sm font-black font-mono text-zinc-900 dark:text-zinc-100">{reportData.summary.totalEmployees} คน</p>
+                        </div>
                     </div>
 
                     {/* SSO Info */}

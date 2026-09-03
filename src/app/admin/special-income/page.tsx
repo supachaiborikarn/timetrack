@@ -573,46 +573,44 @@ export default function SpecialIncomePage() {
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" asChild>
-                        <a href="/admin">
-                            <ChevronLeft className="w-5 h-5" />
-                        </a>
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                            <TrendingUp className="w-6 h-6 text-emerald-500" />
-                            รายได้พิเศษ
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            ลงเปอร์เซ็นต์ขายรายวัน / โบนัส / ทิป
-                        </p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <TrendingUp className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">INCENTIVE DESK</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">รายได้พิเศษ & ค่าคอมมิชชั่น</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">บันทึกเปอร์เซ็นต์ขายรายวัน, โบนัส, ทิป และเงินปรับพิเศษ</p>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {/* View toggle */}
-                    <div className="flex border border-border rounded-lg overflow-hidden">
-                        <Button
-                            variant={viewMode === "daily" ? "default" : "ghost"}
-                            size="sm"
-                            className={`rounded-none ${viewMode === "daily" ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""}`}
-                            onClick={() => setViewMode("daily")}
-                        >
-                            <CalendarDays className="w-4 h-4 mr-1.5" />
-                            รายวัน
-                        </Button>
-                        <Button
-                            variant={viewMode === "list" ? "default" : "ghost"}
-                            size="sm"
-                            className={`rounded-none ${viewMode === "list" ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""}`}
-                            onClick={() => setViewMode("list")}
-                        >
-                            <LayoutList className="w-4 h-4 mr-1.5" />
-                            รายการทั้งหมด
-                        </Button>
+                    <div className="flex items-center gap-2">
+                        {/* View toggle */}
+                        <div className="tt-retro-control flex items-center border border-white/20 rounded-xl overflow-hidden bg-zinc-900 p-0.5">
+                            <button
+                                onClick={() => setViewMode("daily")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "daily"
+                                        ? "bg-[#fbbf24] text-zinc-950 font-black shadow-sm"
+                                        : "text-zinc-400 hover:text-white"
+                                    }`}
+                            >
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                รายวัน
+                            </button>
+                            <button
+                                onClick={() => setViewMode("list")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "list"
+                                        ? "bg-[#fbbf24] text-zinc-950 font-black shadow-sm"
+                                        : "text-zinc-400 hover:text-white"
+                                    }`}
+                            >
+                                <LayoutList className="w-3.5 h-3.5" />
+                                รายการทั้งหมด
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -621,8 +619,7 @@ export default function SpecialIncomePage() {
             {viewMode === "daily" && (
                 <>
                     {/* Controls: Date Range + Station */}
-                    <Card className="border-border">
-                        <CardContent className="py-4 space-y-3">
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 space-y-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
                             {/* Row 1: Range presets + Station + Actions */}
                             <div className="flex flex-wrap items-center gap-2">
                                 {/* Range presets */}
@@ -769,61 +766,63 @@ export default function SpecialIncomePage() {
                                     </div>
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
+                    </div>
 
                     {/* Summary bar */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Card className="border-border bg-gradient-to-br from-emerald-500/10 to-transparent">
-                            <CardContent className="py-3 flex items-center gap-3">
-                                <DollarSign className="w-8 h-8 text-emerald-500 shrink-0" />
-                                <div>
-                                    <p className="text-xl font-bold text-emerald-500">
-                                        ฿{formatCurrency(dailyRangeMode === "day" ? dailyTotal : (summary?.totalAmount || 0))}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {dailyRangeMode === "day" ? "รวมวันนี้" : "รวมช่วงที่เลือก"}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border">
-                            <CardContent className="py-3 flex items-center gap-3">
-                                <Users className="w-8 h-8 text-purple-400 shrink-0" />
-                                <div>
-                                    <p className="text-xl font-bold text-purple-400">
-                                        {dailyRangeMode === "day" ? clerks.length : (summary?.uniqueEmployees || 0)}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {dailyRangeMode === "day" ? "เสมียน" : "พนักงาน"}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border">
-                            <CardContent className="py-3 flex items-center gap-3">
-                                <Percent className="w-8 h-8 text-blue-400 shrink-0" />
-                                <div>
-                                    <p className="text-xl font-bold text-blue-400">
-                                        {dailyRangeMode === "day"
-                                            ? Object.values(dailyEntries).filter(e => parseFloat(e.amount) > 0).length
-                                            : (summary?.totalRecords || 0)}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {dailyRangeMode === "day" ? "ลงข้อมูลแล้ว" : "รายการทั้งหมด"}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border">
-                            <CardContent className="py-3 flex items-center gap-3">
-                                <Clock className="w-8 h-8 text-yellow-400 shrink-0" />
-                                <div>
-                                    <p className="text-xl font-bold text-yellow-400">{pendingCount}</p>
-                                    <p className="text-xs text-muted-foreground">รออนุมัติ</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                                <DollarSign className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">
+                                    ฿{formatCurrency(dailyRangeMode === "day" ? dailyTotal : (summary?.totalAmount || 0))}
+                                </p>
+                                <p className="text-[11px] font-bold text-zinc-500">
+                                    {dailyRangeMode === "day" ? "รวมวันนี้" : "รวมช่วงที่เลือก"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                                <Users className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-xl font-black font-mono text-zinc-900 dark:text-zinc-100">
+                                    {dailyRangeMode === "day" ? clerks.length : (summary?.uniqueEmployees || 0)}
+                                </p>
+                                <p className="text-[11px] font-bold text-zinc-500">
+                                    {dailyRangeMode === "day" ? "เสมียน" : "พนักงาน"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                                <Percent className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-xl font-black font-mono text-zinc-900 dark:text-zinc-100">
+                                    {dailyRangeMode === "day"
+                                        ? Object.values(dailyEntries).filter(e => parseFloat(e.amount) > 0).length
+                                        : (summary?.totalRecords || 0)}
+                                </p>
+                                <p className="text-[11px] font-bold text-zinc-500">
+                                    {dailyRangeMode === "day" ? "ลงข้อมูลแล้ว" : "รายการทั้งหมด"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0 font-black">
+                                <Clock className="w-5 h-5 text-[#fbbf24]" />
+                            </div>
+                            <div>
+                                <p className="text-xl font-black font-mono text-amber-700 dark:text-amber-400">{pendingCount}</p>
+                                <p className="text-[11px] font-bold text-zinc-500">รออนุมัติ</p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* === Single day: Inline entry table === */}

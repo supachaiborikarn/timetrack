@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/table";
 import {
     AlertTriangle,
-    Timer,
     Users,
     DollarSign,
     Loader2,
@@ -188,130 +187,125 @@ export default function BreakSummaryPage() {
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto font-sans">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link href="/admin/reports">
-                    <Button variant="ghost" size="icon">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Coffee className="w-6 h-6 text-orange-500" />
-                        สรุปเวลาพัก
-                    </h1>
-                    <p className="text-sm text-muted-foreground">รายงานและแจ้งเตือนพนักงานพักเกินเวลา</p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Link href="/admin/reports">
+                            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl">
+                                <ArrowLeft className="w-5 h-5" />
+                            </Button>
+                        </Link>
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Coffee className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">BREAK TIME MONITOR</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">สรุปเวลาพัก</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">รายงานและแจ้งเตือนพนักงานพักเกินเวลาที่กำหนด</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-4 items-end">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">วันเริ่มต้น</Label>
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-40"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">วันสิ้นสุด</Label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-40"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">สถานี</Label>
-                            <Select value={stationId} onValueChange={setStationId}>
-                                <SelectTrigger className="w-48">
-                                    <SelectValue placeholder="ทุกสถานี" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">ทุกสถานี</SelectItem>
-                                    {stations.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={setLast7Days}>7 วัน</Button>
-                            <Button variant="outline" size="sm" onClick={setThisMonth}>เดือนนี้</Button>
-                            <Button variant="outline" size="sm" onClick={setLast30Days}>30 วัน</Button>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-                            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
-                            รีเฟรช
-                        </Button>
+            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex flex-wrap gap-4 items-end">
+                    <div className="space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">วันเริ่มต้น</Label>
+                        <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-40 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30"
+                        />
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">วันสิ้นสุด</Label>
+                        <Input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-40 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">สถานี</Label>
+                        <Select value={stationId} onValueChange={setStationId}>
+                            <SelectTrigger className="w-48 h-9 rounded-xl font-bold bg-white dark:bg-zinc-900 border-zinc-700/30">
+                                <SelectValue placeholder="ทุกสถานี" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">ทุกสถานี</SelectItem>
+                                {stations.map((s) => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="tt-retro-control text-xs font-bold rounded-xl h-9" onClick={setLast7Days}>7 วัน</Button>
+                        <Button size="sm" variant="outline" className="tt-retro-control text-xs font-bold rounded-xl h-9" onClick={setThisMonth}>เดือนนี้</Button>
+                        <Button size="sm" variant="outline" className="tt-retro-control text-xs font-bold rounded-xl h-9" onClick={setLast30Days}>30 วัน</Button>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={fetchData} disabled={loading} className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-9 px-3 gap-1.5 text-xs shadow-sm">
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                        รีเฟรช
+                    </Button>
+                </div>
+            </div>
 
             {/* Summary Cards */}
             {data && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="border-blue-500/20 bg-blue-500/5">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10">
-                                    <Coffee className="w-5 h-5 text-blue-500" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">พักทั้งหมด</p>
-                                    <p className="text-2xl font-bold text-foreground">{data.summary.totalBreakRecords}</p>
-                                    <p className="text-xs text-muted-foreground">ครั้ง</p>
-                                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                                <Coffee className="w-5 h-5" />
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-orange-500/20 bg-orange-500/5">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-orange-500/10">
-                                    <AlertTriangle className="w-5 h-5 text-orange-500" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">พักเกินเวลา</p>
-                                    <p className="text-2xl font-bold text-orange-500">{data.summary.totalOvertimeBreaks}</p>
-                                    <p className="text-xs text-muted-foreground">ครั้ง</p>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">พักทั้งหมด</p>
+                                <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{data.summary.totalBreakRecords}</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-red-500/20 bg-red-500/5">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-red-500/10">
-                                    <DollarSign className="w-5 h-5 text-red-500" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">ค่าปรับรวม</p>
-                                    <p className="text-2xl font-bold text-red-500">฿{data.summary.totalPenaltyAmount.toLocaleString()}</p>
-                                </div>
+                        </div>
+                    </div>
+
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0 font-black">
+                                <AlertTriangle className="w-5 h-5 text-[#fbbf24]" />
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-purple-500/20 bg-purple-500/5">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-purple-500/10">
-                                    <Users className="w-5 h-5 text-purple-500" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">พนักงานพักเกิน</p>
-                                    <p className="text-2xl font-bold text-purple-500">{data.summary.employeesWithOvertime}</p>
-                                    <p className="text-xs text-muted-foreground">คน</p>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">พักเกินเวลา</p>
+                                <p className="text-2xl font-black font-mono text-amber-700 dark:text-amber-400">{data.summary.totalOvertimeBreaks}</p>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
+
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400 grid place-items-center shrink-0 font-black">
+                                <DollarSign className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ค่าปรับรวม</p>
+                                <p className="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">฿{data.summary.totalPenaltyAmount.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                                <Users className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">พนักงานพักเกิน</p>
+                                <p className="text-2xl font-black font-mono text-purple-700 dark:text-purple-400">{data.summary.employeesWithOvertime}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

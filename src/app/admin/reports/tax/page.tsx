@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
+import { Card, CardTitle, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -93,62 +93,68 @@ export default function TaxReportPage() {
     if (!session || !["ADMIN", "HR"].includes(session.user.role)) redirect("/");
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold">รายงานรายได้และประกันสังคม</h1>
-                    <p className="text-muted-foreground">ยอดภาษีแสดงเป็นศูนย์จนกว่าจะมีข้อมูลภาษีที่ผ่านการตรวจสอบ</p>
+        <div className="space-y-6 font-sans">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Calculator className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">TAX & SOCIAL SECURITY</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">รายงานรายได้และประกันสังคม</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">ยอดภาษีและเงินสมทบกองทุนประกันสังคมตามรอบบัญชี</p>
+                        </div>
+                    </div>
+                    {reportData && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                const params = new URLSearchParams({ startDate, endDate });
+                                window.open(`/api/admin/reports/tax/export?${params}`, "_blank");
+                            }}
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all text-xs self-start sm:self-auto"
+                        >
+                            <Download className="w-4 h-4 mr-1.5" /> Export Excel
+                        </Button>
+                    )}
                 </div>
-                {reportData && (
-                    <Button variant="outline" onClick={() => {
-                        const params = new URLSearchParams({ startDate, endDate });
-                        window.open(`/api/admin/reports/tax/export?${params}`, "_blank");
-                    }}>
-                        <Download className="w-4 h-4 mr-2" /> Export Excel
-                    </Button>
-                )}
             </div>
 
-            <Card>
-                <CardContent className="py-4">
-                    <div className="flex gap-4 items-end">
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">เริ่มต้น</label>
-                            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">สิ้นสุด</label>
-                            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36" />
-                        </div>
-                        <Button onClick={generateReport} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Calculator className="w-4 h-4 mr-2" />}
-                            คำนวณ
-                        </Button>
+            {/* Filters */}
+            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex flex-wrap gap-4 items-end">
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">เริ่มต้น</label>
+                        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30" />
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">สิ้นสุด</label>
+                        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30" />
+                    </div>
+                    <Button onClick={generateReport} disabled={isLoading} className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-9 px-4 text-xs shadow-sm">
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Calculator className="w-4 h-4 mr-2" />}
+                        คำนวณ
+                    </Button>
+                </div>
+            </div>
 
             {reportData && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground">รายได้รวมพนักงาน</p>
-                                <p className="text-2xl font-bold text-blue-600">฿{reportData.summary.totalIncome.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground">นำส่งประกันสังคม (5%)</p>
-                                <p className="text-2xl font-bold text-orange-600">฿{reportData.summary.totalSocialSecurity.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-sm text-muted-foreground">ภาษีที่บันทึกในระบบ</p>
-                                <p className="text-2xl font-bold text-red-600">฿{reportData.summary.totalTax.toLocaleString()}</p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">รายได้รวมพนักงาน</p>
+                            <p className="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">฿{reportData.summary.totalIncome.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">นำส่งประกันสังคม (5%)</p>
+                            <p className="text-2xl font-black font-mono text-amber-700 dark:text-amber-400">฿{reportData.summary.totalSocialSecurity.toLocaleString()}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xs font-bold text-zinc-500 mb-1">ภาษีที่บันทึกในระบบ</p>
+                            <p className="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">฿{reportData.summary.totalTax.toLocaleString()}</p>
+                        </div>
                     </div>
 
                     <Card>

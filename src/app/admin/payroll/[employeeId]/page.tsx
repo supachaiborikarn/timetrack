@@ -341,182 +341,171 @@ export default function EmployeePayrollDetailPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" asChild>
-                        <Link href="/admin/payroll">
-                            <ChevronLeft className="w-5 h-5" />
-                        </Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">
-                            {data?.employee.name || "กำลังโหลด..."}
-                        </h1>
-                        <p className="text-muted-foreground">
-                            {data?.employee.employeeId} • {data?.employee.department}
-                        </p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Button variant="ghost" size="icon" asChild className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl">
+                            <Link href="/admin/payroll">
+                                <ChevronLeft className="w-5 h-5" />
+                            </Link>
+                        </Button>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">EMPLOYEE PAYROLL SHEET</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">
+                                {data?.employee.name || "กำลังโหลด..."}
+                            </h1>
+                            <p className="text-zinc-400 text-xs mt-0.5 font-mono">
+                                {data?.employee.employeeId} • {data?.employee.department}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                        <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-36 h-9 rounded-xl font-mono font-bold bg-zinc-900 border-white/20 text-white text-xs"
+                        />
+                        <span className="text-zinc-500 font-bold">-</span>
+                        <Input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-36 h-9 rounded-xl font-mono font-bold bg-zinc-900 border-white/20 text-white text-xs"
+                        />
+                        <Button
+                            variant="secondary"
+                            onClick={fetchData}
+                            disabled={isLoading}
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-9 px-3 text-xs"
+                        >
+                            <Calendar className="w-3.5 h-3.5 mr-1" />
+                            โหลด
+                        </Button>
+                        <Button
+                            disabled={!data}
+                            onClick={async () => {
+                                if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${data?.employee.name}?`)) return;
+                                try {
+                                    const res = await fetch("/api/admin/payroll/finalize", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            startDate,
+                                            endDate,
+                                            userId: employeeId,
+                                        }),
+                                    });
+                                    if (res.ok) {
+                                        toast.success("ปิดงวดบัญชีเรียบร้อย ✅");
+                                    } else {
+                                        toast.error("เกิดข้อผิดพลาด");
+                                    }
+                                } catch {
+                                    toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+                                }
+                            }}
+                            className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-9 px-3 text-xs shadow-sm"
+                        >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                            ปิดงวดคนนี้
+                        </Button>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-36"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-36"
-                    />
-                    <Button
-                        onClick={fetchData}
-                        disabled={isLoading}
-                    >
-                        <Calendar className="w-4 h-4 mr-2" />
-                        โหลด
-                    </Button>
-                    <Button
-                        disabled={!data}
-                        onClick={async () => {
-                            if (!confirm(`ยืนยันการปิดงวดบัญชีสำหรับ ${data?.employee.name}?`)) return;
-                            try {
-                                const res = await fetch("/api/admin/payroll/finalize", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        startDate,
-                                        endDate,
-                                        userId: employeeId,
-                                    }),
-                                });
-                                if (res.ok) {
-                                    toast.success("ปิดงวดบัญชีเรียบร้อย ✅");
-                                } else {
-                                    toast.error("เกิดข้อผิดพลาด");
-                                }
-                            } catch {
-                                toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-                            }
-                        }}
-                    >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        ปิดงวดคนนี้
-                    </Button>
-                </div>
             </div>
+
             {/* Employee Info Card */}
             {data && (
-                <Card>
-                    <CardContent className="py-4">
-                        <div className="flex flex-wrap gap-6">
-                            <div className="flex items-center gap-2">
-                                <User className="w-5 h-5 text-blue-500" />
-                                <span className="text-muted-foreground">สถานี:</span>
-                                <span className="text-foreground">{data.employee.station}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <DollarSign className="w-5 h-5 text-green-500" />
-                                <span className="text-muted-foreground">ค่าแรง/วัน:</span>
-                                <span className="text-green-600 dark:text-green-400 font-bold">
-                                    ฿{formatCurrency(data.employee.defaultDailyRate)}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-purple-500" />
-                                <span className="text-muted-foreground">OT x{data.employee.otMultiplier}:</span>
-                                <span className="text-purple-600 dark:text-purple-400">
-                                    ฿{formatCurrency(data.employee.hourlyRate)}/ชม.
-                                </span>
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="ml-auto"
-                                asChild
-                            >
-                                <a href={`/admin/employees?edit=${data.employee.id}`}>
-                                    แก้ไขข้อมูลพนักงาน
-                                </a>
-                            </Button>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex flex-wrap items-center gap-6">
+                        <div className="flex items-center gap-2 text-sm">
+                            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-zinc-500 font-bold">สถานี:</span>
+                            <span className="text-zinc-900 dark:text-zinc-100 font-bold">{data.employee.station}</span>
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="flex items-center gap-2 text-sm">
+                            <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-zinc-500 font-bold">ค่าแรง/วัน:</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-mono font-black">
+                                ฿{formatCurrency(data.employee.defaultDailyRate)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span className="text-zinc-500 font-bold">OT x{data.employee.otMultiplier}:</span>
+                            <span className="text-purple-700 dark:text-purple-400 font-mono font-black">
+                                ฿{formatCurrency(data.employee.hourlyRate)}/ชม.
+                            </span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="tt-retro-control ml-auto text-xs font-bold rounded-xl h-8"
+                            asChild
+                        >
+                            <a href={`/admin/employees?edit=${data.employee.id}`}>
+                                แก้ไขข้อมูลพนักงาน
+                            </a>
+                        </Button>
+                    </div>
+                </div>
             )}
 
             {/* Summary Cards */}
             {data && (
                 <>
-                    <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-4">
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                                    ฿{formatCurrency(data.summary.totalSpecialIncome)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">รายได้พิเศษ</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
-                                <p className="text-xs text-muted-foreground">วันทำงาน</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">เต็ม {data.summary.fullDayCount} / ครึ่ง {data.summary.halfDayCount}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                    ฿{formatCurrency(data.summary.totalWage)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">ค่าแรงรวม</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                    ฿{formatCurrency(data.summary.totalOT)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">OT รวม</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                    -฿{formatCurrency(data.summary.totalDeductions)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">รวมหัก</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="py-4 text-center">
-                                <p className={`text-2xl font-bold ${data.summary.totalAdjustment >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">ปรับเงิน</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-primary/50 bg-primary/5">
-                            <CardContent className="py-4 text-center">
-                                <p className="text-2xl font-bold text-foreground">
-                                    ฿{formatCurrency(data.summary.grandTotal)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">รวมสุทธิ</p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-2 md:grid-cols-7 gap-3 mb-4">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                ฿{formatCurrency(data.summary.totalSpecialIncome)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">รายได้พิเศษ</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-blue-600 dark:text-blue-400">{formatWorkDays(data.summary.workDays)}</p>
+                            <p className="text-[11px] font-bold text-zinc-500">วันทำงาน</p>
+                            <p className="text-[9px] text-zinc-500 mt-0.5">เต็ม {data.summary.fullDayCount} / ครึ่ง {data.summary.halfDayCount}</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                ฿{formatCurrency(data.summary.totalWage)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">ค่าแรงรวม</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-purple-600 dark:text-purple-400">
+                                ฿{formatCurrency(data.summary.totalOT)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">OT รวม</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-rose-600 dark:text-rose-400">
+                                -฿{formatCurrency(data.summary.totalDeductions)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">รวมหัก</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className={`text-xl font-black font-mono ${data.summary.totalAdjustment >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {data.summary.totalAdjustment >= 0 ? '+' : ''}฿{formatCurrency(data.summary.totalAdjustment)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">ปรับเงิน</p>
+                        </div>
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-xl font-black font-mono text-zinc-950 dark:text-white">
+                                ฿{formatCurrency(data.summary.grandTotal)}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400">รวมสุทธิ</p>
+                        </div>
                     </div>
 
                     {/* Deduction Breakdown */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                        <Card>
-                            <CardContent className="py-3 text-center">
-                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
-                                <p className="text-xs text-muted-foreground">หักสาย</p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 text-center shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                            <p className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">-฿{formatCurrency(data.summary.totalLatePenalty)}</p>
+                            <p className="text-[11px] font-bold text-zinc-500">หักสาย</p>
+                        </div>
                         <Card>
                             <CardContent className="py-3 text-center">
                                 <p className="text-sm font-semibold text-red-600 dark:text-red-400">-฿{formatCurrency(data.summary.totalEarlyLeavePenalty)}</p>
