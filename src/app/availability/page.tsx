@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
     ChevronLeft,
     ChevronRight,
@@ -14,8 +11,10 @@ import {
     X,
     Clock,
     Info,
+    CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "PREFERRED_OFF";
 
@@ -40,11 +39,7 @@ export default function AvailabilityPage() {
         "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
     ];
 
-    useEffect(() => {
-        fetchAvailability();
-    }, [currentMonth, currentYear]);
-
-    const fetchAvailability = async () => {
+    const fetchAvailability = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await fetch(
@@ -59,7 +54,11 @@ export default function AvailabilityPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentMonth, currentYear]);
+
+    useEffect(() => {
+        fetchAvailability();
+    }, [fetchAvailability]);
 
     const handleDateClick = async (dateStr: string) => {
         const currentStatus = availability[dateStr]?.status;
@@ -73,7 +72,6 @@ export default function AvailabilityPage() {
         } else if (currentStatus === "PREFERRED_OFF") {
             newStatus = "UNAVAILABLE";
         } else {
-            // Remove
             newStatus = null;
         }
 
@@ -103,8 +101,8 @@ export default function AvailabilityPage() {
                     [dateStr]: { status: newStatus!, note: null },
                 }));
             }
-        } catch (error) {
-            toast.error("เกิดข้อผิดพลาด");
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setIsSaving(false);
         }
@@ -136,27 +134,27 @@ export default function AvailabilityPage() {
         return new Date(currentYear, currentMonth - 1, 1).getDay();
     };
 
-    const getStatusColor = (status: AvailabilityStatus | undefined) => {
+    const getStatusStyle = (status: AvailabilityStatus | undefined) => {
         switch (status) {
             case "AVAILABLE":
-                return "bg-green-500";
+                return "border-emerald-500/50 bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-black";
             case "UNAVAILABLE":
-                return "bg-red-500";
+                return "border-rose-500/50 bg-rose-500/20 text-rose-800 dark:text-rose-300 font-black";
             case "PREFERRED_OFF":
-                return "bg-yellow-500";
+                return "border-[#fbbf24] bg-[#fbbf24]/25 text-amber-950 dark:text-amber-300 font-black";
             default:
-                return "bg-slate-600";
+                return "border-zinc-700/20 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 hover:border-zinc-700/40";
         }
     };
 
     const getStatusIcon = (status: AvailabilityStatus | undefined) => {
         switch (status) {
             case "AVAILABLE":
-                return <Check className="w-4 h-4" />;
+                return <Check className="w-3.5 h-3.5" />;
             case "UNAVAILABLE":
-                return <X className="w-4 h-4" />;
+                return <X className="w-3.5 h-3.5" />;
             case "PREFERRED_OFF":
-                return <Clock className="w-4 h-4" />;
+                return <Clock className="w-3.5 h-3.5" />;
             default:
                 return null;
         }
@@ -164,8 +162,8 @@ export default function AvailabilityPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -181,95 +179,121 @@ export default function AvailabilityPage() {
         .toString()
         .padStart(2, "0")}-${today.getDate().toString().padStart(2, "0")}`;
 
+    // Summary counts for current month
+    const totalAvailable = Object.values(availability).filter(a => a.status === "AVAILABLE").length;
+    const totalPreferredOff = Object.values(availability).filter(a => a.status === "PREFERRED_OFF").length;
+    const totalUnavailable = Object.values(availability).filter(a => a.status === "UNAVAILABLE").length;
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <Link href="/">
-                        <ChevronLeft className="w-5 h-5" />
-                    </Link>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">แจ้งวันว่าง</h1>
-                    <p className="text-sm text-slate-400">กดที่วันเพื่อเปลี่ยนสถานะ</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="AVAILABILITY"
+                title="แจ้งวันว่าง"
+                subtitle="ระบุวันที่พร้อมหรือไม่พร้อมทำงานล่วงหน้า"
+                backHref="/"
+            />
 
-            {/* Legend */}
-            <Card className="bg-slate-800/50 border-slate-700 mb-4">
-                <CardContent className="py-3">
-                    <div className="flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-green-500 flex items-center justify-center">
-                                <Check className="w-3 h-3 text-white" />
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
+                {/* Summary Meter Panel */}
+                <section className="grid grid-cols-3 gap-2">
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)] text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">พร้อมทำงาน</p>
+                        <p className="mt-1 text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">{totalAvailable}</p>
+                    </div>
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)] text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">อยากหยุด</p>
+                        <p className="mt-1 text-2xl font-black font-mono text-[#fbbf24]">{totalPreferredOff}</p>
+                    </div>
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)] text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">ไม่ว่าง</p>
+                        <p className="mt-1 text-2xl font-black font-mono text-rose-600 dark:text-rose-400">{totalUnavailable}</p>
+                    </div>
+                </section>
+
+                {/* Legend Guide */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/30 dark:border-white/15 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-zinc-500 mb-2.5">
+                        คำอธิบายสัญลักษณ์ (กดที่วันเพื่อเปลี่ยนสถานะ)
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-xs font-black">
+                        <div className="flex items-center gap-1.5 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300">
+                            <span className="w-5 h-5 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                                <Check className="w-3 h-3" />
                             </span>
-                            <span className="text-slate-300">ว่าง</span>
+                            <span>ว่าง</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center">
-                                <Clock className="w-3 h-3 text-white" />
+                        <div className="flex items-center gap-1.5 p-2 rounded-xl border border-amber-500/30 bg-amber-500/15 text-amber-900 dark:text-amber-300">
+                            <span className="w-5 h-5 rounded-lg bg-[#fbbf24] text-zinc-950 flex items-center justify-center shrink-0">
+                                <Clock className="w-3 h-3" />
                             </span>
-                            <span className="text-slate-300">อยากหยุด</span>
+                            <span>อยากหยุด</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-red-500 flex items-center justify-center">
-                                <X className="w-3 h-3 text-white" />
+                        <div className="flex items-center gap-1.5 p-2 rounded-xl border border-rose-500/30 bg-rose-500/15 text-rose-800 dark:text-rose-300">
+                            <span className="w-5 h-5 rounded-lg bg-rose-600 flex items-center justify-center text-white shrink-0">
+                                <X className="w-3 h-3" />
                             </span>
-                            <span className="text-slate-300">ไม่ว่าง</span>
+                            <span>ไม่ว่าง</span>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </section>
 
-            {/* Calendar */}
-            <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <Button
-                            variant="ghost"
-                            size="icon"
+                {/* Calendar Card */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-4">
+                    {/* Month Stepper Header */}
+                    <div className="flex items-center justify-between border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                        <button
+                            type="button"
                             onClick={prevMonth}
-                            className="text-slate-400"
+                            className="tt-retro-control grid h-10 w-10 place-items-center rounded-xl border border-zinc-700/30 bg-[#f5ecdc] dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 active:scale-95 transition-transform"
+                            aria-label="เดือนก่อนหน้า"
                         >
-                            <ChevronLeft className="w-5 h-5" />
-                        </Button>
-                        <CardTitle className="text-white">
-                            {months[currentMonth - 1]} {currentYear + 543}
-                        </CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="icon"
+                            <ChevronLeft className="h-5 w-5" />
+                        </button>
+
+                        <div className="text-center min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">MONTH / YEAR</p>
+                            <h2 className="text-base font-black text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-1.5 mt-0.5">
+                                <CalendarDays className="w-4 h-4 text-[#fbbf24]" />
+                                <span>{months[currentMonth - 1]}</span>
+                                <span className="font-mono text-amber-700 dark:text-amber-400">{currentYear + 543}</span>
+                            </h2>
+                        </div>
+
+                        <button
+                            type="button"
                             onClick={nextMonth}
-                            className="text-slate-400"
+                            className="tt-retro-control grid h-10 w-10 place-items-center rounded-xl border border-zinc-700/30 bg-[#f5ecdc] dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 active:scale-95 transition-transform"
+                            aria-label="เดือนถัดไป"
                         >
-                            <ChevronRight className="w-5 h-5" />
-                        </Button>
+                            <ChevronRight className="h-5 w-5" />
+                        </button>
                     </div>
-                </CardHeader>
-                <CardContent>
+
+                    {/* Calendar Grid */}
                     {isLoading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                        <div className="flex flex-col items-center justify-center py-16 gap-2">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
+                            <p className="text-xs font-bold text-zinc-500">กำลังโหลดปฏิทิน...</p>
                         </div>
                     ) : (
-                        <>
+                        <div className="space-y-2">
                             {/* Days of week header */}
-                            <div className="grid grid-cols-7 gap-1 mb-2">
+                            <div className="grid grid-cols-7 gap-1">
                                 {["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map((day, i) => (
                                     <div
                                         key={day}
-                                        className={`text-center text-sm py-2 ${i === 0 || i === 6 ? "text-red-400" : "text-slate-400"
-                                            }`}
+                                        className={`text-center text-[11px] font-black py-1.5 uppercase ${
+                                            i === 0 || i === 6 ? "text-rose-600 dark:text-rose-400" : "text-zinc-500"
+                                        }`}
                                     >
                                         {day}
                                     </div>
                                 ))}
                             </div>
 
-                            {/* Calendar grid */}
-                            <div className="grid grid-cols-7 gap-1">
-                                {/* Empty cells for days before first of month */}
+                            {/* Calendar Days */}
+                            <div className="grid grid-cols-7 gap-1.5">
+                                {/* Empty cells before first day */}
                                 {Array.from({ length: firstDay }).map((_, i) => (
                                     <div key={`empty-${i}`} className="aspect-square" />
                                 ))}
@@ -289,24 +313,26 @@ export default function AvailabilityPage() {
                                     return (
                                         <button
                                             key={day}
+                                            type="button"
                                             onClick={() => !isPast && handleDateClick(dateStr)}
                                             disabled={isSaving || isPast}
                                             className={`
-                                                aspect-square rounded-lg flex flex-col items-center justify-center
-                                                transition-all relative
-                                                ${isToday ? "ring-2 ring-blue-500" : ""}
-                                                ${isPast ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-slate-700/50"}
-                                                ${getStatusColor(dayData?.status)}
+                                                aspect-square rounded-xl border flex flex-col items-center justify-center p-1
+                                                transition-all relative text-center tt-retro-control
+                                                ${getStatusStyle(dayData?.status)}
+                                                ${isToday ? "ring-2 ring-[#fbbf24] shadow-sm" : ""}
+                                                ${isPast ? "opacity-35 cursor-not-allowed" : "cursor-pointer active:scale-95"}
                                             `}
                                         >
                                             <span
-                                                className={`text-sm font-medium ${dayData ? "text-white" : isWeekend ? "text-red-400" : "text-slate-300"
-                                                    }`}
+                                                className={`text-xs font-mono leading-none ${
+                                                    dayData ? "" : isWeekend ? "text-rose-600 dark:text-rose-400 font-bold" : ""
+                                                }`}
                                             >
                                                 {day}
                                             </span>
                                             {dayData && (
-                                                <span className="text-white">
+                                                <span className="mt-1 shrink-0">
                                                     {getStatusIcon(dayData.status)}
                                                 </span>
                                             )}
@@ -314,23 +340,23 @@ export default function AvailabilityPage() {
                                     );
                                 })}
                             </div>
-                        </>
+                        </div>
                     )}
-                </CardContent>
-            </Card>
+                </section>
 
-            {/* Info */}
-            <Card className="bg-blue-900/30 border-blue-500/50 mt-4">
-                <CardContent className="py-3">
-                    <div className="flex gap-2 text-blue-300 text-sm">
-                        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <p>
-                            ข้อมูลนี้จะช่วยให้ผู้จัดการวางตารางกะได้เหมาะสมกับคุณมากขึ้น
-                            กรุณาแจ้งล่วงหน้าอย่างน้อย 1 สัปดาห์
-                        </p>
+                {/* Helpful Reminder Note */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-amber-500/30 bg-amber-500/10 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <div className="flex items-start gap-3 text-amber-900 dark:text-amber-300">
+                        <Info className="w-5 h-5 shrink-0 mt-0.5 text-[#f59e0b]" />
+                        <div className="text-xs space-y-1">
+                            <p className="font-black">คำแนะนำในการแจ้งวันว่าง</p>
+                            <p className="font-medium text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                                ข้อมูลนี้จะส่งตรงถึงผู้จัดการเพื่อใช้ในการวางตารางกะล่วงหน้าได้อย่างเหมาะสม กรุณาแจ้งหรือแก้ไขล่วงหน้าอย่างน้อย 1 สัปดาห์ก่อนวันทำงาน
+                            </p>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                </section>
+            </main>
         </div>
     );
 }
