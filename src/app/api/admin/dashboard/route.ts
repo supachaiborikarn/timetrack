@@ -3,7 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDayBangkok } from "@/lib/date-utils";
 import { calculateBreakOverageMinutes, resolveAllowedBreakMinutes } from "@/lib/break-rules";
-import { GAS_CASHIER_SCOPE_LABEL, gasCashierEmployeeWhere, isGasCashier } from "@/lib/cashier-employee-scope";
+import { GAS_CASHIER_SCOPE_LABEL, gasCashierEmployeeWhere, isFuelCashier, isGasCashier } from "@/lib/cashier-employee-scope";
+import { calculateStationWeeklyLeague, getBangkokWeekBounds } from "@/lib/competition/league";
+import { getBangkokEvaluationDayBounds } from "@/lib/customer-feedback/evaluation-target";
+import { buildFuelCashierTeamFeedback } from "@/lib/dashboard/fuel-cashier-team-feedback";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
         const role = session.user.role;
         const isCashier = role === "CASHIER";
         const isGasOnlyCashier = isGasCashier(session.user);
+        const isFuelOnlyCashier = isFuelCashier(session.user);
         const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const isStationScoped = role === "MANAGER" || role === "CASHIER";
         const viewer = await prisma.user.findUnique({
@@ -315,6 +319,52 @@ export async function GET(request: NextRequest) {
         const todayOnLeave = todayLeaves.filter((row) => row.status === "APPROVED").length;
         const attendanceRate = todayExpected > 0 ? Math.min(100, Math.round((todayAttendance / todayExpected) * 100)) : 0;
         const pendingApprovals = pendingShiftSwaps + pendingTimeCorrections + pendingLeaves;
+
+        const fuelCashierTeamFeedback = isFuelOnlyCashier && !isLight && stationId
+            ? await (async () => {
+                const week = getBangkokWeekBounds(nowReal);
+                const feedbackDay = getBangkokEvaluationDayBounds(nowReal);
+                const workingUserIds = [...new Set([
+                    ...expectedAssignments.map((assignment) => assignment.userId),
+                    ...attendanceRows.filter((row) => Boolean(row.checkInTime)).map((row) => row.userId),
+                ])];
+                const [league, feedbackResponses] = await Promise.all([
+                    calculateStationWeeklyLeague({
+                        stationId,
+                        from: week.from,
+                        to: week.to,
+                        referenceTime: nowReal,
+                    }),
+                    workingUserIds.length > 0
+                        ? prisma.customerFeedbackResponse.findMany({
+                            where: {
+                                kind: "STANDARD",
+                                targetType: "EMPLOYEE",
+                                stationId,
+                                employeeId: { in: workingUserIds },
+                                surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                                validity: "VALID",
+                                submittedAt: { gte: feedbackDay.from, lt: feedbackDay.toExclusive },
+                            },
+                            select: { employeeId: true },
+                        })
+                        : Promise.resolve([]),
+                ]);
+
+                return buildFuelCashierTeamFeedback({
+                    standings: league.standings.map((standing) => ({
+                        userId: standing.userId,
+                        label: standing.label,
+                        rank: standing.rank,
+                        totalScore: standing.totalScore,
+                        isEligible: standing.isEligible,
+                        fairPlayStatus: standing.fairPlayStatus,
+                    })),
+                    feedbackResponses,
+                    workingUserIds,
+                });
+            })()
+            : null;
 
         const [leaguePendingReviews, rewardsToFulfill, customerOpenCases, customerReviewRequests] = isCashier
             ? [0, 0, 0, 0]
@@ -605,6 +655,7 @@ export async function GET(request: NextRequest) {
             },
             stats,
             actionItems,
+            fuelCashierTeamFeedback,
             recent: { requests: requests.slice(0, 5) },
             monthlyAttendance,
         });

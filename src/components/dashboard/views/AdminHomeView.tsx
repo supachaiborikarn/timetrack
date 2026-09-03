@@ -125,6 +125,21 @@ interface DashboardData {
     scope: { station: { id: string; code: string; name: string } | null; label: string };
     stats: DashboardStats;
     actionItems: ActionItem[];
+    fuelCashierTeamFeedback?: {
+        dailyTarget: number;
+        teamMetTargetCount: number;
+        teamNeedsMoreCount: number;
+        employees: Array<{
+            userId: string;
+            label: string;
+            todayEvaluationCount: number;
+            remainingToday: number;
+            dailyStatus: "NOT_YET" | "NEAR" | "DONE";
+            leagueRank: number | null;
+            leagueScore: number | null;
+            leagueNeedsReview: boolean;
+        }>;
+    } | null;
     monthlyAttendance: Array<{ date: string; onTime: number; late: number; absent: number }>;
 }
 
@@ -240,6 +255,7 @@ export function AdminHomeView() {
 
     const stats = data?.stats;
     const actionItems = data?.actionItems ?? [];
+    const teamFeedback = data?.fuelCashierTeamFeedback ?? null;
     const stationLabel = data?.scope?.label || "ทุกสถานี";
     const urgentCount = actionItems.filter((item) => item.tone === "critical" || item.tone === "warning").reduce((sum, item) => sum + item.count, 0);
     const roleLabel = isCashier
@@ -388,6 +404,56 @@ export function AdminHomeView() {
                                 ลงเวลาของฉัน
                             </button>
                         </div>
+                    </section>
+                )}
+
+                {teamFeedback && (
+                    <section className="rounded-[20px] border border-zinc-700/30 bg-[#fbf5e8] dark:bg-zinc-900 p-3 shadow-[0_2px_0_rgba(0,0,0,0.07)]">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <p className="text-[9px] font-black tracking-[0.16em] text-zinc-400 uppercase">TEAM FEEDBACK</p>
+                                <h2 className="text-[14px] font-black">ติดตามแบบประเมินทีมหน้าลาน</h2>
+                                <p className="mt-0.5 text-[9px] font-bold text-zinc-400">วันนี้เป้าคนละ {teamFeedback.dailyTarget} แบบ · เฉพาะคนเข้ากะในสาขานี้</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-[22px] leading-none font-black">{teamFeedback.teamMetTargetCount}/{teamFeedback.employees.length}</p>
+                                <p className="mt-1 text-[8px] font-black text-zinc-400">ครบเป้าแล้ว</p>
+                            </div>
+                        </div>
+                        {teamFeedback.employees.length === 0 ? (
+                            <div className="rounded-xl border border-dashed p-3 text-center text-[10px] font-bold text-zinc-400">วันนี้ไม่มีพนักงานหน้าลานที่เข้ากะ</div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {teamFeedback.employees.map((employee) => {
+                                    const done = employee.dailyStatus === "DONE";
+                                    const near = employee.dailyStatus === "NEAR";
+                                    return (
+                                        <div key={employee.userId} className="rounded-[14px] border border-zinc-700/20 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <p className="truncate text-[11px] font-black">{employee.label}</p>
+                                                        {employee.leagueRank !== null && <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[8px]">League #{employee.leagueRank}</Badge>}
+                                                        {employee.leagueNeedsReview && <Badge variant="destructive" className="h-5 rounded-full px-1.5 text-[8px]">ตรวจ Fair Play</Badge>}
+                                                    </div>
+                                                    <p className="mt-0.5 text-[8px] font-bold text-zinc-400">
+                                                        {done ? "ครบเป้าวันนี้แล้ว" : near ? `ใกล้ครบ · ขอเพิ่มอีก ${employee.remainingToday} แบบ` : `ขอเพิ่มอีก ${employee.remainingToday} แบบ`}
+                                                        {employee.leagueScore !== null ? ` • League ${employee.leagueScore.toFixed(1)} คะแนน` : " • อันดับ League ยังรอข้อมูลประเมินเพิ่ม"}
+                                                    </p>
+                                                </div>
+                                                <div className={`shrink-0 rounded-xl px-2.5 py-1.5 text-center ${done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : near ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"}`}>
+                                                    <p className="text-[15px] leading-none font-black">{employee.todayEvaluationCount}/{teamFeedback.dailyTarget}</p>
+                                                    <p className="mt-1 text-[7px] font-black">แบบวันนี้</p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                                                <div className="h-full rounded-full bg-[#fbbf24]" style={{ width: `${Math.min(100, teamFeedback.dailyTarget > 0 ? (employee.todayEvaluationCount / teamFeedback.dailyTarget) * 100 : 0)}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </section>
                 )}
 

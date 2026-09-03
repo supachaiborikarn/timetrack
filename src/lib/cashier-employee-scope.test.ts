@@ -10,6 +10,7 @@ import {
     GAS_CASHIER_DEPARTMENT_CODES,
     canGasCashierAccessStation,
     gasCashierEmployeeWhere,
+    isFuelCashier,
     isGasCashier,
 } from "@/lib/cashier-employee-scope";
 
@@ -22,6 +23,7 @@ describe("gas cashier employee scope", () => {
     ])("marks configured gas cashier %s as restricted", (employeeId, stationId) => {
         const user = { role: "CASHIER", employeeId, stationId };
         expect(isGasCashier(user)).toBe(true);
+        expect(isFuelCashier(user)).toBe(false);
         expect(gasCashierEmployeeWhere(user)).toEqual({
             stationId,
             role: "EMPLOYEE",
@@ -32,7 +34,12 @@ describe("gas cashier employee scope", () => {
     it("does not restrict a normal cashier by the gas-only rule", () => {
         const user = { role: "CASHIER", employeeId: "OTHER", stationId: "PAP" };
         expect(isGasCashier(user)).toBe(false);
+        expect(isFuelCashier(user)).toBe(true);
         expect(gasCashierEmployeeWhere(user)).toBeNull();
+    });
+
+    it("never treats a non-cashier as a fuel cashier", () => {
+        expect(isFuelCashier({ role: "EMPLOYEE", employeeId: "OTHER", stationId: "PAP" })).toBe(false);
     });
 
     it("keeps a gas cashier on their own station", () => {

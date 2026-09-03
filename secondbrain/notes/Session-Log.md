@@ -1235,3 +1235,32 @@ Verification:
 - Targeted ESLint: 0 errors; only pre-existing unused-variable warnings remain in legacy schedule/station-transfer files.
 - `/usr/bin/env NODE_ENV=production npm run build`: passed; Next.js generated 185/185 static pages.
 - No local command connected to the production Neon database during this work.
+
+
+## 2026-09-03 — Added oil-cashier team feedback coaching card
+
+Goal:
+
+- Let normal oil-station `CASHIER` accounts coach front-yard employees on today's customer-evaluation target and see live League standing for their own station.
+- Keep the four gas-clerk accounts excluded from this view.
+
+Implementation:
+
+- The admin dashboard API identifies oil cashiers with `isFuelCashier` and computes the current-station weekly League only for those accounts.
+- It pulls today's `VALID` employee-v3/v4 feedback for front-yard employees and combines it with employees scheduled or checked in today.
+- Added a `TEAM FEEDBACK / ติดตามแบบประเมินทีมหน้าลาน` dashboard card showing exact daily progress against the public 5-evaluations-per-day target, how many more evaluations to request, live League rank/score when eligible, and a Fair Play review indicator.
+- Employees without enough weekly League data receive only a generic “อันดับ League ยังรอข้อมูลประเมินเพิ่ม” message; the hidden League minimum-sample threshold is not exposed.
+- Gas cashiers and non-cashier roles receive no team-feedback payload/card.
+- No production schema/data mutation and no production database connection was used for this change.
+
+Verification:
+
+- `npx vitest run src/lib/dashboard/fuel-cashier-team-feedback.test.ts src/lib/cashier-employee-scope.test.ts`: 9/9 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for the dashboard API/UI and helper/scope tests: passed.
+- `git diff --check`: passed before this log append.
+- `/usr/bin/env NODE_ENV=production npm run build`: Prisma generate and Next compile passed; build reached the TypeScript phase when last checked. A separate `npx tsc --noEmit` already passed.
+
+Pending:
+
+- No commit or push has been created for this change yet.
