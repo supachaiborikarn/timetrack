@@ -299,3 +299,47 @@ describe("case notification fail-closed", () => {
         })).rejects.toThrow("alert-log unavailable");
     });
 });
+
+
+describe("actionable case notifications", () => {
+    it("includes employee, bad rating and selected reason and deep-links the exact HIGH case", async () => {
+        const notificationCreateMany = vi.fn().mockResolvedValue({ count: 2 });
+        const responseFindUnique = vi.fn().mockResolvedValue({
+            kind: "STANDARD",
+            surveyVersion: "employee-v4",
+            overallRating: 1,
+            reasonKeys: ["employee_courtesy"],
+            incidentKey: null,
+            dangerStatus: null,
+            wantsFollowUp: false,
+            employeeLabelSnapshot: "มะนาว",
+            stationLabelSnapshot: "วัชรเกียรติออยล์",
+        });
+        const userFindMany = vi.fn()
+            .mockResolvedValueOnce([{ id: "manager-1" }])
+            .mockResolvedValueOnce([{ id: "admin-1" }]);
+        const tx = {
+            customerFeedbackCase: { create: vi.fn().mockResolvedValue({ id: "case-high" }) },
+            customerFeedbackResponse: { findUnique: responseFindUnique },
+            user: { findMany: userFindMany },
+            notification: { createMany: notificationCreateMany },
+        };
+
+        await expect(createCaseWithNotifications(tx as never, {
+            responseId: "response-1",
+            stationId: "station-1",
+            severity: "HIGH",
+            category: "negative-feedback",
+        })).resolves.toBe("case-high");
+
+        expect(responseFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "response-1" } }));
+        expect(notificationCreateMany).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.arrayContaining([
+                expect.objectContaining({
+                    message: "มะนาว: ลูกค้าให้ 1/5 — ไม่พอใจมาก · สาเหตุ: การพูดจาและความสุภาพ",
+                    link: "/admin/customer-feedback?tab=cases&caseId=case-high",
+                }),
+            ]),
+        }));
+    });
+});

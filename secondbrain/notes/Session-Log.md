@@ -2,10 +2,43 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Session Log
+
+## 2026-09-03 — Made Customer Feedback Cases explain what went wrong
+
+Goal:
+
+Make `/admin/customer-feedback?tab=cases` actionable. A notification previously opened a queue that only showed severity, `คะแนน 1`, and the free-text comment. When the customer did not type a comment, the UI incorrectly looked empty even though the response already contained selected reasons and normalized service-rubric answers.
+
+Root cause:
+
+- Rating 1–2 already creates a HIGH case automatically with a 24-hour acknowledgement SLA.
+- Rating 1–2 is validated to include at least one selected reason.
+- employee-v3/v4 responses also store all service-rubric answers as normalized `CustomerFeedbackAnswer` rows.
+- The Cases API/UI selected only `comment` plus a few summary fields, so the useful structured evidence was never displayed.
+- Case notifications were generic and linked only to the Cases tab, not the exact case.
+
+Implementation:
+
+- Expanded the Cases API response with rating reasons, service areas, survey version, department/shift snapshots, follow-up flag, validity, incident context, submission time, and normalized answers.
+- Added optional `caseId` filtering so a case notification can deep-link to the exact case, including a case that has since been resolved.
+- Redesigned each row to state **why the case exists** before the user expands it (for example `ลูกค้าให้ 1/5 — ไม่พอใจมาก`).
+- Expanded detail now shows selected reason labels, customer comment status, each employee service-rubric answer, failed (`NO`) items highlighted as coaching points, and a short `ควรทำอะไรกับเคสนี้` workflow.
+- A missing free-text comment now explicitly says that it does not mean there is no information; rating/reasons/rubric answers remain visible.
+- SUSPECTED feedback shows a warning to verify context before concluding employee fault.
+- New STANDARD HIGH notifications include employee, rating, and selected reason, then deep-link to `/admin/customer-feedback?tab=cases&caseId=<id>`.
+- Incident notification text remains intentionally generic so sensitive incident categories are not exposed to a recipient who can receive an escalation signal but may not have incident-detail permission.
+- Existing acknowledge / assign / start / resolve / dismiss workflow is preserved.
+
+Verification (no production DB connection):
+
+- Focused customer-feedback tests: **27/27 passed**.
+- `npx tsc --noEmit`: passed.
+- Focused ESLint for all touched files: passed.
+- No Prisma schema or production data change is required.
 
 ## 2026-09-02 — Redesigned Employee Payroll Documents page (/profile/documents)
 

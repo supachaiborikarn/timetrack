@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
         const canViewIncident = await canViewFeedbackIncident(access.ctx);
 
         const url = request.nextUrl;
+        const caseId = url.searchParams.get("caseId")?.trim() ?? "";
+        if (caseId && (caseId.length > 100 || /\s/.test(caseId))) {
+            return NextResponse.json({ error: "caseId ไม่ถูกต้อง" }, { status: 400 });
+        }
         const severity = parseOptionalFeedbackFilter(url.searchParams.get("severity"), ["NORMAL", "HIGH", "URGENT"] as const, "severity");
         if (!severity.ok) return NextResponse.json({ error: severity.message }, { status: 400 });
         const status = parseOptionalFeedbackFilter(url.searchParams.get("status"), ["OPEN", "IN_PROGRESS", "RESOLVED", "DISMISSED"] as const, "status");
@@ -60,10 +64,13 @@ export async function GET(request: NextRequest) {
 
         const where: import("@prisma/client").Prisma.CustomerFeedbackCaseWhereInput = {
             ...stationFilter,
+            ...(caseId ? { id: caseId } : {}),
             ...(severity.value ? { severity: severity.value } : {}),
             ...(status.value
                 ? { status: status.value }
-                : { status: { in: ["OPEN", "IN_PROGRESS"] } }),
+                : caseId
+                    ? {}
+                    : { status: { in: ["OPEN", "IN_PROGRESS"] } }),
             ...(assignee.value === "me" ? { assignedToId: access.ctx.userId } : {}),
             response: {
                 validity: { not: "TEST" },
@@ -86,10 +93,31 @@ export async function GET(request: NextRequest) {
                             refCode: true,
                             kind: true,
                             overallRating: true,
+                            reasonKeys: true,
+                            serviceAreas: true,
                             incidentKey: true,
+                            dangerStatus: true,
+                            occurredAt: true,
+                            noDetail: true,
                             stationLabelSnapshot: true,
                             employeeLabelSnapshot: true,
+                            departmentLabelSnapshot: true,
+                            shiftLabelSnapshot: true,
+                            surveyVersion: true,
+                            wantsFollowUp: true,
+                            validity: true,
+                            submittedAt: true,
                             comment: true,
+                            answers: {
+                                select: {
+                                    questionKey: true,
+                                    state: true,
+                                    numberValue: true,
+                                    textValue: true,
+                                    choiceValues: true,
+                                },
+                                orderBy: { questionKey: "asc" },
+                            },
                         },
                     },
                     assignedTo: { select: { id: true, name: true } },

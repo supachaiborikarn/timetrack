@@ -12,6 +12,7 @@ import {
     serverDerivedDurationSeconds,
 } from "./anti-abuse";
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, caseNotificationEventKey } from "./cases";
+import { feedbackCaseNotificationMessage } from "./case-presentation";
 import { visitPurgeAfter, contactPurgeAfter, FORM_EXPIRY_MS } from "./retention";
 import {
     employeeBehaviorQuestionKeysForVersion,
@@ -358,17 +359,27 @@ export async function createCaseWithNotifications(
         throw new SubmitDomainError("ALERT_RECIPIENT_UNAVAILABLE", 503);
     }
     if (recipients.length > 0) {
+        const responseSummary = await tx.customerFeedbackResponse.findUnique({
+            where: { id: params.responseId },
+            select: {
+                kind: true,
+                surveyVersion: true,
+                overallRating: true,
+                reasonKeys: true,
+                incidentKey: true,
+                dangerStatus: true,
+                wantsFollowUp: true,
+                employeeLabelSnapshot: true,
+                stationLabelSnapshot: true,
+            },
+        });
         const notificationResult = await tx.notification.createMany({
             data: recipients.map((userId) => ({
                 userId,
                 type: "CUSTOMER_FEEDBACK",
                 title: `เคสเสียงลูกค้าระดับ ${params.severity}`,
-                message: params.severity === "URGENT"
-                    ? "มีเหตุเร่งด่วนจากลูกค้าที่ต้องรับทราบภายใน 2 ชั่วโมง"
-                    : params.severity === "HIGH"
-                        ? "มีคำตอบลูกค้าเชิงลบที่ต้องรับทราบภายใน 24 ชั่วโมง"
-                        : "ลูกค้าขอให้ติดต่อกลับ",
-                link: "/admin/customer-feedback?tab=cases",
+                message: feedbackCaseNotificationMessage(responseSummary, params.severity, params.category),
+                link: `/admin/customer-feedback?tab=cases&caseId=${createdCase.id}`,
                 eventKey: caseNotificationEventKey(createdCase.id, "created"),
             })),
             skipDuplicates: true,

@@ -35,6 +35,7 @@ const unscopedCase = {
 describe("CasesTab station assignment", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        fetchMock.mockReset();
         vi.stubGlobal("fetch", fetchMock);
         fetchMock
             .mockResolvedValueOnce(new Response(JSON.stringify({ cases: [unscopedCase], total: 1 }), {
@@ -65,7 +66,7 @@ describe("CasesTab station assignment", () => {
     it("lets ADMIN or HR choose an active station for an unscoped case", async () => {
         render(<CasesTab currentUserId="admin-1" canSetStation />);
 
-        fireEvent.click(await screen.findByRole("button", { name: "เปิดรายละเอียด" }));
+        fireEvent.click(await screen.findByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
         fireEvent.click(screen.getByRole("button", { name: "ระบุสถานี" }));
 
         const picker = await screen.findByLabelText("สถานี");
@@ -81,5 +82,70 @@ describe("CasesTab station assignment", () => {
                 body: JSON.stringify({ action: "set-station", stationId: "station-1" }),
             }),
         ));
+    });
+});
+
+
+describe("CasesTab actionable feedback details", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fetchMock.mockReset();
+        vi.stubGlobal("fetch", fetchMock);
+        fetchMock.mockResolvedValue(new Response(JSON.stringify({
+            cases: [{
+                id: "case-rating-1",
+                severity: "HIGH",
+                status: "OPEN",
+                category: "negative-feedback",
+                stationId: "station-1",
+                dueAt: "2026-09-04T10:00:00.000Z",
+                acknowledgedAt: null,
+                createdAt: "2026-09-03T10:00:00.000Z",
+                assignedTo: null,
+                response: {
+                    refCode: "FB-RATING1",
+                    kind: "STANDARD",
+                    surveyVersion: "employee-v4",
+                    overallRating: 1,
+                    reasonKeys: ["employee_courtesy"],
+                    serviceAreas: [],
+                    incidentKey: null,
+                    dangerStatus: null,
+                    occurredAt: null,
+                    noDetail: false,
+                    stationLabelSnapshot: "วัชรเกียรติออยล์",
+                    employeeLabelSnapshot: "มะนาว",
+                    departmentLabelSnapshot: "WKO FUEL",
+                    shiftLabelSnapshot: "กะเช้า",
+                    wantsFollowUp: false,
+                    validity: "VALID",
+                    submittedAt: "2026-09-03T09:30:00.000Z",
+                    comment: null,
+                    answers: [
+                        { questionKey: "caltex_greeting", state: "ANSWERED", numberValue: null, textValue: null, choiceValues: ["NO"] },
+                        { questionKey: "uniform_and_name_badge", state: "ANSWERED", numberValue: null, textValue: null, choiceValues: ["YES"] },
+                    ],
+                },
+            }],
+            total: 1,
+        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
+
+    it("shows why the case was opened, selected reasons, failed service items and useful no-comment wording", async () => {
+        render(<CasesTab currentUserId="admin-1" canSetStation />);
+
+        expect((await screen.findAllByText("ลูกค้าให้ 1/5 — ไม่พอใจมาก")).length).toBeGreaterThan(0);
+        fireEvent.click(screen.getByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
+
+        expect(screen.getByText("คะแนน 1–2 เปิดเคส HIGH อัตโนมัติ และต้องรับทราบภายใน 24 ชั่วโมง")).toBeTruthy();
+        expect(screen.getAllByText("การพูดจาและความสุภาพ").length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/พนักงานกล่าวทักทาย/).length).toBeGreaterThan(0);
+        expect(screen.getByText(/ลูกค้าไม่ได้พิมพ์ข้อความเพิ่มเติม/)).toBeTruthy();
+        expect(screen.getByText(/ไม่ได้หมายความว่าไม่มีข้อมูล/)).toBeTruthy();
     });
 });
