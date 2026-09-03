@@ -214,17 +214,33 @@ export default function AdminLeaguePage() {
     const featured = rewardData?.items.find((item) => item.isActive && item.featuredWeekKey === rewardData.weekKey) ?? null;
 
     return (
-        <div className="space-y-6 p-4 md:p-6">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2"><Trophy className="h-7 w-7 text-amber-500" /><h1 className="text-2xl font-bold">League & Rewards</h1></div>
-                    <p className="mt-1 text-sm text-muted-foreground">Fair Play · Championship · Reward Points · ของรางวัลประจำสัปดาห์</p>
+        <div className="space-y-6 font-sans">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Trophy className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">CHAMPIONSHIP & FAIR PLAY</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">League & Rewards</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">Fair Play · Championship · Reward Points · ของรางวัลประจำสัปดาห์</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => void load()}
+                        className="tt-retro-control flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold self-start sm:self-auto"
+                        aria-label="รีเฟรช"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        รีเฟรช
+                    </button>
                 </div>
-                <button onClick={() => void load()} className="rounded-lg border p-2" aria-label="รีเฟรช"><RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} /></button>
             </div>
 
             {data?.canManageRewards ? (
-                <section className="space-y-4 rounded-2xl border-2 border-emerald-600/30 bg-emerald-50/30 p-4 dark:bg-emerald-950/10">
+                <section className="space-y-4 tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2"><Gift className="h-6 w-6 text-emerald-600" /><div><h2 className="text-lg font-bold">Reward Points & ของรางวัล</h2><p className="text-xs text-muted-foreground">รอบสัปดาห์ {rewardData?.weekKey ?? "..."} · เกณฑ์ Customer Quality ≥ 20/25</p></div></div>
                         {featured ? <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-bold text-zinc-950">🎁 เด่นสัปดาห์นี้: {featured.title}</span> : <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold">ยังไม่ได้ตั้งของรางวัลเด่น</span>}

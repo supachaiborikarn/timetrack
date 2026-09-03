@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { BackupManager } from "@/components/admin/BackupManager";
@@ -15,57 +14,57 @@ export default function SecurityPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-24">
-            <div className="p-4 border-b bg-white">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink href="/admin">Admin Dashboard</BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>Security & Reliability</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+        <div className="space-y-6 max-w-6xl mx-auto font-sans pb-12">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">SECURITY & RELIABILITY CENTER</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">ความปลอดภัย & ประวัติกิจกรรมระบบ</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">
+                                ตรวจสอบประวัติการใช้งาน (Audit Logs) และบริหารจัดการสำรองฐานข้อมูล
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="max-w-6xl mx-auto p-6 space-y-6">
-                <div className="space-y-2">
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <ShieldCheck className="w-8 h-8 text-indigo-600" />
-                        Security & Reliability Center
-                    </h1>
-                    <p className="text-slate-500">
-                        ตรวจสอบประวัติการใช้งานและสำรองข้อมูลระบบ
-                    </p>
-                </div>
-
-                <Tabs defaultValue="audit" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-                        <TabsTrigger value="audit" className="gap-2">
+            <Tabs defaultValue="audit" className="w-full space-y-4">
+                <div className="overflow-x-auto pb-1">
+                    <TabsList className="tt-retro-control inline-flex min-w-max p-1 rounded-xl bg-zinc-200/70 dark:bg-zinc-900 border border-zinc-700/20 dark:border-white/15 h-auto">
+                        <TabsTrigger value="audit" className="gap-2 rounded-lg px-4 py-1.5 text-xs font-bold data-[state=active]:bg-[#fbbf24] data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm transition-all">
                             <History className="w-4 h-4" /> Audit Logs
                         </TabsTrigger>
-                        <TabsTrigger value="backup" className="gap-2">
+                        <TabsTrigger value="backup" className="gap-2 rounded-lg px-4 py-1.5 text-xs font-bold data-[state=active]:bg-[#fbbf24] data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm transition-all">
                             <Database className="w-4 h-4" /> Data Backup
                         </TabsTrigger>
                     </TabsList>
+                </div>
 
-                    <TabsContent value="audit" className="mt-6">
-                        <div className="bg-white p-6 rounded-lg shadow-sm border">
-                            <div className="mb-6">
-                                <h2 className="text-lg font-semibold text-slate-800">System Audit Logs</h2>
-                                <p className="text-sm text-slate-500">รายการกิจกรรมทั้งหมดที่เกิดขึ้นในระบบ</p>
-                            </div>
-                            <AuditLogViewer />
+                <TabsContent value="audit" className="mt-4">
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-6 shadow-[0_2px_0_rgba(0,0,0,0.05)] bg-card">
+                        <div className="mb-6">
+                            <h2 className="text-lg font-black text-foreground">System Audit Logs</h2>
+                            <p className="text-xs text-muted-foreground">รายการกิจกรรมทั้งหมดที่เกิดขึ้นในระบบ</p>
                         </div>
-                    </TabsContent>
+                        <AuditLogViewer />
+                    </div>
+                </TabsContent>
 
-                    <TabsContent value="backup" className="mt-6 space-y-6">
+                <TabsContent value="backup" className="mt-4">
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-6 shadow-[0_2px_0_rgba(0,0,0,0.05)] bg-card">
+                        <div className="mb-6">
+                            <h2 className="text-lg font-black text-foreground">Database Backup & Recovery</h2>
+                            <p className="text-xs text-muted-foreground">ดาวน์โหลดหรือสำรองข้อมูลฉุกเฉิน</p>
+                        </div>
                         <BackupManager />
-                    </TabsContent>
-                </Tabs>
-            </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

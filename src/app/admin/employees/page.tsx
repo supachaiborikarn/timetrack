@@ -3,19 +3,11 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -49,7 +41,6 @@ import {
     Loader2,
     Users,
     Filter,
-    Download,
     UserCheck,
     UserX,
     ChevronDown,
@@ -390,84 +381,105 @@ export default function EmployeesPage() {
 
     return (
         <>
-            <div className="space-y-6">
+            <div className="space-y-6 font-sans">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">จัดการพนักงาน</h1>
-                        <p className="text-muted-foreground">{employees.length} คน</p>
-                    </div>
-                    <div className="flex gap-2">
-                        {selectedIds.length > 0 && (
-                            <BulkActionBar
-                                selectedIds={selectedIds}
-                                stations={stations}
-                                onSuccess={fetchEmployees}
-                                onClearSelection={() => setSelectedIds([])}
-                            />
-                        )}
-                        {selectedIds.length > 0 && (
-                            <Button variant="destructive" onClick={() => setIsBulkDeleteDialogOpen(true)}>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                ลบ {selectedIds.length} รายการ
+                <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                                <Users className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">WORKFORCE REGISTRY & ROLES</p>
+                                <h1 className="text-xl sm:text-2xl font-black text-white">จัดการข้อมูลพนักงาน</h1>
+                                <p className="text-zinc-400 text-xs mt-0.5">ทะเบียนประวัติ, บทบาทสิทธิ์, การสังกัดสถานี และเอกสารพนักงาน ({employees.length} คน)</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                            {selectedIds.length > 0 && (
+                                <BulkActionBar
+                                    selectedIds={selectedIds}
+                                    stations={stations}
+                                    onSuccess={fetchEmployees}
+                                    onClearSelection={() => setSelectedIds([])}
+                                />
+                            )}
+                            {selectedIds.length > 0 && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => setIsBulkDeleteDialogOpen(true)}
+                                    className="tt-retro-control rounded-xl font-bold h-10 text-xs shadow-sm"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    ลบ {selectedIds.length} รายการ
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => setIsAddDialogOpen(true)}
+                                className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 px-4 text-xs shadow-sm"
+                            >
+                                <Plus className="w-4 h-4 mr-1.5" /> เพิ่มพนักงาน
                             </Button>
-                        )}
-                        <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />เพิ่มพนักงาน</Button>
+                        </div>
+                        <AddEmployeeDialog
+                            open={isAddDialogOpen}
+                            onOpenChange={setIsAddDialogOpen}
+                            stations={stations}
+                            onSuccess={fetchEmployees}
+                        />
                     </div>
-                    <AddEmployeeDialog
-                        open={isAddDialogOpen}
-                        onOpenChange={setIsAddDialogOpen}
-                        stations={stations}
-                        onSuccess={fetchEmployees}
-                    />
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus("all")}>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10">
-                                    <Users className="w-5 h-5 text-blue-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{employees.length}</p>
-                                    <p className="text-xs text-muted-foreground">ทั้งหมด</p>
-                                </div>
+                <div className="grid grid-cols-3 gap-3.5">
+                    <div
+                        className={`tt-paper-card tt-instrument-frame rounded-2xl border p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)] cursor-pointer transition-all ${filterStatus === "all" ? "border-amber-500/50 bg-amber-500/5" : "border-zinc-700/30 dark:border-white/15"}`}
+                        onClick={() => setFilterStatus("all")}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                                <Users className="w-5 h-5" />
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus("active")}>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-green-500/10">
-                                    <UserCheck className="w-5 h-5 text-green-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{activeCount}</p>
-                                    <p className="text-xs text-muted-foreground">ใช้งาน</p>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ทั้งหมด</p>
+                                <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{employees.length}</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus("inactive")}>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-red-500/10">
-                                    <UserX className="w-5 h-5 text-red-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{inactiveCount}</p>
-                                    <p className="text-xs text-muted-foreground">ปิดใช้งาน</p>
-                                </div>
+                        </div>
+                    </div>
+
+                    <div
+                        className={`tt-paper-card tt-instrument-frame rounded-2xl border p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)] cursor-pointer transition-all ${filterStatus === "active" ? "border-emerald-500/50 bg-emerald-500/5" : "border-zinc-700/30 dark:border-white/15"}`}
+                        onClick={() => setFilterStatus("active")}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                                <UserCheck className="w-5 h-5 text-emerald-600" />
                             </div>
-                        </CardContent>
-                    </Card>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ใช้งาน</p>
+                                <p className="text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400">{activeCount}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        className={`tt-paper-card tt-instrument-frame rounded-2xl border p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)] cursor-pointer transition-all ${filterStatus === "inactive" ? "border-rose-500/50 bg-rose-500/5" : "border-zinc-700/30 dark:border-white/15"}`}
+                        onClick={() => setFilterStatus("inactive")}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400 grid place-items-center shrink-0 font-black">
+                                <UserX className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ปิดใช้งาน</p>
+                                <p className="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">{inactiveCount}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Search & Filters */}
-                <Card>
-                    <CardContent className="p-4 space-y-3">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 space-y-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
                         {/* Row 1: Search + Primary Filters */}
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1">
@@ -659,8 +671,7 @@ export default function EmployeesPage() {
                                 <span>{filteredEmployees.length}/{employees.length} คน</span>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
 
                 {/* Employee Table */}
                 {isLoading ? (

@@ -118,7 +118,7 @@ export default function StationTransferPage() {
 
     // Hours dialog
     const [isHoursOpen, setIsHoursOpen] = useState(false);
-    const [hoursUserId, setHoursUserId] = useState("");
+    const [, setHoursUserId] = useState("");
     const [hoursUserName, setHoursUserName] = useState("");
     const [stationHours, setStationHours] = useState<StationHourEntry[]>([]);
     const [totalHours, setTotalHours] = useState(0);
@@ -261,35 +261,29 @@ export default function StationTransferPage() {
     );
 
     return (
-        <div className="space-y-6 pb-8">
+        <div className="space-y-6 pb-8 font-sans">
             {/* Header */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 p-6 sm:p-8 shadow-xl">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent)] pointer-events-none" />
-                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
-                                <ArrowLeftRight className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                                    ย้ายสาขา / ตำแหน่งพนักงาน
-                                </h1>
-                                <p className="text-indigo-100/80 text-sm sm:text-base">
-                                    ดูตำแหน่งพนักงานแต่ละสาขาและจัดการการย้ายสาขาระหว่างวัน
-                                </p>
-                            </div>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <ArrowLeftRight className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">LIVE DISPATCH & REALLOCATION</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">ย้ายสาขา & โยกย้ายพนักงาน</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">ตรวจสอบตำแหน่งพนักงานหน้าลานตามเวลาจริง และบันทึกการสลับสาขาระหว่างวัน</p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
                         <Button
                             variant="secondary"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all text-xs"
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
                             รีเฟรช
                         </Button>
                         <Dialog
@@ -300,16 +294,16 @@ export default function StationTransferPage() {
                             }}
                         >
                             <DialogTrigger asChild>
-                                <Button className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg">
-                                    <Plus className="w-4 h-4 mr-2" />
+                                <Button className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 px-4 text-xs shadow-sm">
+                                    <Plus className="w-4 h-4 mr-1.5" />
                                     ย้ายสาขา
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
                                     <DialogTitle className="flex items-center gap-2">
-                                        <div className="p-2 rounded-lg bg-indigo-500/10">
-                                            <ArrowLeftRight className="w-5 h-5 text-indigo-500" />
+                                        <div className="p-2 rounded-lg bg-amber-500/10">
+                                            <ArrowLeftRight className="w-5 h-5 text-amber-600" />
                                         </div>
                                         ย้ายสาขาพนักงาน
                                     </DialogTitle>
@@ -330,7 +324,8 @@ export default function StationTransferPage() {
                                                         <span className="font-mono text-xs text-muted-foreground mr-2">
                                                             {emp.employeeId}
                                                         </span>
-                                                        {emp.nickName || emp.name}
+                                                        {emp.name}
+                                                        {emp.nickName && ` (${emp.nickName})`}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -345,7 +340,10 @@ export default function StationTransferPage() {
                                             <SelectContent>
                                                 {stations.map((s) => (
                                                     <SelectItem key={s.id} value={s.id}>
-                                                        {s.name}
+                                                        <div className="flex items-center gap-2">
+                                                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                                                            {s.name}
+                                                        </div>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -365,7 +363,7 @@ export default function StationTransferPage() {
                                     <Button variant="outline" onClick={() => setIsTransferOpen(false)}>
                                         ยกเลิก
                                     </Button>
-                                    <Button onClick={handleTransferSubmit} disabled={isSubmitting}>
+                                    <Button onClick={handleTransferSubmit} disabled={isSubmitting} className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl">
                                         {isSubmitting ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                         ) : (
@@ -383,48 +381,36 @@ export default function StationTransferPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/50 dark:to-blue-900/30">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-blue-500/10 ring-4 ring-blue-500/5">
-                                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold">{totalEmployeesOnSite}</p>
-                                <p className="text-sm text-muted-foreground">พนักงานหน้าลาน (วันนี้)</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3.5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                        <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{totalEmployeesOnSite}</p>
+                        <p className="text-[11px] font-bold text-zinc-500">พนักงานหน้าลาน (วันนี้)</p>
+                    </div>
+                </div>
 
-                <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/50 dark:to-purple-900/30">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-purple-500/10 ring-4 ring-purple-500/5">
-                                <ArrowLeftRight className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold">{transferredCount}</p>
-                                <p className="text-sm text-muted-foreground">ถูกย้ายวันนี้</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3.5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                        <ArrowLeftRight className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-2xl font-black font-mono text-purple-700 dark:text-purple-400">{transferredCount}</p>
+                        <p className="text-[11px] font-bold text-zinc-500">ถูกย้ายวันนี้</p>
+                    </div>
+                </div>
 
-                <Card className="border-0 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/50 dark:to-emerald-900/30">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-emerald-500/10 ring-4 ring-emerald-500/5">
-                                <Building2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold">{stationMap.length}</p>
-                                <p className="text-sm text-muted-foreground">สาขาทั้งหมด</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3.5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                        <Building2 className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                        <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{stationMap.length}</p>
+                        <p className="text-[11px] font-bold text-zinc-500">สาขาทั้งหมด</p>
+                    </div>
+                </div>
             </div>
 
             {/* Live Station Map */}

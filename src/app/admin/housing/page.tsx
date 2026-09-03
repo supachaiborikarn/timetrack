@@ -340,26 +340,39 @@ export default function HousingPage() {
     const activeDormitories = dormitories.filter((d) => d.isActive);
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">ที่พักคนงาน</h1>
-                <p className="text-muted-foreground">บันทึกว่าใครอยู่บ้านพักหลังไหน ใครอยู่ที่พักตัวเอง และคิดค่าที่พักรายเดือนให้กลุ่มหลัง</p>
+        <div className="space-y-6 font-sans">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Home className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">WORKER HOUSING & WELFARE</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">ที่พักคนงาน & สวัสดิการ</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">บันทึกการจัดสรรบ้านพักบริษัท, ที่พักส่วนตัว และคำนวณเบี้ยช่วยค่าที่พักรายเดือน</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                <StatCard icon={Users} tone="text-slate-500 bg-slate-500/10" value={summary?.total ?? 0} label="พนักงานทั้งหมด" />
-                <StatCard icon={HelpCircle} tone="text-amber-500 bg-amber-500/10" value={summary?.unknown ?? 0} label="ยังไม่ระบุ" />
-                <StatCard icon={BedDouble} tone="text-blue-500 bg-blue-500/10" value={summary?.companyDorm ?? 0} label="อยู่บ้านพักบริษัท" />
-                <StatCard icon={Home} tone="text-emerald-500 bg-emerald-500/10" value={summary?.ownHousing ?? 0} label="อยู่ที่พักตัวเอง" />
-                <StatCard icon={AlertTriangle} tone="text-red-500 bg-red-500/10" value={summary?.withIssues ?? 0} label="ข้อมูลต้องตรวจ" />
+            <div className="grid grid-cols-2 gap-3.5 md:grid-cols-5">
+                <StatCard icon={Users} tone="text-slate-700 dark:text-slate-300 bg-slate-500/15 border border-slate-500/30" value={summary?.total ?? 0} label="พนักงานทั้งหมด" />
+                <StatCard icon={HelpCircle} tone="text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30" value={summary?.unknown ?? 0} label="ยังไม่ระบุ" />
+                <StatCard icon={BedDouble} tone="text-blue-700 dark:text-blue-300 bg-blue-500/15 border border-blue-500/30" value={summary?.companyDorm ?? 0} label="อยู่บ้านพักบริษัท" />
+                <StatCard icon={Home} tone="text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30" value={summary?.ownHousing ?? 0} label="อยู่ที่พักตัวเอง" />
+                <StatCard icon={AlertTriangle} tone="text-rose-700 dark:text-rose-300 bg-rose-500/15 border border-rose-500/30" value={summary?.withIssues ?? 0} label="ข้อมูลต้องตรวจ" />
             </div>
 
-            <Tabs defaultValue="roster" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="roster">ผังพนักงาน</TabsTrigger>
-                    <TabsTrigger value="dormitories">ที่พัก ({activeDormitories.length})</TabsTrigger>
-                    <TabsTrigger value="allowance">ค่าที่พัก</TabsTrigger>
-                </TabsList>
+            <Tabs defaultValue="roster" className="w-full space-y-4">
+                <div className="overflow-x-auto pb-1">
+                    <TabsList className="tt-retro-control inline-flex min-w-max p-1 rounded-xl bg-zinc-200/70 dark:bg-zinc-900 border border-zinc-700/20 dark:border-white/15 h-auto">
+                        <TabsTrigger value="roster" className="rounded-lg px-4 py-1.5 text-xs font-bold data-[state=active]:bg-[#fbbf24] data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm transition-all">ผังพนักงาน</TabsTrigger>
+                        <TabsTrigger value="dormitories" className="rounded-lg px-4 py-1.5 text-xs font-bold data-[state=active]:bg-[#fbbf24] data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm transition-all">ที่พัก ({activeDormitories.length})</TabsTrigger>
+                        <TabsTrigger value="allowance" className="rounded-lg px-4 py-1.5 text-xs font-bold data-[state=active]:bg-[#fbbf24] data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm transition-all">ค่าที่พัก</TabsTrigger>
+                    </TabsList>
+                </div>
 
                 {/* ── Roster ─────────────────────────────────────────────── */}
                 <TabsContent value="roster" className="space-y-4 pt-4">
@@ -754,16 +767,14 @@ export default function HousingPage() {
 
 function StatCard({ icon: Icon, tone, value, label }: { icon: React.ComponentType<{ className?: string }>; tone: string; value: number; label: string }) {
     return (
-        <Card>
-            <CardContent className="flex items-center gap-3 py-4">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                    <p className="text-2xl font-bold text-foreground">{value}</p>
-                    <p className="truncate text-xs text-muted-foreground">{label}</p>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${tone}`}>
+                <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{value}</p>
+                <p className="truncate text-[11px] font-bold text-zinc-500">{label}</p>
+            </div>
+        </div>
     );
 }

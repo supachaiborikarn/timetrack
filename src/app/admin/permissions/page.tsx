@@ -43,7 +43,7 @@ const roleColors: Record<string, string> = {
 
 export default function PermissionsPage() {
     const { data: session, status } = useSession();
-    const [permissions, setPermissions] = useState<Permission[]>([]);
+    const [, setPermissions] = useState<Permission[]>([]);
     const [groups, setGroups] = useState<Record<string, Permission[]>>({});
     const [rolePermissions, setRolePermissions] = useState<RolePermissions>({});
     const [roles, setRoles] = useState<string[]>([]);
@@ -132,48 +132,49 @@ export default function PermissionsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Shield className="w-6 h-6" />
-                        จัดการสิทธิ์
-                    </h1>
-                    <p className="text-muted-foreground">กำหนดสิทธิ์การใช้งานสำหรับแต่ละ Role</p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Shield className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">RBAC & ACCESS CONTROL</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">จัดการสิทธิ์ & บทบาทระบบ</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">กำหนดเมทริกซ์สิทธิ์การเข้าถึง (Permissions Matrix) สำหรับแต่ละ Role</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Warning */}
             {!canManage && (
-                <Card className="border-yellow-500/50 bg-yellow-500/10">
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                        <p className="text-yellow-600 dark:text-yellow-400">
-                            คุณไม่มีสิทธิ์แก้ไขสิทธิ์การใช้งาน
-                        </p>
-                    </CardContent>
-                </Card>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <AlertTriangle className="w-5 h-5 text-[#fbbf24]" />
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                        คุณไม่มีสิทธิ์แก้ไขสิทธิ์การใช้งาน (โหมดดูอย่างเดียว)
+                    </p>
+                </div>
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
                 {roles.map((role) => (
-                    <Card key={role}>
-                        <CardContent className="py-4 flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl ${roleColors[role]}/10 flex items-center justify-center`}>
-                                <span className={`text-lg font-bold ${roleColors[role].replace("bg-", "text-")}`}>
-                                    {role.charAt(0)}
-                                </span>
-                            </div>
-                            <div>
-                                <p className="text-lg font-bold text-foreground">
-                                    {(rolePermissions[role] || []).length}
-                                </p>
-                                <p className="text-xs text-muted-foreground">{roleLabels[role]}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div key={role} className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                        <div className={`w-10 h-10 rounded-xl ${roleColors[role]}/15 border border-${roleColors[role].replace("bg-", "")}/30 flex items-center justify-center font-black`}>
+                            <span className={`text-base font-black ${roleColors[role].replace("bg-", "text-")}`}>
+                                {role.charAt(0)}
+                            </span>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-xl font-black font-mono text-zinc-900 dark:text-zinc-100">
+                                {(rolePermissions[role] || []).length}
+                            </p>
+                            <p className="text-[11px] font-bold text-zinc-500">{roleLabels[role]}</p>
+                        </div>
+                    </div>
                 ))}
             </div>
 

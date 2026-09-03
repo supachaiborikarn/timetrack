@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,58 +224,65 @@ export default function StationsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">สถานี / สาขา</h1>
-                    <p className="text-muted-foreground">จัดการสถานีและตำแหน่ง GPS</p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Building2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">BRANCH NETWORK & GEOLOCATION</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">เครือข่ายสถานี & จุดบริการ</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">จัดการสาขา, รัศมีลงเวลา GPS, แผนกประจำสาขา และเบอร์ฉุกเฉิน</p>
+                        </div>
+                    </div>
+                    <Button
+                        onClick={openCreateDialog}
+                        className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 px-4 text-xs shadow-sm self-start sm:self-auto"
+                    >
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        เพิ่มสถานี
+                    </Button>
                 </div>
-                <Button onClick={openCreateDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    เพิ่มสถานี
-                </Button>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">{stations.length}</p>
-                            <p className="text-xs text-muted-foreground">สถานีทั้งหมด</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                            <MapPin className="w-5 h-5 text-green-500" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">
-                                {stations.filter((s) => s.latitude && s.longitude).length}
-                            </p>
-                            <p className="text-xs text-muted-foreground">มีพิกัด GPS</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-purple-500" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">
-                                {stations.reduce((sum, s) => sum + s.employeeCount, 0)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">พนักงานทั้งหมด</p>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                        <Building2 className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">สถานีทั้งหมด</p>
+                        <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{stations.length}</p>
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                        <MapPin className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">มีพิกัด GPS</p>
+                        <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">
+                            {stations.filter((s) => s.latitude && s.longitude).length}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 flex items-center gap-3 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                        <Users className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">พนักงานทั้งหมด</p>
+                        <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">
+                            {stations.reduce((sum, s) => sum + s.employeeCount, 0)}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Table */}

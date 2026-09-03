@@ -44,7 +44,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, getBangkokNow } from "@/lib/date-utils";
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 
 interface AuditLog {
     id: string;
@@ -200,38 +199,38 @@ export default function AuditLogsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/admin">แอดมิน</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbPage>Audit Log</BreadcrumbPage>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb>
-
-            <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-slate-500 to-slate-700 rounded-xl shadow-lg">
-                    <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold">Audit Log</h1>
-                    <p className="text-muted-foreground text-sm">ประวัติการแก้ไขข้อมูลในระบบ</p>
+        <div className="space-y-6 font-sans">
+            {/* Header */}
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Shield className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">COMPLIANCE & SYSTEM AUDIT</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">ประวัติการแก้ไขข้อมูล (Audit Log)</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">บันทึกกิจกรรมการสร้าง, แก้ไข, ลบ และการกระทำสำคัญในระบบทั้งหมด</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        onClick={fetchLogs}
+                        disabled={isLoading}
+                        className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all text-xs self-start sm:self-auto"
+                    >
+                        <RefreshCw className={`w-4 h-4 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
+                        รีเฟรช
+                    </Button>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card className="border-0 shadow-lg">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Search className="w-5 h-5" />
-                        ค้นหาและกรอง
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-5 space-y-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground pb-2 border-b border-zinc-700/20 dark:border-white/10">
+                    <Search className="w-4 h-4 text-[#fbbf24]" />
+                    ค้นหาและกรองประวัติ
+                </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-1">
                             <label className="text-sm font-medium">วันที่เริ่มต้น</label>
@@ -314,10 +313,9 @@ export default function AuditLogsPage() {
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 โหลดใหม่
                             </Button>
-                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Logs Table */}
             <Card className="border-0 shadow-lg">
