@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays, parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+import { canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 import {
     fetchFuelLaborAnalytics,
     findFuelStationMatch,
@@ -304,6 +305,9 @@ export async function GET(request: NextRequest) {
                 { status: 400 },
             );
         }
+        if (!canGasCashierAccessStation(session.user, stationId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูข้อมูลกะของสถานีนี้" }, { status: 403 });
+        }
 
         const station = await prisma.station.findUnique({
             where: { id: stationId },
@@ -318,8 +322,9 @@ export async function GET(request: NextRequest) {
         const startDate = parseDateStringToBangkokMidnight(dateKeys[0]);
         const endExclusive = addDays(parseDateStringToBangkokMidnight(dateKeys[dateKeys.length - 1]), 1);
 
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const employees = await prisma.user.findMany({
-            where: { stationId, isActive: true },
+            where: gasCashierScope ? { ...gasCashierScope, isActive: true } : { stationId, isActive: true },
             select: {
                 id: true,
                 employeeId: true,
@@ -337,7 +342,9 @@ export async function GET(request: NextRequest) {
         });
 
         const frontyardEmployees = employees.filter((employee) => employee.department?.isFrontYard);
-        const analysisEmployees = frontyardEmployees.length > 0 ? frontyardEmployees : employees;
+        const analysisEmployees = gasCashierScope
+            ? employees
+            : frontyardEmployees.length > 0 ? frontyardEmployees : employees;
         const analysisUserIds = new Set(analysisEmployees.map((employee) => employee.id));
 
         const shifts = await prisma.shift.findMany({

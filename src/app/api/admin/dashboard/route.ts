@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDayBangkok } from "@/lib/date-utils";
 import { calculateBreakOverageMinutes, resolveAllowedBreakMinutes } from "@/lib/break-rules";
+import { GAS_CASHIER_SCOPE_LABEL, gasCashierEmployeeWhere, isGasCashier } from "@/lib/cashier-employee-scope";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -67,6 +68,8 @@ export async function GET(request: NextRequest) {
 
         const role = session.user.role;
         const isCashier = role === "CASHIER";
+        const isGasOnlyCashier = isGasCashier(session.user);
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const isStationScoped = role === "MANAGER" || role === "CASHIER";
         const viewer = await prisma.user.findUnique({
             where: { id: session.user.id },
@@ -86,6 +89,7 @@ export async function GET(request: NextRequest) {
             employeeStatus: "ACTIVE" as const,
             role: "EMPLOYEE" as const,
             ...userStationFilter,
+            ...(gasCashierScope ?? {}),
         };
         const nowReal = new Date();
         const bangkokClock = new Date(nowReal.getTime() + BANGKOK_OFFSET_MS);
@@ -166,17 +170,34 @@ export async function GET(request: NextRequest) {
                 where: {
                     status: "PENDING",
                     targetAccepted: true,
-                    ...(stationId ? { requester: { stationId } } : {}),
+                    ...(gasCashierScope
+                        ? { requester: gasCashierScope }
+                        : stationId ? { requester: { stationId } } : {}),
                 },
             }),
             prisma.timeCorrection.count({
-                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+                where: {
+                    status: "PENDING",
+                    ...(gasCashierScope
+                        ? { user: gasCashierScope }
+                        : stationId ? { user: { stationId } } : {}),
+                },
             }),
             prisma.leave.count({
-                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+                where: {
+                    status: "PENDING",
+                    ...(gasCashierScope
+                        ? { user: gasCashierScope }
+                        : stationId ? { user: { stationId } } : {}),
+                },
             }),
             prisma.advance.count({
-                where: { status: "PENDING", ...(stationId ? { user: { stationId } } : {}) },
+                where: {
+                    status: "PENDING",
+                    ...(gasCashierScope
+                        ? { user: gasCashierScope }
+                        : stationId ? { user: { stationId } } : {}),
+                },
             }),
             prisma.shiftPool.count({
                 where: {
@@ -473,7 +494,12 @@ export async function GET(request: NextRequest) {
         if (isLight) {
             const response = NextResponse.json({
                 role,
-                scope: { station: stationId ? viewer?.station : null },
+                scope: {
+                    station: stationId ? viewer?.station : null,
+                    label: isGasOnlyCashier
+                        ? `${viewer?.station?.name ?? "สถานีของฉัน"} • ${GAS_CASHIER_SCOPE_LABEL}`
+                        : stationId ? viewer?.station?.name ?? "สถานีของฉัน" : "ทุกสถานี",
+                },
                 stats: {
                     totalEmployees: stats.totalEmployees,
                     todayAttendance: stats.todayAttendance,
@@ -573,7 +599,9 @@ export async function GET(request: NextRequest) {
             role,
             scope: {
                 station: stationId ? viewer?.station : null,
-                label: stationId ? viewer?.station?.name ?? "สถานีของฉัน" : "ทุกสถานี",
+                label: isGasOnlyCashier
+                    ? `${viewer?.station?.name ?? "สถานีของฉัน"} • ${GAS_CASHIER_SCOPE_LABEL}`
+                    : stationId ? viewer?.station?.name ?? "สถานีของฉัน" : "ทุกสถานี",
             },
             stats,
             actionItems,

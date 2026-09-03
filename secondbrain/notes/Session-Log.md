@@ -1204,3 +1204,34 @@ Pending / risk:
 
 - Visual QA should still be done on the deployed/mobile-sized view after deployment because these pages were substantially restyled.
 - No commit or push was created in this session yet.
+
+## 2026-09-03 — Fixed clerk theme toggle and isolated gas-clerk employee scope
+
+Goal:
+
+- Make clerk dashboard switch light/dark correctly even when `next-themes` is set to `system`.
+- Restrict the gas-clerk accounts at PAP/SPC to gas and car-wash employees at their own parent station.
+
+Business scope:
+
+- PAP gas clerks: กุ้ง (`EMPE2D20`) and เล็ก (`EMP90026`).
+- SPC gas clerks: ปุ้ก/ปุก (`EMPC6A4F`) and เหน่ง (`EMPF7DE0`).
+- Allowed employee departments: `GAS` and `CAR_WASH`, at the clerk's own `stationId` only.
+- SPC currently has no car-wash employee, so its scoped view naturally contains gas staff only.
+- Other CASHIER accounts keep the previous access behavior.
+
+Implementation:
+
+- Theme toggles now use `resolvedTheme` instead of the raw theme preference, fixing the case where `theme=system` resolved to dark and the first click appeared to do nothing.
+- Added the shared server policy `src/lib/cashier-employee-scope.ts`.
+- Applied gas-clerk scope to dashboard stats/lists, employee selectors, station lists, attendance/manual attendance/backfill/break handling, schedules/bulk/export/fairness, advances, and station-transfer listing.
+- Sensitive write endpoints validate the target employee server-side, so changing a URL/request cannot bypass the scope.
+- The four clerk accounts remain at their existing PAP/SPC parent stations; no station reassignment, schema change, or production data mutation was made.
+
+Verification:
+
+- `npx vitest run src/lib/cashier-employee-scope.test.ts src/components/layout/ThemeToggle.test.tsx`: 8/8 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint: 0 errors; only pre-existing unused-variable warnings remain in legacy schedule/station-transfer files.
+- `/usr/bin/env NODE_ENV=production npm run build`: passed; Next.js generated 185/185 static pages.
+- No local command connected to the production Neon database during this work.

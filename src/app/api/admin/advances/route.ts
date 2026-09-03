@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { assetUrl } from "@/lib/asset-kinds";
+import { canGasCashierAccessEmployee, combineUserWhere, gasCashierEmployeeWhere, isGasCashier } from "@/lib/cashier-employee-scope";
 
 function parseAmount(value: unknown, allowZero = true): number | null {
     const amount = Number(value);
@@ -50,6 +51,11 @@ export async function GET(req: NextRequest) {
             };
         }
 
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
+        if (gasCashierScope) {
+            where.user = combineUserWhere(where.user, gasCashierScope);
+        }
+
         const advances = await prisma.advance.findMany({
             where,
             include: {
@@ -80,7 +86,9 @@ export async function GET(req: NextRequest) {
 
         // Get stations for filter dropdown
         const stations = await prisma.station.findMany({
-            where: { isActive: true },
+            where: isGasCashier(session.user)
+                ? { isActive: true, id: session.user.stationId ?? "__no_station__" }
+                : { isActive: true },
             select: { id: true, name: true, code: true },
             orderBy: { name: "asc" },
         });
@@ -118,6 +126,9 @@ export async function POST(req: NextRequest) {
         const parsedAmount = parseAmount(amount, false);
         if (!userId || parsedAmount === null) {
             return NextResponse.json({ error: "userId and amount are required" }, { status: 400 });
+        }
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์บันทึกเบิกค่าแรงให้พนักงานคนนี้" }, { status: 403 });
         }
 
         const now = new Date();

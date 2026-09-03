@@ -5,6 +5,7 @@ import {
     calculateBreakPenaltyAmount,
     resolveAllowedBreakMinutes,
 } from "@/lib/break-rules";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 // POST: Supervisor starts or ends break for an employee
 export async function POST(request: NextRequest) {
@@ -25,6 +26,10 @@ export async function POST(request: NextRequest) {
 
         if (!employeeId || !action) {
             return NextResponse.json({ error: "Missing employeeId or action" }, { status: 400 });
+        }
+
+        if (!await canGasCashierAccessEmployee(session.user, employeeId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์จัดการเวลาพักของพนักงานคนนี้" }, { status: 403 });
         }
 
         // Use UTC time for database storage (matching employee APIs)

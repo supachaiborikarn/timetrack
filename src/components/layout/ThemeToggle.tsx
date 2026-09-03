@@ -14,11 +14,11 @@ interface ThemeToggleProps {
 }
 
 export function ThemeToggle({ variant = "icon", className = "" }: ThemeToggleProps) {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const mounted = useHasMounted();
   if (!mounted) return null;
 
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
   if (variant === "pill") {
@@ -42,7 +42,6 @@ export function ThemeToggle({ variant = "icon", className = "" }: ThemeTogglePro
     );
   }
 
-  // Default: icon button (transparent, for use on colored header)
   return (
     <button
       onClick={toggle}

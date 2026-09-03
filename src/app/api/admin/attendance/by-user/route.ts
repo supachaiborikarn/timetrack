@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays } from "@/lib/date-utils";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 function parseDateStringToBangkokMidnight(dateStr: string): Date {
     const [year, month, day] = dateStr.split("-").map(Number);
@@ -28,6 +29,9 @@ export async function GET(request: NextRequest) {
                 { error: "startDate, endDate, and userId are required" },
                 { status: 400 }
             );
+        }
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูเวลาของพนักงานคนนี้" }, { status: 403 });
         }
 
         const startDateBangkok = parseDateStringToBangkokMidnight(startDate);

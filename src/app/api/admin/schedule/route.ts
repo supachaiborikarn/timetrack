@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays, startOfMonth, endOfMonth, getDate, format, parseDateStringToBangkokMidnight } from "@/lib/date-utils";
+import { canGasCashierAccessEmployee, canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 // GET: Fetch shift assignments for a station/month
 export async function GET(request: NextRequest) {
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
                 { status: 400 }
             );
         }
+        if (!canGasCashierAccessStation(session.user, stationId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูตารางกะของสถานีนี้" }, { status: 403 });
+        }
 
         const daysInMonth = new Date(year, month, 0).getDate();
         const startDateStr = `${year}-${month.toString().padStart(2, "0")}-01`;
@@ -30,9 +34,10 @@ export async function GET(request: NextRequest) {
         const endDateStr = `${year}-${month.toString().padStart(2, "0")}-${daysInMonth}`;
         const endDate = parseDateStringToBangkokMidnight(endDateStr);
 
-        // Get all employees of the station
+        // Gas cashiers see only gas + car-wash employees at their own station.
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const employees = await prisma.user.findMany({
-            where: { stationId, isActive: true },
+            where: gasCashierScope ? { ...gasCashierScope, isActive: true } : { stationId, isActive: true },
             include: { department: true },
             orderBy: [{ departmentId: "asc" }, { name: "asc" }],
         });
@@ -127,14 +132,20 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        if (!canGasCashierAccessStation(session.user, stationId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์จัดตารางกะของสถานีนี้" }, { status: 403 });
+        }
 
         const startDateStr = `${year}-${month.toString().padStart(2, "0")}-01`;
         const startDate = parseDateStringToBangkokMidnight(startDateStr);
         const endDate = endOfMonth(startDate);
 
-        // Get employees for station
+        // Get employees for station, respecting gas-cashier department scope.
+        const gasCashierScopeForGeneration = gasCashierEmployeeWhere(session.user);
         const employees = await prisma.user.findMany({
-            where: { stationId, isActive: true, role: "EMPLOYEE" },
+            where: gasCashierScopeForGeneration
+                ? { ...gasCashierScopeForGeneration, isActive: true }
+                : { stationId, isActive: true, role: "EMPLOYEE" },
             include: {
                 department: {
                     include: {
@@ -245,6 +256,9 @@ export async function PUT(request: NextRequest) {
                 { status: 400 }
             );
         }
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ตารางของพนักงานคนนี้" }, { status: 403 });
+        }
 
         const assignment = await prisma.shiftAssignment.upsert({
             where: {
@@ -285,6 +299,11 @@ export async function DELETE(request: NextRequest) {
 
         // Bulk delete
         if (assignments && Array.isArray(assignments)) {
+            const uniqueUserIds = [...new Set(assignments.map((item: { userId: string }) => item.userId))];
+            const accessChecks = await Promise.all(uniqueUserIds.map((id) => canGasCashierAccessEmployee(session.user, id)));
+            if (accessChecks.some((allowed) => !allowed)) {
+                return NextResponse.json({ error: "ไม่มีสิทธิ์ลบตารางของพนักงานบางคน" }, { status: 403 });
+            }
             const deleteResults = await Promise.all(
                 assignments.map(async (item: { userId: string; date: string }) => {
                     try {
@@ -318,6 +337,9 @@ export async function DELETE(request: NextRequest) {
                 { error: "userId and date are required" },
                 { status: 400 }
             );
+        }
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ลบตารางของพนักงานคนนี้" }, { status: 403 });
         }
 
         await prisma.shiftAssignment.delete({

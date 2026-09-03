@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { addDays } from "@/lib/date-utils";
 import { toBangkokDateKey } from "@/lib/payroll-calculation";
 import { calculateStationTimePay } from "@/lib/station-pay-rules";
+import type { Prisma } from "@prisma/client";
+import { canGasCashierAccessEmployee, combineUserWhere, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 // Helper to create Bangkok midnight from date string (YYYY-MM-DD)
 // For startDate: we want the beginning of that day in Bangkok
@@ -60,6 +62,11 @@ export async function GET(request: NextRequest) {
         // Manager can only see their station
         if (session.user.role === "MANAGER" && session.user.stationId) {
             where.user = { stationId: session.user.stationId };
+        }
+
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
+        if (gasCashierScope) {
+            where.user = combineUserWhere(where.user as Prisma.UserWhereInput | undefined, gasCashierScope);
         }
 
         // Status filter
@@ -138,6 +145,17 @@ export async function PUT(request: NextRequest) {
 
         if (!id || !status) {
             return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+        }
+
+        const targetAttendance = await prisma.attendance.findUnique({
+            where: { id },
+            select: { userId: true },
+        });
+        if (!targetAttendance) {
+            return NextResponse.json({ error: "ไม่พบข้อมูลการลงเวลา" }, { status: 404 });
+        }
+        if (!await canGasCashierAccessEmployee(session.user, targetAttendance.userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ดูหรือแก้ไขพนักงานคนนี้" }, { status: 403 });
         }
 
         const updated = await prisma.attendance.update({

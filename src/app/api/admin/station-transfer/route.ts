@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse, errorResponse } from "@/lib/api-utils";
 import { startOfDayBangkok, getBangkokNow } from "@/lib/date-utils";
+import { gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 // POST: Manager creates a station transfer for an employee
 export async function POST(request: NextRequest) {
@@ -141,12 +142,14 @@ export async function GET(request: NextRequest) {
         const startOfDay = startOfDayBangkok(queryDate);
         const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const transfers = await prisma.stationTransfer.findMany({
             where: {
                 transferTime: {
                     gte: startOfDay,
                     lt: endOfDay,
                 },
+                ...(gasCashierScope ? { user: gasCashierScope } : {}),
             },
             include: {
                 user: {

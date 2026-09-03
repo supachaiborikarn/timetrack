@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { startOfDayBangkok } from "@/lib/date-utils";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 interface StationHours {
     stationId: string;
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
 
         if (!userId) {
             return ApiErrors.validation("กรุณาระบุ userId");
+        }
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return ApiErrors.forbidden("ไม่มีสิทธิ์ดูชั่วโมงของพนักงานคนนี้");
         }
 
         const queryDate = date ? new Date(date) : new Date();

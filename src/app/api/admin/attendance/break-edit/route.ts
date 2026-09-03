@@ -5,6 +5,7 @@ import {
     calculateBreakPenaltyAmount,
     resolveAllowedBreakMinutes,
 } from "@/lib/break-rules";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 // PUT: Edit break times for an attendance record
 export async function PUT(request: NextRequest) {
@@ -34,6 +35,9 @@ export async function PUT(request: NextRequest) {
 
         if (!attendance) {
             return NextResponse.json({ error: "ไม่พบข้อมูลการลงเวลา" }, { status: 404 });
+        }
+        if (!await canGasCashierAccessEmployee(session.user, attendance.userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ไขเวลาพักของพนักงานคนนี้" }, { status: 403 });
         }
 
         // Parse the new times

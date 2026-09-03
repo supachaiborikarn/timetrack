@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
 import { isHousekeepingDepartment } from "@/lib/attendance-rules";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 // Convert date string "YYYY-MM-DD" to Bangkok midnight (same as check-in API)
 function parseDateToBangkokMidnight(dateStr: string): Date {
@@ -24,6 +25,10 @@ export async function POST(request: NextRequest) {
 
         if (!userId || !type) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        if (!await canGasCashierAccessEmployee(session.user, userId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ลงเวลาให้พนักงานคนนี้" }, { status: 403 });
         }
 
         // Parse date and time to create a UTC Date object

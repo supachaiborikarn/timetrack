@@ -332,7 +332,7 @@ function RetroStationMark() {
 export function EmployeeDashboardView() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   const {
     currentTime,
@@ -581,11 +581,11 @@ export function EmployeeDashboardView() {
               <span className="mt-0.5">{T.nextLangLabel}</span>
             </button>
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="tt-retro-control h-12 w-12 rounded-full border-[1.5px] border-black/70 bg-[#ffc62c]/70 flex items-center justify-center shadow-[inset_0_0_0_2px_rgba(255,255,255,0.18)]"
               aria-label="สลับธีม"
             >
-              {theme === "dark" ? <Sun className="w-5 h-5 text-black" /> : <Moon className="w-5 h-5 text-black" />}
+              {resolvedTheme === "dark" ? <Sun className="w-5 h-5 text-black" /> : <Moon className="w-5 h-5 text-black" />}
             </button>
             <button
               onClick={() => setIsMenuOpen(true)}

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApiErrors, successResponse } from "@/lib/api-utils";
 import { startOfDayBangkok } from "@/lib/date-utils";
+import { gasCashierEmployeeWhere, isGasCashier } from "@/lib/cashier-employee-scope";
 
 // GET: Get current station for all active front-yard employees
 export async function GET() {
@@ -15,12 +16,14 @@ export async function GET() {
         }
 
         const today = startOfDayBangkok();
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
 
-        // Get all active front-yard employees who checked in today
+        // Gas cashiers see only gas/car-wash employees at their own home station.
         const attendances = await prisma.attendance.findMany({
             where: {
                 date: today,
                 checkInTime: { not: null },
+                ...(gasCashierScope ? { user: gasCashierScope } : {}),
             },
             include: {
                 user: {
@@ -75,7 +78,9 @@ export async function GET() {
 
         // Group by station for the "live map" view
         const stations = await prisma.station.findMany({
-            where: { isActive: true },
+            where: isGasCashier(session.user)
+                ? { isActive: true, id: session.user.stationId ?? "__no_station__" }
+                : { isActive: true },
             select: { id: true, name: true, code: true },
         });
 

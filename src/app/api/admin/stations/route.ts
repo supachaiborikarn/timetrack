@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isGasCashier } from "@/lib/cashier-employee-scope";
 
 // GET - List all stations
 export async function GET() {
@@ -12,6 +13,9 @@ export async function GET() {
         }
 
         const stations = await prisma.station.findMany({
+            where: isGasCashier(session.user)
+                ? { id: session.user.stationId ?? "__no_station__" }
+                : undefined,
             orderBy: { name: "asc" },
             include: {
                 departments: {

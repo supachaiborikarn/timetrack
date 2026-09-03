@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canGasCashierAccessEmployee, canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 // POST: Bulk operations (assign, copy)
 export async function POST(request: NextRequest) {
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
 
         // Bulk assign shifts
         if (action === "assign" && assignments && Array.isArray(assignments)) {
+            const uniqueUserIds = [...new Set(assignments.map((item: { userId: string }) => item.userId))];
+            const accessChecks = await Promise.all(uniqueUserIds.map((id) => canGasCashierAccessEmployee(session.user, id)));
+            if (accessChecks.some((allowed) => !allowed)) {
+                return NextResponse.json({ error: "ไม่มีสิทธิ์จัดตารางของพนักงานบางคน" }, { status: 403 });
+            }
             const results = await Promise.all(
                 assignments.map(async (item: { userId: string; date: string; shiftId: string; isDayOff?: boolean }) => {
                     try {
@@ -53,9 +59,12 @@ export async function POST(request: NextRequest) {
 
         // Copy week to another week
         if (action === "copyWeek" && sourceWeek && targetWeek && stationId) {
-            // Get employees of the station
+            if (!canGasCashierAccessStation(session.user, stationId)) {
+                return NextResponse.json({ error: "ไม่มีสิทธิ์จัดตารางกะของสถานีนี้" }, { status: 403 });
+            }
+            const gasCashierScope = gasCashierEmployeeWhere(session.user);
             const employees = await prisma.user.findMany({
-                where: { stationId, isActive: true },
+                where: gasCashierScope ? { ...gasCashierScope, isActive: true } : { stationId, isActive: true },
                 select: { id: true },
             });
 

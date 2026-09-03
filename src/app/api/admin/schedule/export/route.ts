@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfMonth, endOfMonth, format, addDays, getDate } from "@/lib/date-utils";
 import * as XLSX from "xlsx";
+import { canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 export async function GET(request: NextRequest) {
     try {
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
                 { status: 400 }
             );
         }
+        if (!canGasCashierAccessStation(session.user, stationId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ส่งออกตารางกะของสถานีนี้" }, { status: 403 });
+        }
 
         const startDate = startOfMonth(new Date(year, month - 1));
         const endDate = endOfMonth(startDate);
@@ -37,9 +41,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Station not found" }, { status: 404 });
         }
 
-        // Get all employees of the station
+        const gasCashierScope = gasCashierEmployeeWhere(session.user);
         const employees = await prisma.user.findMany({
-            where: { stationId, isActive: true, role: "EMPLOYEE" },
+            where: gasCashierScope
+                ? { ...gasCashierScope, isActive: true }
+                : { stationId, isActive: true, role: "EMPLOYEE" },
             include: { department: true },
             orderBy: [{ departmentId: "asc" }, { name: "asc" }],
         });

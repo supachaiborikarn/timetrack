@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { setEmployeeInactive } from "@/lib/customer-feedback/employee-status";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
+import { gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 export async function GET() {
     try {
@@ -12,8 +13,9 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Allow seeing all employees to support cross-station check-in (e.g. temporary transfer)
-        const whereClause = {};
+        // Normal admin/HR/manager/cashier behavior stays unchanged.
+        // The four gas cashiers are deliberately restricted to gas + car-wash employees at their own station.
+        const whereClause = gasCashierEmployeeWhere(session.user) ?? {};
 
         const employees = await prisma.user.findMany({
             where: whereClause,

@@ -2,10 +2,18 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Decisions
+
+## 2026-09-03: Gas cashiers use department-limited station scope
+
+- PAP gas clerks กุ้ง (`EMPE2D20`) / เล็ก (`EMP90026`) and SPC gas clerks ปุ้ก (`EMPC6A4F`) / เหน่ง (`EMPF7DE0`) remain `CASHIER` accounts at their existing parent PAP/SPC stations.
+- Their operational employee scope is server-enforced as: current `stationId` + `role=EMPLOYEE` + department code `GAS` or `CAR_WASH`.
+- Do not rely on client-side filtering for this boundary; every CASHIER-accessible employee read/write surface must apply the shared gas-cashier policy.
+- Other CASHIER accounts retain the prior access model.
+- Do not move these accounts or their employees to `PAP_GAS` / `SPC_GAS` merely to implement dashboard visibility; current attendance/payroll data uses the parent-station employee assignments.
 
 ## 2026-09-02: Reward Points are separate from Championship Points
 

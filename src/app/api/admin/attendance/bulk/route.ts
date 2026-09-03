@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateLateMinutes, calculateWorkHours } from "@/lib/date-utils";
 import { isHousekeepingDepartment } from "@/lib/attendance-rules";
+import { canGasCashierAccessEmployee } from "@/lib/cashier-employee-scope";
 
 // Convert date string "YYYY-MM-DD" to Bangkok midnight
 function parseDateToBangkokMidnight(dateStr: string): Date {
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
 
         if (entries.length > 500) {
             return NextResponse.json({ error: "Too many entries (max 500)" }, { status: 400 });
+        }
+
+        const uniqueUserIds = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
+        const accessChecks = await Promise.all(uniqueUserIds.map((id) => canGasCashierAccessEmployee(session.user, id)));
+        if (accessChecks.some((allowed) => !allowed)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์ลงเวลาย้อนหลังให้พนักงานบางคน" }, { status: 403 });
         }
 
         const results: { date: string; userId: string; success: boolean; error?: string }[] = [];

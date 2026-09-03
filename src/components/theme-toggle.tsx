@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 
 export function ThemeToggle() {
-    const { theme, setTheme } = useTheme()
+    const { resolvedTheme, setTheme } = useTheme()
     const mounted = useHasMounted()
 
     if (!mounted) {
@@ -17,14 +17,16 @@ export function ThemeToggle() {
         )
     }
 
+    const isDark = resolvedTheme === "dark"
+
     return (
         <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={() => setTheme(isDark ? "light" : "dark")}
             className="text-muted-foreground hover:text-foreground"
         >
-            {theme === "dark" ? (
+            {isDark ? (
                 <Sun className="h-5 w-5" />
             ) : (
                 <Moon className="h-5 w-5" />
