@@ -6,7 +6,6 @@ import { Loader2, Search, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
     AlertDialog,
@@ -106,54 +105,73 @@ export default function ApplyStatusPage() {
     }
 
     return (
-        <div className="min-h-dvh bg-muted/30 p-4">
-            <div className="max-w-md mx-auto pt-8 space-y-4">
-                <header>
-                    <h1 className="text-lg font-bold">{t("applyStatus.pageTitle")}</h1>
-                    <p className="text-sm text-muted-foreground">{t("applyStatus.pageDesc")}</p>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 p-4 font-sans text-zinc-950 dark:text-zinc-50">
+            <div className="max-w-md mx-auto pt-6 pb-12 space-y-4">
+                <Link href="/jobs" className="tt-retro-control inline-flex items-center gap-1 text-xs font-black text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">
+                    ← ดูตำแหน่งงานทั้งหมด
+                </Link>
+
+                <header className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-4 bg-zinc-950 text-white shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">APPLICATION STATUS</p>
+                    <h1 className="text-lg font-black mt-0.5">{t("applyStatus.pageTitle")}</h1>
+                    <p className="text-xs text-zinc-400 mt-0.5">{t("applyStatus.pageDesc")}</p>
                 </header>
 
-                <Card>
-                    <CardContent className="pt-6 space-y-3">
-                        <div className="space-y-1.5">
-                            <Label>
-                                {t("applyStatus.refCode")}
-                                <span className="text-destructive"> *</span>
-                            </Label>
-                            <Input
-                                value={ref}
-                                onChange={(e) => setRef(e.target.value.toUpperCase())}
-                                placeholder={t("applyStatus.refCodePlaceholder")}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>
-                                {t("applyStatus.phone")}
-                                <span className="text-destructive"> *</span>
-                            </Label>
-                            <Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                        </div>
-                        <Button type="button" className="w-full" onClick={handleCheck} disabled={loading}>
-                            {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-                            {t("applyStatus.checkButton")}
-                        </Button>
-                        {error && <p className="text-sm text-destructive">{error}</p>}
-                    </CardContent>
-                </Card>
+                <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-3.5">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                            {t("applyStatus.refCode")}
+                            <span className="text-rose-600"> *</span>
+                        </Label>
+                        <Input
+                            value={ref}
+                            onChange={(e) => setRef(e.target.value.toUpperCase())}
+                            placeholder={t("applyStatus.refCodePlaceholder")}
+                            className="font-mono text-sm font-bold h-11 rounded-xl bg-white dark:bg-zinc-900 border-zinc-700/30"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                            {t("applyStatus.phone")}
+                            <span className="text-rose-600"> *</span>
+                        </Label>
+                        <Input
+                            inputMode="tel"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="08XXXXXXXX"
+                            className="font-mono text-sm font-bold h-11 rounded-xl bg-white dark:bg-zinc-900 border-zinc-700/30"
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        className="w-full tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black h-11 rounded-xl border border-black/20 text-sm flex items-center justify-center gap-1.5 shadow-sm"
+                        onClick={handleCheck}
+                        disabled={loading}
+                    >
+                        {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                        {t("applyStatus.checkButton")}
+                    </Button>
+                    {error && <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/25 text-center">{error}</p>}
+                </div>
 
                 {result && (
-                    <Card>
-                        <CardContent className="pt-6 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <span className="font-mono text-sm">{result.refCode}</span>
-                                <Badge>{t(`applyStatus.status.${result.status}`)}</Badge>
+                    <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-3.5">
+                        <div className="flex items-center justify-between border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">REF CODE</p>
+                                <span className="font-mono text-base font-black text-zinc-900 dark:text-zinc-100">{result.refCode}</span>
                             </div>
-                            <div className="text-sm space-y-1 text-muted-foreground">
-                                <p>{result.positionTitle} {result.stationName ? `— ${result.stationName}` : ""}</p>
-                                <p>{t("applyStatus.submittedAt")}: {new Date(result.createdAt).toLocaleDateString("th-TH-u-ca-buddhist")}</p>
-                                {result.interviewAt && <p>{t("applyStatus.interviewAt")}: {new Date(result.interviewAt).toLocaleString("th-TH-u-ca-buddhist")}</p>}
-                                {result.rejectReason && <p className="text-destructive">{t("applyStatus.rejectReason")}: {result.rejectReason}</p>}
-                            </div>
+                            <Badge className="font-black text-xs px-3 py-1 rounded-full border border-amber-500/40 bg-amber-500/20 text-amber-900 dark:text-amber-300">
+                                {t(`applyStatus.status.${result.status}`)}
+                            </Badge>
+                        </div>
+                        <div className="text-xs space-y-1.5 text-zinc-600 dark:text-zinc-300 font-medium">
+                            <p className="font-black text-sm text-zinc-900 dark:text-zinc-100">{result.positionTitle} {result.stationName ? `— ${result.stationName}` : ""}</p>
+                            <p>{t("applyStatus.submittedAt")}: <span className="font-mono">{new Date(result.createdAt).toLocaleDateString("th-TH-u-ca-buddhist")}</span></p>
+                            {result.interviewAt && <p className="text-blue-700 dark:text-blue-400 font-bold">{t("applyStatus.interviewAt")}: <span className="font-mono">{new Date(result.interviewAt).toLocaleString("th-TH-u-ca-buddhist")}</span></p>}
+                            {result.rejectReason && <p className="text-rose-600 dark:text-rose-400 font-bold">{t("applyStatus.rejectReason")}: {result.rejectReason}</p>}
+                        </div>
 
                             {/* Show the terms of the role up front — pay is the thing most likely to
                                 change someone's mind, and they shouldn't first hear it at the interview. */}
@@ -213,13 +231,14 @@ export default function ApplyStatusPage() {
                                     </AlertDialogContent>
                                 </AlertDialog>
                             )}
-                        </CardContent>
-                    </Card>
+                    </div>
                 )}
 
-                <Link href="/jobs" className="block text-center text-sm text-muted-foreground underline">
-                    {t("applyStatus.backToApply")}
-                </Link>
+                <div className="pt-2 text-center">
+                    <Link href="/jobs" className="text-xs font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline">
+                        {t("applyStatus.backToApply")}
+                    </Link>
+                </div>
             </div>
         </div>
     );

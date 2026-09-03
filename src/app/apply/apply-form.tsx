@@ -388,21 +388,21 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
     }
 
     return (
-        <div className="min-h-dvh bg-muted/30">
-            <div className="max-w-lg mx-auto p-4 pb-28">
-                <header className="pt-4 pb-2">
-                    <h1 className="text-lg font-bold">{t("apply.pageTitle")}</h1>
-                    <p className="text-sm text-muted-foreground">{companyName}</p>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50">
+            <div className="max-w-lg mx-auto p-4 space-y-4">
+                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] bg-zinc-950 text-white">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">JOB APPLICATION</p>
+                    <h1 className="text-xl font-black mt-0.5">{t("apply.pageTitle")}</h1>
+                    <p className="text-xs text-zinc-400 mt-1">{companyName}</p>
                 </header>
 
-                <div className="flex items-center gap-1 mb-6" aria-label={t("apply.progressLabel")}>
+                <div className="flex items-center gap-1.5 px-1" aria-label={t("apply.progressLabel")}>
                     {Array.from({ length: STEP_COUNT }, (_, i) => i + 1).map((s) => (
-                        <div key={s} className={`h-1.5 flex-1 rounded-full ${s <= step ? "bg-primary" : "bg-border"}`} />
+                        <div key={s} className={`h-2 flex-1 rounded-full transition-colors ${s <= step ? "bg-[#fbbf24] shadow-sm" : "bg-zinc-700/20 dark:bg-white/10"}`} />
                     ))}
                 </div>
 
-                <Card>
-                    <CardContent className="pt-6 space-y-4">
+                <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-4">
                         <input
                             type="text"
                             name="website"
@@ -699,27 +699,26 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
                             </div>
                         )}
 
-                        {stepError && <p className="text-sm text-destructive">{stepError}</p>}
-                        {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-                    </CardContent>
-                </Card>
+                        {stepError && <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/25">{stepError}</p>}
+                        {submitError && <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/25">{submitError}</p>}
+                    </div>
             </div>
 
-            <div className="fixed bottom-0 inset-x-0 bg-background border-t p-3">
+            <div className="fixed bottom-0 inset-x-0 bg-[#eee8db]/90 dark:bg-zinc-950/90 backdrop-blur border-t border-zinc-700/20 dark:border-white/10 p-3 z-30">
                 <div className="max-w-lg mx-auto flex gap-2">
                     {step > 1 && (
-                        <Button type="button" variant="outline" onClick={goBack} disabled={submitting}>
+                        <Button type="button" variant="outline" onClick={goBack} disabled={submitting} className="tt-retro-control rounded-xl border border-zinc-700/30 bg-white/60 dark:bg-zinc-800 font-bold h-11">
                             <ChevronLeft className="size-4" />
                             {t("apply.back")}
                         </Button>
                     )}
                     {step < STEP_COUNT ? (
-                        <Button type="button" className="flex-1" onClick={goNext}>
+                        <Button type="button" className="flex-1 tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/20 h-11 text-sm shadow-sm" onClick={goNext}>
                             {t("apply.next")}
                             <ChevronRight className="size-4" />
                         </Button>
                     ) : (
-                        <Button type="button" className="flex-1" onClick={handleSubmit} disabled={submitting}>
+                        <Button type="button" className="flex-1 tt-retro-control bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl h-11 text-sm shadow-sm" onClick={handleSubmit} disabled={submitting}>
                             {submitting && <Loader2 className="size-4 animate-spin" />}
                             {t("apply.submit")}
                         </Button>

@@ -48,31 +48,32 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
     const open = isOpeningOpen(opening);
 
     return (
-        <div className="min-h-dvh bg-muted/30">
-            <div className="max-w-2xl mx-auto p-4 pb-28">
-                <Link href="/jobs" className="inline-flex items-center gap-1 text-sm text-muted-foreground pt-4 hover:text-foreground">
-                    <ArrowLeft className="size-4" />ตำแหน่งงานทั้งหมด
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50">
+            <div className="max-w-2xl mx-auto p-4 space-y-4">
+                <Link href="/jobs" className="tt-retro-control inline-flex items-center gap-1 text-xs font-black text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 pt-2">
+                    <ArrowLeft className="size-4" /> ดูตำแหน่งงานทั้งหมด
                 </Link>
 
-                <header className="pt-4 pb-4">
-                    <h1 className="text-2xl font-bold">{opening.title}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{companyName}</p>
+                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] bg-zinc-950 text-white">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">CALTEX CAREERS</p>
+                    <h1 className="text-2xl font-black text-white mt-1">{opening.title}</h1>
+                    <p className="text-xs text-zinc-400 mt-1">{companyName}</p>
                 </header>
 
-                <div className="rounded-lg border bg-background p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-start gap-2">
-                            <MapPin className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 space-y-5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
+                            <MapPin className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                             <div>
-                                <p className="text-muted-foreground text-xs">สถานที่ทำงาน</p>
-                                <p>{opening.station?.name ?? "ทุกสาขา"}{opening.department ? ` · ${opening.department.name}` : ""}</p>
+                                <p className="text-zinc-400 text-[10px] font-black uppercase">สถานที่ทำงาน</p>
+                                <p className="font-bold text-zinc-900 dark:text-zinc-100">{opening.station?.name ?? "ทุกสาขา"}{opening.department ? ` · ${opening.department.name}` : ""}</p>
                             </div>
                         </div>
-                        <div className="flex items-start gap-2">
-                            <Wallet className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                        <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
+                            <Wallet className="size-4 mt-0.5 text-[#fbbf24] shrink-0" />
                             <div>
-                                <p className="text-muted-foreground text-xs">ค่าตอบแทน</p>
-                                <p>{formatSalaryRange(
+                                <p className="text-zinc-400 text-[10px] font-black uppercase">ค่าตอบแทน</p>
+                                <p className="font-black text-amber-700 dark:text-amber-400 font-mono">{formatSalaryRange(
                                     opening.salaryMin ? Number(opening.salaryMin) : null,
                                     opening.salaryMax ? Number(opening.salaryMax) : null,
                                     opening.salaryNote,
@@ -80,35 +81,35 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                             </div>
                         </div>
                         {opening.employmentType && (
-                            <div className="flex items-start gap-2">
-                                <Briefcase className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
+                                <Briefcase className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-muted-foreground text-xs">ประเภทการจ้าง</p>
-                                    <p>{EMPLOYMENT_TYPE_LABELS[opening.employmentType] ?? opening.employmentType}</p>
+                                    <p className="text-zinc-400 text-[10px] font-black uppercase">ประเภทการจ้าง</p>
+                                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{EMPLOYMENT_TYPE_LABELS[opening.employmentType] ?? opening.employmentType}</p>
                                 </div>
                             </div>
                         )}
                         {opening.positionsAvailable && (
-                            <div className="flex items-start gap-2">
-                                <Users className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
+                                <Users className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-muted-foreground text-xs">จำนวนที่รับ</p>
-                                    <p>{opening.positionsAvailable} อัตรา</p>
+                                    <p className="text-zinc-400 text-[10px] font-black uppercase">จำนวนที่รับ</p>
+                                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{opening.positionsAvailable} อัตรา</p>
                                 </div>
                             </div>
                         )}
                         {opening.closesAt && (
-                            <div className="flex items-start gap-2">
-                                <CalendarClock className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 col-span-2">
+                                <CalendarClock className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-muted-foreground text-xs">ปิดรับสมัคร</p>
-                                    <p>{new Date(opening.closesAt).toLocaleDateString("th-TH-u-ca-buddhist", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                    <p className="text-zinc-400 text-[10px] font-black uppercase">ปิดรับสมัคร</p>
+                                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{new Date(opening.closesAt).toLocaleDateString("th-TH-u-ca-buddhist", { day: "numeric", month: "long", year: "numeric" })}</p>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="border-t pt-4 space-y-4">
+                    <div className="border-t border-zinc-700/15 dark:border-white/10 pt-4 space-y-4">
                         <TextBlock title="รายละเอียดงาน" body={opening.description} />
                         <TextBlock title="หน้าที่รับผิดชอบ" body={opening.responsibilities} />
                         <TextBlock title="คุณสมบัติผู้สมัคร" body={opening.requirements} />
@@ -116,26 +117,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                     </div>
 
                     {opening.station?.address && (
-                        <div className="border-t pt-4">
-                            <h2 className="font-semibold mb-1">ที่อยู่</h2>
-                            <p className="text-sm text-muted-foreground">{opening.station.address}</p>
+                        <div className="border-t border-zinc-700/15 dark:border-white/10 pt-4">
+                            <h2 className="font-black text-xs uppercase tracking-wider text-zinc-500 mb-1">ที่อยู่สาขา</h2>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">{opening.station.address}</p>
                         </div>
                     )}
                 </div>
 
-                <p className="text-xs text-muted-foreground text-center mt-4">
-                    กรุณาอ่านรายละเอียดให้ครบก่อนกดสมัคร เพื่อไม่ต้องเสียเวลากรอกข้อมูลหากไม่ตรงกับที่ต้องการ
+                <p className="text-[11px] text-zinc-500 text-center font-medium">
+                    กรุณาตรวจสอบคุณสมบัติให้ครบถ้วนก่อนส่งใบสมัคร
                 </p>
             </div>
 
-            <div className="fixed bottom-0 inset-x-0 bg-background border-t p-3">
+            <div className="fixed bottom-0 inset-x-0 bg-[#eee8db]/90 dark:bg-zinc-950/90 backdrop-blur border-t border-zinc-700/20 dark:border-white/10 p-3 z-30">
                 <div className="max-w-2xl mx-auto">
                     {open ? (
                         <Link href={`/apply?opening=${encodeURIComponent(opening.slug)}`} className="block">
-                            <Button className="w-full" size="lg">สมัครตำแหน่งนี้</Button>
+                            <Button className="w-full tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black h-12 text-base rounded-xl border border-black/20 shadow-md">
+                                สมัครตำแหน่งนี้
+                            </Button>
                         </Link>
                     ) : (
-                        <Button className="w-full" size="lg" disabled>ปิดรับสมัครแล้ว</Button>
+                        <Button className="w-full h-12 rounded-xl text-base font-bold" disabled>
+                            ปิดรับสมัครแล้ว
+                        </Button>
                     )}
                 </div>
             </div>
