@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Gift, Medal, RefreshCw, ShieldCheck, Star, Trophy } from "lucide-react";
+import { Gift, Medal, RefreshCw, ShieldCheck, Star, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 
 interface WeeklyStanding {
     label: string;
@@ -159,17 +159,28 @@ export default function LeaguePage() {
     };
 
     if (loading && !data) {
-        return <main className="min-h-screen bg-[#f2eee4] grid place-items-center"><RefreshCw className="h-8 w-8 animate-spin" /></main>;
+        return (
+            <main className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 grid place-items-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-[#fbbf24]" />
+            </main>
+        );
     }
 
     if (!data?.eligible) {
         return (
-            <main className="min-h-screen bg-[#f2eee4] p-5">
-                <Link href="/" className="inline-flex items-center gap-2 font-bold"><ArrowLeft className="h-4 w-4" /> กลับหน้าหลัก</Link>
-                <div className="mt-8 rounded-3xl border-2 border-zinc-800 bg-[#fffaf0] p-6 text-center shadow-[0_5px_0_rgba(24,24,27,.12)]">
-                    <Trophy className="mx-auto h-12 w-12 text-amber-500" />
-                    <h1 className="mt-3 text-2xl font-black">TimeTrack League</h1>
-                    <p className="mt-2 text-sm text-zinc-500">ลีกนี้เปิดสำหรับทีมบริการหน้าลานที่มีคะแนนลูกค้าเท่านั้น</p>
+            <main className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+                <EmployeePageHeader
+                    eyebrow="TIMETRACK LEAGUE"
+                    title="ระบบลีกและคะแนน"
+                    subtitle="การแข่งขันและจัดอันดับพนักงานบริการ"
+                    backHref="/"
+                />
+                <div className="max-w-[480px] mx-auto p-4">
+                    <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-8 text-center shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                        <Trophy className="mx-auto h-12 w-12 text-[#fbbf24]" />
+                        <h1 className="mt-3 text-lg font-black text-zinc-900 dark:text-zinc-100">TimeTrack League</h1>
+                        <p className="mt-2 text-xs font-bold text-zinc-500">ลีกนี้เปิดสำหรับทีมบริการหน้าลานที่มีคะแนนประเมินลูกค้าเท่านั้น</p>
+                    </div>
                 </div>
             </main>
         );
@@ -182,19 +193,24 @@ export default function LeaguePage() {
     const rewardEligibility = rewardEligibilityLabel(myWeekly);
 
     return (
-        <main className="min-h-screen bg-[#f2eee4] pb-24 text-zinc-900">
-            <header className="border-b-2 border-zinc-900 bg-[#ffc51b] px-4 pb-5 pt-4 shadow-[inset_0_-10px_25px_rgba(181,121,0,.08)]">
-                <div className="mx-auto flex max-w-2xl items-center justify-between">
-                    <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-zinc-800/70 bg-white/20"><ArrowLeft className="h-5 w-5" /></Link>
-                    <div className="text-center">
-                        <p className="text-[10px] font-black tracking-[0.22em]">TIMETRACK LEAGUE</p>
-                        <h1 className="text-xl font-black">{data.station?.name}</h1>
-                    </div>
-                    <button onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-full border border-zinc-800/70 bg-white/20" aria-label="รีเฟรช"><RefreshCw className="h-5 w-5" /></button>
-                </div>
-            </header>
+        <main className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="TIMETRACK LEAGUE"
+                title={data.station?.name || "League"}
+                subtitle="การแข่งขันและจัดอันดับพนักงานบริการ"
+                backHref="/"
+                right={
+                    <button
+                        onClick={() => void load()}
+                        className="tt-retro-control mt-0.5 grid h-11 w-11 place-items-center rounded-full border-[1.5px] border-black/70 bg-zinc-950 text-[#fbbf24] shadow-[inset_0_0_0_2px_rgba(255,255,255,0.18)] active:scale-95 transition-transform"
+                        aria-label="รีเฟรชข้อมูลลีก"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                    </button>
+                }
+            />
 
-            <div className="mx-auto max-w-2xl space-y-4 p-3">
+            <div className="mx-auto max-w-[480px] space-y-4 p-4">
                 <section className="overflow-hidden rounded-[24px] border-2 border-zinc-800 bg-[#fffaf0] shadow-[0_5px_0_rgba(24,24,27,.12)]">
                     <div className="flex items-center justify-between bg-zinc-950 px-4 py-3 text-white">
                         <div>

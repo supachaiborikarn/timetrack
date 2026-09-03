@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Award, Send } from "lucide-react";
 import { toast } from "sonner";
 import { formatThaiDate } from "@/lib/date-utils";
 import { CustomerFeedbackSelfSummary } from "@/components/customer-feedback/self-summary";
 import { ReviewPeriod, ReviewSubmission } from "@/types/performance";
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 
 export default function PerformancePage() {
     const [periods, setPeriods] = useState<ReviewPeriod[]>([]);
@@ -21,7 +19,7 @@ export default function PerformancePage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchPeriods();
+        void fetchPeriods();
     }, []);
 
     useEffect(() => {
@@ -79,18 +77,18 @@ export default function PerformancePage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     periodId: selectedPeriod.id,
-                    selfReview
+                    selfReview,
                 }),
             });
 
             if (res.ok) {
                 toast.success("ส่งแบบประเมินเรียบร้อยแล้ว");
-                fetchSubmission(selectedPeriod.id);
+                void fetchSubmission(selectedPeriod.id);
             } else {
                 toast.error("เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setIsSubmitting(false);
         }
@@ -98,47 +96,36 @@ export default function PerformancePage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-24">
-            <div className="p-4 border-b bg-white">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink href="/">หน้าหลัก</BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>การประเมินผลงาน</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="PERFORMANCE REVIEW"
+                title="การประเมินผลงาน"
+                subtitle="แบบประเมินตนเองตามรอบการประเมินผลการปฏิบัติงาน"
+                backHref="/"
+            />
 
-            <div className="max-w-2xl mx-auto p-4 space-y-6">
-                <div className="space-y-2">
-                    <h1 className="text-2xl font-bold text-slate-900">การประเมินผลงาน</h1>
-                    <p className="text-slate-500">แบบประเมินตนเองตามรอบการประเมิน</p>
-                </div>
-
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
                 <CustomerFeedbackSelfSummary reviewPeriodId={selectedPeriod?.id} />
 
                 {periods.length === 0 ? (
-                    <Card>
-                        <CardContent className="pt-6 text-center text-slate-500">
-                            ไม่มีรอบการประเมินที่เปิดอยู่ขณะนี้
-                        </CardContent>
-                    </Card>
+                    <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-8 text-center dark:border-white/10">
+                        <Award className="w-10 h-10 text-zinc-400 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-black text-zinc-500">ไม่มีรอบการประเมินที่เปิดอยู่ในขณะนี้</p>
+                    </div>
                 ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                         {periods.length > 1 && selectedPeriod && (
                             <div className="space-y-1">
-                                <label htmlFor="review-period" className="text-sm font-semibold text-slate-700">เลือกรอบประเมิน</label>
+                                <label htmlFor="review-period" className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                    เลือกรอบการประเมิน
+                                </label>
                                 <select
                                     id="review-period"
                                     value={selectedPeriod.id}
@@ -146,7 +133,7 @@ export default function PerformancePage() {
                                         const next = periods.find((period) => period.id === event.target.value);
                                         if (next) setSelectedPeriod(next);
                                     }}
-                                    className="min-h-10 w-full rounded-md border bg-white px-3 text-sm"
+                                    className="h-11 w-full rounded-xl border border-zinc-700/30 bg-white dark:bg-zinc-900 px-3 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-[#fbbf24]"
                                 >
                                     {periods.map((period) => (
                                         <option key={period.id} value={period.id}>
@@ -156,83 +143,93 @@ export default function PerformancePage() {
                                 </select>
                             </div>
                         )}
+
                         {selectedPeriod && (
-                            <Card className="border-indigo-100 shadow-md overflow-hidden">
-                                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-4 text-white">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h2 className="text-xl font-bold">{selectedPeriod.title}</h2>
-                                            <p className="opacity-90 text-sm mt-1">
-                                                {formatThaiDate(new Date(selectedPeriod.startDate), "d MMM")} - {formatThaiDate(new Date(selectedPeriod.endDate), "d MMM yyyy")}
-                                            </p>
-                                        </div>
-                                        {!selectedPeriod.isActive ? (
-                                            <Badge className="border-none bg-slate-600 text-white hover:bg-slate-600">ปิดรอบแล้ว</Badge>
-                                        ) : submission?.status === "SUBMITTED" || submission?.status === "COMPLETED" ? (
-                                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-none">
-                                                <CheckCircle2 className="w-3 h-3 mr-1" /> ส่งแล้ว
-                                            </Badge>
-                                        ) : (
-                                            <Badge className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border-none">
-                                                <AlertCircle className="w-3 h-3 mr-1" /> รอการส่ง
-                                            </Badge>
-                                        )}
+                            <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 p-4 dark:border-white/15 space-y-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                                <div className="flex justify-between items-start border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                                    <div>
+                                        <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">{selectedPeriod.title}</h2>
+                                        <p className="text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                            {formatThaiDate(new Date(selectedPeriod.startDate), "d MMM")} - {formatThaiDate(new Date(selectedPeriod.endDate), "d MMM yyyy")}
+                                        </p>
                                     </div>
+                                    {!selectedPeriod.isActive ? (
+                                        <Badge className="border border-zinc-500/30 bg-zinc-500/15 text-zinc-700 dark:text-zinc-400 text-[10px] font-black">
+                                            ปิดรอบแล้ว
+                                        </Badge>
+                                    ) : submission?.status === "SUBMITTED" || submission?.status === "COMPLETED" ? (
+                                        <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-black gap-1">
+                                            <CheckCircle2 className="w-3 h-3" /> ส่งแล้ว
+                                        </Badge>
+                                    ) : (
+                                        <Badge className="border border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[10px] font-black gap-1">
+                                            <AlertCircle className="w-3 h-3" /> รอการส่ง
+                                        </Badge>
+                                    )}
                                 </div>
-                                <CardContent className="pt-6 space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="font-semibold text-slate-700">
+
+                                <div className="space-y-2">
+                                    <div>
+                                        <label className="text-[11px] font-black text-zinc-900 dark:text-zinc-100 block">
                                             ส่วนที่ 1: ประเมินตนเอง (Self Assessment)
                                         </label>
-                                        <p className="text-sm text-slate-500">
-                                            อธิบายผลงานความสำเร็จ จุดแข็ง และสิ่งที่ควรปรับปรุงในช่วงเวลาที่ผ่านมา
+                                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                                            สรุปผลงาน ความสำเร็จ และสิ่งที่พัฒนาขึ้นในรอบการทำงานนี้
                                         </p>
-                                        <Textarea
-                                            value={selfReview}
-                                            onChange={(e) => setSelfReview(e.target.value)}
-                                            placeholder="พิมพ์รายละเอียดผลงาน..."
-                                            className="min-h-[200px] text-base leading-relaxed"
-                                            disabled={!!submission || !selectedPeriod.isActive}
-                                        />
                                     </div>
-                                </CardContent>
-                                <CardFooter className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t">
-                                    <p className="text-xs text-slate-500">
-                                        {selectedPeriod.isActive ? "* กรุณาตรวจสอบความถูกต้องก่อนกดส่ง" : "รอบนี้ปิดแล้ว ข้อมูลคะแนนลูกค้าใช้ snapshot ณ วันปิดรอบ"}
+                                    <Textarea
+                                        value={selfReview}
+                                        onChange={(e) => setSelfReview(e.target.value)}
+                                        placeholder="พิมพ์รายละเอียดผลงานและการประเมินตนเอง..."
+                                        className="min-h-[160px] text-xs font-bold leading-relaxed rounded-xl border-zinc-700/30 bg-white dark:bg-zinc-900 placeholder:text-zinc-400 focus-visible:ring-[#fbbf24]"
+                                        disabled={!!submission || !selectedPeriod.isActive}
+                                    />
+                                </div>
+
+                                <div className="pt-2 flex flex-col gap-2">
+                                    <p className="text-[10px] text-zinc-500">
+                                        {selectedPeriod.isActive ? "* กรุณาตรวจสอบข้อความให้เรียบร้อยก่อนส่ง" : "รอบประเมินนี้ปิดแล้ว"}
                                     </p>
-                                    <Button
+                                    <button
+                                        type="button"
                                         onClick={handleSubmit}
                                         disabled={isSubmitting || !selfReview.trim() || !!submission || !selectedPeriod.isActive}
-                                        className="bg-indigo-600 hover:bg-indigo-700"
+                                        className="tt-retro-control w-full h-12 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black text-[13px] flex items-center justify-center gap-2 shadow-[0_3px_10px_rgba(251,191,36,0.25)] border border-black/20 active:scale-[0.98] disabled:opacity-50 transition-all"
                                     >
-                                        {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                        {!selectedPeriod.isActive ? "รอบปิดแล้ว" : submission ? "ส่งแบบประเมินแล้ว" : "ส่งแบบประเมิน"}
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                                        {isSubmitting ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" />
+                                        )}
+                                        {!selectedPeriod.isActive ? "รอบประเมินปิดแล้ว" : submission ? "ส่งแบบประเมินแล้ว" : "ส่งแบบประเมินตนเอง"}
+                                    </button>
+                                </div>
+                            </section>
                         )}
 
                         {submission?.managerReview && (
-                            <Card className="border-green-100 shadow-sm">
-                                <CardHeader className="bg-green-50 border-b border-green-100">
-                                    <CardTitle className="text-lg text-green-800">ความคิดเห็นจากหัวหน้างาน</CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-4">
-                                    <p className="text-slate-700 whitespace-pre-wrap">{submission.managerReview}</p>
-                                    {submission.rating && (
-                                        <div className="mt-4 flex items-center gap-2">
-                                            <span className="font-semibold text-slate-700">คะแนนประเมิน:</span>
-                                            <Badge variant="secondary" className="text-lg px-3 py-1 bg-green-100 text-green-700 border-green-200">
-                                                {submission.rating} / 5
-                                            </Badge>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-emerald-500/35 bg-emerald-500/5 p-4 dark:border-white/15 space-y-2">
+                                <h3 className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                    <Award className="w-4 h-4" />
+                                    ความคิดเห็นและข้อเสนอแนะจากหัวหน้างาน
+                                </h3>
+                                <p className="text-xs font-bold text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap pt-1">
+                                    {submission.managerReview}
+                                </p>
+                                {submission.rating && (
+                                    <div className="mt-3 pt-2 border-t border-emerald-500/20 flex items-center gap-2">
+                                        <span className="text-xs font-black text-zinc-600 dark:text-zinc-400">คะแนนประเมิน:</span>
+                                        <Badge className="border border-emerald-500/40 bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-black text-xs px-2.5 py-0.5">
+                                            {submission.rating} / 5
+                                        </Badge>
+                                    </div>
+                                )}
+                            </section>
                         )}
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 }
+

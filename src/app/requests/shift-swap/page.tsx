@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,16 +14,17 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    ChevronLeft,
     RefreshCw,
     Loader2,
     Send,
-    CheckCircle,
+    CheckCircle2,
     XCircle,
     AlertCircle,
     User,
+    ArrowRightLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { formatThaiDate, getBangkokNow, format, addDays } from "@/lib/date-utils";
 
 interface Colleague {
@@ -61,7 +60,7 @@ export default function ShiftSwapPage() {
 
     useEffect(() => {
         if (session?.user?.id) {
-            fetchData();
+            void fetchData();
         }
     }, [session?.user?.id]);
 
@@ -113,15 +112,15 @@ export default function ShiftSwapPage() {
 
             if (res.ok) {
                 toast.success("ส่งคำขอแลกกะสำเร็จ", {
-                    description: "รอเพื่อนยืนยันและผู้จัดการอนุมัติ",
+                    description: "รอเพื่อนร่วมงานตอบรับและผู้จัดการอนุมัติ",
                 });
                 setReason("");
-                fetchData();
+                void fetchData();
             } else {
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setIsSubmitting(false);
         }
@@ -129,8 +128,8 @@ export default function ShiftSwapPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -141,15 +140,31 @@ export default function ShiftSwapPage() {
 
     const getStatusBadge = (req: ShiftSwap) => {
         if (req.status === "APPROVED") {
-            return <Badge className="bg-green-500/20 text-green-400"><CheckCircle className="w-3 h-3 mr-1" />อนุมัติแล้ว</Badge>;
+            return (
+                <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 gap-1 text-[10px] font-black">
+                    <CheckCircle2 className="w-3 h-3" /> อนุมัติแล้ว
+                </Badge>
+            );
         }
         if (req.status === "REJECTED") {
-            return <Badge className="bg-red-500/20 text-red-400"><XCircle className="w-3 h-3 mr-1" />ปฏิเสธ</Badge>;
+            return (
+                <Badge className="border border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400 gap-1 text-[10px] font-black">
+                    <XCircle className="w-3 h-3" /> ปฏิเสธ
+                </Badge>
+            );
         }
         if (!req.targetAccepted) {
-            return <Badge className="bg-orange-500/20 text-orange-400"><AlertCircle className="w-3 h-3 mr-1" />รอเพื่อนยืนยัน</Badge>;
+            return (
+                <Badge className="border border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-300 gap-1 text-[10px] font-black">
+                    <AlertCircle className="w-3 h-3" /> รอเพื่อนยินยอม
+                </Badge>
+            );
         }
-        return <Badge className="bg-yellow-500/20 text-yellow-400"><AlertCircle className="w-3 h-3 mr-1" />รอผู้จัดการอนุมัติ</Badge>;
+        return (
+            <Badge className="border border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300 gap-1 text-[10px] font-black">
+                <AlertCircle className="w-3 h-3" /> รอผู้จัดการอนุมัติ
+            </Badge>
+        );
     };
 
     // Generate date options (next 14 days)
@@ -162,39 +177,41 @@ export default function ShiftSwapPage() {
     });
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <a href="/requests">
-                        <ChevronLeft className="w-5 h-5" />
-                    </a>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">ขอแลกกะ</h1>
-                    <p className="text-sm text-slate-400">แลกกะกับเพื่อนร่วมงาน</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="SHIFT SWAP"
+                title="ขอแลกกะทำงาน"
+                subtitle="ส่งคำขอแลกเปลี่ยนกะทำงานกับเพื่อนร่วมงาน"
+                backHref="/requests"
+            />
 
-            {/* Request Form */}
-            <Card className="bg-slate-800/50 border-slate-700 mb-6">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-white flex items-center gap-2">
-                        <RefreshCw className="w-5 h-5 text-blue-400" />
-                        สร้างคำขอแลกกะ
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-slate-300">วันที่ของฉัน (ที่อยากแลก)</Label>
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
+                {/* Form Card */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 p-4 dark:border-white/15">
+                    <div className="flex items-center gap-2.5 mb-4 border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                        <div className="w-9 h-9 rounded-full border border-black/15 bg-blue-500/20 flex items-center justify-center shrink-0">
+                            <ArrowRightLeft className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-[15px] font-black leading-tight">สร้างคำขอแลกกะ</h2>
+                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                                เลือกวันที่ต้องการแลกและเพื่อนร่วมงานเป้าหมาย
+                            </p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-3.5">
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                วันที่ของฉัน (วันที่อยากให้เพื่อนมาแทน)
+                            </Label>
                             <Select value={myDate} onValueChange={setMyDate}>
-                                <SelectTrigger className="bg-slate-700 border-slate-600">
+                                <SelectTrigger className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs focus:ring-[#fbbf24]">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent className="bg-[#fbf6ee] dark:bg-zinc-900 border border-zinc-700/30">
                                     {dateOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
+                                        <SelectItem key={opt.value} value={opt.value} className="text-xs font-bold">
                                             {opt.label}
                                         </SelectItem>
                                     ))}
@@ -202,18 +219,21 @@ export default function ShiftSwapPage() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-slate-300">แลกกับ</Label>
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                แลกกับเพื่อนร่วมงาน *
+                            </Label>
                             <Select value={targetId} onValueChange={setTargetId}>
-                                <SelectTrigger className="bg-slate-700 border-slate-600">
-                                    <SelectValue placeholder="เลือกเพื่อนร่วมงาน" />
+                                <SelectTrigger className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs focus:ring-[#fbbf24]">
+                                    <SelectValue placeholder="เลือกเพื่อนร่วมงานในทีม" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent className="bg-[#fbf6ee] dark:bg-zinc-900 border border-zinc-700/30">
                                     {colleagues.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4" />
-                                                {c.name} ({c.department})
+                                        <SelectItem key={c.id} value={c.id} className="text-xs font-bold">
+                                            <div className="flex items-center gap-1.5">
+                                                <User className="w-3.5 h-3.5 text-zinc-400" />
+                                                <span>{c.name}</span>
+                                                <span className="text-[10px] text-zinc-400">({c.department})</span>
                                             </div>
                                         </SelectItem>
                                     ))}
@@ -221,15 +241,17 @@ export default function ShiftSwapPage() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-slate-300">วันที่ของเพื่อน</Label>
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                วันที่ของเพื่อน (วันที่เราจะไปแทนเพื่อน)
+                            </Label>
                             <Select value={targetDate} onValueChange={setTargetDate}>
-                                <SelectTrigger className="bg-slate-700 border-slate-600">
+                                <SelectTrigger className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs focus:ring-[#fbbf24]">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent className="bg-[#fbf6ee] dark:bg-zinc-900 border border-zinc-700/30">
                                     {dateOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
+                                        <SelectItem key={opt.value} value={opt.value} className="text-xs font-bold">
                                             {opt.label}
                                         </SelectItem>
                                     ))}
@@ -237,64 +259,100 @@ export default function ShiftSwapPage() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-slate-300">เหตุผล (ถ้ามี)</Label>
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                เหตุผลความจำเป็น
+                            </Label>
                             <Input
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                placeholder="เช่น มีธุระส่วนตัว"
-                                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                                placeholder="เช่น ติดธุระครอบครัว, แลกเวรหยุดสุดสัปดาห์"
+                                className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs placeholder:text-zinc-400 focus-visible:ring-[#fbbf24]"
                             />
                         </div>
 
-                        <Button
+                        <button
                             type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-700"
                             disabled={isSubmitting || !targetId}
+                            className="tt-retro-control w-full h-12 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black text-[13px] flex items-center justify-center gap-2 shadow-[0_3px_10px_rgba(251,191,36,0.25)] border border-black/20 active:scale-[0.98] disabled:opacity-50 transition-all mt-3"
                         >
                             {isSubmitting ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                <Send className="w-4 h-4 mr-2" />
+                                <Send className="w-4 h-4" />
                             )}
                             ส่งคำขอแลกกะ
-                        </Button>
+                        </button>
                     </form>
-                </CardContent>
-            </Card>
+                </section>
 
-            {/* Request History */}
-            <h2 className="text-lg font-semibold text-white mb-3">คำขอแลกกะของฉัน</h2>
-            {isLoading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                {/* History Section */}
+                <div className="flex items-center justify-between pt-2 px-1">
+                    <h3 className="text-[12px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                        ประวัติคำขอแลกกะของฉัน
+                    </h3>
+                    <span className="font-mono text-[11px] font-bold text-zinc-500">
+                        {requests.length} รายการ
+                    </span>
                 </div>
-            ) : requests.length === 0 ? (
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-8 text-center">
-                        <RefreshCw className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-400">ยังไม่มีคำขอแลกกะ</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-3">
-                    {requests.map((req) => (
-                        <Card key={req.id} className="bg-slate-800/50 border-slate-700">
-                            <CardContent className="py-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="font-medium text-white">แลกกับ {req.target.name}</p>
+
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#fbbf24]" />
+                    </div>
+                ) : requests.length === 0 ? (
+                    <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-8 text-center dark:border-white/10">
+                        <RefreshCw className="w-10 h-10 text-zinc-400 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-black text-zinc-500">ยังไม่มีประวัติคำขอแลกกะ</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {requests.map((req) => (
+                            <div
+                                key={req.id}
+                                className="tt-paper-card tt-instrument-frame rounded-[18px] border border-zinc-700/30 p-3.5 dark:border-white/15 space-y-2.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-3.5 h-3.5 text-zinc-400" />
+                                        <span className="text-[13px] font-black text-zinc-900 dark:text-zinc-100">
+                                            แลกกับ {req.target.name}
+                                        </span>
+                                    </div>
                                     {getStatusBadge(req)}
                                 </div>
-                                <div className="text-sm text-slate-400 space-y-1">
-                                    <p>วันที่ของฉัน: {formatThaiDate(new Date(req.requesterDate), "d MMM yyyy")}</p>
-                                    <p>วันที่ของเพื่อน: {formatThaiDate(new Date(req.targetDate), "d MMM yyyy")}</p>
-                                    {req.reason && <p>เหตุผล: {req.reason}</p>}
+
+                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
+                                    <div>
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            วันที่ของฉัน
+                                        </span>
+                                        <span className="font-black text-zinc-800 dark:text-zinc-200">
+                                            {formatThaiDate(new Date(req.requesterDate), "d MMM yyyy")}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            วันที่ของเพื่อน
+                                        </span>
+                                        <span className="font-black text-zinc-800 dark:text-zinc-200">
+                                            {formatThaiDate(new Date(req.targetDate), "d MMM yyyy")}
+                                        </span>
+                                    </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
+
+                                {req.reason && (
+                                    <p className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 px-1">
+                                        <span className="font-bold text-zinc-700 dark:text-zinc-300">เหตุผล: </span>
+                                        {req.reason}
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </main>
         </div>
     );
 }
+

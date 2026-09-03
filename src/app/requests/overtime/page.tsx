@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,16 +14,17 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    ChevronLeft,
     Clock,
     Loader2,
     Send,
-    CheckCircle,
+    CheckCircle2,
     XCircle,
     AlertCircle,
     Timer,
+    Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { formatThaiDate, getBangkokNow, format, subDays, addDays } from "@/lib/date-utils";
 
 interface OvertimeRequest {
@@ -51,7 +50,7 @@ export default function OvertimeRequestPage() {
 
     useEffect(() => {
         if (session?.user?.id) {
-            fetchRequests();
+            void fetchRequests();
         }
     }, [session?.user?.id]);
 
@@ -100,16 +99,16 @@ export default function OvertimeRequestPage() {
 
             if (res.ok) {
                 toast.success("ส่งคำขอโอทีสำเร็จ", {
-                    description: "รอผู้จัดการอนุมัติ",
+                    description: "รอผู้จัดการตรวจสอบและอนุมัติ",
                 });
                 setReason("");
                 setHours("2");
-                fetchRequests();
+                void fetchRequests();
             } else {
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setIsSubmitting(false);
         }
@@ -117,8 +116,8 @@ export default function OvertimeRequestPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#1a1412]">
-                <Loader2 className="w-8 h-8 animate-spin text-[#F09410]" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -127,14 +126,26 @@ export default function OvertimeRequestPage() {
         redirect("/login");
     }
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
+    const getStatusBadge = (reqStatus: string) => {
+        switch (reqStatus) {
             case "APPROVED":
-                return <Badge className="bg-green-500/20 text-green-400 border-green-500/30"><CheckCircle className="w-3 h-3 mr-1" />อนุมัติ</Badge>;
+                return (
+                    <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 gap-1 text-[10px] font-black">
+                        <CheckCircle2 className="w-3 h-3" /> อนุมัติแล้ว
+                    </Badge>
+                );
             case "REJECTED":
-                return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="w-3 h-3 mr-1" />ปฏิเสธ</Badge>;
+                return (
+                    <Badge className="border border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400 gap-1 text-[10px] font-black">
+                        <XCircle className="w-3 h-3" /> ปฏิเสธ
+                    </Badge>
+                );
             default:
-                return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><AlertCircle className="w-3 h-3 mr-1" />รอดำเนินการ</Badge>;
+                return (
+                    <Badge className="border border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-300 gap-1 text-[10px] font-black">
+                        <AlertCircle className="w-3 h-3" /> รอดำเนินการ
+                    </Badge>
+                );
         }
     };
 
@@ -157,55 +168,60 @@ export default function OvertimeRequestPage() {
     ];
 
     return (
-        <div className="min-h-screen bg-[#1a1412] p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-stone-400 hover:text-[#F09410] hover:bg-orange-500/10" asChild>
-                    <a href="/requests">
-                        <ChevronLeft className="w-5 h-5" />
-                    </a>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-[#F0D0C7]">ขอทำโอที</h1>
-                    <p className="text-sm text-stone-500">ขออนุมัติการทำงานล่วงเวลา</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="OVERTIME"
+                title="ขอทำโอที"
+                subtitle="ขออนุมัติการทำงานล่วงเวลา (OT)"
+                backHref="/requests"
+            />
 
-            {/* Request Form */}
-            <Card className="bg-[#2a2420] border-orange-900/20 mb-6 shadow-xl shadow-black/10">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-[#F0D0C7] flex items-center gap-2">
-                        <Timer className="w-5 h-5 text-[#F09410]" />
-                        สร้างคำขอโอที
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-stone-400">วันที่ทำโอที</Label>
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
+                {/* Form Card */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 p-4 dark:border-white/15">
+                    <div className="flex items-center gap-2.5 mb-4 border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                        <div className="w-9 h-9 rounded-full border border-black/15 bg-amber-500/20 flex items-center justify-center shrink-0">
+                            <Timer className="w-4 h-4 text-amber-800 dark:text-amber-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-[15px] font-black leading-tight">สร้างคำขอทำงานล่วงเวลา</h2>
+                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                                ระบุวันที่ จำนวนชั่วโมง และเหตุผลความจำเป็น
+                            </p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-3.5">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                    วันที่ทำโอที
+                                </Label>
                                 <Select value={selectedDate} onValueChange={setSelectedDate}>
-                                    <SelectTrigger className="bg-[#1a1412] border-orange-900/30 text-[#F0D0C7]">
+                                    <SelectTrigger className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs focus:ring-[#fbbf24]">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#2a2420] border-orange-900/30">
+                                    <SelectContent className="bg-[#fbf6ee] dark:bg-zinc-900 border border-zinc-700/30">
                                         {dateOptions.map((opt) => (
-                                            <SelectItem key={opt.value} value={opt.value} className="text-[#F0D0C7] focus:bg-orange-500/20 focus:text-[#F0D0C7]">
+                                            <SelectItem key={opt.value} value={opt.value} className="text-xs font-bold">
                                                 {opt.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-stone-400">จำนวนชั่วโมง</Label>
+
+                            <div className="space-y-1">
+                                <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                    จำนวนชั่วโมง
+                                </Label>
                                 <Select value={hours} onValueChange={setHours}>
-                                    <SelectTrigger className="bg-[#1a1412] border-orange-900/30 text-[#F0D0C7]">
+                                    <SelectTrigger className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs focus:ring-[#fbbf24]">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#2a2420] border-orange-900/30">
+                                    <SelectContent className="bg-[#fbf6ee] dark:bg-zinc-900 border border-zinc-700/30">
                                         {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
-                                            <SelectItem key={h} value={h.toString()} className="text-[#F0D0C7] focus:bg-orange-500/20 focus:text-[#F0D0C7]">
+                                            <SelectItem key={h} value={h.toString()} className="text-xs font-bold">
                                                 {h} ชั่วโมง
                                             </SelectItem>
                                         ))}
@@ -214,72 +230,106 @@ export default function OvertimeRequestPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-stone-400">เหตุผล / รายละเอียดงาน *</Label>
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300">
+                                เหตุผล / รายละเอียดงาน *
+                            </Label>
                             <Input
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                placeholder="เช่น ปิดงานด่วน, เตรียมข้อมูลประชุม"
-                                className="bg-[#1a1412] border-orange-900/30 text-[#F0D0C7] placeholder:text-stone-600"
+                                placeholder="เช่น ปิดงานรอบกะดึก, เติมน้ำมันรถบริการฉุกเฉิน"
+                                className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-700/30 text-zinc-900 dark:text-zinc-100 font-bold text-xs placeholder:text-zinc-400 focus-visible:ring-[#fbbf24]"
                                 required
                             />
                         </div>
 
-                        <Button
+                        <button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-[#F09410] to-[#BC430D] hover:from-[#d88310] hover:to-[#a33a0b] text-white border-0 shadow-lg shadow-orange-900/20"
                             disabled={isSubmitting}
+                            className="tt-retro-control w-full h-12 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black text-[13px] flex items-center justify-center gap-2 shadow-[0_3px_10px_rgba(251,191,36,0.25)] border border-black/20 active:scale-[0.98] disabled:opacity-50 transition-all mt-3"
                         >
                             {isSubmitting ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                <Send className="w-4 h-4 mr-2" />
+                                <Send className="w-4 h-4" />
                             )}
                             ส่งคำขอโอที
-                        </Button>
+                        </button>
                     </form>
-                </CardContent>
-            </Card>
+                </section>
 
-            {/* Request History */}
-            <h2 className="text-lg font-semibold text-[#F0D0C7] mb-3">ประวัติคำขอโอที</h2>
-            {isLoading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#F09410]" />
+                {/* History Section */}
+                <div className="flex items-center justify-between pt-2 px-1">
+                    <h3 className="text-[12px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                        ประวัติคำขอโอที
+                    </h3>
+                    <span className="font-mono text-[11px] font-bold text-zinc-500">
+                        {requests.length} รายการ
+                    </span>
                 </div>
-            ) : requests.length === 0 ? (
-                <Card className="bg-[#2a2420] border-orange-900/20">
-                    <CardContent className="py-8 text-center">
-                        <Clock className="w-12 h-12 text-stone-600 mx-auto mb-3" />
-                        <p className="text-stone-500">ยังไม่มีคำขอโอที</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-3">
-                    {requests.map((req) => (
-                        <Card key={req.id} className="bg-[#2a2420] border-orange-900/20">
-                            <CardContent className="py-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="font-medium text-[#F0D0C7]">
-                                        {formatThaiDate(new Date(req.date), "d MMM yyyy")}
-                                    </p>
+
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#fbbf24]" />
+                    </div>
+                ) : requests.length === 0 ? (
+                    <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-8 text-center dark:border-white/10">
+                        <Clock className="w-10 h-10 text-zinc-400 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-black text-zinc-500">ยังไม่มีประวัติคำขอโอที</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {requests.map((req) => (
+                            <div
+                                key={req.id}
+                                className="tt-paper-card tt-instrument-frame rounded-[18px] border border-zinc-700/30 p-3.5 dark:border-white/15 space-y-2 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                                        <span className="text-[13px] font-black text-zinc-900 dark:text-zinc-100">
+                                            {formatThaiDate(new Date(req.date), "d MMM yyyy")}
+                                        </span>
+                                    </div>
                                     {getStatusBadge(req.status)}
                                 </div>
-                                <div className="text-sm text-stone-400 space-y-1">
-                                    <p className="flex items-center gap-2">
-                                        <Clock className="w-3.5 h-3.5 text-stone-500" />
-                                        จำนวน: <span className="text-[#F09410] font-medium">{req.hours} ชั่วโมง</span>
+
+                                <div className="flex items-center justify-between bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
+                                    <div>
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            จำนวนชั่วโมง
+                                        </span>
+                                        <span className="font-mono font-black text-base text-amber-600 dark:text-[#fbbf24]">
+                                            {req.hours} ชม.
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            วันที่ยื่นขอ
+                                        </span>
+                                        <span className="font-mono text-[10px] font-bold text-zinc-500">
+                                            {formatThaiDate(new Date(req.createdAt), "d/M/yy HH:mm")}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 px-1">
+                                    <p className="line-clamp-2">
+                                        <span className="font-bold text-zinc-700 dark:text-zinc-300">เหตุผล: </span>
+                                        {req.reason}
                                     </p>
-                                    <p>เหตุผล: {req.reason}</p>
                                     {req.status === "REJECTED" && req.rejectReason && (
-                                        <p className="text-red-400">เหตุผลที่ปฏิเสธ: {req.rejectReason}</p>
+                                        <p className="text-red-600 dark:text-red-400 font-bold mt-1 text-[11px]">
+                                            เหตุผลที่ปฏิเสธ: {req.rejectReason}
+                                        </p>
                                     )}
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </main>
         </div>
     );
 }
+

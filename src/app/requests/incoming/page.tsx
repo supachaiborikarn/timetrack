@@ -3,19 +3,16 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-    ChevronLeft,
     Loader2,
-    CheckCircle,
-    XCircle,
-    RefreshCw,
+    CheckCircle2,
     Calendar,
     User,
+    Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { formatThaiDate } from "@/lib/date-utils";
 
 interface IncomingSwap {
@@ -37,11 +34,11 @@ export default function IncomingSwapRequestsPage() {
     const { data: session, status } = useSession();
     const [requests, setRequests] = useState<IncomingSwap[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [processsingId, setProcessingId] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (session?.user?.id) {
-            fetchIncoming();
+            void fetchIncoming();
         }
     }, [session?.user?.id]);
 
@@ -73,16 +70,16 @@ export default function IncomingSwapRequestsPage() {
 
             if (res.ok) {
                 if (action === "accept") {
-                    toast.success("ยืนยันแลกกะแล้ว", { description: "รอผู้จัดการอนุมัติ" });
+                    toast.success("ยืนยันแลกกะเรียบร้อย", { description: "ส่งต่อให้ผู้จัดการอนุมัติ" });
                 } else {
                     toast.info("ปฏิเสธคำขอแลกกะแล้ว");
                 }
-                fetchIncoming();
+                void fetchIncoming();
             } else {
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
         } catch {
-            toast.error("เกิดข้อผิดพลาด");
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setProcessingId(null);
         }
@@ -90,8 +87,8 @@ export default function IncomingSwapRequestsPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -100,148 +97,158 @@ export default function IncomingSwapRequestsPage() {
         redirect("/login");
     }
 
-    const pendingRequests = requests.filter(r => !r.targetAccepted && r.status === "PENDING");
-    const respondedRequests = requests.filter(r => r.targetAccepted || r.status !== "PENDING");
+    const pendingRequests = requests.filter((r) => !r.targetAccepted && r.status === "PENDING");
+    const respondedRequests = requests.filter((r) => r.targetAccepted || r.status !== "PENDING");
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <a href="/requests">
-                        <ChevronLeft className="w-5 h-5" />
-                    </a>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">คำขอแลกกะที่ได้รับ</h1>
-                    <p className="text-sm text-slate-400">คำขอจากเพื่อนร่วมงาน</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="INCOMING SWAPS"
+                title="คำขอที่ส่งถึงฉัน"
+                subtitle="คำขอแลกกะจากเพื่อนร่วมงานในทีม"
+                backHref="/requests"
+            />
 
-            {/* Pending Requests */}
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                <RefreshCw className="w-5 h-5 text-orange-400" />
-                รอการตอบรับ ({pendingRequests.length})
-            </h2>
-
-            {isLoading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
+                {/* Pending Requests Section */}
+                <div className="flex items-center justify-between px-1">
+                    <h2 className="text-[12px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5">
+                        <Inbox className="w-4 h-4 text-amber-500" />
+                        รอการตอบรับ
+                    </h2>
+                    <span className="font-mono text-[11px] font-bold text-zinc-500">
+                        {pendingRequests.length} รายการ
+                    </span>
                 </div>
-            ) : pendingRequests.length === 0 ? (
-                <Card className="bg-slate-800/50 border-slate-700 mb-6">
-                    <CardContent className="py-8 text-center">
-                        <RefreshCw className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-400">ไม่มีคำขอรอการตอบรับ</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-3 mb-6">
-                    {pendingRequests.map((req) => (
-                        <Card key={req.id} className="bg-slate-800/50 border-slate-700 border-l-4 border-l-orange-500">
-                            <CardContent className="py-4">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
-                                        <User className="w-5 h-5 text-orange-400" />
+
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#fbbf24]" />
+                    </div>
+                ) : pendingRequests.length === 0 ? (
+                    <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-8 text-center dark:border-white/10">
+                        <Inbox className="w-10 h-10 text-zinc-400 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-black text-zinc-500">ไม่มีคำขอแลกกะที่รอการตอบรับ</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {pendingRequests.map((req) => (
+                            <div
+                                key={req.id}
+                                className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 p-4 dark:border-white/15 space-y-3 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full border border-black/15 bg-amber-500/20 flex items-center justify-center shrink-0">
+                                        <User className="w-5 h-5 text-amber-800 dark:text-amber-400" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-white">
+                                        <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">
                                             {req.requester.nickName || req.requester.name}
-                                        </p>
-                                        <p className="text-xs text-slate-400">
-                                            {req.requester.employeeId}
+                                        </h3>
+                                        <p className="text-[10px] font-mono font-bold text-zinc-400">
+                                            รหัส: {req.requester.employeeId}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-700/50 rounded-lg p-3 mb-3">
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div>
-                                            <p className="text-slate-400 text-xs">กะของเขา (ที่จะได้)</p>
-                                            <p className="text-white font-medium flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                {formatThaiDate(new Date(req.requesterDate), "d MMM yyyy")}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-slate-400 text-xs">กะของคุณ (ที่จะแลก)</p>
-                                            <p className="text-white font-medium flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                {formatThaiDate(new Date(req.targetDate), "d MMM yyyy")}
-                                            </p>
-                                        </div>
+                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
+                                    <div>
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            กะของเขา (เราจะได้)
+                                        </span>
+                                        <span className="font-black text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-0.5">
+                                            <Calendar className="w-3 h-3 text-zinc-400" />
+                                            {formatThaiDate(new Date(req.requesterDate), "d MMM yyyy")}
+                                        </span>
                                     </div>
-                                    {req.reason && (
-                                        <p className="text-slate-400 text-xs mt-2">
-                                            เหตุผล: {req.reason}
-                                        </p>
-                                    )}
+                                    <div>
+                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            กะของเรา (เขาจะได้)
+                                        </span>
+                                        <span className="font-black text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-0.5">
+                                            <Calendar className="w-3 h-3 text-zinc-400" />
+                                            {formatThaiDate(new Date(req.targetDate), "d MMM yyyy")}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <Button
-                                        className="flex-1 bg-green-600 hover:bg-green-700"
-                                        onClick={() => handleRespond(req.id, "accept")}
-                                        disabled={processsingId === req.id}
+                                {req.reason && (
+                                    <p className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 px-1">
+                                        <span className="font-bold text-zinc-700 dark:text-zinc-300">เหตุผล: </span>
+                                        {req.reason}
+                                    </p>
+                                )}
+
+                                <div className="flex gap-2.5 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRespond(req.id, "reject")}
+                                        disabled={processingId === req.id}
+                                        className="tt-retro-control flex-1 h-11 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-black active:scale-95 transition-all"
                                     >
-                                        {processsingId === req.id ? (
+                                        ปฏิเสธ
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRespond(req.id, "accept")}
+                                        disabled={processingId === req.id}
+                                        className="tt-retro-control flex-1 h-11 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_2px_8px_rgba(251,191,36,0.25)] border border-black/20 active:scale-95 disabled:opacity-50 transition-all"
+                                    >
+                                        {processingId === req.id ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                         ) : (
-                                            <>
-                                                <CheckCircle className="w-4 h-4 mr-1" />
-                                                ยืนยันแลก
-                                            </>
+                                            <CheckCircle2 className="w-4 h-4" />
                                         )}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
-                                        onClick={() => handleRespond(req.id, "reject")}
-                                        disabled={processsingId === req.id}
-                                    >
-                                        <XCircle className="w-4 h-4 mr-1" />
-                                        ปฏิเสธ
-                                    </Button>
+                                        ยินยอมแลกกะ
+                                    </button>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
-
-            {/* History */}
-            {respondedRequests.length > 0 && (
-                <>
-                    <h2 className="text-lg font-semibold text-white mb-3">ประวัติการตอบรับ</h2>
-                    <div className="space-y-3">
-                        {respondedRequests.map((req) => (
-                            <Card key={req.id} className="bg-slate-800/30 border-slate-700">
-                                <CardContent className="py-3">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-medium text-white">
-                                                {req.requester.nickName || req.requester.name}
-                                            </p>
-                                            <p className="text-xs text-slate-400">
-                                                {formatThaiDate(new Date(req.requesterDate), "d MMM")} ↔ {formatThaiDate(new Date(req.targetDate), "d MMM")}
-                                            </p>
-                                        </div>
-                                        <Badge className={
-                                            req.status === "APPROVED" ? "bg-green-500/20 text-green-400" :
-                                                req.status === "REJECTED" ? "bg-red-500/20 text-red-400" :
-                                                    "bg-yellow-500/20 text-yellow-400"
-                                        }>
-                                            {req.status === "APPROVED" ? "อนุมัติแล้ว" :
-                                                req.status === "REJECTED" ? "ปฏิเสธ" :
-                                                    "รอผู้จัดการ"}
-                                        </Badge>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            </div>
                         ))}
                     </div>
-                </>
-            )}
+                )}
+
+                {/* Responded History */}
+                {respondedRequests.length > 0 && (
+                    <div className="space-y-2.5 pt-4">
+                        <h2 className="text-[12px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 px-1">
+                            ประวัติการตอบรับแล้ว
+                        </h2>
+                        <div className="space-y-2">
+                            {respondedRequests.map((req) => (
+                                <div
+                                    key={req.id}
+                                    className="tt-paper-card rounded-[16px] border border-zinc-700/25 p-3 dark:border-white/10 flex items-center justify-between"
+                                >
+                                    <div>
+                                        <p className="text-xs font-black text-zinc-900 dark:text-zinc-100">
+                                            {req.requester.nickName || req.requester.name}
+                                        </p>
+                                        <p className="text-[10px] font-mono text-zinc-400">
+                                            {formatThaiDate(new Date(req.requesterDate), "d MMM")} ↔ {formatThaiDate(new Date(req.targetDate), "d MMM")}
+                                        </p>
+                                    </div>
+                                    <Badge
+                                        className={
+                                            req.status === "APPROVED"
+                                                ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-black"
+                                                : req.status === "REJECTED"
+                                                    ? "border border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400 text-[10px] font-black"
+                                                    : "border border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300 text-[10px] font-black"
+                                        }
+                                    >
+                                        {req.status === "APPROVED"
+                                            ? "อนุมัติแล้ว"
+                                            : req.status === "REJECTED"
+                                                ? "ปฏิเสธ"
+                                                : "รอผู้จัดการอนุมัติ"}
+                                    </Badge>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </main>
         </div>
     );
 }
+

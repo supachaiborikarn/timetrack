@@ -1,17 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import {
+    Loader2,
+    CheckCircle2,
+    AlertCircle,
+    Camera,
+    X,
+    QrCode,
+    ArrowLeft,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Html5Qrcode } from "html5-qrcode";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { getCurrentPosition, getDeviceFingerprint, getLegacyDeviceFingerprint } from "@/lib/geo";
 import { formatTime } from "@/lib/date-utils";
-import { Html5Qrcode } from "html5-qrcode";
-import { Suspense } from "react";
 
 function QRScanPageInner() {
     const { data: session, status } = useSession();
@@ -26,7 +32,6 @@ function QRScanPageInner() {
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
     useEffect(() => {
-        // Cleanup on unmount
         return () => {
             if (scannerRef.current) {
                 if (scannerRef.current.isScanning) {
@@ -55,27 +60,17 @@ function QRScanPageInner() {
             const deviceId = getDeviceFingerprint();
             const legacyDeviceId = getLegacyDeviceFingerprint();
 
-            // First, check if employee is on break
-            // Add timestamp to prevent caching
             const todayRes = await fetch(`/api/attendance/today?t=${Date.now()}`, {
                 cache: "no-store",
                 headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
             });
             const todayData = await todayRes.json();
 
-            // Debug logging
-            console.log("[QR-SCAN] Today API Response:", JSON.stringify(todayData, null, 2));
-
-            // API returns { success, data: { attendance, ... } }
             const attendance = todayData?.data?.attendance;
             const isOnBreak = attendance?.breakStartTime && !attendance?.breakEndTime;
             const isCheckedIn = !!attendance?.checkInTime;
             const hasCheckedOut = !!attendance?.checkOutTime;
 
-            console.log("[QR-SCAN] isOnBreak:", isOnBreak, "isCheckedIn:", isCheckedIn, "actionFromUrl:", actionFromUrl);
-            console.log("[QR-SCAN] breakStartTime:", attendance?.breakStartTime, "breakEndTime:", attendance?.breakEndTime);
-
-            // ── CHECKOUT FLOW (from ?action=checkout) ──
             if (actionFromUrl === "checkout" && isCheckedIn && !hasCheckedOut) {
                 const res = await fetch("/api/attendance/check-out", {
                     method: "POST",
@@ -105,10 +100,7 @@ function QRScanPageInner() {
                     });
                     setError(data.error || "เช็คเอาต์ไม่สำเร็จ");
                 }
-            }
-            // ── BREAK END FLOW ──
-            else if (isOnBreak) {
-                // Employee is on break - call break-end API
+            } else if (isOnBreak) {
                 const res = await fetch("/api/attendance/break-end", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -126,11 +118,11 @@ function QRScanPageInner() {
 
                 if (res.ok) {
                     setScanAction("break_end");
-                    setScanDetail(data.penaltyAmount > 0 ? `โดนหัก ฿${data.penaltyAmount}` : `พัก ${data.durationMin} นาที`);
+                    setScanDetail(data.penaltyAmount > 0 ? `เกินเวลาเบิกหัก ฿${data.penaltyAmount}` : `พัก ${data.durationMin} นาที`);
                     setScanResult(decodedText);
                     if (data.penaltyAmount > 0) {
                         toast.warning("จบพักเบรก - กลับมาสาย!", {
-                            description: `โดนหักเงิน ฿${data.penaltyAmount}`,
+                            description: `หักเงิน ฿${data.penaltyAmount}`,
                         });
                     } else {
                         toast.success("จบพักเบรกเรียบร้อย!", {
@@ -142,10 +134,7 @@ function QRScanPageInner() {
                         description: data.error || "กรุณาลองใหม่",
                     });
                 }
-            }
-            // ── CHECK-IN FLOW ──
-            else if (!isCheckedIn) {
-                // Normal check-in flow (Only if NOT checked in)
+            } else if (!isCheckedIn) {
                 const res = await fetch("/api/attendance/check-in", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -163,34 +152,30 @@ function QRScanPageInner() {
 
                 if (res.ok) {
                     setScanAction("checkin");
-                    setScanDetail(`เวลา ${formatTime(new Date())}`);
+                    setScanDetail(`เวลา ${formatTime(new Date())} น.`);
                     setScanResult(decodedText);
                     toast.success("เช็คอินสำเร็จ!", {
-                        description: `เวลา ${formatTime(new Date())}`,
+                        description: `เวลา ${formatTime(new Date())} น.`,
                     });
                 } else {
-                    // Handle specific location error with detailed feedback
                     if (data.errorCode === "INVALID_LOCATION" && data.distance && data.allowedRadius) {
                         const dist = Math.round(data.distance);
                         const radius = data.allowedRadius;
-                        const msg = `คุณอยู่ห่าง ${dist} เมตร (ต้องไม่เกิน ${radius} เมตร)`;
+                        const msg = `คุณอยู่ห่าง ${dist} ม. (ต้องไม่เกิน ${radius} ม.)`;
 
                         toast.error("อยู่นอกพื้นที่เช็คอิน", {
                             description: msg,
                             duration: 5000,
                         });
-                        setError(`อยู่นอกพื้นที่: ${dist}ม. / ${radius}ม.`);
+                        setError(`อยู่นอกพื้นที่: ห่าง ${dist}ม. (อนุญาต ${radius}ม.)`);
                     } else {
                         toast.error("เช็คอินไม่สำเร็จ", {
-                            description: data.error || "กรุณาลองใหม่",
+                            description: data.error || "กรุณาลองใหม่อีกครั้ง",
                         });
                         setError(data.error || "เช็คอินไม่สำเร็จ");
                     }
                 }
-            }
-            // ── STATION TRANSFER FLOW ──
-            else {
-                // Checked in, NOT on break → attempt station transfer
+            } else {
                 const res = await fetch("/api/attendance/station-transfer", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -223,8 +208,8 @@ function QRScanPageInner() {
                     setError(data.error || "ย้ายสาขาไม่สำเร็จ");
                 }
             }
-        } catch (error) {
-            const errMsg = error instanceof Error ? error.message : "ไม่สามารถระบุตำแหน่งได้";
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : "ไม่สามารถระบุตำแหน่งได้";
             toast.error("เกิดข้อผิดพลาด", {
                 description: errMsg,
             });
@@ -239,8 +224,7 @@ function QRScanPageInner() {
             setIsScanning(true);
             setScanResult(null);
 
-            // Give the DOM a moment to render the reader element
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 120));
 
             const html5QrCode = new Html5Qrcode("reader");
             scannerRef.current = html5QrCode;
@@ -248,20 +232,15 @@ function QRScanPageInner() {
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
+                aspectRatio: 1.0,
             };
 
             await html5QrCode.start(
                 { facingMode: "environment" },
                 config,
                 handleScanSuccess,
-                (errorMessage) => {
-                    // QR Code no longer in front of camera, or other minor errors
-                    // prevent console spam
-                    // console.log(errorMessage);
-                }
+                () => {}
             );
-
         } catch (err) {
             console.error("Camera start error:", err);
             const errorMsg = err instanceof Error ? err.message : "ไม่สามารถเปิดกล้องได้";
@@ -269,7 +248,7 @@ function QRScanPageInner() {
             setIsScanning(false);
 
             toast.error("ไม่สามารถเปิดกล้องได้", {
-                description: "กรุณาตรวจสอบการอนุญาตเข้าถึงกล้อง"
+                description: "กรุณาตรวจสอบการอนุญาตเข้าถึงกล้องในเบราว์เซอร์",
             });
         }
     };
@@ -290,8 +269,8 @@ function QRScanPageInner() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -300,172 +279,174 @@ function QRScanPageInner() {
         redirect("/login");
     }
 
+    const titleText = actionFromUrl === "checkout" ? "สแกนเช็คเอาต์" : "สแกน QR Code";
+    const subtitleText = actionFromUrl === "checkout"
+        ? "สแกน QR สาขาเพื่อบันทึกเวลาออกงาน"
+        : "สแกน QR สาขาเพื่อบันทึกเวลาเข้างานหรือย้ายสาขา";
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white" asChild>
-                    <Link href="/">
-                        <ChevronLeft className="w-6 h-6" />
-                    </Link>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">สแกน QR Code</h1>
-                    <p className="text-sm text-slate-400">
-                        {actionFromUrl === "checkout" ? "เช็คเอาต์ด้วยการสแกน QR" : "เช็คอินด้วยการสแกน QR"}
-                    </p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="QR SCANNER"
+                title={titleText}
+                subtitle={subtitleText}
+                backHref="/"
+            />
 
-            <div className="max-w-md mx-auto">
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
                 {scanResult ? (
-                    <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                        <CardContent className="py-8 text-center">
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ${
+                    <section className="tt-paper-card tt-instrument-frame rounded-[24px] border-2 border-zinc-800/70 p-6 text-center dark:border-white/20 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                        <div
+                            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 ${
                                 scanAction === "transfer"
-                                    ? "bg-purple-500/20 ring-purple-500/10"
+                                    ? "bg-purple-100 border-purple-500 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300"
                                     : scanAction === "checkout"
-                                    ? "bg-red-500/20 ring-red-500/10"
+                                        ? "bg-red-100 border-red-500 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                                        : scanAction === "break_end"
+                                            ? "bg-amber-100 border-amber-500 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                                            : "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                            }`}
+                        >
+                            <CheckCircle2 className="w-10 h-10" />
+                        </div>
+
+                        <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-1">
+                            {scanAction === "transfer"
+                                ? "ย้ายสาขาสำเร็จ!"
+                                : scanAction === "checkout"
+                                    ? "เช็คเอาต์สำเร็จ!"
                                     : scanAction === "break_end"
-                                    ? "bg-orange-500/20 ring-orange-500/10"
-                                    : "bg-green-500/20 ring-green-500/10"
-                            }`}>
-                                <CheckCircle className={`w-10 h-10 ${
-                                    scanAction === "transfer" ? "text-purple-400"
-                                    : scanAction === "checkout" ? "text-red-400"
-                                    : scanAction === "break_end" ? "text-orange-400"
-                                    : "text-green-400"
-                                }`} />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">
-                                {scanAction === "transfer" ? "ย้ายสาขาสำเร็จ!"
-                                 : scanAction === "checkout" ? "เช็คเอาต์สำเร็จ!"
-                                 : scanAction === "break_end" ? "จบพักเบรกแล้ว!"
-                                 : "เช็คอินสำเร็จ!"}
-                            </h2>
-                            <p className="text-slate-400 mb-2">
-                                {scanAction === "transfer" ? "บันทึกการย้ายสาขาเรียบร้อยแล้ว"
-                                 : scanAction === "checkout" ? "บันทึกเวลาออกงานเรียบร้อยแล้ว"
-                                 : scanAction === "break_end" ? "บันทึกเวลากลับจากพักเรียบร้อยแล้ว"
-                                 : "บันทึกเวลาเข้างานเรียบร้อยแล้ว"}
-                            </p>
-                            {scanDetail && (
-                                <p className={`text-sm font-medium mb-6 ${
-                                    scanAction === "transfer" ? "text-purple-400"
-                                    : scanAction === "checkout" ? "text-red-400"
-                                    : scanAction === "break_end" ? "text-orange-400"
-                                    : "text-green-400"
-                                }`}>
+                                        ? "จบพักเบรกแล้ว!"
+                                        : "เช็คอินสำเร็จ!"}
+                        </h2>
+
+                        <p className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-3">
+                            {scanAction === "transfer"
+                                ? "บันทึกการย้ายสาขาเรียบร้อยแล้ว"
+                                : scanAction === "checkout"
+                                    ? "บันทึกเวลาออกงานเรียบร้อยแล้ว"
+                                    : scanAction === "break_end"
+                                        ? "บันทึกเวลากลับจากพักเรียบร้อยแล้ว"
+                                        : "บันทึกเวลาเข้างานเรียบร้อยแล้ว"}
+                        </p>
+
+                        {scanDetail && (
+                            <div className="rounded-xl border border-zinc-700/20 bg-black/[0.04] dark:bg-white/[0.04] p-3 mb-6">
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">
+                                    รายละเอียด
+                                </span>
+                                <span className="font-mono font-black text-base text-zinc-900 dark:text-zinc-100">
                                     {scanDetail}
-                                </p>
-                            )}
-                            <Button asChild className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20">
-                                <Link href="/">กลับหน้าหลัก</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ) : isProcessing ? (
-                    <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                        <CardContent className="py-16 text-center">
-                            <div className="relative mx-auto w-16 h-16 mb-6">
-                                <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
-                                <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                                </span>
                             </div>
-                            <h3 className="text-xl font-semibold text-white mb-2">กำลังตรวจสอบ...</h3>
-                            <p className="text-slate-400">กรุณารอสักครู่</p>
-                        </CardContent>
-                    </Card>
+                        )}
+
+                        <Link
+                            href="/"
+                            className="tt-retro-control w-full h-12 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black text-xs flex items-center justify-center gap-2 shadow-[0_3px_10px_rgba(251,191,36,0.25)] border border-black/20 active:scale-95 transition-all"
+                        >
+                            <ArrowLeft className="w-4 h-4" /> กลับสู่หน้าแรก
+                        </Link>
+                    </section>
+                ) : isProcessing ? (
+                    <section className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 p-12 text-center dark:border-white/15 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                        <div className="relative mx-auto w-16 h-16 mb-4">
+                            <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-t-[#fbbf24] rounded-full animate-spin"></div>
+                        </div>
+                        <h3 className="text-base font-black text-zinc-900 dark:text-zinc-100 mb-1">
+                            กำลังตรวจสอบข้อมูล...
+                        </h3>
+                        <p className="text-xs font-bold text-zinc-500">
+                            ระบบกำลังตรวจสอบพิกัดและบันทึกเวลา กรุณารอสักครู่
+                        </p>
+                    </section>
                 ) : (
-                    <div className="space-y-6">
-                        {/* Camera Container */}
-                        <Card className="bg-black border-slate-700 overflow-hidden shadow-2xl relative">
-                            <CardContent className="p-0">
-                                {/* The Reader Element */}
-                                <div
-                                    id="reader"
-                                    className={`w-full overflow-hidden ${!isScanning ? 'hidden' : ''}`}
-                                    style={{ minHeight: '300px' }}
-                                />
+                    <div className="space-y-4">
+                        <div className="tt-paper-card tt-instrument-frame rounded-[26px] border-2 border-zinc-800/70 dark:border-white/20 overflow-hidden relative shadow-[0_4px_0_rgba(0,0,0,0.08)] bg-zinc-950">
+                            <div
+                                id="reader"
+                                className={`w-full overflow-hidden ${!isScanning ? "hidden" : ""}`}
+                                style={{ minHeight: "320px" }}
+                            />
 
-                                {/* Placeholder when not scanning */}
-                                {!isScanning && (
-                                    <div className="w-full aspect-square flex flex-col items-center justify-center bg-slate-900 absolute inset-0">
-                                        <div className="w-20 h-20 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
-                                            <svg
-                                                className="w-10 h-10 text-slate-500"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                            </svg>
+                            {!isScanning && (
+                                <div className="w-full aspect-square flex flex-col items-center justify-center p-6 text-center relative bg-[#24211e]">
+                                    <div className="w-48 h-48 border border-zinc-700/50 rounded-2xl relative flex items-center justify-center mb-4">
+                                        <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-[#fbbf24]" />
+                                        <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-[#fbbf24]" />
+                                        <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-[#fbbf24]" />
+                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-[#fbbf24]" />
+
+                                        <div className="w-16 h-16 rounded-2xl bg-[#ffc62c]/15 border border-[#ffc62c]/30 flex items-center justify-center">
+                                            <QrCode className="w-8 h-8 text-[#fbbf24]" />
                                         </div>
-                                        <p className="text-slate-400 text-center px-4 font-medium">
-                                            พร้อมสแกน QR Code
-                                        </p>
                                     </div>
-                                )}
-                            </CardContent>
 
-                            {/* Error Overlay */}
+                                    <p className="text-sm font-black text-zinc-100">
+                                        พร้อมเริ่มสแกน QR Code
+                                    </p>
+                                    <p className="text-[11px] font-bold text-zinc-400 mt-1 max-w-[240px]">
+                                        ส่องกล้องให้อยู่ในกรอบเพื่อบันทึกเวลาทันที
+                                    </p>
+                                </div>
+                            )}
+
                             {error && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/95 p-6 z-10">
-                                    <div className="text-center">
-                                        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                                            <AlertCircle className="w-8 h-8 text-red-500" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 p-6 z-10 text-center">
+                                    <div className="max-w-xs space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center mx-auto text-red-500">
+                                            <AlertCircle className="w-6 h-6" />
                                         </div>
-                                        <p className="text-red-400 mb-6 font-medium">{error}</p>
-                                        <Button onClick={() => setError(null)} variant="outline" className="border-red-500/20 text-red-400 hover:bg-red-500/10">
-                                            ลองใหม่อีกครั้ง
-                                        </Button>
+                                        <p className="text-xs font-black text-red-400 leading-snug">{error}</p>
+                                        <button
+                                            onClick={() => setError(null)}
+                                            className="tt-retro-control px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black border border-white/20 active:scale-95"
+                                        >
+                                            ปิดการแจ้งเตือน
+                                        </button>
                                     </div>
                                 </div>
                             )}
-                        </Card>
+                        </div>
 
-                        {/* Controls */}
                         <div>
                             {isScanning ? (
-                                <Button
+                                <button
                                     onClick={stopScanning}
-                                    variant="destructive"
-                                    className="w-full h-14 text-lg font-medium shadow-lg shadow-red-900/20"
+                                    className="tt-retro-control w-full h-12 rounded-xl bg-zinc-900 text-white dark:bg-zinc-800 font-black text-xs flex items-center justify-center gap-2 border border-zinc-700 active:scale-[0.98] transition-all"
                                 >
-                                    ยกเลิก
-                                </Button>
+                                    <X className="w-4 h-4" />
+                                    ปิดกล้อง / ยกเลิก
+                                </button>
                             ) : (
-                                <Button
+                                <button
                                     onClick={startScanning}
-                                    className="w-full h-14 text-lg font-medium bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-900/20"
+                                    className="tt-retro-control w-full h-13 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black text-sm flex items-center justify-center gap-2 shadow-[0_3px_10px_rgba(251,191,36,0.25)] border border-black/20 active:scale-[0.98] transition-all"
                                 >
-                                    เริ่มสแกน
-                                </Button>
+                                    <Camera className="w-4 h-4" />
+                                    เปิดกล้องสแกน QR Code
+                                </button>
                             )}
                         </div>
 
                         {!isScanning && (
-                            <div className="text-center">
-                                <p className="text-xs text-slate-500">
-                                    ระบบจะขออนุญาตใช้กล้องเมื่อกดปุ่มเริ่มสแกน
-                                </p>
-                            </div>
+                            <p className="text-center text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                                ระบบจะขออนุญาตใช้กล้องเมื่อกดปุ่มเปิดกล้อง
+                            </p>
                         )}
                     </div>
                 )}
-            </div>
+            </main>
 
-            {/* Custom styles for html5-qrcode to handle dark mode blending */}
             <style jsx global>{`
                 #reader {
                     border: none !important;
                 }
                 #reader video {
                     object-fit: cover;
-                    border-radius: 0.5rem;
+                    border-radius: 1.25rem;
                 }
-                /* Hide the default scan region box if we want a custom one, 
-                   but html5-qrcode usually handles it okay. 
-                   We can customize more if needed. */
             `}</style>
         </div>
     );
@@ -473,11 +454,13 @@ function QRScanPageInner() {
 
 export default function QRScanPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-        }>
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
+                </div>
+            }
+        >
             <QRScanPageInner />
         </Suspense>
     );

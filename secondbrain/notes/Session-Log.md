@@ -7,7 +7,63 @@ updated: 2026-09-03
 
 # Session Log
 
-## 2026-09-03 — Made Customer Feedback Cases explain what went wrong
+## 2026-09-03 — Redesigned Phase 2 & Phase 3 Employee Routes to Retro-Tactile Dashboard
+
+Goal:
+
+Upgrade the remaining Phase 2 and Phase 3 employee routes to the unified Retro-Tactile Dashboard design system (`#eee8db` cream background, `EmployeePageHeader`, `.tt-paper-card .tt-instrument-frame`, `.tt-retro-control`, tactile meters, and badges).
+
+Implementation:
+
+- **Phase 2 Routes**:
+  - `src/app/requests/page.tsx`: Transformed into a tactile request hub navigation card grid with quick links to Time Correction, Advance, Overtime, Shift Swap, and Incoming Swaps.
+  - `src/app/requests/overtime/page.tsx`: Redesigned overtime request ticket form with 0.5–12h selector, note input, and tactile request history list.
+  - `src/app/requests/shift-swap/page.tsx`: Redesigned swap ticket form with colleague select, reason textarea, and tactile history cards.
+  - `src/app/requests/incoming/page.tsx`: Redesigned incoming swap request actions with tactile Accept/Reject buttons and status history cards.
+  - `src/app/schedule/page.tsx`: Redesigned week/month views, date steppers, CSV export button, and tactile shift cards.
+  - `src/app/shift-pool/page.tsx`: Redesigned open shift cards, "ปล่อยกะ" button, and tactile Claim/Release dialogs.
+
+- **Phase 3 Routes**:
+  - `src/app/wallet/page.tsx`: Redesigned from `#1a1412` dark brown to Retro-Tactile Dashboard with month stepper, projected net pay hero card, 4-stat instrument grid (base wage, OT, special pay, deductions), advance deduction alert, and expandable daily earnings breakdown timeline.
+  - `src/app/performance/page.tsx`: Redesigned from desktop breadcrumbs and indigo layout to Retro-Tactile Dashboard with `EmployeePageHeader`, evaluation period selector, tactile self-assessment form, and manager review cards.
+  - `src/app/announcements/page.tsx`: Converted header to `EmployeePageHeader`, styled counter cards, composer card, and announcement feed cards with `.tt-paper-card .tt-instrument-frame`.
+  - `src/app/announcements/[id]/page.tsx`: Added `EmployeePageHeader`, styled detail card, acknowledgement card, and comments feed with tactile styling.
+  - `src/app/league/page.tsx`: Unified header with `EmployeePageHeader`, refreshed refresh control, and aligned container styling.
+
+Verification:
+
+- `npx tsc --noEmit`: 0 errors.
+- `npx eslint` across all modified files: 0 errors, 0 warnings.
+- Preserved 100% of underlying API routes, permission checks, and calculation algorithms.
+
+## 2026-09-03 — Redesigned Phase 1 Employee Routes to Retro-Tactile Dashboard
+
+Goal:
+
+Upgrade the visual design of Phase 1 employee routes (`/requests/time-correction`, `/advances`, `/qr-scan`) from legacy dark/slate styles into the unified Retro-Tactile Dashboard design system (Caltex yellow, cream paper `#eee8db`, dark mode `zinc-950`, tactile frames, and `EmployeePageHeader`).
+
+Implementation:
+
+- `src/app/requests/time-correction/page.tsx`:
+  - Replaced legacy Slate-900 full-page container with `EmployeePageHeader` (`eyebrow="TIME CORRECTION"`, `title="ขอแก้ไขเวลา"`).
+  - Designed tactile ticket submission form inside `.tt-paper-card .tt-instrument-frame` with 14-day date select, request type selector, retro mono time input, and integrated `AssetAttachmentField`.
+  - Transformed request history cards into tactile tickets with clear status badges (`CheckCircle2`, `XCircle`, `AlertCircle`) and evidence attachment preview link.
+- `src/app/advances/page.tsx`:
+  - Replaced legacy `#1a1412` dark brown layout with `EmployeePageHeader` (`eyebrow="SALARY ADVANCE"`, `title="เบิกค่าแรง"`).
+  - Added tactile paper month-picker stepper and dark instrument meter summary (`ยอดขอเบิกรวม`, `จำนวนคำขอ`).
+  - Redesigned request cards with status badges and quick attachment links.
+  - Upgraded advance request modal to retro-tactile sheet with Sonner toast feedback.
+- `src/app/qr-scan/page.tsx`:
+  - Replaced legacy Slate-900 camera interface with `EmployeePageHeader` and tactile instrument viewfinder.
+  - Added Caltex-yellow corner reticles and clear instructional state.
+  - Redesigned scan completion card with high-contrast result badges and return navigation.
+  - Preserved 100% of camera lifecycle (`Html5Qrcode`), geofence verification, device fingerprinting, and check-in/out/transfer APIs.
+
+Verification:
+
+- `npx tsc --noEmit`: 0 errors.
+- `npx eslint` on all modified files: 0 errors, 0 warnings.
+- `git status -s`: Clean, only targeted files modified.
 
 Goal:
 

@@ -3,10 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
     ChevronLeft,
     ChevronRight,
@@ -16,6 +13,7 @@ import {
     List,
     Grid3X3,
 } from "lucide-react";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { formatThaiDate, addDays, subDays, startOfDay, format } from "@/lib/date-utils";
 import { toast } from "sonner";
 
@@ -82,7 +80,7 @@ export default function SchedulePage() {
 
     useEffect(() => {
         if (session?.user?.id) {
-            fetchSchedule();
+            void fetchSchedule();
         }
     }, [session?.user?.id, fetchSchedule]);
 
@@ -158,18 +156,16 @@ export default function SchedulePage() {
     const monthCalendar = useMemo(() => {
         const firstDay = new Date(currentYear, currentMonth, 1);
         const lastDay = new Date(currentYear, currentMonth + 1, 0);
-        const startPadding = firstDay.getDay(); // Days to pad at start
+        const startPadding = firstDay.getDay();
         const daysInMonth = lastDay.getDate();
 
         const weeks: { date: Date | null; assignment: ShiftAssignment | undefined }[][] = [];
         let currentWeek: { date: Date | null; assignment: ShiftAssignment | undefined }[] = [];
 
-        // Add padding for first week
         for (let i = 0; i < startPadding; i++) {
             currentWeek.push({ date: null, assignment: undefined });
         }
 
-        // Add days
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(currentYear, currentMonth, day);
             const dateStr = format(date, "yyyy-MM-dd");
@@ -182,7 +178,6 @@ export default function SchedulePage() {
             }
         }
 
-        // Add padding for last week
         if (currentWeek.length > 0) {
             while (currentWeek.length < 7) {
                 currentWeek.push({ date: null, assignment: undefined });
@@ -195,8 +190,8 @@ export default function SchedulePage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -206,166 +201,192 @@ export default function SchedulePage() {
     }
 
     const weekEndDate = addDays(currentWeekStart, 6);
-    const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const monthNames = [
+        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+    ];
     const dayNames = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
     const getShiftColor = (code: string) => {
         const colors: Record<string, string> = {
-            A: "bg-blue-500", B: "bg-green-500", C: "bg-purple-500",
-            D: "bg-orange-500", E: "bg-pink-500", F: "bg-cyan-500",
+            A: "bg-blue-500", B: "bg-emerald-500", C: "bg-purple-500",
+            D: "bg-amber-500", E: "bg-rose-500", F: "bg-cyan-500",
         };
-        return colors[code] || "bg-slate-500";
+        return colors[code] || "bg-zinc-500";
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                        <Link href="/">
-                            <ChevronLeft className="w-5 h-5" />
-                        </Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-xl font-bold text-white">ตารางกะ</h1>
-                        <p className="text-sm text-slate-400">{session.user.name}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-slate-600 text-slate-300"
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="SCHEDULE"
+                title="ตารางกะการทำงาน"
+                subtitle="ตรวจสอบตารางกะเวรและวันหยุดประจำรอบ"
+                backHref="/"
+                right={
+                    <button
                         onClick={() => handleExport("csv")}
                         disabled={isExporting}
+                        className="tt-retro-control mt-0.5 grid h-11 px-3 place-items-center rounded-full border-[1.5px] border-black/70 bg-zinc-950 text-[#fbbf24] shadow-[inset_0_0_0_2px_rgba(255,255,255,0.18)] text-[11px] font-black flex-row gap-1 active:scale-95 disabled:opacity-50"
+                        title="ดาวน์โหลดตารางกะ CSV"
                     >
-                        <Download className="w-4 h-4 mr-1" />
-                        CSV
-                    </Button>
-                </div>
-            </div>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>CSV</span>
+                    </button>
+                }
+            />
 
-            {/* View Mode Toggle */}
-            <div className="flex justify-center mb-4">
-                <div className="bg-slate-800 rounded-lg p-1 flex gap-1">
-                    <Button
-                        variant={viewMode === "week" ? "default" : "ghost"}
-                        size="sm"
+            <main className="max-w-[480px] mx-auto p-4 space-y-3.5">
+                {/* View Mode Toggle */}
+                <div className="tt-paper-card tt-instrument-frame p-1 rounded-2xl border border-zinc-700/30 flex gap-1">
+                    <button
                         onClick={() => setViewMode("week")}
-                        className={viewMode === "week" ? "bg-blue-600" : "text-slate-400"}
+                        className={`flex-1 h-9 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                            viewMode === "week"
+                                ? "bg-[#fbbf24] text-zinc-950 shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-black/15"
+                                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                        }`}
                     >
-                        <List className="w-4 h-4 mr-1" />
-                        สัปดาห์
-                    </Button>
-                    <Button
-                        variant={viewMode === "month" ? "default" : "ghost"}
-                        size="sm"
+                        <List className="w-3.5 h-3.5" />
+                        มุมมองสัปดาห์
+                    </button>
+                    <button
                         onClick={() => setViewMode("month")}
-                        className={viewMode === "month" ? "bg-blue-600" : "text-slate-400"}
+                        className={`flex-1 h-9 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+                            viewMode === "month"
+                                ? "bg-[#fbbf24] text-zinc-950 shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-black/15"
+                                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                        }`}
                     >
-                        <Grid3X3 className="w-4 h-4 mr-1" />
-                        เดือน
-                    </Button>
+                        <Grid3X3 className="w-3.5 h-3.5" />
+                        มุมมองเดือน
+                    </button>
                 </div>
-            </div>
 
-            {/* Navigation */}
-            <Card className="bg-slate-800/50 border-slate-700 mb-6">
-                <CardContent className="py-3">
-                    <div className="flex items-center justify-between">
-                        <Button variant="ghost" size="icon" onClick={viewMode === "week" ? goToPreviousWeek : goToPreviousMonth}>
-                            <ChevronLeft className="w-5 h-5 text-slate-400" />
-                        </Button>
-                        <div className="text-center">
-                            <p className="text-white font-medium">
-                                {viewMode === "week"
-                                    ? `${formatThaiDate(currentWeekStart, "d MMM")} - ${formatThaiDate(weekEndDate, "d MMM yyyy")}`
-                                    : `${monthNames[currentMonth]} ${currentYear + 543}`
-                                }
-                            </p>
-                            <Button
-                                variant="link"
-                                className="text-blue-400 text-xs p-0 h-auto"
-                                onClick={viewMode === "week" ? goToCurrentWeek : goToCurrentMonth}
-                            >
-                                {viewMode === "week" ? "สัปดาห์นี้" : "เดือนนี้"}
-                            </Button>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={viewMode === "week" ? goToNextWeek : goToNextMonth}>
-                            <ChevronRight className="w-5 h-5 text-slate-400" />
-                        </Button>
+                {/* Stepper Navigation */}
+                <div className="tt-paper-card tt-instrument-frame rounded-[18px] border border-zinc-700/30 dark:border-white/15 p-2.5 flex items-center justify-between shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <button
+                        onClick={viewMode === "week" ? goToPreviousWeek : goToPreviousMonth}
+                        className="tt-retro-control w-9 h-9 rounded-full border border-black/20 bg-white/60 dark:bg-zinc-800 flex items-center justify-center active:scale-95 text-zinc-800 dark:text-zinc-100"
+                        aria-label="ย้อนหลัง"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="text-center">
+                        <span className="text-xs font-black text-zinc-900 dark:text-zinc-100 block">
+                            {viewMode === "week"
+                                ? `${formatThaiDate(currentWeekStart, "d MMM")} - ${formatThaiDate(weekEndDate, "d MMM yyyy")}`
+                                : `${monthNames[currentMonth]} ${currentYear + 543}`}
+                        </span>
+                        <button
+                            onClick={viewMode === "week" ? goToCurrentWeek : goToCurrentMonth}
+                            className="text-[10px] font-bold text-amber-700 dark:text-amber-400 hover:underline"
+                        >
+                            {viewMode === "week" ? "กลับสู่สัปดาห์นี้" : "กลับสู่เดือนนี้"}
+                        </button>
                     </div>
-                </CardContent>
-            </Card>
-
-            {/* Schedule Content */}
-            {isLoading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                    <button
+                        onClick={viewMode === "week" ? goToNextWeek : goToNextMonth}
+                        className="tt-retro-control w-9 h-9 rounded-full border border-black/20 bg-white/60 dark:bg-zinc-800 flex items-center justify-center active:scale-95 text-zinc-800 dark:text-zinc-100"
+                        aria-label="ถัดไป"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
                 </div>
-            ) : viewMode === "week" ? (
-                /* Week View */
-                <div className="space-y-3">
-                    {weekDays.map(({ date, assignment }) => {
-                        const isToday = date.toDateString() === new Date().toDateString();
-                        const isPast = date < new Date() && !isToday;
 
-                        return (
-                            <Card
-                                key={date.toISOString()}
-                                className={`border-slate-700 transition-all ${isToday
-                                    ? "bg-blue-900/30 border-blue-500/50"
-                                    : isPast
-                                        ? "bg-slate-800/30 opacity-60"
-                                        : "bg-slate-800/50"
+                {/* Schedule Content */}
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#fbbf24]" />
+                    </div>
+                ) : viewMode === "week" ? (
+                    /* Week View */
+                    <div className="space-y-2">
+                        {weekDays.map(({ date, assignment }) => {
+                            const isToday = date.toDateString() === new Date().toDateString();
+                            const isPast = date < new Date() && !isToday;
+
+                            return (
+                                <div
+                                    key={date.toISOString()}
+                                    className={`tt-paper-card tt-instrument-frame rounded-[18px] border p-3 transition-all ${
+                                        isToday
+                                            ? "border-amber-500/80 bg-amber-500/10 shadow-[0_2px_8px_rgba(251,191,36,0.15)]"
+                                            : isPast
+                                                ? "border-zinc-700/20 opacity-70"
+                                                : "border-zinc-700/30"
                                     }`}
-                            >
-                                <CardContent className="py-4">
+                                >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${isToday ? "bg-blue-500" : "bg-slate-700"}`}>
-                                                <span className="text-xs text-slate-300">{formatThaiDate(date, "EEE")}</span>
-                                                <span className="text-lg font-bold text-white">{formatThaiDate(date, "d")}</span>
+                                            <div
+                                                className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center border ${
+                                                    isToday
+                                                        ? "bg-[#fbbf24] text-zinc-950 border-black/20 font-black"
+                                                        : "bg-black/[0.04] dark:bg-white/[0.04] border-zinc-700/15"
+                                                }`}
+                                            >
+                                                <span className="text-[9px] uppercase font-bold text-zinc-500 dark:text-zinc-400">
+                                                    {formatThaiDate(date, "EEE")}
+                                                </span>
+                                                <span className="text-base font-black leading-none mt-0.5">
+                                                    {formatThaiDate(date, "d")}
+                                                </span>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-white">{formatThaiDate(date, "EEEE")}</p>
-                                                <p className="text-sm text-slate-400">{formatThaiDate(date, "d MMMM yyyy")}</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="font-black text-xs text-zinc-900 dark:text-zinc-100">
+                                                        {formatThaiDate(date, "EEEE")}
+                                                    </p>
+                                                    {isToday && (
+                                                        <span className="px-1.5 py-0.2 rounded text-[8px] font-black bg-[#fbbf24] text-zinc-950">
+                                                            วันนี้
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                                                    {formatThaiDate(date, "d MMMM yyyy")}
+                                                </p>
                                             </div>
                                         </div>
 
                                         {assignment ? (
                                             assignment.isDayOff ? (
-                                                <Badge className="bg-red-500/20 text-red-400 border-red-500/30">วันหยุด</Badge>
+                                                <Badge className="border border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400 text-[10px] font-black">
+                                                    วันหยุดประจำสัปดาห์
+                                                </Badge>
                                             ) : (
                                                 <div className="text-right">
-                                                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                                                        กะ{assignment.shift.name}
+                                                    <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-black">
+                                                        กะ {assignment.shift.name} ({assignment.shift.code})
                                                     </Badge>
-                                                    <p className="text-sm text-slate-300 mt-1 flex items-center gap-1 justify-end">
-                                                        <Clock className="w-3 h-3" />
+                                                    <p className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 mt-1 flex items-center gap-1 justify-end">
+                                                        <Clock className="w-3 h-3 text-zinc-400" />
                                                         {assignment.shift.startTime} - {assignment.shift.endTime}
                                                     </p>
                                                 </div>
                                             )
                                         ) : (
-                                            <Badge variant="outline" className="text-slate-500 border-slate-600">ไม่มีกะ</Badge>
+                                            <Badge variant="outline" className="border-zinc-700/20 text-zinc-400 text-[10px] font-bold">
+                                                ไม่มีกะ
+                                            </Badge>
                                         )}
                                     </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
-            ) : (
-                /* Month View */
-                <Card className="bg-slate-800/50 border-slate-700">
-                    <CardContent className="py-4">
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* Month View */
+                    <div className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 p-3.5 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
                         {/* Day headers */}
                         <div className="grid grid-cols-7 gap-1 mb-2">
                             {dayNames.map((day, i) => (
-                                <div key={day} className={`text-center text-xs font-medium py-2 ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>
+                                <div
+                                    key={day}
+                                    className={`text-center text-[10px] font-mono font-black py-1 ${
+                                        i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-zinc-400"
+                                    }`}
+                                >
                                     {day}
                                 </div>
                             ))}
@@ -379,30 +400,48 @@ export default function SchedulePage() {
                                             return <div key={dayIdx} className="aspect-square" />;
                                         }
                                         const isToday = date.toDateString() === new Date().toDateString();
-                                        const isWeekend = dayIdx === 0 || dayIdx === 6;
+                                        const isSunday = dayIdx === 0;
+                                        const isSaturday = dayIdx === 6;
 
                                         return (
                                             <div
                                                 key={dayIdx}
-                                                className={`aspect-square rounded-lg flex flex-col items-center justify-center text-sm relative
-                                                    ${isToday ? "ring-2 ring-blue-500" : ""}
-                                                    ${assignment
-                                                        ? assignment.isDayOff
-                                                            ? "bg-red-900/30"
-                                                            : getShiftColor(assignment.shift.code) + "/30"
-                                                        : "bg-slate-700/30"}
-                                                `}
+                                                className={`aspect-square rounded-xl flex flex-col items-center justify-center p-1 text-xs relative border transition-all ${
+                                                    isToday
+                                                        ? "border-amber-500 bg-amber-500/15 font-black ring-2 ring-[#fbbf24]/50"
+                                                        : assignment
+                                                            ? assignment.isDayOff
+                                                                ? "bg-red-500/10 border-red-500/20"
+                                                                : "bg-black/[0.02] dark:bg-white/[0.02] border-zinc-700/15"
+                                                            : "bg-transparent border-transparent"
+                                                }`}
                                             >
-                                                <span className={`font-medium ${isToday ? "text-blue-400" : isWeekend ? (dayIdx === 0 ? "text-red-400" : "text-blue-400") : "text-white"}`}>
+                                                <span
+                                                    className={`text-[11px] font-bold ${
+                                                        isToday
+                                                            ? "text-amber-700 dark:text-amber-300 font-black"
+                                                            : isSunday
+                                                                ? "text-red-500"
+                                                                : isSaturday
+                                                                    ? "text-blue-500"
+                                                                    : "text-zinc-800 dark:text-zinc-200"
+                                                    }`}
+                                                >
                                                     {date.getDate()}
                                                 </span>
                                                 {assignment && !assignment.isDayOff && (
-                                                    <span className={`text-xs font-bold ${getShiftColor(assignment.shift.code).replace("/30", "")} text-white px-1 rounded`}>
+                                                    <span
+                                                        className={`text-[8px] font-mono font-black text-white px-1 rounded mt-0.5 ${getShiftColor(
+                                                            assignment.shift.code
+                                                        )}`}
+                                                    >
                                                         {assignment.shift.code}
                                                     </span>
                                                 )}
                                                 {assignment?.isDayOff && (
-                                                    <span className="text-xs text-red-400">X</span>
+                                                    <span className="text-[8px] font-bold text-red-500 mt-0.5">
+                                                        หยุด
+                                                    </span>
                                                 )}
                                             </div>
                                         );
@@ -410,9 +449,10 @@ export default function SchedulePage() {
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
-            )}
+                    </div>
+                )}
+            </main>
         </div>
     );
 }
+

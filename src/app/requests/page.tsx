@@ -3,24 +3,24 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-    ChevronLeft,
-    ChevronRight,
     Clock,
     RefreshCw,
     FileEdit,
+    Banknote,
+    Inbox,
+    ChevronRight,
     Loader2,
 } from "lucide-react";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 
 export default function RequestsPage() {
     const { data: session, status } = useSession();
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
@@ -31,67 +31,102 @@ export default function RequestsPage() {
 
     const menuItems = [
         {
-            href: "/requests/overtime",
-            icon: Clock,
-            iconColor: "text-orange-400",
-            bgColor: "bg-orange-500/20",
-            title: "ขอทำโอที",
-            description: "ขออนุมัติทำงานล่วงเวลา",
+            href: "/requests/time-correction",
+            icon: FileEdit,
+            iconBg: "bg-[#ffc62c]/35 text-black dark:text-white",
+            title: "ขอแก้ไขเวลา",
+            description: "ลืมกดเข้า-ออกเวร หรือเวลาบันทึกไม่ถูกต้อง",
+            badge: "แนะนำ",
         },
         {
-            href: "/requests/time-correction",
+            href: "/advances",
+            icon: Banknote,
+            iconBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+            title: "ขอเบิกค่าแรง",
+            description: "ขอเบิกเงินค่าแรงล่วงหน้าและตรวจสอบสถานะการจ่าย",
+        },
+        {
+            href: "/requests/overtime",
             icon: Clock,
-            iconColor: "text-yellow-400",
-            bgColor: "bg-yellow-500/20",
-            title: "ขอแก้ไขเวลา",
-            description: "ลืมกดเข้า-ออกเวร",
+            iconBg: "bg-amber-500/15 text-amber-800 dark:text-amber-400",
+            title: "ขอทำโอที (OT)",
+            description: "ยื่นคำขออนุมัติทำงานล่วงเวลาล่วงหน้าหรือย้อนหลัง",
         },
         {
             href: "/requests/shift-swap",
             icon: RefreshCw,
-            iconColor: "text-blue-400",
-            bgColor: "bg-blue-500/20",
-            title: "ขอแลกกะ",
-            description: "แลกกะกับเพื่อนร่วมงาน",
+            iconBg: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+            title: "ขอแลกกะทำงาน",
+            description: "ส่งคำขอแลกเปลี่ยนกะทำงานกับเพื่อนร่วมงาน",
+        },
+        {
+            href: "/requests/incoming",
+            icon: Inbox,
+            iconBg: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
+            title: "คำขอที่ส่งถึงฉัน",
+            description: "ตรวจสอบและตอบรับ/ปฏิเสธคำขอแลกกะจากเพื่อนร่วมงาน",
         },
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pb-24">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="text-slate-400" asChild>
-                    <Link href="/">
-                        <ChevronLeft className="w-5 h-5" />
-                    </Link>
-                </Button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">คำขอต่างๆ</h1>
-                    <p className="text-sm text-slate-400">ส่งคำขอและติดตามสถานะ</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="SERVICE REQUESTS"
+                title="ศูนย์คำขอต่างๆ"
+                subtitle="ยื่นคำขอและติดตามสถานะการอนุมัติทั้งหมด"
+                backHref="/"
+            />
 
-            {/* Menu */}
-            <div className="space-y-3">
-                {menuItems.map((item) => (
-                    <a key={item.href} href={item.href}>
-                        <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition cursor-pointer mb-3">
-                            <CardContent className="py-4 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-xl ${item.bgColor} flex items-center justify-center`}>
-                                        <item.icon className={`w-6 h-6 ${item.iconColor}`} />
+            <main className="max-w-[480px] mx-auto p-4 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        รายการคำขอที่เปิดใช้งาน
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                        {menuItems.length} หมวดหมู่
+                    </span>
+                </div>
+
+                <div className="space-y-2.5">
+                    {menuItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className="tt-paper-card tt-instrument-frame block rounded-[20px] border border-zinc-700/35 p-3.5 dark:border-white/15 shadow-[0_2px_0_rgba(0,0,0,0.06)] active:scale-[0.98] transition-transform"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-11 h-11 rounded-2xl border border-black/15 flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h2 className="text-[14px] font-black leading-tight text-zinc-900 dark:text-zinc-100">
+                                                    {item.title}
+                                                </h2>
+                                                {item.badge && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#fbbf24] text-zinc-950 border border-black/20">
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
+                                                {item.description}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-white">{item.title}</p>
-                                        <p className="text-sm text-slate-400">{item.description}</p>
+                                    <div className="w-8 h-8 rounded-full bg-black/[0.04] dark:bg-white/[0.04] flex items-center justify-center shrink-0 text-zinc-400">
+                                        <ChevronRight className="w-4 h-4" />
                                     </div>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-slate-500" />
-                            </CardContent>
-                        </Card>
-                    </a>
-                ))}
-            </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            </main>
         </div>
     );
 }
+

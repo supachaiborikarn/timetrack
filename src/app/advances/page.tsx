@@ -1,26 +1,27 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AssetAttachmentField, type PendingAsset } from "@/components/media/asset-fields";
 import {
     Banknote,
     Plus,
     Clock,
-    CheckCircle,
+    CheckCircle2,
     DollarSign,
     XCircle,
     Loader2,
-    ArrowLeft,
     ChevronLeft,
     ChevronRight,
     Paperclip,
+    Calendar,
+    X,
 } from "lucide-react";
+import { toast } from "sonner";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
+import { formatThaiDate } from "@/lib/date-utils";
 
 interface Advance {
     id: string;
@@ -35,11 +36,27 @@ interface Advance {
     paidAt: string | null;
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
-    PENDING: { label: "รออนุมัติ", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20", icon: Clock },
-    APPROVED: { label: "อนุมัติแล้ว", color: "bg-blue-500/10 text-blue-500 border-blue-500/20", icon: CheckCircle },
-    PAID: { label: "จ่ายแล้ว", color: "bg-green-500/10 text-green-500 border-green-500/20", icon: DollarSign },
-    REJECTED: { label: "ปฏิเสธ", color: "bg-red-500/10 text-red-500 border-red-500/20", icon: XCircle },
+const statusConfig: Record<string, { label: string; badgeClass: string; icon: React.ComponentType<{ className?: string }> }> = {
+    PENDING: {
+        label: "รออนุมัติ",
+        badgeClass: "border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-300",
+        icon: Clock,
+    },
+    APPROVED: {
+        label: "อนุมัติแล้ว",
+        badgeClass: "border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300",
+        icon: CheckCircle2,
+    },
+    PAID: {
+        label: "จ่ายเงินแล้ว",
+        badgeClass: "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+        icon: DollarSign,
+    },
+    REJECTED: {
+        label: "ปฏิเสธ",
+        badgeClass: "border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400",
+        icon: XCircle,
+    },
 };
 
 export default function EmployeeAdvancesPage() {
@@ -67,40 +84,52 @@ export default function EmployeeAdvancesPage() {
             const res = await fetch(`/api/advances?${params}`);
             if (res.ok) {
                 const data = await res.json();
-                setAdvances(data.advances);
+                setAdvances(data.advances || []);
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("Error fetching advances:", error);
+            toast.error("ไม่สามารถโหลดข้อมูลการเบิกได้");
         } finally {
             setIsLoading(false);
         }
     }, [filterMonth, filterYear]);
 
     useEffect(() => {
-        fetchAdvances();
+        void fetchAdvances();
     }, [fetchAdvances]);
 
     const handleRequest = async () => {
-        if (!formAmount) return;
+        if (!formAmount || Number(formAmount) <= 0) {
+            toast.error("กรุณาระบุจำนวนเงินที่ถูกต้อง");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const res = await fetch("/api/advances", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: formAmount, reason: formReason, attachmentId: attachment?.id ?? null }),
+                body: JSON.stringify({
+                    amount: formAmount,
+                    reason: formReason,
+                    attachmentId: attachment?.id ?? null,
+                }),
             });
             if (res.ok) {
+                toast.success("ส่งคำขอเบิกค่าแรงสำเร็จ", {
+                    description: "รอฝ่ายบุคคลหรือผู้จัดการตรวจสอบ",
+                });
                 setShowRequestModal(false);
                 setFormAmount("");
                 setFormReason("");
                 setAttachment(null);
-                fetchAdvances();
+                void fetchAdvances();
             } else {
                 const err = await res.json();
-                alert(err.error || "เกิดข้อผิดพลาด");
+                toast.error(err.error || "เกิดข้อผิดพลาดในการยื่นคำขอ");
             }
-        } catch (error) {
-            console.error("Error:", error);
+        } catch {
+            toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setIsSaving(false);
         }
@@ -109,143 +138,188 @@ export default function EmployeeAdvancesPage() {
     const changeMonth = (delta: number) => {
         let m = filterMonth + delta;
         let y = filterYear;
-        if (m > 12) { m = 1; y++; }
-        if (m < 1) { m = 12; y--; }
+        if (m > 12) {
+            m = 1;
+            y++;
+        }
+        if (m < 1) {
+            m = 12;
+            y--;
+        }
         setFilterMonth(m);
         setFilterYear(y);
     };
 
     const totalAmount = advances.reduce((s, a) => s + Number(a.amount), 0);
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const thaiMonths = [
+        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+    ];
 
     if (authStatus === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#1a1412]">
-                <Loader2 className="w-8 h-8 animate-spin text-[#F09410]" />
+            <div className="min-h-screen flex items-center justify-center bg-[#eee8db] dark:bg-zinc-950">
+                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#1a1412] pb-24">
-            {/* Header */}
-            <header className="bg-gradient-to-r from-[#241705] to-[#3a2510] border-b border-orange-900/20 px-4 py-4 shadow-lg shadow-black/20">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="p-2 rounded-lg hover:bg-white/5 transition">
-                            <ArrowLeft className="w-5 h-5 text-[#F09410]" />
-                        </Link>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="SALARY ADVANCE"
+                title="เบิกค่าแรง"
+                subtitle="ขอเบิกเงินค่าแรงล่วงหน้าและตรวจสถานะ"
+                backHref="/"
+                right={
+                    <button
+                        onClick={() => setShowRequestModal(true)}
+                        className="tt-retro-control mt-0.5 grid h-11 px-3.5 place-items-center rounded-full border-[1.5px] border-black/70 bg-zinc-950 text-[#fbbf24] shadow-[inset_0_0_0_2px_rgba(255,255,255,0.18)] text-xs font-black flex-row gap-1.5 active:scale-95 transition-transform"
+                        aria-label="ขอเบิกค่าแรง"
+                    >
+                        <Plus className="w-4 h-4 text-[#fbbf24]" />
+                        <span>ขอเบิก</span>
+                    </button>
+                }
+            />
+
+            <main className="max-w-[480px] mx-auto p-4 space-y-4">
+                {/* Month Picker Stepper */}
+                <div className="tt-paper-card tt-instrument-frame rounded-[18px] border border-zinc-700/30 dark:border-white/15 p-2 flex items-center justify-between shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <button
+                        onClick={() => changeMonth(-1)}
+                        className="tt-retro-control w-10 h-10 rounded-full border border-black/20 bg-white/60 dark:bg-zinc-800 flex items-center justify-center active:scale-95 text-zinc-800 dark:text-zinc-100 hover:bg-white transition-colors"
+                        aria-label="เดือนก่อนหน้า"
+                    >
+                        <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="text-center">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 block">
+                            ประจำเดือน
+                        </span>
+                        <span className="font-black text-sm text-zinc-900 dark:text-zinc-100">
+                            {thaiMonths[filterMonth - 1]} {filterYear + 543}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => changeMonth(1)}
+                        className="tt-retro-control w-10 h-10 rounded-full border border-black/20 bg-white/60 dark:bg-zinc-800 flex items-center justify-center active:scale-95 text-zinc-800 dark:text-zinc-100 hover:bg-white transition-colors"
+                        aria-label="เดือนถัดไป"
+                    >
+                        <ChevronRight className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Summary Meter Panel */}
+                <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <div className="grid grid-cols-2 gap-3 divide-x divide-zinc-700/15 dark:divide-white/10">
                         <div>
-                            <h1 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FEEAF0] to-[#F0D0C7] text-lg">
-                                เบิกค่าแรง
-                            </h1>
-                            <p className="text-xs text-stone-400">รายการขอเบิกเงินค่าแรง</p>
+                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                                ยอดขอเบิกรวม
+                            </p>
+                            <p className="mt-1 font-mono text-2xl font-black text-amber-600 dark:text-[#fbbf24]">
+                                ฿{totalAmount.toLocaleString()}
+                            </p>
+                            <p className="text-[10px] font-bold text-zinc-500">ในรอบเดือนนี้</p>
+                        </div>
+                        <div className="pl-4">
+                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                                จำนวนคำขอ
+                            </p>
+                            <p className="mt-1 font-mono text-2xl font-black text-zinc-900 dark:text-zinc-100">
+                                {advances.length}
+                            </p>
+                            <p className="text-[10px] font-bold text-zinc-500">รายการทั้งหมด</p>
                         </div>
                     </div>
-                    <Button
-                        onClick={() => setShowRequestModal(true)}
-                        size="sm"
-                        className="bg-gradient-to-r from-[#F09410] to-[#BC430D] hover:opacity-90 text-white gap-1.5 shadow-lg shadow-orange-900/30"
-                    >
-                        <Plus className="w-4 h-4" />
-                        ขอเบิก
-                    </Button>
-                </div>
-            </header>
-
-            <main className="p-4 space-y-4">
-                {/* Month Picker */}
-                <div className="flex items-center justify-center gap-3">
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-stone-400 hover:text-[#F09410]" onClick={() => changeMonth(-1)}>
-                        <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                    <span className="font-semibold text-[#F0D0C7] min-w-[120px] text-center">
-                        {thaiMonths[filterMonth - 1]} {filterYear + 543}
-                    </span>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-stone-400 hover:text-[#F09410]" onClick={() => changeMonth(1)}>
-                        <ChevronRight className="w-5 h-5" />
-                    </Button>
-                </div>
-
-                {/* Summary */}
-                <Card className="bg-gradient-to-br from-[#2a2420] to-[#241705] border-orange-900/30">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-stone-400">ยอดเบิกรวม</p>
-                                <p className="text-2xl font-bold text-[#F09410]">{totalAmount.toLocaleString()} ฿</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs text-stone-400">จำนวนรายการ</p>
-                                <p className="text-2xl font-bold text-[#F0D0C7]">{advances.length}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                </section>
 
                 {/* Advances List */}
+                <div className="flex items-center justify-between pt-1 px-1">
+                    <h3 className="text-[12px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                        ประวัติการขอเบิก
+                    </h3>
+                    <span className="font-mono text-[11px] font-bold text-zinc-500">
+                        {advances.length} รายการ
+                    </span>
+                </div>
+
                 {isLoading ? (
-                    <div className="flex justify-center py-12">
-                        <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#fbbf24]" />
                     </div>
                 ) : advances.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Banknote className="w-12 h-12 mx-auto mb-3 text-stone-600" />
-                        <p className="text-stone-500">ไม่มีรายการเบิกค่าแรงในเดือนนี้</p>
-                        <Button
+                    <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-8 text-center dark:border-white/10 space-y-3">
+                        <Banknote className="w-10 h-10 text-zinc-400 mx-auto opacity-50" />
+                        <p className="text-xs font-black text-zinc-500">
+                            ไม่มีรายการเบิกค่าแรงในเดือนนี้
+                        </p>
+                        <button
                             onClick={() => setShowRequestModal(true)}
-                            variant="ghost"
-                            className="mt-3 text-[#F09410] hover:text-[#F09410] hover:bg-[#F09410]/10"
+                            className="tt-retro-control inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#fbbf24] text-zinc-950 text-xs font-black shadow-[0_2px_8px_rgba(251,191,36,0.25)] active:scale-95"
                         >
-                            <Plus className="w-4 h-4 mr-1" />
-                            ขอเบิกค่าแรง
-                        </Button>
+                            <Plus className="w-4 h-4" />
+                            ขอเบิกค่าแรงตอนนี้
+                        </button>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                         {advances.map((adv) => {
                             const sc = statusConfig[adv.status] || statusConfig.PENDING;
                             const StatusIcon = sc.icon;
                             return (
-                                <Card key={adv.id} className="bg-[#2a2420] border-orange-900/30 overflow-hidden">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="space-y-1">
-                                                <p className="text-lg font-bold text-[#F0D0C7]">
-                                                    {Number(adv.amount).toLocaleString()} ฿
-                                                </p>
-                                                {adv.reason && (
-                                                    <p className="text-xs text-stone-400">{adv.reason}</p>
-                                                )}
-                                                {adv.attachmentUrl && (
-                                                    <a href={adv.attachmentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-[#F09410] hover:underline">
-                                                        <Paperclip className="w-3 h-3" /> ดูหลักฐานที่แนบ
-                                                    </a>
-                                                )}
-                                                <p className="text-[10px] text-stone-500">
-                                                    {new Date(adv.createdAt).toLocaleDateString("th-TH", {
-                                                        day: "numeric",
-                                                        month: "short",
-                                                        year: "numeric",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })}
-                                                </p>
-                                            </div>
-                                            <Badge variant="outline" className={`${sc.color} gap-1 text-xs`}>
-                                                <StatusIcon className="w-3 h-3" />
-                                                {sc.label}
-                                            </Badge>
+                                <div
+                                    key={adv.id}
+                                    className="tt-paper-card tt-instrument-frame rounded-[18px] border border-zinc-700/30 p-3.5 dark:border-white/15 space-y-2 shadow-[0_2px_0_rgba(0,0,0,0.06)]"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-400">
+                                                จำนวนเงินที่ขอเบิก
+                                            </p>
+                                            <p className="text-xl font-mono font-black text-zinc-900 dark:text-zinc-100">
+                                                ฿{Number(adv.amount).toLocaleString()}
+                                            </p>
                                         </div>
-                                        {adv.note && (
-                                            <div className="mt-2 pt-2 border-t border-orange-900/20">
-                                                <p className="text-xs text-stone-400">
-                                                    <span className="text-stone-500">หมายเหตุ:</span> {adv.note}
-                                                </p>
-                                            </div>
+                                        <Badge variant="outline" className={`${sc.badgeClass} gap-1 text-[10px] font-black`}>
+                                            <StatusIcon className="w-3 h-3" />
+                                            {sc.label}
+                                        </Badge>
+                                    </div>
+
+                                    {adv.reason && (
+                                        <div className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
+                                            <span className="font-bold text-zinc-700 dark:text-zinc-300">เหตุผล: </span>
+                                            {adv.reason}
+                                        </div>
+                                    )}
+
+                                    {adv.note && (
+                                        <div className="text-[11px] font-medium text-amber-800 dark:text-amber-300 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                                            <span className="font-black">บันทึกจากผู้ดูแล: </span>
+                                            {adv.note}
+                                        </div>
+                                    )}
+
+                                    <div className="pt-1 border-t border-zinc-700/10 dark:border-white/5 flex items-center justify-between text-[9px] font-mono font-bold text-zinc-400">
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            <span>
+                                                ยื่นเมื่อ {formatThaiDate(new Date(adv.createdAt), "d MMM yyyy HH:mm")}
+                                            </span>
+                                        </div>
+                                        {adv.attachmentUrl && (
+                                            <a
+                                                href={adv.attachmentUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 hover:underline font-bold text-[10px]"
+                                            >
+                                                <Paperclip className="w-3 h-3" /> เอกสารแนบ
+                                            </a>
                                         )}
-                                    </CardContent>
-                                </Card>
+                                    </div>
+                                </div>
                             );
                         })}
                     </div>
@@ -254,66 +328,107 @@ export default function EmployeeAdvancesPage() {
 
             {/* Request Modal */}
             {showRequestModal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" onClick={() => setShowRequestModal(false)}>
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-xs"
+                    onClick={() => setShowRequestModal(false)}
+                >
                     <div
-                        className="bg-[#2a2420] border-t sm:border border-orange-900/30 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 space-y-4"
+                        className="tt-paper-card border-t sm:border border-zinc-700/35 dark:border-white/20 rounded-t-[28px] sm:rounded-[24px] shadow-2xl w-full sm:max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 space-y-4"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 className="text-lg font-bold text-[#F0D0C7] flex items-center gap-2">
-                            <Banknote className="w-5 h-5 text-[#F09410]" />
-                            ขอเบิกค่าแรง
-                        </h2>
+                        <div className="flex items-center justify-between pb-2 border-b border-zinc-700/15 dark:border-white/10">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full border border-black/15 bg-[#ffc62c]/35 flex items-center justify-center shrink-0">
+                                    <Banknote className="w-4 h-4 text-black dark:text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-[16px] font-black text-zinc-900 dark:text-zinc-100">
+                                        ขอเบิกค่าแรงล่วงหน้า
+                                    </h2>
+                                    <p className="text-[10px] font-bold text-zinc-500">
+                                        ระบุจำนวนเงินที่ต้องการขอเบิก
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowRequestModal(false)}
+                                className="p-1 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                                aria-label="ปิด"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-3.5">
                             <div>
-                                <label className="text-sm font-medium text-[#F0D0C7] mb-1.5 block">จำนวนเงิน (บาท) *</label>
-                                <input
-                                    type="number"
-                                    value={formAmount}
-                                    onChange={(e) => setFormAmount(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full h-12 rounded-lg border border-orange-900/30 bg-[#1a1412] px-4 text-lg font-bold text-[#F09410] placeholder:text-stone-600 focus:outline-none focus:border-[#F09410]/50"
-                                />
+                                <label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300 mb-1 block">
+                                    จำนวนเงินที่ต้องการเบิก (บาท) *
+                                </label>
+                                <div className="relative flex items-center">
+                                    <span className="absolute left-4 font-mono font-black text-lg text-zinc-400">
+                                        ฿
+                                    </span>
+                                    <input
+                                        type="number"
+                                        value={formAmount}
+                                        onChange={(e) => setFormAmount(e.target.value)}
+                                        placeholder="0"
+                                        min="1"
+                                        step="100"
+                                        className="w-full h-12 rounded-xl border border-zinc-700/30 bg-white dark:bg-zinc-900 pl-9 pr-4 text-xl font-mono font-black text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#fbbf24]"
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium text-[#F0D0C7] mb-1.5 block">เหตุผล</label>
+                                <label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300 mb-1 block">
+                                    เหตุผลความจำเป็น
+                                </label>
                                 <textarea
                                     value={formReason}
                                     onChange={(e) => setFormReason(e.target.value)}
-                                    placeholder="ระบุเหตุผลในการขอเบิก (ถ้ามี)"
+                                    placeholder="ระบุเหตุผลในการขอเบิก เช่น ค่ารักษาพยาบาล, ค่าใช้จ่ายฉุกเฉิน"
                                     rows={3}
-                                    className="w-full rounded-lg border border-orange-900/30 bg-[#1a1412] px-4 py-3 text-sm text-[#F0D0C7] placeholder:text-stone-600 resize-none focus:outline-none focus:border-[#F09410]/50"
+                                    className="w-full rounded-xl border border-zinc-700/30 bg-white dark:bg-zinc-900 px-3.5 py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-[#fbbf24]"
                                 />
                             </div>
+
                             <div>
-                                <label className="text-sm font-medium text-[#F0D0C7] mb-1.5 block">แนบหลักฐาน (ถ้ามี)</label>
+                                <label className="text-[11px] font-black text-zinc-700 dark:text-zinc-300 mb-1 block">
+                                    แนบหลักฐานประกอบ (ถ้ามี)
+                                </label>
                                 <AssetAttachmentField
                                     kind="REQUEST_ATTACHMENT"
                                     value={attachment}
                                     onChange={setAttachment}
-                                    buttonLabel="แนบรูป"
-                                    helpText="เช่น ใบเสร็จ ใบรับรองแพทย์ หรือเอกสารที่ใช้ประกอบการพิจารณา"
+                                    buttonLabel="แนบรูปเอกสาร/ใบเสร็จ"
+                                    helpText="เช่น ใบเสร็จ ใบรับรองแพทย์ หรือเอกสารประกอบการพิจารณา"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-2 pt-2">
-                            <Button
-                                variant="outline"
+                        <div className="flex gap-2.5 pt-2">
+                            <button
+                                type="button"
                                 onClick={() => setShowRequestModal(false)}
-                                className="flex-1 border-orange-900/30 text-stone-400 hover:text-[#F0D0C7] hover:bg-[#1a1412]"
+                                className="tt-retro-control flex-1 h-11 rounded-xl border border-zinc-700/30 bg-white/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 text-xs font-black active:scale-95"
                             >
                                 ยกเลิก
-                            </Button>
-                            <Button
+                            </button>
+                            <button
+                                type="button"
                                 onClick={handleRequest}
                                 disabled={!formAmount || isSaving}
-                                className="flex-1 bg-gradient-to-r from-[#F09410] to-[#BC430D] hover:opacity-90 text-white font-semibold shadow-lg shadow-orange-900/30"
+                                className="tt-retro-control flex-1 h-11 rounded-xl bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_2px_8px_rgba(251,191,36,0.25)] border border-black/20 active:scale-95 disabled:opacity-50 transition-all"
                             >
-                                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                ส่งคำขอเบิก
-                            </Button>
+                                {isSaving ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Plus className="w-4 h-4" />
+                                )}
+                                ยืนยันขอเบิก
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -321,3 +436,4 @@ export default function EmployeeAdvancesPage() {
         </div>
     );
 }
+

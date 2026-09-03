@@ -7,6 +7,18 @@ updated: 2026-09-03
 
 # Decisions
 
+## 2026-09-03: Unified Retro-Tactile Dashboard design system across all employee routes
+
+- All employee routes adhere strictly to the Retro-Tactile Dashboard design system:
+  - Container tokens: `min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden`.
+  - Max-width constraint: `max-w-[480px] mx-auto p-4 space-y-4` (or responsive desktop max-w-6xl for announcements feed).
+  - Common header: `<EmployeePageHeader eyebrow="..." title="..." subtitle="..." backHref="..." right={...} />`.
+  - Content containers: `.tt-paper-card .tt-instrument-frame rounded-[20px] border border-zinc-700/35 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]`.
+  - Action controls: `.tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl active:scale-[0.98]`.
+  - Monospace font for time, numeric figures, and badge counters.
+- Applied across Phase 1 (`/requests/time-correction`, `/advances`, `/qr-scan`), Phase 2 (`/requests`, `/requests/overtime`, `/requests/shift-swap`, `/requests/incoming`, `/schedule`, `/shift-pool`), and Phase 3 (`/wallet`, `/performance`, `/announcements`, `/announcements/[id]`, `/league`).
+- All business logic, attendance source-of-truth, and payroll calculation rules remain strictly unchanged.
+
 ## 2026-09-03: Gas cashiers use department-limited station scope
 
 - PAP gas clerks กุ้ง (`EMPE2D20`) / เล็ก (`EMP90026`) and SPC gas clerks ปุ้ก (`EMPC6A4F`) / เหน่ง (`EMPF7DE0`) remain `CASHIER` accounts at their existing parent PAP/SPC stations.
@@ -124,3 +136,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - The top employee dashboard card shows tomorrow's assignment using the already-normalized `tomorrowShift` from `/api/attendance/today`; day off and missing schedule are explicit states and no duplicate dashboard schedule query should be introduced.
 - Bottom Navigation may show notification unread count, but its count request must remain read-only and lightweight; do not call the notification-list endpoint from global navigation because that endpoint also performs stale-alert cleanup.
 - Citizen ID and bank account number are masked by default in employee Profile and require an explicit reveal action before the full value is shown.
+
+## 2026-09-03: Phase 1 Employee Self-Service routes redesigned to Retro-Tactile Dashboard Visual System
+
+- Expanded the retro-tactile visual language (cream paper `#eee8db`, dark mode `zinc-950`, Caltex yellow `#fbbf24`, `EmployeePageHeader`, `.tt-paper-card`, `.tt-instrument-frame`, and `.tt-retro-control`) to Phase 1 primary routes:
+  - `/requests/time-correction`: Migrated from legacy Slate-900 to tactile ticket style with 14-day date picker, retro time input, evidence attachment, and tactile history cards.
+  - `/advances`: Migrated from legacy dark brown `#1a1412` to retro instrument meter summary, month stepper, and tactile request modal with Sonner toast feedback.
+  - `/qr-scan`: Migrated from Slate-900 camera frame to retro viewfinder with Caltex-yellow corner guides, tactile camera controls, and high-contrast status feedback card.
+- Retained full compatibility with existing API endpoints, Geofence checks, device fingerprinting, and Next.js client caching patterns.

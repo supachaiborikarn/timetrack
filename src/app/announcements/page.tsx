@@ -25,14 +25,7 @@ import {
 import { formatThaiDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { AssetAttachmentField, type PendingAsset } from "@/components/media/asset-fields";
-import {
-    Breadcrumb,
-    BreadcrumbList,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbPage,
-    BreadcrumbSeparator
-} from "@/components/ui/breadcrumb";
+import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 
 interface Announcement {
     id: string;
@@ -220,98 +213,60 @@ export default function AnnouncementsPage() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-amber-50/70 via-slate-50 to-white pb-24">
-            <div className="border-b bg-white/85 backdrop-blur">
-                <div className="max-w-6xl mx-auto px-4 py-4 space-y-5">
-                    <Breadcrumb>
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href="/">หน้าหลัก</BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <BreadcrumbPage>ประกาศ</BreadcrumbPage>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
-
-                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                        <div className="space-y-2">
-                            <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                                <Megaphone className="w-3.5 h-3.5" />
-                                ศูนย์ประกาศและการรับทราบ
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-black tracking-tight text-slate-950">
-                                    ประกาศบริษัท
-                                </h1>
-                                <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                                    สร้างประกาศ ส่งแจ้งเตือนให้พนักงาน อ่านรายละเอียดเต็ม และติดตามการรับทราบได้จากหน้าเดียว
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            {isAdminOrManager && (
-                                <Button
-                                    variant="outline"
-                                    className="gap-2 bg-white"
-                                    onClick={() => router.push("/")}
-                                >
-                                    กลับหน้าแอดมิน
-                                </Button>
-                            )}
-                            <Button
-                                className="gap-2"
-                                onClick={() => document.getElementById("announcement-composer")?.scrollIntoView({
-                                    behavior: "smooth",
-                                    block: "start",
-                                })}
-                            >
-                                <PlusCircle className="w-4 h-4" />
-                                สร้างประกาศ
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
+            <EmployeePageHeader
+                eyebrow="ANNOUNCEMENTS"
+                title="ประกาศบริษัท"
+                subtitle="ศูนย์ประกาศ ข่าวสาร และการรับทราบข้อมูลพนักงาน"
+                backHref="/"
+                right={
+                    <button
+                        onClick={() => document.getElementById("announcement-composer")?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                        })}
+                        className="tt-retro-control mt-0.5 grid h-11 px-3.5 place-items-center rounded-full border-[1.5px] border-black/70 bg-zinc-950 text-[#fbbf24] shadow-[inset_0_0_0_2px_rgba(255,255,255,0.18)] text-xs font-black flex-row gap-1.5 active:scale-95 transition-transform"
+                    >
+                        <PlusCircle className="w-4 h-4 text-[#fbbf24]" />
+                        <span>สร้างประกาศ</span>
+                    </button>
+                }
+            />
 
             <div className="max-w-6xl mx-auto p-4">
                 <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
                     <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
                         <div className="grid grid-cols-3 gap-2">
-                            <div className="rounded-2xl border bg-white p-3 shadow-sm">
-                                <p className="text-[11px] font-semibold text-slate-500">ทั้งหมด</p>
-                                <p className="mt-1 text-2xl font-black text-slate-950">{posts.length}</p>
+                            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ทั้งหมด</p>
+                                <p className="mt-1 text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{posts.length}</p>
                             </div>
-                            <div className="rounded-2xl border bg-white p-3 shadow-sm">
-                                <p className="text-[11px] font-semibold text-slate-500">ปักหมุด</p>
-                                <p className="mt-1 text-2xl font-black text-amber-600">{pinnedCount}</p>
+                            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ปักหมุด</p>
+                                <p className="mt-1 text-2xl font-black font-mono text-amber-600 dark:text-amber-400">{pinnedCount}</p>
                             </div>
-                            <div className="rounded-2xl border bg-white p-3 shadow-sm">
-                                <p className="text-[11px] font-semibold text-slate-500">ยังไม่อ่าน</p>
-                                <p className="mt-1 text-2xl font-black text-blue-600">{unreadCount}</p>
+                            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-3 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ยังไม่อ่าน</p>
+                                <p className="mt-1 text-2xl font-black font-mono text-blue-600 dark:text-blue-400">{unreadCount}</p>
                             </div>
                         </div>
 
-                        <Card id="announcement-composer" className="border-none shadow-lg shadow-amber-100/70">
-                            <CardHeader className="space-y-2 pb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white">
-                                        <Megaphone className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h2 className="font-black text-slate-950">
-                                            {isAdminOrManager ? "สร้างประกาศใหม่" : "โพสต์ข้อความถึงทีม"}
-                                        </h2>
-                                        <p className="text-xs text-slate-500">
-                                            {isAdminOrManager
-                                                ? "ประกาศใหม่จะส่งเข้าเมนูแจ้งเตือนของพนักงานตามกลุ่มเป้าหมาย"
-                                                : "แชร์ข้อความหรือพูดคุยกับทีม"}
-                                        </p>
-                                    </div>
+                        <div id="announcement-composer" className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-4 space-y-3 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                            <div className="flex items-center gap-3 border-b border-zinc-700/15 dark:border-white/10 pb-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fbbf24] text-zinc-950 border border-black/15 font-black">
+                                    <Megaphone className="w-5 h-5" />
                                 </div>
-                            </CardHeader>
+                                <div>
+                                    <h2 className="font-black text-sm text-zinc-900 dark:text-zinc-100">
+                                        {isAdminOrManager ? "สร้างประกาศใหม่" : "โพสต์ข้อความถึงทีม"}
+                                    </h2>
+                                    <p className="text-[10px] font-bold text-zinc-500">
+                                        {isAdminOrManager
+                                            ? "ส่งแจ้งเตือนและกระจายข้อมูลสู่พนักงาน"
+                                            : "แชร์ข้อความหรือพูดคุยกับทีม"}
+                                    </p>
+                                </div>
+                            </div>
                             <CardContent className="space-y-3">
                             <Input
                                 placeholder="หัวข้อประกาศ"
@@ -398,38 +353,38 @@ export default function AnnouncementsPage() {
                                 </Button>
                             </div>
                         </CardContent>
-                    </Card>
+                    </div>
                     </aside>
 
                     <section className="space-y-4">
-                        <div className="flex flex-col gap-3 rounded-3xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)] sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h2 className="text-lg font-black text-slate-950">ประกาศล่าสุด</h2>
-                                <p className="text-sm text-slate-500">
-                                    กดการ์ดเพื่ออ่านเต็ม หรือใช้ปุ่มด้านขวาเพื่อแก้ไขและจัดการ
+                                <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">ประกาศล่าสุด</h2>
+                                <p className="text-xs text-zinc-500">
+                                    กดการ์ดเพื่ออ่านเต็ม หรือใช้ปุ่มด้านขวาเพื่อจัดการ
                                 </p>
                             </div>
-                            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
-                                <CheckCircle2 className="w-4 h-4" />
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                                 การอ่านรวม {totalReadCount} ครั้ง
                             </div>
                         </div>
 
                         {/* Feed */}
                         {isLoading ? (
-                            <div className="flex justify-center rounded-3xl border bg-white py-16">
-                                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                            <div className="flex justify-center tt-paper-card rounded-3xl border border-zinc-700/20 py-16">
+                                <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
                             </div>
                         ) : posts.length === 0 ? (
-                            <div className="rounded-3xl border border-dashed bg-white p-10 text-center">
-                                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                            <div className="tt-paper-card rounded-3xl border border-dashed border-zinc-700/30 p-10 text-center">
+                                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-700 dark:text-amber-400">
                                     <Megaphone className="w-6 h-6" />
                                 </div>
-                                <p className="font-bold text-slate-900">ยังไม่มีประกาศ</p>
-                                <p className="mt-1 text-sm text-slate-500">เริ่มสร้างประกาศแรกให้ทีมได้จากกล่องด้านซ้าย</p>
+                                <p className="font-black text-zinc-900 dark:text-zinc-100">ยังไม่มีประกาศ</p>
+                                <p className="mt-1 text-xs text-zinc-500">เริ่มสร้างประกาศแรกให้ทีมได้จากกล่องด้านซ้าย</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {posts.map((post) => {
                                     const deptNames = getDeptNames(post.targetDepartmentIds);
                                     return (
@@ -444,7 +399,7 @@ export default function AnnouncementsPage() {
                                                     router.push(`/announcements/${post.id}`);
                                                 }
                                             }}
-                                            className="group border-none bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                                            className="group tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 dark:border-white/15 shadow-[0_2px_0_rgba(0,0,0,0.06)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
                                         >
                                             <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
                                                 <Avatar className="h-11 w-11">
