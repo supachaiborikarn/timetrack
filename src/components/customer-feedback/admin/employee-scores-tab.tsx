@@ -5,6 +5,9 @@ import {
     AlertTriangle,
     Calendar,
     CheckCircle2,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     Clock,
     Flame,
     Loader2,
@@ -20,7 +23,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
     Bar,
     CartesianGrid,
@@ -200,6 +205,7 @@ export function EmployeeScoresTab() {
     const [view, setView] = useState<ScoreView>("overview");
     const [subTab, setSubTab] = useState<"overview" | "time" | "rubric" | "comments">("overview");
     const [employeeSearch, setEmployeeSearch] = useState("");
+    const [isMobileSelectorOpen, setIsMobileSelectorOpen] = useState(false);
     const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const [from, setFrom] = useState(() => isoDateInput(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
     const [to, setTo] = useState(() => isoDateInput(new Date()));
@@ -456,9 +462,9 @@ export function EmployeeScoresTab() {
                             </CardHeader>
                             <CardContent>
                                 {tStats?.progression.buckets && tStats.progression.buckets.length > 0 ? (
-                                    <div className="h-[220px] w-full">
+                                    <div className="h-[180px] sm:h-[220px] w-full">
                                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                                            <LineChart data={tStats.progression.buckets} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                                            <LineChart data={tStats.progression.buckets} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                                                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                                                 <YAxis domain={[0, 64]} tick={{ fontSize: 12 }} />
@@ -555,7 +561,7 @@ export function EmployeeScoresTab() {
                                         ยังไม่แสดงคะแนนรายข้อจนกว่าจะมีคำตอบ VALID อย่างน้อย {selected.minimumSample} แบบประเมิน เพื่อไม่สรุปผลงานจากตัวอย่างที่น้อยเกินไป
                                     </p>
                                 )}
-                                <div className="overflow-x-auto">
+                                <div className="hidden sm:block overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -584,6 +590,26 @@ export function EmployeeScoresTab() {
                                             ))}
                                         </TableBody>
                                     </Table>
+                                </div>
+
+                                <div className="block sm:hidden space-y-2">
+                                    {selected.criteria.map((criterion) => (
+                                        <div key={criterion.key} className="rounded-lg border p-2.5 bg-card text-xs space-y-1.5">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <span className="font-medium text-foreground">{criterion.label.th}</span>
+                                                <span className="font-bold shrink-0">
+                                                    {selected.meetsMinimumSample && criterion.earnedPerResponse !== null
+                                                        ? `${criterion.earnedPerResponse.toFixed(1)} / ${criterion.weight}`
+                                                        : "—"}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400 font-medium">YES {criterion.yes}</span>
+                                                <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive font-medium">NO {criterion.no}</span>
+                                                <span className="rounded bg-muted px-1.5 py-0.5">ไม่แน่ใจ {criterion.unsure}</span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                                 <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                                     <span>YES {selectedAnswerCounts?.yes ?? 0}</span>
@@ -617,20 +643,20 @@ export function EmployeeScoresTab() {
                             </CardHeader>
                             <CardContent>
                                 {tStats?.hourly && tStats.hourly.some((h) => h.responseCount > 0) ? (
-                                    <div className="h-[260px] w-full">
+                                    <div className="h-[210px] sm:h-[260px] w-full">
                                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                                            <ComposedChart data={tStats.hourly} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                                            <ComposedChart data={tStats.hourly} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                                                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={1} />
-                                                <YAxis yAxisId="left" orientation="left" allowDecimals={false} tick={{ fontSize: 12 }} />
-                                                <YAxis yAxisId="right" orientation="right" domain={[0, 64]} tick={{ fontSize: 12 }} />
+                                                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                                                <YAxis yAxisId="left" orientation="left" allowDecimals={false} tick={{ fontSize: 11 }} />
+                                                <YAxis yAxisId="right" orientation="right" domain={[0, 64]} tick={{ fontSize: 11 }} />
                                                 <Tooltip
                                                     formatter={(value, name) => [
                                                         name === "responseCount" ? `${value} แบบ` : `${typeof value === "number" ? value.toFixed(1) : value} / 64`,
                                                         name === "responseCount" ? "จำนวนประเมิน" : "คะแนนเฉลี่ย"
                                                     ]}
                                                 />
-                                                <Legend />
+                                                <Legend wrapperStyle={{ fontSize: "11px" }} />
                                                 <Bar yAxisId="left" dataKey="responseCount" name="จำนวนประเมิน" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                                                 <Line yAxisId="right" type="monotone" dataKey="score64" name="คะแนนเฉลี่ย" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
                                             </ComposedChart>
@@ -644,23 +670,23 @@ export function EmployeeScoresTab() {
                             </CardContent>
                         </Card>
 
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3">
                             {tStats?.timeSlots.map((slot) => (
                                 <Card key={slot.slotKey} className={slot.isPeak ? "border-primary/50 shadow-sm" : ""}>
-                                    <CardContent className="pt-4 space-y-2">
+                                    <CardContent className="p-3 sm:pt-4 space-y-1.5 sm:space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-muted-foreground">{slot.timeRange}</span>
-                                            {slot.isPeak && <Badge variant="default" className="text-[10px] px-1.5 py-0">Peak Slot</Badge>}
+                                            <span className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">{slot.timeRange}</span>
+                                            {slot.isPeak && <Badge variant="default" className="text-[9px] sm:text-[10px] px-1 py-0">Peak</Badge>}
                                         </div>
-                                        <div className="font-semibold text-sm">{slot.label}</div>
+                                        <div className="font-semibold text-xs sm:text-sm line-clamp-1">{slot.label}</div>
                                         <div className="flex items-baseline justify-between pt-1 border-t">
                                             <div>
-                                                <div className="text-[11px] text-muted-foreground">ประเมิน</div>
-                                                <div className="text-lg font-bold">{slot.responseCount} แบบ</div>
+                                                <div className="text-[10px] sm:text-[11px] text-muted-foreground">ประเมิน</div>
+                                                <div className="text-base sm:text-lg font-bold">{slot.responseCount} แบบ</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-[11px] text-muted-foreground">คะแนนเฉลี่ย</div>
-                                                <div className="text-lg font-bold">{slot.score64 !== null ? `${slot.score64.toFixed(1)}` : "—"}</div>
+                                                <div className="text-[10px] sm:text-[11px] text-muted-foreground">คะแนนเฉลี่ย</div>
+                                                <div className="text-base sm:text-lg font-bold">{slot.score64 !== null ? `${slot.score64.toFixed(1)}` : "—"}</div>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -755,7 +781,7 @@ export function EmployeeScoresTab() {
                                 </p>
                             </CardHeader>
                             <CardContent>
-                                <div className="overflow-x-auto">
+                                <div className="hidden md:block overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -807,6 +833,50 @@ export function EmployeeScoresTab() {
                                             ))}
                                         </TableBody>
                                     </Table>
+                                </div>
+
+                                <div className="block md:hidden space-y-2.5">
+                                    {tStats?.rushHourRubric.map((item) => (
+                                        <div key={item.questionKey} className="rounded-lg border p-3 bg-card space-y-2">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="font-semibold text-xs text-foreground leading-snug">
+                                                    {item.label.th}
+                                                </div>
+                                                <Badge variant="outline" className="text-[10px] shrink-0 font-normal">
+                                                    {item.weight} คะแนน
+                                                </Badge>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-1.5 rounded-md bg-muted/50 p-2 text-center text-xs">
+                                                <div>
+                                                    <div className="text-[10px] text-muted-foreground">เวลาปกติ</div>
+                                                    <div className="font-semibold">{item.normalRate !== null ? `${item.normalRate}%` : "—"}</div>
+                                                </div>
+                                                <div className="border-x border-border/60">
+                                                    <div className="text-[10px] text-muted-foreground">ช่วงเร่งด่วน</div>
+                                                    <div className="font-semibold">{item.rushHourRate !== null ? `${item.rushHourRate}%` : "—"}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] text-muted-foreground">ผลต่าง (Gap)</div>
+                                                    <div className={cn("font-bold", item.gap !== null && item.gap < 0 ? "text-destructive" : item.gap !== null && item.gap > 0 ? "text-emerald-600" : "")}>
+                                                        {item.gap !== null ? (item.gap > 0 ? `+${item.gap}%` : `${item.gap}%`) : "—"}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {item.isDropAlert ? (
+                                                <div className="flex items-center gap-1.5 rounded bg-destructive/10 px-2 py-1 text-[11px] font-medium text-destructive">
+                                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                                    <span>ตกหล่นช่วงเร่งด่วน (คะแนนลดลง {Math.abs(item.gap ?? 0)}%)</span>
+                                                </div>
+                                            ) : item.gap !== null && item.gap >= 0 ? (
+                                                <div className="flex items-center gap-1.5 rounded bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                                    <span>ทำได้สม่ำเสมอในทุกช่วงเวลา</span>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ))}
                                 </div>
                             </CardContent>
                         </Card>
@@ -888,22 +958,28 @@ export function EmployeeScoresTab() {
     return (
         <div className="space-y-4">
             <Card>
-                <CardContent className="flex flex-wrap items-end gap-3 pt-6">
-                    <div>
-                        <label htmlFor="employee-score-from" className="mb-1 block text-xs font-medium">ตั้งแต่วันที่</label>
-                        <Input id="employee-score-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-                    </div>
-                    <div>
-                        <label htmlFor="employee-score-to" className="mb-1 block text-xs font-medium">ถึงวันที่</label>
-                        <Input id="employee-score-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-                    </div>
-                    <Button variant="outline" onClick={() => void load()} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                        โหลดคะแนน
-                    </Button>
-                    <div className="ml-auto text-right text-sm text-muted-foreground">
-                        <div>คะแนนรวม 100 = เวลาทำงาน {data?.workPoints ?? 60} + ลูกค้า {data?.customerPoints ?? 40}</div>
-                        <div>โหลดเมื่อเปิดหน้า เปลี่ยนวันที่ หรือกดปุ่ม{lastUpdatedAt ? ` · ล่าสุด ${lastUpdatedAt.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}</div>
+                <CardContent className="pt-4 sm:pt-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end">
+                            <div>
+                                <label htmlFor="employee-score-from" className="mb-1 block text-xs font-medium">ตั้งแต่วันที่</label>
+                                <Input id="employee-score-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="w-full text-xs sm:text-sm" />
+                            </div>
+                            <div>
+                                <label htmlFor="employee-score-to" className="mb-1 block text-xs font-medium">ถึงวันที่</label>
+                                <Input id="employee-score-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} className="w-full text-xs sm:text-sm" />
+                            </div>
+                        </div>
+                        <Button variant="outline" onClick={() => void load()} disabled={isLoading} className="w-full sm:w-auto">
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                            โหลดคะแนน
+                        </Button>
+                        <div className="text-xs text-muted-foreground sm:ml-auto sm:text-right sm:text-sm">
+                            <div>คะแนนรวม 100 = เวลาทำงาน {data?.workPoints ?? 60} + ลูกค้า {data?.customerPoints ?? 40}</div>
+                            <div className="text-[11px] sm:text-xs">
+                                โหลดเมื่อเปิดหน้า เปลี่ยนวันที่ หรือกดปุ่ม{lastUpdatedAt ? ` · ล่าสุด ${lastUpdatedAt.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -936,7 +1012,8 @@ export function EmployeeScoresTab() {
                             <CardTitle>อันดับผลงานรวม</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="overflow-x-auto">
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -1021,15 +1098,181 @@ export function EmployeeScoresTab() {
                                     </TableBody>
                                 </Table>
                             </div>
+
+                            {/* Mobile Cards View */}
+                            <div className="block md:hidden space-y-3">
+                                {isLoading ? (
+                                    <div className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-primary" /></div>
+                                ) : !data || data.employees.length === 0 ? (
+                                    <div className="py-8 text-center text-sm text-muted-foreground">ไม่พบพนักงานหน้าลานที่ทำงานอยู่ในขอบเขตนี้</div>
+                                ) : (
+                                    data.employees.map((employee) => (
+                                        <Card key={`mobile-${employee.employeeId}`} className="overflow-hidden border shadow-sm transition-colors hover:border-primary/40">
+                                            <div className="p-3.5 space-y-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                                            {employee.rank ? `#${employee.rank}` : "—"}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="truncate font-semibold text-sm text-foreground">
+                                                                {employee.rank ? `#${employee.rank} ` : "— "}{employee.label}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground truncate">{employee.stationLabel ?? "ไม่ระบุสถานี"}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-base font-bold text-foreground">
+                                                            {employee.overallScore === null ? "—" : employee.overallScore.toFixed(0)}
+                                                            <span className="text-xs font-normal text-muted-foreground ml-0.5">/ 100</span>
+                                                        </div>
+                                                        <div>
+                                                            {employee.overallScore === null ? (
+                                                                employee.counts.requiredDays === 0 ? (
+                                                                    <Badge variant="secondary" className="text-[10px] px-1 py-0">ไม่มีวันทำงาน</Badge>
+                                                                ) : (
+                                                                    <Badge variant="secondary" className="text-[10px] px-1 py-0">รอลูกค้า {employee.responseCount}/{employee.minimumSample}</Badge>
+                                                                )
+                                                            ) : employee.isProvisional ? (
+                                                                <Badge variant="secondary" className="text-[10px] px-1 py-0">ระหว่างงวด</Badge>
+                                                            ) : (
+                                                                <Badge className="text-[10px] px-1 py-0">พร้อมจัดอันดับ</Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-2.5 text-xs">
+                                                    <div>
+                                                        <div className="text-[11px] text-muted-foreground">เวลาทำงาน</div>
+                                                        <div className="text-sm font-bold text-foreground">
+                                                            {employee.workPoints.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">/ {employee.workPointsMax}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                                                            มา {employee.counts.presentDays}/{employee.counts.requiredDays} · สาย {employee.counts.lateDays}
+                                                        </div>
+                                                    </div>
+                                                    <div className="border-l pl-2.5">
+                                                        <div className="text-[11px] text-muted-foreground">คะแนนลูกค้า</div>
+                                                        <div className="text-sm font-bold text-foreground">
+                                                            {employee.customerPoints === null ? "—" : employee.customerPoints.toFixed(1)}{" "}
+                                                            <span className="text-xs font-normal text-muted-foreground">/ {employee.customerPointsMax}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                                                            VALID {employee.responseCount}/{employee.minimumSample} แบบ
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-[11px] text-muted-foreground">เป้าเดือนนี้:</span>
+                                                        <span className="font-medium text-[11px]">
+                                                            {employee.monthlyEvaluationCount} / {monthlyTarget} แบบ
+                                                            <span className="text-muted-foreground ml-1">
+                                                                ({employee.monthlyEvaluationCount >= monthlyTarget ? "ครบแล้ว" : `ขาดอีก ${monthlyTarget - employee.monthlyEvaluationCount}`})
+                                                            </span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                                        <div
+                                                            className="h-full rounded-full bg-primary"
+                                                            style={{ width: `${Math.min(100, monthlyTarget > 0 ? (employee.monthlyEvaluationCount / monthlyTarget) * 100 : 0)}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full text-xs font-medium justify-center gap-1 mt-1"
+                                                    aria-label={`ดูคะแนนรายคน ${employee.label}`}
+                                                    onClick={() => openIndividual(employee.employeeId)}
+                                                >
+                                                    <span>ดูคะแนนรายคน</span>
+                                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                                </Button>
+                                            </div>
+                                        </Card>
+                                    ))
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
             )}
 
             {view === "individual" && (
-                <div className="mt-4">
+                <div className="mt-4 space-y-4">
+                    {/* Mobile Top Navigation & Employee Switcher */}
+                    <div className="lg:hidden flex items-center justify-between gap-2 rounded-lg border bg-card p-2.5 shadow-sm">
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setView("overview")}
+                            className="text-xs h-8 px-2 flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>อันดับรวม</span>
+                        </Button>
+
+                        <Sheet open={isMobileSelectorOpen} onOpenChange={setIsMobileSelectorOpen}>
+                            <SheetTrigger asChild>
+                                <Button size="sm" variant="outline" className="text-xs h-8 gap-1.5 max-w-[210px] truncate">
+                                    <UserRound className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    <span className="truncate">{selected?.label ?? "เลือกพนักงาน"}</span>
+                                    <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+                                </Button>
+                            </SheetTrigger>
+                            {isMobileSelectorOpen && (
+                                <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl p-4">
+                                    <SheetHeader className="text-left pb-2">
+                                        <SheetTitle className="text-base flex items-center gap-2">
+                                            <UserRound className="h-4 w-4 text-primary" />
+                                            เลือกพนักงาน
+                                        </SheetTitle>
+                                    </SheetHeader>
+                                    <div className="space-y-3 pt-2">
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                placeholder="ค้นหาชื่อหรือสถานี"
+                                                value={employeeSearch}
+                                                onChange={(e) => setEmployeeSearch(e.target.value)}
+                                                className="pl-9 text-sm"
+                                            />
+                                        </div>
+                                        <div className="max-h-[60vh] overflow-y-auto space-y-1 pr-1">
+                                            {filteredEmployees.map((emp) => (
+                                                <Button
+                                                    key={`sheet-${emp.employeeId}`}
+                                                    variant={selectedId === emp.employeeId ? "secondary" : "ghost"}
+                                                    className="w-full justify-between h-auto py-2.5 px-3 text-left"
+                                                    onClick={() => {
+                                                        setSelectedId(emp.employeeId);
+                                                        setIsMobileSelectorOpen(false);
+                                                    }}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="font-medium text-sm truncate">{emp.label}</div>
+                                                        <div className="text-xs text-muted-foreground truncate">{emp.stationLabel ?? "ไม่ระบุสถานี"}</div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="font-bold text-sm">{emp.overallScore === null ? "—" : emp.overallScore.toFixed(0)}</div>
+                                                        <div className="text-[10px] text-muted-foreground">/ 100</div>
+                                                    </div>
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </SheetContent>
+                            )}
+                        </Sheet>
+                    </div>
+
                     <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-                        <Card className="h-fit">
+                        {/* Desktop Sidebar */}
+                        <Card className="hidden lg:block h-fit">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <UserRound className="h-4 w-4" />

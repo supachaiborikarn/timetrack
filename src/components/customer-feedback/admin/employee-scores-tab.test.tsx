@@ -292,4 +292,28 @@ describe("EmployeeScoresTab individual score navigation", () => {
         expect(screen.getByText("บันทึกคำตอบและความคิดเห็นจากลูกค้า (Customer Feedback Feed)")).toBeTruthy();
         expect(screen.getByText(/น้องบริการสุภาพและรวดเร็วมากครับ/)).toBeTruthy();
     });
+
+    it("supports mobile cards and mobile switcher navigation", async () => {
+        render(<EmployeeScoresTab />);
+
+        await screen.findByText("สมชาย ใจดี");
+
+        // 1. Mobile card displays with rank prefix
+        expect(screen.getByText("#1 สมชาย ใจดี")).toBeTruthy();
+        expect(screen.getByText("— สมหญิง บริการดี")).toBeTruthy();
+
+        // 2. Click mobile action button on the card
+        const mobileBtn = screen.getByRole("button", { name: "ดูคะแนนรายคน สมชาย ใจดี" });
+        expect(mobileBtn).toBeTruthy();
+        fireEvent.click(mobileBtn);
+
+        // Verify individual view opened
+        expect(await screen.findByText("รายละเอียดคะแนนลูกค้า — สมชาย ใจดี")).toBeTruthy();
+
+        // 3. Mobile back button "อันดับรวม" works
+        const backBtn = screen.getByRole("button", { name: "อันดับรวม" });
+        expect(backBtn).toBeTruthy();
+        fireEvent.click(backBtn);
+        expect(screen.getByRole("tab", { name: "ภาพรวมคะแนน" }).getAttribute("aria-selected")).toBe("true");
+    });
 });
