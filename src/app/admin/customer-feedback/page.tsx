@@ -158,6 +158,7 @@ export default function CustomerFeedbackAdminPage() {
                         <CasesTab
                             currentUserId={session.user.id}
                             canSetStation={session.user.role === "ADMIN" || session.user.role === "HR"}
+                            canViewContact={permissions.has("customer_feedback.view_contact")}
                         />
                     </TabsContent>
                 )}

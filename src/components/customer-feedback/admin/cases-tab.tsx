@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Loader2, RefreshCw, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Eye, EyeOff, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatBangkokDateTime } from "@/lib/date-utils";
 import {
@@ -38,6 +38,7 @@ interface CaseRow {
     createdAt: string;
     assignedTo: { id: string; name: string } | null;
     response: {
+        id: string;
         refCode: string;
         kind: string;
         surveyVersion?: string | null;
@@ -53,6 +54,9 @@ interface CaseRow {
         departmentLabelSnapshot?: string | null;
         shiftLabelSnapshot?: string | null;
         wantsFollowUp?: boolean;
+        hasContact?: boolean;
+        contactChannel?: "PHONE" | "EMAIL" | null;
+        contactStatus?: "AVAILABLE" | "UNAVAILABLE" | "NOT_REQUESTED";
         validity?: string;
         submittedAt?: string;
         comment: string | null;
@@ -94,7 +98,7 @@ function answerIcon(answer: "YES" | "NO" | "UNSURE" | null) {
     return <CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />;
 }
 
-export function CasesTab({ currentUserId, canSetStation }: { currentUserId: string; canSetStation: boolean }) {
+export function CasesTab({ currentUserId, canSetStation, canViewContact = false }: { currentUserId: string; canSetStation: boolean; canViewContact?: boolean }) {
     const [rows, setRows] = useState<CaseRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -110,6 +114,10 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
     const [stations, setStations] = useState<StationOption[]>([]);
     const [isLoadingStations, setIsLoadingStations] = useState(false);
     const [isSavingStation, setIsSavingStation] = useState(false);
+    const [contactCache, setContactCache] = useState<Record<string, string>>({});
+    const [loadingContactId, setLoadingContactId] = useState<string | null>(null);
+    const contactRequestRef = useRef<AbortController | null>(null);
+    const contactTimersRef = useRef<Record<string, number>>({});
 
     const load = useCallback(async ({ quiet = false }: { quiet?: boolean } = {}) => {
         if (!quiet) setIsLoading(true);
@@ -159,6 +167,59 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
             document.removeEventListener("visibilitychange", onVisibility);
         };
     }, [load]);
+
+    useEffect(() => () => {
+        contactRequestRef.current?.abort();
+        Object.values(contactTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    }, []);
+
+    const viewContact = async (responseId: string) => {
+        if (contactCache[responseId]) {
+            window.clearTimeout(contactTimersRef.current[responseId]);
+            delete contactTimersRef.current[responseId];
+            setContactCache((current) => {
+                const next = { ...current };
+                delete next[responseId];
+                return next;
+            });
+            return;
+        }
+        contactRequestRef.current?.abort();
+        const controller = new AbortController();
+        contactRequestRef.current = controller;
+        setLoadingContactId(responseId);
+        try {
+            const response = await fetch(`/api/admin/customer-feedback/responses/${responseId}/contact`, {
+                cache: "no-store",
+                signal: controller.signal,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                toast.error(data.error ?? "เปิดข้อมูลติดต่อไม่สำเร็จ");
+                return;
+            }
+            if (controller.signal.aborted) return;
+            setContactCache((current) => ({
+                ...current,
+                [responseId]: `${data.contact.channel === "PHONE" ? "โทร" : "อีเมล"}: ${data.contact.value}${data.contact.name ? ` (${data.contact.name})` : ""}`,
+            }));
+            contactTimersRef.current[responseId] = window.setTimeout(() => {
+                setContactCache((current) => {
+                    const next = { ...current };
+                    delete next[responseId];
+                    return next;
+                });
+                delete contactTimersRef.current[responseId];
+            }, 60_000);
+        } catch (error) {
+            if (!(controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError"))) {
+                toast.error("เชื่อมต่อเพื่อเปิดข้อมูลติดต่อไม่ได้");
+            }
+        } finally {
+            if (contactRequestRef.current === controller) contactRequestRef.current = null;
+            setLoadingContactId((current) => current === responseId ? null : current);
+        }
+    };
 
     const clearFocusCase = () => {
         if (typeof window !== "undefined") {
@@ -324,7 +385,28 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
                                                                         <p className="mt-2 text-sm text-muted-foreground">ลูกค้าไม่ได้เลือกสาเหตุเฉพาะ{row.response.overallRating && row.response.overallRating <= 2 ? " (ข้อมูลเก่าบางรายการอาจไม่มีสาเหตุที่แปลงได้)" : ""}</p>
                                                                     )}
                                                                     {serviceAreaLabels.length > 0 && <p className="mt-3 text-sm"><span className="font-medium">ส่วนบริการ:</span> {serviceAreaLabels.join(" · ")}</p>}
-                                                                    {row.response.wantsFollowUp && <p className="mt-3 rounded bg-blue-50 px-2 py-1.5 text-sm font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">ลูกค้าขอให้ติดต่อกลับ</p>}
+                                                                    {row.response.wantsFollowUp && row.response.contactStatus === "AVAILABLE" && (
+                                                                        <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+                                                                            <p className="font-semibold">📞 ลูกค้าขอให้ติดต่อกลับ · มีข้อมูลติดต่อ</p>
+                                                                            <p className="mt-1 text-xs opacity-80">ช่องทาง: {row.response.contactChannel === "PHONE" ? "โทรศัพท์" : "อีเมล"} · ข้อมูลจริงจะแสดงเฉพาะเมื่อกดเปิด</p>
+                                                                            {canViewContact ? (
+                                                                                <div className="mt-2">
+                                                                                    <Button size="sm" variant="outline" disabled={loadingContactId === row.response.id} onClick={() => void viewContact(row.response.id)}>
+                                                                                        {loadingContactId === row.response.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" /> : contactCache[row.response.id] ? <EyeOff className="mr-1 h-4 w-4" /> : <Eye className="mr-1 h-4 w-4" />}
+                                                                                        {contactCache[row.response.id] ? "ซ่อนข้อมูลติดต่อ" : "ดูข้อมูลติดต่อ"}
+                                                                                    </Button>
+                                                                                    {contactCache[row.response.id] && <p className="mt-2 font-semibold">{contactCache[row.response.id]}</p>}
+                                                                                </div>
+                                                                            ) : <p className="mt-2 text-xs">บัญชีนี้ไม่มีสิทธิ์เปิดดูข้อมูลติดต่อ</p>}
+                                                                        </div>
+                                                                    )}
+                                                                    {row.response.wantsFollowUp && row.response.contactStatus !== "AVAILABLE" && (
+                                                                        <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                                                                            <p className="font-semibold">⚠ ลูกค้าขอให้ติดต่อกลับ แต่ไม่มีข้อมูลติดต่อ</p>
+                                                                            <p className="mt-1 text-xs">อาจเป็นข้อมูลเก่าหรือข้อมูลติดต่อพ้นระยะเวลาการเก็บแล้ว</p>
+                                                                            {row.severity !== "NORMAL" && <p className="mt-1 text-xs font-semibold">เคสระดับ {row.severity} ยังต้องตรวจสอบข้อเท็จจริงภายในต่อ แม้จะติดต่อลูกค้าไม่ได้</p>}
+                                                                        </div>
+                                                                    )}
                                                                 </section>
 
                                                                 <section className="rounded-lg border bg-background p-4">
@@ -385,6 +467,9 @@ export function CasesTab({ currentUserId, canSetStation }: { currentUserId: stri
                                                             {row.assignedTo?.id !== currentUserId && <Button size="sm" variant="outline" onClick={() => void act(row.id, { action: "assign", assignedToId: currentUserId })}>รับงานนี้</Button>}
                                                             {(row.status === "OPEN" || row.status === "IN_PROGRESS") && (
                                                                 <>
+                                                                    {row.severity === "NORMAL" && row.category === "follow-up" && row.response.wantsFollowUp && row.response.contactStatus !== "AVAILABLE" && (
+                                                                        <Button size="sm" variant="secondary" onClick={() => void act(row.id, { action: "resolve", resolutionNote: "ไม่สามารถติดต่อกลับได้ — ไม่มีข้อมูลติดต่อ" })}>ปิดเคส: ไม่มีข้อมูลติดต่อ</Button>
+                                                                    )}
                                                                     <Button size="sm" onClick={() => { const note = window.prompt("วิธีจัดการเคสนี้:"); if (note?.trim()) void act(row.id, { action: "resolve", resolutionNote: note }); }}>ปิดเคส</Button>
                                                                     <Button size="sm" variant="ghost" className="text-red-600" onClick={() => { const reason = window.prompt("เหตุผลที่ยกเลิก:"); if (reason?.trim()) void act(row.id, { action: "dismiss", dismissedReason: reason }); }}>ยกเลิกเคส</Button>
                                                                 </>

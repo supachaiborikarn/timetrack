@@ -38,6 +38,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         if (!response.contact) {
             return NextResponse.json({ error: "คำตอบนี้ไม่มีข้อมูลติดต่อ" }, { status: 404 });
         }
+        if (response.contact.purgeAfter.getTime() <= Date.now()) {
+            return NextResponse.json({ error: "ข้อมูลติดต่อพ้นระยะเวลาการเก็บแล้ว" }, { status: 404 });
+        }
 
         // บันทึก AuditLog ให้สำเร็จก่อน — ถ้าเขียนไม่ได้ตอบ 500 โดยไม่คืนข้อมูลติดต่อ
         try {

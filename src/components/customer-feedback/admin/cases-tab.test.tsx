@@ -149,3 +149,174 @@ describe("CasesTab actionable feedback details", () => {
         expect(screen.getByText(/ไม่ได้หมายความว่าไม่มีข้อมูล/)).toBeTruthy();
     });
 });
+
+
+describe("CasesTab follow-up contact workflow", () => {
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
+
+    it("reveals contact on demand when the user has permission", async () => {
+        vi.clearAllMocks();
+        fetchMock.mockReset();
+        vi.stubGlobal("fetch", fetchMock);
+        fetchMock
+            .mockResolvedValueOnce(new Response(JSON.stringify({
+                cases: [{
+                    id: "case-follow-1",
+                    severity: "NORMAL",
+                    status: "OPEN",
+                    category: "follow-up",
+                    stationId: "station-1",
+                    dueAt: "2026-09-05T10:00:00.000Z",
+                    acknowledgedAt: null,
+                    createdAt: "2026-09-03T10:00:00.000Z",
+                    assignedTo: null,
+                    response: {
+                        id: "response-follow-1",
+                        refCode: "FB-FOLLOW1",
+                        kind: "STANDARD",
+                        surveyVersion: "employee-v4",
+                        overallRating: 5,
+                        reasonKeys: [],
+                        serviceAreas: [],
+                        incidentKey: null,
+                        stationLabelSnapshot: "สถานีหนึ่ง",
+                        employeeLabelSnapshot: "พนักงานหนึ่ง",
+                        wantsFollowUp: true,
+                        hasContact: true,
+                        contactChannel: "PHONE",
+                        contactStatus: "AVAILABLE",
+                        validity: "VALID",
+                        submittedAt: "2026-09-03T09:30:00.000Z",
+                        comment: null,
+                        answers: [],
+                    },
+                }],
+                total: 1,
+            }), { status: 200, headers: { "Content-Type": "application/json" } }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({
+                contact: { channel: "PHONE", value: "0812345678", name: "คุณเอ" },
+            }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+        render(<CasesTab currentUserId="admin-1" canSetStation canViewContact />);
+        fireEvent.click(await screen.findByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
+        expect(screen.getByText("📞 ลูกค้าขอให้ติดต่อกลับ · มีข้อมูลติดต่อ")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "ดูข้อมูลติดต่อ" }));
+
+        expect(await screen.findByText("โทร: 0812345678 (คุณเอ)")).toBeTruthy();
+        expect(fetchMock).toHaveBeenCalledWith(
+            "/api/admin/customer-feedback/responses/response-follow-1/contact",
+            expect.objectContaining({ cache: "no-store" }),
+        );
+    });
+
+    it("offers the canned resolution only for a NORMAL follow-up with no contact", async () => {
+        vi.clearAllMocks();
+        fetchMock.mockReset();
+        vi.stubGlobal("fetch", fetchMock);
+        fetchMock
+            .mockResolvedValueOnce(new Response(JSON.stringify({
+                cases: [{
+                    id: "case-follow-missing",
+                    severity: "NORMAL",
+                    status: "OPEN",
+                    category: "follow-up",
+                    stationId: "station-1",
+                    dueAt: "2026-09-05T10:00:00.000Z",
+                    acknowledgedAt: null,
+                    createdAt: "2026-09-03T10:00:00.000Z",
+                    assignedTo: null,
+                    response: {
+                        id: "response-follow-missing",
+                        refCode: "FB-MISSING",
+                        kind: "STANDARD",
+                        surveyVersion: "employee-v4",
+                        overallRating: 5,
+                        reasonKeys: [],
+                        serviceAreas: [],
+                        incidentKey: null,
+                        stationLabelSnapshot: "สถานีหนึ่ง",
+                        employeeLabelSnapshot: "พนักงานหนึ่ง",
+                        wantsFollowUp: true,
+                        hasContact: false,
+                        contactChannel: null,
+                        contactStatus: "UNAVAILABLE",
+                        validity: "VALID",
+                        submittedAt: "2026-09-03T09:30:00.000Z",
+                        comment: null,
+                        answers: [],
+                    },
+                }],
+                total: 1,
+            }), { status: 200, headers: { "Content-Type": "application/json" } }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ message: "อัปเดตเคสแล้ว" }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ cases: [], total: 0 }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }));
+
+        render(<CasesTab currentUserId="admin-1" canSetStation canViewContact />);
+        fireEvent.click(await screen.findByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
+        expect(screen.getByText("⚠ ลูกค้าขอให้ติดต่อกลับ แต่ไม่มีข้อมูลติดต่อ")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "ปิดเคส: ไม่มีข้อมูลติดต่อ" }));
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+            "/api/admin/customer-feedback/cases/case-follow-missing",
+            expect.objectContaining({
+                method: "PATCH",
+                body: JSON.stringify({ action: "resolve", resolutionNote: "ไม่สามารถติดต่อกลับได้ — ไม่มีข้อมูลติดต่อ" }),
+            }),
+        ));
+    });
+
+    it("keeps HIGH cases open for internal investigation when contact is unavailable", async () => {
+        vi.clearAllMocks();
+        fetchMock.mockReset();
+        vi.stubGlobal("fetch", fetchMock);
+        fetchMock.mockResolvedValue(new Response(JSON.stringify({
+            cases: [{
+                id: "case-high-missing",
+                severity: "HIGH",
+                status: "OPEN",
+                category: "negative-feedback",
+                stationId: "station-1",
+                dueAt: "2026-09-05T10:00:00.000Z",
+                acknowledgedAt: null,
+                createdAt: "2026-09-03T10:00:00.000Z",
+                assignedTo: null,
+                response: {
+                    id: "response-high-missing",
+                    refCode: "FB-HIGH",
+                    kind: "STANDARD",
+                    surveyVersion: "employee-v4",
+                    overallRating: 1,
+                    reasonKeys: ["employee_courtesy"],
+                    serviceAreas: [],
+                    incidentKey: null,
+                    stationLabelSnapshot: "สถานีหนึ่ง",
+                    employeeLabelSnapshot: "พนักงานหนึ่ง",
+                    wantsFollowUp: true,
+                    hasContact: false,
+                    contactChannel: null,
+                    contactStatus: "UNAVAILABLE",
+                    validity: "VALID",
+                    submittedAt: "2026-09-03T09:30:00.000Z",
+                    comment: null,
+                    answers: [],
+                },
+            }],
+            total: 1,
+        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+        render(<CasesTab currentUserId="admin-1" canSetStation canViewContact />);
+        fireEvent.click(await screen.findByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
+
+        expect(screen.getByText(/เคสระดับ HIGH ยังต้องตรวจสอบข้อเท็จจริงภายในต่อ/)).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "ปิดเคส: ไม่มีข้อมูลติดต่อ" })).toBeNull();
+    });
+});

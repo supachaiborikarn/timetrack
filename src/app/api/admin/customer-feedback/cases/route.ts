@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
                 include: {
                     response: {
                         select: {
+                            id: true,
                             refCode: true,
                             kind: true,
                             overallRating: true,
@@ -108,6 +109,9 @@ export async function GET(request: NextRequest) {
                             validity: true,
                             submittedAt: true,
                             comment: true,
+                            contact: {
+                                select: { channel: true, purgeAfter: true },
+                            },
                             answers: {
                                 select: {
                                     questionKey: true,
@@ -126,18 +130,27 @@ export async function GET(request: NextRequest) {
         ]);
 
         return NextResponse.json({
-            cases: cases.map((c) => ({
-                id: c.id,
-                severity: c.severity,
-                status: c.status,
-                category: c.category,
-                stationId: c.stationId,
-                dueAt: c.dueAt,
-                acknowledgedAt: c.acknowledgedAt,
-                assignedTo: c.assignedTo,
-                createdAt: c.createdAt,
-                response: c.response,
-            })),
+            cases: cases.map((c) => {
+                const { contact, ...response } = c.response;
+                const hasContact = Boolean(contact && contact.purgeAfter.getTime() > Date.now());
+                return {
+                    id: c.id,
+                    severity: c.severity,
+                    status: c.status,
+                    category: c.category,
+                    stationId: c.stationId,
+                    dueAt: c.dueAt,
+                    acknowledgedAt: c.acknowledgedAt,
+                    assignedTo: c.assignedTo,
+                    createdAt: c.createdAt,
+                    response: {
+                        ...response,
+                        hasContact,
+                        contactChannel: hasContact ? contact?.channel ?? null : null,
+                        contactStatus: !response.wantsFollowUp ? "NOT_REQUESTED" : hasContact ? "AVAILABLE" : "UNAVAILABLE",
+                    },
+                };
+            }),
             total,
             page,
             pageSize,
