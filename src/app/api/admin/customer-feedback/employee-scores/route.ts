@@ -8,7 +8,11 @@ import {
     resolveFeedbackStationId,
 } from "@/lib/customer-feedback/access";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
-import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
+import {
+    calculateEmployeeTemporalStats,
+    summarizeEmployeeRubric,
+    type EmployeeScoreResponseInput,
+} from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/customer-feedback/questions";
 import { startOfDayBangkok } from "@/lib/date-utils";
 import {
@@ -71,6 +75,10 @@ export async function GET(request: NextRequest) {
                         id: true,
                         employeeId: true,
                         submittedAt: true,
+                        shiftLabelSnapshot: true,
+                        comment: true,
+                        overallRating: true,
+                        durationSeconds: true,
                         answers: {
                             where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
                             select: { questionKey: true, choiceValues: true },
@@ -177,6 +185,11 @@ export async function GET(request: NextRequest) {
             }
             bucket.responses.push({
                 responseId: response.id,
+                submittedAt: response.submittedAt,
+                shiftLabelSnapshot: response.shiftLabelSnapshot,
+                comment: response.comment,
+                overallRating: response.overallRating,
+                durationSeconds: response.durationSeconds,
                 answers: response.answers.flatMap((answer) => {
                     const value = answer.choiceValues[0];
                     return value === "YES" || value === "NO" || value === "UNSURE"
@@ -191,6 +204,7 @@ export async function GET(request: NextRequest) {
             .map((employee) => {
                 const bucket = grouped.get(employee.id) ?? { latestAt: null, responses: [] };
                 const rubric = summarizeEmployeeRubric(bucket.responses);
+                const temporalStats = calculateEmployeeTemporalStats(bucket.responses);
                 const performance = calculateEmployeePerformance({
                     assignments: assignments.filter((row) => row.userId === employee.id),
                     attendances: attendances.filter((row) => row.userId === employee.id),
@@ -230,6 +244,7 @@ export async function GET(request: NextRequest) {
                     latestResponseAt: bucket.latestAt?.toISOString() ?? null,
                     monthlyEvaluationCount: monthlyCountByEmployee.get(employee.id) ?? 0,
                     ...rubric,
+                    temporalStats,
                     rank: null as number | null,
                     overallScore,
                     workPoints: performance.workPoints,

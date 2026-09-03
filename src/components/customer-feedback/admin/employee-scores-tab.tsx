@@ -1,13 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCcw, Search, UserRound } from "lucide-react";
+import {
+    AlertTriangle,
+    Calendar,
+    CheckCircle2,
+    Clock,
+    Flame,
+    Loader2,
+    MessageSquare,
+    RefreshCcw,
+    Search,
+    TrendingDown,
+    TrendingUp,
+    UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Bar,
+    CartesianGrid,
+    ComposedChart,
+    Legend,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 
 type Criterion = {
     key: string;
@@ -18,6 +43,83 @@ type Criterion = {
     unsure: number;
     evaluable: number;
     earnedPerResponse: number | null;
+};
+
+type HourlyStat = {
+    hour: number;
+    label: string;
+    responseCount: number;
+    score64: number | null;
+};
+
+type TimeSlotStat = {
+    slotKey: "morning_rush" | "daytime" | "evening_rush" | "night";
+    label: string;
+    timeRange: string;
+    responseCount: number;
+    score64: number | null;
+    isPeak: boolean;
+};
+
+type ShiftStat = {
+    shiftLabel: string;
+    responseCount: number;
+    score64: number | null;
+};
+
+type DayOfWeekStat = {
+    type: "weekday" | "weekend";
+    label: string;
+    responseCount: number;
+    score64: number | null;
+};
+
+type ProgressionBucket = {
+    periodKey: string;
+    label: string;
+    startDate: string;
+    endDate: string;
+    responseCount: number;
+    score64: number | null;
+    customerPoints: number | null;
+};
+
+type RushHourRubricComparison = {
+    questionKey: string;
+    label: { th: string; en: string };
+    weight: number;
+    normalRate: number | null;
+    rushHourRate: number | null;
+    gap: number | null;
+    isDropAlert: boolean;
+};
+
+type RecentFeedbackItem = {
+    id: string;
+    submittedAt: string;
+    timeLabel: string;
+    shiftLabel: string | null;
+    durationSeconds: number;
+    score64: number | null;
+    comment: string | null;
+    missedCriteria: string[];
+};
+
+type EmployeeTemporalStats = {
+    peakHour: string | null;
+    peakSlot: string | null;
+    hourly: HourlyStat[];
+    timeSlots: TimeSlotStat[];
+    shifts: ShiftStat[];
+    dayOfWeek: DayOfWeekStat[];
+    progression: {
+        buckets: ProgressionBucket[];
+        trend: "improving" | "declining" | "stable" | "insufficient_data";
+        delta: number | null;
+        summaryText: string;
+    };
+    rushHourRubric: RushHourRubricComparison[];
+    recentFeedbacks: RecentFeedbackItem[];
 };
 
 type EmployeeScore = {
@@ -67,6 +169,7 @@ type EmployeeScore = {
     evaluableWeight: number;
     excludedWeight: number;
     criteria: Criterion[];
+    temporalStats?: EmployeeTemporalStats;
 };
 
 type ScoreResponse = {
@@ -95,6 +198,7 @@ export function EmployeeScoresTab() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [view, setView] = useState<ScoreView>("overview");
+    const [subTab, setSubTab] = useState<"overview" | "time" | "rubric" | "comments">("overview");
     const [employeeSearch, setEmployeeSearch] = useState("");
     const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const [from, setFrom] = useState(() => isoDateInput(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
@@ -160,6 +264,7 @@ export function EmployeeScoresTab() {
     const openIndividual = (employeeId: string) => {
         setSelectedId(employeeId);
         setView("individual");
+        setSubTab("overview");
     };
 
     const renderIndividualDetail = () => {
@@ -172,6 +277,8 @@ export function EmployeeScoresTab() {
                 </Card>
             );
         }
+
+        const tStats = selected.temporalStats;
 
         return (
             <div className="space-y-4">
@@ -250,103 +357,530 @@ export function EmployeeScoresTab() {
                     </Card>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>รายละเอียดเวลาทำงาน 60 คะแนน</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className="rounded-lg border p-3">
-                                <div className="text-xs text-muted-foreground">การมาทำงาน</div>
-                                <div className="mt-1 text-xl font-bold">{selected.components.presence.toFixed(1)} / 25</div>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <div className="text-xs text-muted-foreground">ตรงเวลา</div>
-                                <div className="mt-1 text-xl font-bold">{selected.components.punctuality.toFixed(1)} / 15</div>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <div className="text-xs text-muted-foreground">อยู่ครบกะ</div>
-                                <div className="mt-1 text-xl font-bold">{selected.components.completion.toFixed(1)} / 10</div>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <div className="text-xs text-muted-foreground">พักตามกำหนด</div>
-                                <div className="mt-1 text-xl font-bold">{selected.components.breakDiscipline.toFixed(1)} / 10</div>
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 text-sm">
-                            <Badge variant="outline">มา {selected.counts.presentDays} วัน</Badge>
-                            <Badge variant="outline">ขาด {selected.counts.absentDays} วัน</Badge>
-                            <Badge variant="outline">สาย {selected.counts.lateDays} วัน</Badge>
-                            <Badge variant="outline">ออกก่อน {selected.counts.earlyLeaveDays} วัน</Badge>
-                            <Badge variant="outline">พักเกิน {selected.counts.overBreakDays} วัน</Badge>
-                            <Badge variant="outline">ลาอนุมัติ {selected.counts.approvedLeaveDays} วัน</Badge>
-                            <Badge variant="outline">วันหยุด {selected.counts.dayOffDays} วัน</Badge>
-                        </div>
-                        {selected.dataIssues.length > 0 && (
-                            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                                <div className="font-semibold text-destructive">พบข้อมูลที่ต้องตรวจสอบ</div>
-                                <ul className="mt-2 list-disc space-y-1 pl-5">
-                                    {selected.dataIssues.map((issue) => <li key={issue}>{issue}</li>)}
-                                </ul>
+                {/* Progression & Peak Highlight Banner */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-xs sm:text-sm">แนวโน้มผลงาน:</span>
+                        {tStats?.progression.trend === "improving" && (
+                            <Badge className="bg-emerald-600 hover:bg-emerald-600/90 text-white flex items-center gap-1">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                                มีพัฒนาการ (+{tStats.progression.delta?.toFixed(1)} คะแนน ↗)
+                            </Badge>
+                        )}
+                        {tStats?.progression.trend === "declining" && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                                <TrendingDown className="h-3.5 w-3.5" />
+                                คะแนนลดลง ({tStats.progression.delta?.toFixed(1)} คะแนน ↘)
+                            </Badge>
+                        )}
+                        {tStats?.progression.trend === "stable" && (
+                            <Badge variant="outline" className="border-blue-500/40 text-blue-600 flex items-center gap-1">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                สม่ำเสมอคงที่ (→)
+                            </Badge>
+                        )}
+                        {(!tStats || tStats.progression.trend === "insufficient_data") && (
+                            <Badge variant="secondary">รอสะสมข้อมูลเพื่อวัดแนวโน้ม</Badge>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        {tStats?.peakSlot && (
+                            <div className="flex items-center gap-1">
+                                <Flame className="h-3.5 w-3.5 text-amber-500" />
+                                <span>ช่วงประเมินหนาแน่น: <strong className="text-foreground">{tStats.peakSlot}</strong></span>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                        {tStats?.peakHour && !tStats?.peakSlot && (
+                            <div className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5 text-primary" />
+                                <span>ชั่วโมงประเมินสูงสุด: <strong className="text-foreground">{tStats.peakHour}</strong></span>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex flex-wrap items-center gap-2">
-                            รายละเอียดคะแนนลูกค้า — {selected.label}
-                            {selected.stationLabel && <Badge variant="secondary">{selected.stationLabel}</Badge>}
-                            {selected.score64 !== null && <Badge variant="outline">{selected.score64.toFixed(1)} / 64</Badge>}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {!selected.meetsMinimumSample && (
-                            <p className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-                                ยังไม่แสดงคะแนนรายข้อจนกว่าจะมีคำตอบ VALID อย่างน้อย {selected.minimumSample} แบบประเมิน เพื่อไม่สรุปผลงานจากตัวอย่างที่น้อยเกินไป
-                            </p>
-                        )}
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>เกณฑ์</TableHead>
-                                        <TableHead className="text-right">เต็ม</TableHead>
-                                        <TableHead className="text-right">YES</TableHead>
-                                        <TableHead className="text-right">NO</TableHead>
-                                        <TableHead className="text-right">ไม่แน่ใจ</TableHead>
-                                        <TableHead className="text-right">คะแนนเฉลี่ย</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {selected.criteria.map((criterion) => (
-                                        <TableRow key={criterion.key}>
-                                            <TableCell>{criterion.label.th}</TableCell>
-                                            <TableCell className="text-right">{criterion.weight}</TableCell>
-                                            <TableCell className="text-right">{criterion.yes}</TableCell>
-                                            <TableCell className="text-right">{criterion.no}</TableCell>
-                                            <TableCell className="text-right">{criterion.unsure}</TableCell>
-                                            <TableCell className="text-right font-semibold">
-                                                {selected.meetsMinimumSample && criterion.earnedPerResponse !== null
-                                                    ? `${criterion.earnedPerResponse.toFixed(1)} / ${criterion.weight}`
-                                                    : "—"}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                {/* Sub-Tab Switcher */}
+                <div className="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-4" role="tablist" aria-label="หมวดหมู่รายละเอียดพนักงาน">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={subTab === "overview" ? "secondary" : "ghost"}
+                        onClick={() => setSubTab("overview")}
+                        className="text-xs sm:text-sm"
+                    >
+                        ภาพรวม & พัฒนาการ
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={subTab === "time" ? "secondary" : "ghost"}
+                        onClick={() => setSubTab("time")}
+                        className="text-xs sm:text-sm"
+                    >
+                        ช่วงเวลา & กะทำงาน
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={subTab === "rubric" ? "secondary" : "ghost"}
+                        onClick={() => setSubTab("rubric")}
+                        className="text-xs sm:text-sm"
+                    >
+                        เกณฑ์ 9 ข้อ & ชม.เร่งด่วน
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={subTab === "comments" ? "secondary" : "ghost"}
+                        onClick={() => setSubTab("comments")}
+                        className="text-xs sm:text-sm"
+                    >
+                        ความคิดเห็นลูกค้า ({tStats?.recentFeedbacks.length ?? 0})
+                    </Button>
+                </div>
+
+                {/* SUB-TAB 1: ภาพรวม & พัฒนาการ */}
+                {subTab === "overview" && (
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center justify-between">
+                                    <span>แนวโน้มคะแนนการบริการ (Score Progression)</span>
+                                    {tStats?.progression.delta !== null && tStats?.progression.delta !== undefined && (
+                                        <Badge variant="outline">
+                                            ผลต่าง {tStats.progression.delta >= 0 ? "+" : ""}{tStats.progression.delta.toFixed(1)} คะแนน
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">{tStats?.progression.summaryText ?? "กำลังโหลดข้อมูล..."}</p>
+                            </CardHeader>
+                            <CardContent>
+                                {tStats?.progression.buckets && tStats.progression.buckets.length > 0 ? (
+                                    <div className="h-[220px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                            <LineChart data={tStats.progression.buckets} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                                                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                                <YAxis domain={[0, 64]} tick={{ fontSize: 12 }} />
+                                                <Tooltip
+                                                    formatter={(value, name) => [
+                                                        typeof value === "number" ? value.toFixed(1) : value,
+                                                        name === "score64" ? "คะแนนเฉลี่ย (/64)" : "คะแนนผลงาน (/40)"
+                                                    ]}
+                                                />
+                                                <Legend />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="score64"
+                                                    name="คะแนนบริการ (/64)"
+                                                    stroke="#3b82f6"
+                                                    strokeWidth={2}
+                                                    dot={{ r: 4 }}
+                                                    activeDot={{ r: 6 }}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="customerPoints"
+                                                    name="คะแนนลูกค้า (/40)"
+                                                    stroke="#10b981"
+                                                    strokeWidth={2}
+                                                    strokeDasharray="4 4"
+                                                    dot={{ r: 3 }}
+                                                />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ) : (
+                                    <div className="py-8 text-center text-sm text-muted-foreground">
+                                        ยังไม่มีข้อมูลแบบประเมินเพียงพอสำหรับแสดงกราฟพัฒนาการ
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>รายละเอียดเวลาทำงาน 60 คะแนน</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    <div className="rounded-lg border p-3">
+                                        <div className="text-xs text-muted-foreground">การมาทำงาน</div>
+                                        <div className="mt-1 text-xl font-bold">{selected.components.presence.toFixed(1)} / 25</div>
+                                    </div>
+                                    <div className="rounded-lg border p-3">
+                                        <div className="text-xs text-muted-foreground">ตรงเวลา</div>
+                                        <div className="mt-1 text-xl font-bold">{selected.components.punctuality.toFixed(1)} / 15</div>
+                                    </div>
+                                    <div className="rounded-lg border p-3">
+                                        <div className="text-xs text-muted-foreground">อยู่ครบกะ</div>
+                                        <div className="mt-1 text-xl font-bold">{selected.components.completion.toFixed(1)} / 10</div>
+                                    </div>
+                                    <div className="rounded-lg border p-3">
+                                        <div className="text-xs text-muted-foreground">พักตามกำหนด</div>
+                                        <div className="mt-1 text-xl font-bold">{selected.components.breakDiscipline.toFixed(1)} / 10</div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-sm">
+                                    <Badge variant="outline">มา {selected.counts.presentDays} วัน</Badge>
+                                    <Badge variant="outline">ขาด {selected.counts.absentDays} วัน</Badge>
+                                    <Badge variant="outline">สาย {selected.counts.lateDays} วัน</Badge>
+                                    <Badge variant="outline">ออกก่อน {selected.counts.earlyLeaveDays} วัน</Badge>
+                                    <Badge variant="outline">พักเกิน {selected.counts.overBreakDays} วัน</Badge>
+                                    <Badge variant="outline">ลาอนุมัติ {selected.counts.approvedLeaveDays} วัน</Badge>
+                                    <Badge variant="outline">วันหยุด {selected.counts.dayOffDays} วัน</Badge>
+                                </div>
+                                {selected.dataIssues.length > 0 && (
+                                    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                                        <div className="font-semibold text-destructive">พบข้อมูลที่ต้องตรวจสอบ</div>
+                                        <ul className="mt-2 list-disc space-y-1 pl-5">
+                                            {selected.dataIssues.map((issue) => <li key={issue}>{issue}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex flex-wrap items-center gap-2">
+                                    รายละเอียดคะแนนลูกค้า — {selected.label}
+                                    {selected.stationLabel && <Badge variant="secondary">{selected.stationLabel}</Badge>}
+                                    {selected.score64 !== null && <Badge variant="outline">{selected.score64.toFixed(1)} / 64</Badge>}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {!selected.meetsMinimumSample && (
+                                    <p className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                                        ยังไม่แสดงคะแนนรายข้อจนกว่าจะมีคำตอบ VALID อย่างน้อย {selected.minimumSample} แบบประเมิน เพื่อไม่สรุปผลงานจากตัวอย่างที่น้อยเกินไป
+                                    </p>
+                                )}
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>เกณฑ์</TableHead>
+                                                <TableHead className="text-right">เต็ม</TableHead>
+                                                <TableHead className="text-right">YES</TableHead>
+                                                <TableHead className="text-right">NO</TableHead>
+                                                <TableHead className="text-right">ไม่แน่ใจ</TableHead>
+                                                <TableHead className="text-right">คะแนนเฉลี่ย</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {selected.criteria.map((criterion) => (
+                                                <TableRow key={criterion.key}>
+                                                    <TableCell>{criterion.label.th}</TableCell>
+                                                    <TableCell className="text-right">{criterion.weight}</TableCell>
+                                                    <TableCell className="text-right">{criterion.yes}</TableCell>
+                                                    <TableCell className="text-right">{criterion.no}</TableCell>
+                                                    <TableCell className="text-right">{criterion.unsure}</TableCell>
+                                                    <TableCell className="text-right font-semibold">
+                                                        {selected.meetsMinimumSample && criterion.earnedPerResponse !== null
+                                                            ? `${criterion.earnedPerResponse.toFixed(1)} / ${criterion.weight}`
+                                                            : "—"}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                                    <span>YES {selectedAnswerCounts?.yes ?? 0}</span>
+                                    <span>NO {selectedAnswerCounts?.no ?? 0}</span>
+                                    <span>ไม่แน่ใจ {selectedAnswerCounts?.unsure ?? 0}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    “ไม่แน่ใจ” ถูกตัดออกจากฐานคะแนนของข้อนั้น คะแนนผลงานรวมยังไม่เขียนเข้า Payroll อัตโนมัติ
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* SUB-TAB 2: ช่วงเวลา & กะทำงาน */}
+                {subTab === "time" && (
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center justify-between">
+                                    <span>ปริมาณและคะแนนเฉลี่ยรายชั่วโมง (Bangkok Time)</span>
+                                    {tStats?.peakHour && (
+                                        <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400">
+                                            พีคสุด: {tStats.peakHour}
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                    แท่งสีน้ำเงินคือจำนวนแบบประเมินที่ลูกค้าสแกนตอบในแต่ละชั่วโมง · เส้นสีส้มคือคะแนนเฉลี่ย Caltex (/64)
+                                </p>
+                            </CardHeader>
+                            <CardContent>
+                                {tStats?.hourly && tStats.hourly.some((h) => h.responseCount > 0) ? (
+                                    <div className="h-[260px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                            <ComposedChart data={tStats.hourly} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                                                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={1} />
+                                                <YAxis yAxisId="left" orientation="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                                                <YAxis yAxisId="right" orientation="right" domain={[0, 64]} tick={{ fontSize: 12 }} />
+                                                <Tooltip
+                                                    formatter={(value, name) => [
+                                                        name === "responseCount" ? `${value} แบบ` : `${typeof value === "number" ? value.toFixed(1) : value} / 64`,
+                                                        name === "responseCount" ? "จำนวนประเมิน" : "คะแนนเฉลี่ย"
+                                                    ]}
+                                                />
+                                                <Legend />
+                                                <Bar yAxisId="left" dataKey="responseCount" name="จำนวนประเมิน" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                                <Line yAxisId="right" type="monotone" dataKey="score64" name="คะแนนเฉลี่ย" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                                            </ComposedChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ) : (
+                                    <div className="py-8 text-center text-sm text-muted-foreground">
+                                        ยังไม่มีข้อมูลแบบประเมินรายชั่วโมง
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {tStats?.timeSlots.map((slot) => (
+                                <Card key={slot.slotKey} className={slot.isPeak ? "border-primary/50 shadow-sm" : ""}>
+                                    <CardContent className="pt-4 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-medium text-muted-foreground">{slot.timeRange}</span>
+                                            {slot.isPeak && <Badge variant="default" className="text-[10px] px-1.5 py-0">Peak Slot</Badge>}
+                                        </div>
+                                        <div className="font-semibold text-sm">{slot.label}</div>
+                                        <div className="flex items-baseline justify-between pt-1 border-t">
+                                            <div>
+                                                <div className="text-[11px] text-muted-foreground">ประเมิน</div>
+                                                <div className="text-lg font-bold">{slot.responseCount} แบบ</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[11px] text-muted-foreground">คะแนนเฉลี่ย</div>
+                                                <div className="text-lg font-bold">{slot.score64 !== null ? `${slot.score64.toFixed(1)}` : "—"}</div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
-                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                            <span>YES {selectedAnswerCounts?.yes ?? 0}</span>
-                            <span>NO {selectedAnswerCounts?.no ?? 0}</span>
-                            <span>ไม่แน่ใจ {selectedAnswerCounts?.unsure ?? 0}</span>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                        <Clock className="h-4 w-4 text-muted-foreground" />
+                                        เปรียบเทียบตามกะการทำงาน (Shift Breakdown)
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {tStats?.shifts && tStats.shifts.length > 0 ? (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>กะการทำงาน</TableHead>
+                                                    <TableHead className="text-right">จำนวนประเมิน</TableHead>
+                                                    <TableHead className="text-right">คะแนนเฉลี่ย / 64</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {tStats.shifts.map((s) => (
+                                                    <TableRow key={s.shiftLabel}>
+                                                        <TableCell className="font-medium">{s.shiftLabel}</TableCell>
+                                                        <TableCell className="text-right">{s.responseCount} แบบ</TableCell>
+                                                        <TableCell className="text-right font-semibold">
+                                                            {s.score64 !== null ? s.score64.toFixed(1) : "—"}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <div className="py-6 text-center text-sm text-muted-foreground">ไม่มีข้อมูลกะการทำงาน</div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                                        วันธรรมดา vs วันหยุดสุดสัปดาห์
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {tStats?.dayOfWeek && tStats.dayOfWeek.length > 0 ? (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>ช่วงวัน</TableHead>
+                                                    <TableHead className="text-right">จำนวนประเมิน</TableHead>
+                                                    <TableHead className="text-right">คะแนนเฉลี่ย / 64</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {tStats.dayOfWeek.map((dow) => (
+                                                    <TableRow key={dow.type}>
+                                                        <TableCell className="font-medium">{dow.label}</TableCell>
+                                                        <TableCell className="text-right">{dow.responseCount} แบบ</TableCell>
+                                                        <TableCell className="text-right font-semibold">
+                                                            {dow.score64 !== null ? dow.score64.toFixed(1) : "—"}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <div className="py-6 text-center text-sm text-muted-foreground">ไม่มีข้อมูลช่วงวัน</div>
+                                    )}
+                                </CardContent>
+                            </Card>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            “ไม่แน่ใจ” ถูกตัดออกจากฐานคะแนนของข้อนั้น คะแนนผลงานรวมยังไม่เขียนเข้า Payroll อัตโนมัติ
-                        </p>
-                    </CardContent>
-                </Card>
+                    </div>
+                )}
+
+                {/* SUB-TAB 3: เกณฑ์ 9 ข้อ & ชม.เร่งด่วน */}
+                {subTab === "rubric" && (
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base">
+                                    การวิเคราะห์เกณฑ์ 9 ขั้นตอน Caltex และจุดตกหล่นช่วงเร่งด่วน
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                    เปรียบเทียบอัตราการผ่านเกณฑ์ (YES Rate %) ระหว่าง <strong>เวลาปกติ</strong> กับ <strong>ชั่วโมงเร่งด่วน (06:00-09:00 และ 16:00-19:30)</strong> เพื่อระบุขั้นตอนที่มักตกหล่นเวลาที่รถเข้าแถวยาว
+                                </p>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>เกณฑ์การบริการ Caltex</TableHead>
+                                                <TableHead className="text-right">เต็ม</TableHead>
+                                                <TableHead className="text-right">เวลาปกติ</TableHead>
+                                                <TableHead className="text-right">ช่วงเร่งด่วน</TableHead>
+                                                <TableHead className="text-right">ผลต่าง (Gap)</TableHead>
+                                                <TableHead className="text-center">จุดสังเกต</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {tStats?.rushHourRubric.map((item) => (
+                                                <TableRow key={item.questionKey}>
+                                                    <TableCell className="font-medium max-w-[280px]">
+                                                        {item.label.th}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">{item.weight}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {item.normalRate !== null ? `${item.normalRate}%` : "—"}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-semibold">
+                                                        {item.rushHourRate !== null ? `${item.rushHourRate}%` : "—"}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {item.gap !== null ? (
+                                                            <span className={item.gap < 0 ? "text-destructive font-semibold" : item.gap > 0 ? "text-emerald-600 font-semibold" : ""}>
+                                                                {item.gap > 0 ? `+${item.gap}%` : `${item.gap}%`}
+                                                            </span>
+                                                        ) : (
+                                                            "—"
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        {item.isDropAlert ? (
+                                                            <Badge variant="destructive" className="flex items-center gap-1 text-[11px] justify-center">
+                                                                <AlertTriangle className="h-3 w-3" />
+                                                                ตกหล่นช่วงเร่งด่วน
+                                                            </Badge>
+                                                        ) : item.gap !== null && item.gap >= 0 ? (
+                                                            <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 text-[11px]">
+                                                                ทำได้สม่ำเสมอ
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* SUB-TAB 4: ความคิดเห็นลูกค้า */}
+                {subTab === "comments" && (
+                    <div className="space-y-3">
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <MessageSquare className="h-4 w-4" />
+                                    บันทึกคำตอบและความคิดเห็นจากลูกค้า (Customer Feedback Feed)
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                    เรียงตามวันเวลาที่ลูกค้าส่งแบบประเมินล่าสุด พร้อมแสดงข้อคิดเห็นและเกณฑ์ที่ถูกตอบ NO
+                                </p>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {!tStats?.recentFeedbacks || tStats.recentFeedbacks.length === 0 ? (
+                                    <div className="py-8 text-center text-sm text-muted-foreground">
+                                        ยังไม่มีแบบประเมินในช่วงเวลานี้
+                                    </div>
+                                ) : (
+                                    tStats.recentFeedbacks.map((fb) => (
+                                        <div key={fb.id} className="rounded-lg border p-3.5 space-y-2 bg-card">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    <span className="font-semibold">{fb.timeLabel}</span>
+                                                    {fb.shiftLabel && <Badge variant="secondary" className="text-[10px]">{fb.shiftLabel}</Badge>}
+                                                    {fb.durationSeconds > 0 && (
+                                                        <span className="text-muted-foreground">({fb.durationSeconds} วินาที)</span>
+                                                    )}
+                                                </div>
+                                                <Badge variant="outline" className="font-semibold">
+                                                    {fb.score64 !== null ? `${fb.score64} / 64 คะแนน` : "รวบรวมคะแนน"}
+                                                </Badge>
+                                            </div>
+
+                                            {fb.comment ? (
+                                                <div className="rounded-md bg-muted/60 p-2.5 text-sm italic text-foreground flex items-start gap-2">
+                                                    <MessageSquare className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                                                    <span>“{fb.comment}”</span>
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-muted-foreground italic pl-1">
+                                                    (ลูกค้าไม่ได้ระบุข้อคิดเห็นเพิ่มเติม)
+                                                </div>
+                                            )}
+
+                                            {fb.missedCriteria.length > 0 ? (
+                                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                                    <span className="text-xs font-medium text-destructive">ขั้นตอนที่ไม่ผ่าน:</span>
+                                                    {fb.missedCriteria.map((missed) => (
+                                                        <Badge key={missed} variant="outline" className="border-destructive/40 text-destructive text-[11px]">
+                                                            {missed}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 pt-1">
+                                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                                    <span>ผ่านเกณฑ์ประเมินครบทุกข้อ</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
             </div>
         );
     };

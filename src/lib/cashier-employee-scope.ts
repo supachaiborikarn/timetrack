@@ -24,6 +24,10 @@ export function isGasCashier(user: ScopeUser | null | undefined): boolean {
         && gasCashierEmployeeIds.has(user.employeeId!);
 }
 
+export function isFuelCashier(user: ScopeUser | null | undefined): boolean {
+    return user?.role === "CASHIER" && !isGasCashier(user);
+}
+
 export function gasCashierEmployeeWhere(user: ScopeUser | null | undefined): Prisma.UserWhereInput | null {
     if (!isGasCashier(user)) return null;
     if (!user?.stationId) return { id: { in: [] } };
