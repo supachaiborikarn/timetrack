@@ -127,14 +127,22 @@ interface DashboardData {
     actionItems: ActionItem[];
     fuelCashierTeamFeedback?: {
         dailyTarget: number;
+        rollingWorkdayTarget: number;
         teamMetTargetCount: number;
         teamNeedsMoreCount: number;
+        teamFollowUpCount: number;
+        teamNeedsExplanationCount: number;
         employees: Array<{
             userId: string;
             label: string;
             todayEvaluationCount: number;
             remainingToday: number;
             dailyStatus: "NOT_YET" | "NEAR" | "DONE";
+            rollingWorkdayCount: number;
+            rollingEvaluationCount: number;
+            rollingTargetCount: number;
+            cooperationRate: number | null;
+            cooperationStatus: "BUILDING" | "NORMAL" | "FOLLOW_UP" | "EXPLAIN";
             leagueRank: number | null;
             leagueScore: number | null;
             leagueNeedsReview: boolean;
@@ -409,17 +417,27 @@ export function AdminHomeView() {
 
                 {teamFeedback && (
                     <section className="rounded-[20px] border border-zinc-700/30 bg-[#fbf5e8] dark:bg-zinc-900 p-3 shadow-[0_2px_0_rgba(0,0,0,0.07)]">
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start justify-between gap-3 mb-2">
                             <div>
                                 <p className="text-[9px] font-black tracking-[0.16em] text-zinc-400 uppercase">TEAM FEEDBACK</p>
                                 <h2 className="text-[14px] font-black">ติดตามแบบประเมินทีมหน้าลาน</h2>
-                                <p className="mt-0.5 text-[9px] font-bold text-zinc-400">วันนี้เป้าคนละ {teamFeedback.dailyTarget} แบบ · เฉพาะคนเข้ากะในสาขานี้</p>
+                                <p className="mt-0.5 text-[9px] font-bold text-zinc-400">วันนี้เป้าคนละ {teamFeedback.dailyTarget} แบบ · ดูความร่วมมือย้อนหลัง {teamFeedback.rollingWorkdayTarget} วันทำงาน</p>
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="text-[22px] leading-none font-black">{teamFeedback.teamMetTargetCount}/{teamFeedback.employees.length}</p>
-                                <p className="mt-1 text-[8px] font-black text-zinc-400">ครบเป้าแล้ว</p>
+                                <p className="mt-1 text-[8px] font-black text-zinc-400">ครบเป้าวันนี้</p>
                             </div>
                         </div>
+                        {(teamFeedback.teamNeedsExplanationCount > 0 || teamFeedback.teamFollowUpCount > 0) && (
+                            <div className="mb-2 flex flex-wrap gap-1.5">
+                                {teamFeedback.teamNeedsExplanationCount > 0 && (
+                                    <Badge variant="destructive" className="h-5 rounded-full px-2 text-[8px]">ต้องชี้แจง {teamFeedback.teamNeedsExplanationCount} คน</Badge>
+                                )}
+                                {teamFeedback.teamFollowUpCount > 0 && (
+                                    <Badge variant="outline" className="h-5 rounded-full border-amber-300 bg-amber-50 px-2 text-[8px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">ติดตาม {teamFeedback.teamFollowUpCount} คน</Badge>
+                                )}
+                            </div>
+                        )}
                         {teamFeedback.employees.length === 0 ? (
                             <div className="rounded-xl border border-dashed p-3 text-center text-[10px] font-bold text-zinc-400">วันนี้ไม่มีพนักงานหน้าลานที่เข้ากะ</div>
                         ) : (
@@ -427,18 +445,48 @@ export function AdminHomeView() {
                                 {teamFeedback.employees.map((employee) => {
                                     const done = employee.dailyStatus === "DONE";
                                     const near = employee.dailyStatus === "NEAR";
+                                    const needsExplanation = employee.cooperationStatus === "EXPLAIN";
+                                    const needsFollowUp = employee.cooperationStatus === "FOLLOW_UP";
+                                    const buildingHistory = employee.cooperationStatus === "BUILDING";
+                                    const cooperationLabel = needsExplanation
+                                        ? "ต้องชี้แจง"
+                                        : needsFollowUp
+                                            ? "ติดตาม"
+                                            : buildingHistory
+                                                ? `รอข้อมูล ${employee.rollingWorkdayCount}/${teamFeedback.rollingWorkdayTarget} วัน`
+                                                : "ร่วมมือปกติ";
+                                    const cooperationClass = needsExplanation
+                                        ? "border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+                                        : needsFollowUp
+                                            ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                                            : employee.cooperationStatus === "NORMAL"
+                                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                                : "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+                                    const dailyMessage = done
+                                        ? "ครบเป้าวันนี้แล้ว"
+                                        : employee.todayEvaluationCount <= 1
+                                            ? `วันนี้ยังน้อย · ขอเพิ่มอีก ${employee.remainingToday} แบบ`
+                                            : near
+                                                ? `ใกล้ครบ · ขอเพิ่มอีก ${employee.remainingToday} แบบ`
+                                                : `ขอเพิ่มอีก ${employee.remainingToday} แบบ`;
                                     return (
-                                        <div key={employee.userId} className="rounded-[14px] border border-zinc-700/20 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5">
+                                        <div key={employee.userId} className={`rounded-[14px] border px-3 py-2.5 ${needsExplanation ? "border-red-300/70 bg-red-50/70 dark:border-red-900/70 dark:bg-red-950/15" : "border-zinc-700/20 bg-white/60 dark:bg-white/[0.03]"}`}>
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <p className="truncate text-[11px] font-black">{employee.label}</p>
+                                                        <Badge variant="outline" className={`h-5 rounded-full px-1.5 text-[8px] ${cooperationClass}`}>{cooperationLabel}</Badge>
                                                         {employee.leagueRank !== null && <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[8px]">League #{employee.leagueRank}</Badge>}
                                                         {employee.leagueNeedsReview && <Badge variant="destructive" className="h-5 rounded-full px-1.5 text-[8px]">ตรวจ Fair Play</Badge>}
                                                     </div>
-                                                    <p className="mt-0.5 text-[8px] font-bold text-zinc-400">
-                                                        {done ? "ครบเป้าวันนี้แล้ว" : near ? `ใกล้ครบ · ขอเพิ่มอีก ${employee.remainingToday} แบบ` : `ขอเพิ่มอีก ${employee.remainingToday} แบบ`}
+                                                    <p className="mt-0.5 text-[8px] font-bold text-zinc-500 dark:text-zinc-400">
+                                                        {dailyMessage}
                                                         {employee.leagueScore !== null ? ` • League ${employee.leagueScore.toFixed(1)} คะแนน` : " • อันดับ League ยังรอข้อมูลประเมินเพิ่ม"}
+                                                    </p>
+                                                    <p className={`mt-0.5 text-[8px] font-black ${needsExplanation ? "text-red-600 dark:text-red-300" : needsFollowUp ? "text-amber-700 dark:text-amber-300" : "text-zinc-400"}`}>
+                                                        {buildingHistory
+                                                            ? `ยังไม่ตัดสินความร่วมมือจนกว่าจะครบ ${teamFeedback.rollingWorkdayTarget} วันทำงาน`
+                                                            : `ความร่วมมือ ${employee.cooperationRate ?? 0}% · ${employee.rollingEvaluationCount}/${employee.rollingTargetCount} แบบย้อนหลัง`}
                                                     </p>
                                                 </div>
                                                 <div className={`shrink-0 rounded-xl px-2.5 py-1.5 text-center ${done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : near ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"}`}>

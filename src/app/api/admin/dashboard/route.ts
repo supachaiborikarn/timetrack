@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDayBangkok } from "@/lib/date-utils";
+import { getBangkokDateKey } from "@/lib/attendance-rules";
 import { calculateBreakOverageMinutes, resolveAllowedBreakMinutes } from "@/lib/break-rules";
 import { GAS_CASHIER_SCOPE_LABEL, gasCashierEmployeeWhere, isFuelCashier, isGasCashier } from "@/lib/cashier-employee-scope";
 import { calculateStationWeeklyLeague, getBangkokWeekBounds } from "@/lib/competition/league";
@@ -328,13 +329,26 @@ export async function GET(request: NextRequest) {
                     ...expectedAssignments.map((assignment) => assignment.userId),
                     ...attendanceRows.filter((row) => Boolean(row.checkInTime)).map((row) => row.userId),
                 ])];
-                const [league, feedbackResponses] = await Promise.all([
+                const historyFrom = new Date(feedbackDay.from.getTime() - 44 * DAY_MS);
+                const todayKey = getBangkokDateKey(nowReal);
+                const [league, recentAttendances, recentFeedbackRows] = await Promise.all([
                     calculateStationWeeklyLeague({
                         stationId,
                         from: week.from,
                         to: week.to,
                         referenceTime: nowReal,
                     }),
+                    workingUserIds.length > 0
+                        ? prisma.attendance.findMany({
+                            where: {
+                                userId: { in: workingUserIds },
+                                date: { gte: historyFrom, lt: feedbackDay.toExclusive },
+                                checkInTime: { not: null },
+                            },
+                            select: { userId: true, date: true },
+                            orderBy: { date: "desc" },
+                        })
+                        : Promise.resolve([]),
                     workingUserIds.length > 0
                         ? prisma.customerFeedbackResponse.findMany({
                             where: {
@@ -344,12 +358,16 @@ export async function GET(request: NextRequest) {
                                 employeeId: { in: workingUserIds },
                                 surveyVersion: { in: ["employee-v3", "employee-v4"] },
                                 validity: "VALID",
-                                submittedAt: { gte: feedbackDay.from, lt: feedbackDay.toExclusive },
+                                submittedAt: { gte: historyFrom, lt: feedbackDay.toExclusive },
                             },
-                            select: { employeeId: true },
+                            select: { employeeId: true, submittedAt: true },
                         })
                         : Promise.resolve([]),
                 ]);
+                const recentFeedbackResponses = recentFeedbackRows.map((response) => ({
+                    employeeId: response.employeeId,
+                    dayKey: getBangkokDateKey(response.submittedAt),
+                }));
 
                 return buildFuelCashierTeamFeedback({
                     standings: league.standings.map((standing) => ({
@@ -360,7 +378,14 @@ export async function GET(request: NextRequest) {
                         isEligible: standing.isEligible,
                         fairPlayStatus: standing.fairPlayStatus,
                     })),
-                    feedbackResponses,
+                    feedbackResponses: recentFeedbackResponses
+                        .filter((response) => response.dayKey === todayKey)
+                        .map((response) => ({ employeeId: response.employeeId })),
+                    recentWorkdays: recentAttendances.map((attendance) => ({
+                        userId: attendance.userId,
+                        dayKey: getBangkokDateKey(attendance.date),
+                    })),
+                    recentFeedbackResponses,
                     workingUserIds,
                 });
             })()

@@ -1264,3 +1264,33 @@ Verification:
 Pending:
 
 - No commit or push has been created for this change yet.
+
+
+## 2026-09-03 — Added rolling feedback-cooperation status for oil cashiers
+
+Goal:
+
+- Distinguish an employee who is simply short on today's evaluation target from someone who repeatedly does not cooperate with asking customers for feedback.
+- Keep customer-service quality scores separate from cooperation behavior.
+
+Implementation:
+
+- Extended the oil-cashier TEAM FEEDBACK card with a rolling 5-actual-workday cooperation view based on attendance check-ins and VALID employee-v3/v4 feedback at the cashier's station.
+- Cooperation uses the public target of 5 valid evaluations per worked day and caps each day's contribution at 5, so one unusually busy day cannot compensate for repeated zero days.
+- Status thresholds after 5 actual workdays: NORMAL at 80%+, FOLLOW_UP at 60-79%, and EXPLAIN below 60%. Before 5 worked days are available, status stays BUILDING and the UI explicitly avoids judging cooperation.
+- Employees needing explanation are sorted first, followed by follow-up cases, while today's exact progress and League information remain visible.
+- Added team-level counts for FOLLOW_UP and EXPLAIN so an oil cashier can see immediately who needs attention.
+- The feature remains limited to normal oil-station CASHIER accounts; configured gas cashiers remain excluded.
+- No service-quality score is changed and no bonus/disciplinary consequence is applied automatically by this change.
+
+Verification:
+
+- `git diff --check`: passed before this log append.
+- `npx vitest run src/lib/dashboard/fuel-cashier-team-feedback.test.ts src/lib/cashier-employee-scope.test.ts`: 12/12 passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for the dashboard API/UI and cooperation helper/test: passed.
+- Plain `npm run build` hit unrelated prerender failures while the shell had a non-standard `NODE_ENV`; rerunning with `/usr/bin/env NODE_ENV=production npm run build` passed all 185 static pages.
+
+Pending:
+
+- Commit and push after final build/status verification.
