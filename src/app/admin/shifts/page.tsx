@@ -448,141 +448,153 @@ export default function ShiftManagementPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">จัดการตารางกะ</h1>
-                    <p className="text-muted-foreground">ตั้งค่าและสร้างตารางกะรายเดือน</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {/* View Toggle */}
-                    <div className="flex items-center border border-border rounded-lg overflow-hidden">
-                        <button
-                            onClick={() => setViewMode("table")}
-                            className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${viewMode === "table"
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                }`}
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                            ตาราง
-                        </button>
-                        <button
-                            onClick={() => setViewMode("calendar")}
-                            className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${viewMode === "calendar"
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                }`}
-                        >
-                            <CalendarDays className="w-4 h-4" />
-                            ปฏิทิน
-                        </button>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <CalendarDays className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">ROSTER & SCHEDULING</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">จัดการตารางกะ</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">ตั้งค่าและสร้างตารางกะรายเดือนประจำสาขา</p>
+                        </div>
                     </div>
-                    <Button
-                        onClick={() => setQuickAssignOpen(true)}
-                        disabled={!scheduleData}
-                        className="bg-yellow-600 hover:bg-yellow-700"
-                    >
-                        <Zap className="w-4 h-4 mr-2" />
-                        จัดกะเร็ว
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => setTemplateManagerOpen(true)}
-                        disabled={!scheduleData}
-                    >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Templates
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={handleExport}
-                        disabled={!scheduleData}
-                    >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                    </Button>
-                    <Button
-                        onClick={handleAutoGenerate}
-                        disabled={isGenerating || !selectedStationId}
-                    >
-                        {isGenerating ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                        )}
-                        สร้างอัตโนมัติ
-                    </Button>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* View Toggle */}
+                        <div className="tt-retro-control flex items-center border border-white/20 rounded-xl overflow-hidden bg-zinc-900 p-0.5">
+                            <button
+                                onClick={() => setViewMode("table")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "table"
+                                        ? "bg-[#fbbf24] text-zinc-950 font-black shadow-sm"
+                                        : "text-zinc-400 hover:text-white"
+                                    }`}
+                            >
+                                <LayoutGrid className="w-3.5 h-3.5" />
+                                ตาราง
+                            </button>
+                            <button
+                                onClick={() => setViewMode("calendar")}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === "calendar"
+                                        ? "bg-[#fbbf24] text-zinc-950 font-black shadow-sm"
+                                        : "text-zinc-400 hover:text-white"
+                                    }`}
+                            >
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                ปฏิทิน
+                            </button>
+                        </div>
+
+                        <Button
+                            onClick={() => setQuickAssignOpen(true)}
+                            disabled={!scheduleData}
+                            className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-9 px-3 gap-1.5 shadow-sm text-xs"
+                        >
+                            <Zap className="w-3.5 h-3.5" />
+                            จัดกะเร็ว
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setTemplateManagerOpen(true)}
+                            disabled={!scheduleData}
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-9 px-3 gap-1.5 text-xs"
+                        >
+                            <FileText className="w-3.5 h-3.5" />
+                            Templates
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={handleExport}
+                            disabled={!scheduleData}
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-9 px-3 gap-1.5 text-xs"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            Export
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={handleAutoGenerate}
+                            disabled={isGenerating || !selectedStationId}
+                            className="tt-retro-control bg-white/15 hover:bg-white/25 text-white border-white/20 rounded-xl font-bold h-9 px-3 gap-1.5 text-xs"
+                        >
+                            {isGenerating ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <RefreshCw className="w-3.5 h-3.5" />
+                            )}
+                            สร้างอัตโนมัติ
+                        </Button>
+                    </div>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card className="mb-4">
-                <CardContent className="py-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <Select
-                                value={selectedMonth.toString()}
-                                onValueChange={(v) => setSelectedMonth(parseInt(v))}
-                            >
-                                <SelectTrigger className="w-32 bg-muted border-input">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-card border-border">
-                                    {months.map((m) => (
-                                        <SelectItem key={m.value} value={m.value.toString()}>
-                                            {m.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+            <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-zinc-400" />
+                        <Select
+                            value={selectedMonth.toString()}
+                            onValueChange={(v) => setSelectedMonth(parseInt(v))}
+                        >
+                            <SelectTrigger className="w-32 h-10 rounded-xl font-bold bg-white dark:bg-zinc-900 border-zinc-700/30">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-card border-border">
+                                {months.map((m) => (
+                                    <SelectItem key={m.value} value={m.value.toString()}>
+                                        {m.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                            <Select
-                                value={selectedYear.toString()}
-                                onValueChange={(v) => setSelectedYear(parseInt(v))}
-                            >
-                                <SelectTrigger className="w-24 bg-muted border-input">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-card border-border">
-                                    {years.map((y) => (
-                                        <SelectItem key={y} value={y.toString()}>
-                                            {y}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-muted-foreground" />
-                            <Select
-                                value={selectedStationId}
-                                onValueChange={setSelectedStationId}
-                            >
-                                <SelectTrigger className="w-48 bg-muted border-input">
-                                    <SelectValue placeholder="เลือกสถานี" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-card border-border">
-                                    {stations.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                            {s.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {scheduleData && (
-                            <div className="ml-auto text-sm text-muted-foreground">
-                                {scheduleData.scheduleData.length} พนักงาน
-                            </div>
-                        )}
+                        <Select
+                            value={selectedYear.toString()}
+                            onValueChange={(v) => setSelectedYear(parseInt(v))}
+                        >
+                            <SelectTrigger className="w-28 h-10 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border-zinc-700/30">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-card border-border">
+                                {years.map((y) => (
+                                    <SelectItem key={y} value={y.toString()} className="font-mono">
+                                        {y + 543}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                </CardContent>
-            </Card>
+
+                    <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-zinc-400" />
+                        <Select
+                            value={selectedStationId}
+                            onValueChange={setSelectedStationId}
+                        >
+                            <SelectTrigger className="w-48 h-10 rounded-xl font-bold bg-white dark:bg-zinc-900 border-zinc-700/30">
+                                <SelectValue placeholder="เลือกสถานี" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-card border-border">
+                                {stations.map((s) => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                        {s.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {scheduleData && (
+                        <div className="ml-auto text-xs font-mono font-bold text-zinc-500">
+                            {scheduleData.scheduleData.length} พนักงาน
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Selection Toolbar */}
             {selectedCells.length > 0 && (

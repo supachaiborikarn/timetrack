@@ -19,7 +19,6 @@ import {
     CheckCircle,
     XCircle,
     DollarSign,
-    Calendar,
     UserCog,
     Banknote,
     Building2,
@@ -107,15 +106,8 @@ export default function ApprovalsPage() {
         if (session?.user?.id) {
             fetchRequests();
         }
-    }, [session?.user?.id]);
-
-    // Re-fetch when station filter changes
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchRequests();
-        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [wageFilterStation]);
+    }, [session?.user?.id, wageFilterStation]);
 
     const fetchRequests = async () => {
         setIsLoading(true);
@@ -292,61 +284,83 @@ export default function ApprovalsPage() {
     const totalPending = pendingTC.length + pendingSS.length + pendingWR.length + pendingPE.length;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">อนุมัติคำขอ</h1>
-                <p className="text-muted-foreground">
-                    {totalPending > 0 ? `มี ${totalPending} รายการรอดำเนินการ` : "ไม่มีคำขอรอดำเนินการ"}
-                </p>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Clock className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">APPROVALS DESK</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">อนุมัติคำขอรวม</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">
+                                {totalPending > 0 ? `มี ${totalPending} รายการรอดำเนินการ` : "ไม่มีคำขอรอดำเนินการ"}
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        onClick={fetchRequests}
+                        disabled={isLoading}
+                        className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all self-start sm:self-auto"
+                    >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                        รีเฟรช
+                    </Button>
+                </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-amber-500" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0 font-black">
+                            <Clock className="w-5 h-5 text-[#fbbf24]" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">{pendingTC.length}</p>
-                            <p className="text-xs text-muted-foreground">แก้เวลา</p>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">แก้เวลา</p>
+                            <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{pendingTC.length}</p>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                            <RefreshCw className="w-5 h-5 text-blue-500" />
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                            <RefreshCw className="w-5 h-5" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">{pendingSS.length}</p>
-                            <p className="text-xs text-muted-foreground">แลกกะ</p>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">แลกกะ</p>
+                            <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{pendingSS.length}</p>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-green-500" />
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                            <DollarSign className="w-5 h-5 text-emerald-600" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">{pendingWR.length}</p>
-                            <p className="text-xs text-muted-foreground">เบิกค่าแรง</p>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">เบิกค่าแรง</p>
+                            <p className="text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400">{pendingWR.length}</p>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                            <UserCog className="w-5 h-5 text-purple-500" />
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                            <UserCog className="w-5 h-5" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-foreground">{pendingPE.length}</p>
-                            <p className="text-xs text-muted-foreground">แก้ไขข้อมูล</p>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">แก้ไขข้อมูล</p>
+                            <p className="text-2xl font-black font-mono text-purple-700 dark:text-purple-400">{pendingPE.length}</p>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelectedIds(new Set()); }} className="w-full">

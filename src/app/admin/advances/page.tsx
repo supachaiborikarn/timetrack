@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
     Banknote,
@@ -273,82 +273,82 @@ export default function AdminAdvancesPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Banknote className="w-7 h-7 text-green-500" />
-                        เบิกค่าแรง
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-1">จัดการรายการเบิกค่าแรงพนักงาน</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button onClick={handleExport} variant="outline" className="gap-2">
-                        <Download className="w-4 h-4" />
-                        Export Excel
-                    </Button>
-                    <Button onClick={() => { resetForm(); setShowCreateModal(true); }} className="gap-2 bg-green-600 hover:bg-green-700">
-                        <Plus className="w-4 h-4" />
-                        เพิ่มรายการเบิก
-                    </Button>
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                            <Banknote className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">FINANCE DESK</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-white">เบิกค่าแรงล่วงหน้า</h1>
+                            <p className="text-zinc-400 text-xs mt-0.5">จัดการและอนุมัติคำขอเบิกค่าแรงพนักงานประจำวัน</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <Button onClick={handleExport} variant="secondary" className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 gap-1.5 transition-all">
+                            <Download className="w-4 h-4" />
+                            Export Excel
+                        </Button>
+                        <Button onClick={() => { resetForm(); setShowCreateModal(true); }} className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 gap-1.5 shadow-sm transition-all">
+                            <Plus className="w-4 h-4" />
+                            เพิ่มรายการเบิก
+                        </Button>
+                    </div>
                 </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-500/10">
-                                <Banknote className="w-5 h-5 text-blue-500" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">รายการทั้งหมด</p>
-                                <p className="text-xl font-bold">{summary.totalCount}</p>
-                            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                            <Banknote className="w-5 h-5" />
                         </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-green-500/10">
-                                <DollarSign className="w-5 h-5 text-green-500" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">ยอดรวม</p>
-                                <p className="text-xl font-bold">{summary.totalAmount.toLocaleString()} ฿</p>
-                            </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">รายการทั้งหมด</p>
+                            <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{summary.totalCount}</p>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-yellow-500/10">
-                                <Clock className="w-5 h-5 text-yellow-500" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">รออนุมัติ</p>
-                                <p className="text-xl font-bold">{summary.pendingCount}</p>
-                            </div>
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                            <DollarSign className="w-5 h-5 text-emerald-600" />
                         </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-emerald-500/10">
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">ยอดอนุมัติ</p>
-                                <p className="text-xl font-bold">{summary.approvedAmount.toLocaleString()} ฿</p>
-                            </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ยอดรวม</p>
+                            <p className="text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400">{summary.totalAmount.toLocaleString()} ฿</p>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0 font-black">
+                            <Clock className="w-5 h-5 text-[#fbbf24]" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">รออนุมัติ</p>
+                            <p className="text-2xl font-black font-mono text-amber-700 dark:text-amber-400">{summary.pendingCount}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0 font-black">
+                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ยอดอนุมัติ</p>
+                            <p className="text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400">{summary.approvedAmount.toLocaleString()} ฿</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Filters */}

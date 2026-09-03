@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -135,11 +135,33 @@ export default function AttendanceReviewPage() {
         }
     }, []);
 
+    const fetchRecords = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                startDate,
+                endDate,
+                ...(stationId !== "all" && { stationId }),
+                ...(statusFilter !== "all" && { status: statusFilter }),
+            });
+
+            const res = await fetch(`/api/admin/attendance?${params}`);
+            if (res.ok) {
+                const data = await res.json();
+                setRecords(data.records || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch attendance:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [startDate, endDate, stationId, statusFilter]);
+
     useEffect(() => {
         if (session?.user?.id) {
             fetchRecords();
         }
-    }, [session?.user?.id, startDate, endDate, stationId, statusFilter]);
+    }, [session?.user?.id, fetchRecords]);
 
     const fetchStations = async () => {
         try {
@@ -193,32 +215,10 @@ export default function AttendanceReviewPage() {
             } else {
                 toast.error(data.error || "เกิดข้อผิดพลาด");
             }
-        } catch (error) {
+        } catch {
             toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const fetchRecords = async () => {
-        setIsLoading(true);
-        try {
-            const params = new URLSearchParams({
-                startDate,
-                endDate,
-                ...(stationId !== "all" && { stationId }),
-                ...(statusFilter !== "all" && { status: statusFilter }),
-            });
-
-            const res = await fetch(`/api/admin/attendance?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setRecords(data.records || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch attendance:", error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -470,23 +470,22 @@ export default function AttendanceReviewPage() {
     const pendingCount = filteredRecords.filter((r) => r.status === "PENDING").length;
 
     return (
-        <div className="space-y-6 pb-8">
+        <div className="space-y-6 pb-8 font-sans">
             {/* Header Section */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-6 sm:p-8 shadow-xl">
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnYtMmgtMnYtMmgtMnYyaC0ydjJoLTJ2LTJoLTJ2MmgtMnY0aDJ2MmgydjJoMnYtMmgydi0yaDJ2LTJoMnYtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20" />
-
+            <div className="tt-paper-card tt-instrument-frame relative overflow-hidden rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
                 <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
-                                <CalendarDays className="w-6 h-6 text-white" />
+                            <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                                <CalendarDays className="w-6 h-6" />
                             </div>
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">DAILY OPERATIONS</p>
+                                <h1 className="text-xl sm:text-2xl font-black text-white">
                                     ตรวจสอบการลงเวลา
                                 </h1>
-                                <p className="text-blue-100/80 text-sm sm:text-base">
-                                    ดูและอนุมัติเวลาเข้า-ออกงานของพนักงาน
+                                <p className="text-zinc-400 text-xs mt-0.5">
+                                    ดูและอนุมัติเวลาเข้า-ออกงานของพนักงานหน้าลานและสาขา
                                 </p>
                             </div>
                         </div>
@@ -497,7 +496,7 @@ export default function AttendanceReviewPage() {
                             variant="secondary"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm transition-all duration-200"
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all"
                         >
                             <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                             รีเฟรช
@@ -505,7 +504,7 @@ export default function AttendanceReviewPage() {
                         <Button
                             variant="secondary"
                             onClick={handleExport}
-                            className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm transition-all duration-200"
+                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-10 transition-all"
                         >
                             <Download className="w-4 h-4 mr-2" />
                             Export
@@ -515,8 +514,8 @@ export default function AttendanceReviewPage() {
                             if (open && users.length === 0) fetchUsers();
                         }}>
                             <DialogTrigger asChild>
-                                <Button className="bg-white text-blue-700 hover:bg-blue-50 shadow-lg shadow-blue-900/20 transition-all duration-200 hover:scale-105">
-                                    <Plus className="w-4 h-4 mr-2" />
+                                <Button className="tt-retro-control bg-[#fbbf24] hover:bg-[#f59e0b] text-zinc-950 font-black rounded-xl border border-black/30 h-10 shadow-sm transition-all">
+                                    <Plus className="w-4 h-4 mr-1.5" />
                                     เช็คอินแทน
                                 </Button>
                             </DialogTrigger>
@@ -614,66 +613,54 @@ export default function AttendanceReviewPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/50 dark:to-blue-900/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors ring-4 ring-blue-500/5">
-                                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold text-foreground">{totalRecords}</p>
-                                <p className="text-sm text-muted-foreground">รายการทั้งหมด</p>
-                            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-400 grid place-items-center shrink-0 font-black">
+                            <Users className="w-5 h-5" />
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ทั้งหมด</p>
+                            <p className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{totalRecords}</p>
+                        </div>
+                    </div>
+                </div>
 
-                <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/50 dark:to-orange-900/30 hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors ring-4 ring-orange-500/5">
-                                <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold text-foreground">{lateCount}</p>
-                                <p className="text-sm text-muted-foreground">มาสาย</p>
-                            </div>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400 grid place-items-center shrink-0 font-black">
+                            <AlertTriangle className="w-5 h-5" />
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">มาสาย</p>
+                            <p className="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">{lateCount}</p>
+                        </div>
+                    </div>
+                </div>
 
-                <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-950/50 dark:to-violet-900/30 hover:shadow-lg hover:shadow-violet-500/10 transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-violet-500/10 group-hover:bg-violet-500/20 transition-colors ring-4 ring-violet-500/5">
-                                <TrendingUp className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold text-foreground">{otCount}</p>
-                                <p className="text-sm text-muted-foreground">ทำ OT</p>
-                            </div>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 grid place-items-center shrink-0 font-black">
+                            <TrendingUp className="w-5 h-5" />
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">ทำ OT</p>
+                            <p className="text-2xl font-black font-mono text-purple-700 dark:text-purple-400">{otCount}</p>
+                        </div>
+                    </div>
+                </div>
 
-                <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/50 dark:to-amber-900/30 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors ring-4 ring-amber-500/5">
-                                <Timer className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-bold text-foreground">{pendingCount}</p>
-                                <p className="text-sm text-muted-foreground">รอตรวจสอบ</p>
-                            </div>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-400 grid place-items-center shrink-0 font-black">
+                            <Timer className="w-5 h-5 text-[#fbbf24]" />
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">รออนุมัติ</p>
+                            <p className="text-2xl font-black font-mono text-amber-700 dark:text-amber-400">{pendingCount}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Filters */}

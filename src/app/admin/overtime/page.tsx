@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +22,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    ChevronLeft,
-    Clock,
     Loader2,
     CheckCircle,
     XCircle,
@@ -65,13 +62,7 @@ export default function AdminOvertimePage() {
     const [rejectReason, setRejectReason] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
-    useEffect(() => {
-        if (session?.user?.id) {
-            fetchRequests();
-        }
-    }, [session?.user?.id, filterStatus]);
-
-    const fetchRequests = async () => {
+    const fetchRequests = useCallback(async () => {
         setIsLoading(true);
         try {
             const params = new URLSearchParams();
@@ -87,7 +78,13 @@ export default function AdminOvertimePage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [filterStatus]);
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            fetchRequests();
+        }
+    }, [session?.user?.id, fetchRequests]);
 
     const handleApprove = async (request: OvertimeRequest) => {
         setIsProcessing(true);
@@ -189,122 +186,122 @@ export default function AdminOvertimePage() {
     const pendingCount = requests.filter((r) => r.status === "PENDING").length;
 
     return (
-        <div className="min-h-screen bg-slate-50/50 p-4 md:p-6 pb-24">
-            <div className="max-w-4xl mx-auto">
+        <div className="space-y-6 pb-12 font-sans">
+            <div className="max-w-4xl mx-auto space-y-4">
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-6">
-                    <Button variant="ghost" size="icon" className="text-slate-500" asChild>
-                        <a href="/admin">
-                            <ChevronLeft className="w-5 h-5" />
-                        </a>
-                    </Button>
-                    <div className="flex-1">
-                        <h1 className="text-xl font-bold text-slate-800">จัดการคำขอโอที</h1>
-                        <p className="text-sm text-slate-500">อนุมัติหรือปฏิเสธคำขอทำงานล่วงเวลา</p>
+                <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
+                                <Timer className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">OVERTIME DESK</p>
+                                <h1 className="text-xl sm:text-2xl font-black text-white">จัดการคำขอโอที</h1>
+                                <p className="text-zinc-400 text-xs mt-0.5">อนุมัติหรือปฏิเสธคำขอทำงานล่วงเวลาของพนักงาน</p>
+                            </div>
+                        </div>
+                        {pendingCount > 0 && (
+                            <span className="font-mono text-xs font-black px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/20 text-[#fbbf24] self-start sm:self-auto">
+                                รอดำเนินการ {pendingCount} รายการ
+                            </span>
+                        )}
                     </div>
-                    {pendingCount > 0 && (
-                        <Badge className="bg-amber-500 text-white">
-                            รอดำเนินการ {pendingCount}
-                        </Badge>
-                    )}
                 </div>
 
                 {/* Filters */}
-                <Card className="border-none shadow-md mb-6">
-                    <CardContent className="py-4">
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <Input
-                                    placeholder="ค้นหาชื่อพนักงาน..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-9"
-                                />
-                            </div>
-                            <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
-                                    <SelectValue placeholder="สถานะ" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">ทั้งหมด</SelectItem>
-                                    <SelectItem value="PENDING">รอดำเนินการ</SelectItem>
-                                    <SelectItem value="APPROVED">อนุมัติแล้ว</SelectItem>
-                                    <SelectItem value="REJECTED">ปฏิเสธแล้ว</SelectItem>
-                                </SelectContent>
-                            </Select>
+                <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                            <Input
+                                placeholder="ค้นหาชื่อพนักงาน หรือรหัสพนักงาน..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9 h-11 rounded-xl bg-white dark:bg-zinc-900 border-zinc-700/30 font-bold"
+                            />
                         </div>
-                    </CardContent>
-                </Card>
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                            <SelectTrigger className="w-full sm:w-[180px] h-11 rounded-xl bg-white dark:bg-zinc-900 border-zinc-700/30 font-bold">
+                                <SelectValue placeholder="สถานะ" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">ทั้งหมด</SelectItem>
+                                <SelectItem value="PENDING">รอดำเนินการ</SelectItem>
+                                <SelectItem value="APPROVED">อนุมัติแล้ว</SelectItem>
+                                <SelectItem value="REJECTED">ปฏิเสธแล้ว</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
 
                 {/* Requests List */}
                 {isLoading ? (
-                    <div className="flex justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <div className="flex flex-col items-center justify-center py-16 gap-2">
+                        <Loader2 className="w-8 h-8 animate-spin text-[#fbbf24]" />
+                        <p className="text-xs font-bold text-zinc-500">กำลังโหลดคำขอโอที...</p>
                     </div>
                 ) : filteredRequests.length === 0 ? (
-                    <Card className="border-none shadow-md">
-                        <CardContent className="py-12 text-center">
-                            <Timer className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-500">ไม่พบคำขอโอที</p>
-                        </CardContent>
-                    </Card>
+                    <div className="tt-paper-card tt-instrument-frame rounded-2xl border border-dashed border-zinc-700/30 p-12 text-center">
+                        <Timer className="w-12 h-12 text-zinc-400 mx-auto mb-2" />
+                        <p className="font-bold text-zinc-700 dark:text-zinc-300">ไม่พบคำขอโอที</p>
+                    </div>
                 ) : (
                     <div className="space-y-3">
                         {filteredRequests.map((req) => (
-                            <Card key={req.id} className="border-none shadow-md">
-                                <CardContent className="py-4">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                                                    <User className="w-4 h-4 text-slate-500" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-slate-800">
-                                                        {req.user?.nickName || req.user?.name || "ไม่ทราบชื่อ"}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">{req.user?.employeeId}</p>
-                                                </div>
+                            <div key={req.id} className="tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-9 h-9 rounded-xl bg-zinc-700/15 border border-zinc-700/30 flex items-center justify-center text-zinc-800 dark:text-zinc-200 shrink-0 font-black">
+                                                <User className="w-4 h-4" />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-2">
-                                                <p>📅 {formatThaiDate(new Date(req.date), "d MMM yyyy")}</p>
-                                                <p className="text-orange-600 font-medium">⏱️ {req.hours} ชม.</p>
+                                            <div>
+                                                <p className="font-black text-sm text-zinc-900 dark:text-zinc-100">
+                                                    {req.user?.nickName || req.user?.name || "ไม่ทราบชื่อ"}
+                                                </p>
+                                                <p className="text-[11px] font-mono font-bold text-zinc-500">{req.user?.employeeId}</p>
                                             </div>
-                                            <p className="text-sm text-slate-500">เหตุผล: {req.reason}</p>
-                                            {req.status === "REJECTED" && req.rejectReason && (
-                                                <p className="text-sm text-red-500 mt-1">❌ {req.rejectReason}</p>
-                                            )}
                                         </div>
-                                        <div className="flex flex-col items-end gap-2">
-                                            {getStatusBadge(req.status)}
-                                            {req.status === "PENDING" && (
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                                        onClick={() => handleApprove(req)}
-                                                        disabled={isProcessing}
-                                                    >
-                                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                                        อนุมัติ
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="border-red-300 text-red-600 hover:bg-red-50"
-                                                        onClick={() => openRejectDialog(req)}
-                                                        disabled={isProcessing}
-                                                    >
-                                                        <XCircle className="w-3 h-3 mr-1" />
-                                                        ปฏิเสธ
-                                                    </Button>
-                                                </div>
-                                            )}
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-zinc-600 dark:text-zinc-300 mb-2 font-bold">
+                                            <p>📅 <span className="font-mono">{formatThaiDate(new Date(req.date), "d MMM yyyy")}</span></p>
+                                            <p className="text-amber-700 dark:text-amber-400 font-mono">⏱️ {req.hours} ชม.</p>
                                         </div>
+                                        <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">เหตุผล: {req.reason}</p>
+                                        {req.status === "REJECTED" && req.rejectReason && (
+                                            <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-1 bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                                                ❌ {req.rejectReason}
+                                            </p>
+                                        )}
                                     </div>
-                                </CardContent>
-                            </Card>
+                                    <div className="flex flex-col items-end gap-2 shrink-0">
+                                        {getStatusBadge(req.status)}
+                                        {req.status === "PENDING" && (
+                                            <div className="flex gap-1.5">
+                                                <Button
+                                                    size="sm"
+                                                    className="tt-retro-control bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-8 rounded-lg shadow-sm"
+                                                    onClick={() => handleApprove(req)}
+                                                    disabled={isProcessing}
+                                                >
+                                                    <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                                                    อนุมัติ
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="tt-retro-control border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold h-8 rounded-lg"
+                                                    onClick={() => openRejectDialog(req)}
+                                                    disabled={isProcessing}
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                                                    ปฏิเสธ
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
