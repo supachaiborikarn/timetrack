@@ -50,6 +50,7 @@ export function QrCodesTab() {
     const [targetType, setTargetType] = useState<"EMPLOYEE" | "STATION">("EMPLOYEE");
     const [pickerOpen, setPickerOpen] = useState(false);
     const [stationPickerOpen, setStationPickerOpen] = useState(false);
+    const [stationCreateMode, setStationCreateMode] = useState<"station" | "restroom">("station");
     const [createAsTest, setCreateAsTest] = useState(true);
     const [editing, setEditing] = useState<QrRow | null>(null);
     const [editLabel, setEditLabel] = useState("");
@@ -372,14 +373,20 @@ export function QrCodesTab() {
     };
 
     const createForStation = async (stationId: string) => {
+        const isRestroom = stationCreateMode === "restroom";
         const res = await fetch("/api/admin/customer-feedback/qr-codes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ targetType: "STATION", stationId, isTest: createAsTest }),
+            body: JSON.stringify({
+                targetType: "STATION",
+                stationId,
+                isTest: createAsTest,
+                ...(isRestroom ? { placement: "RESTROOM", placementKey: "RESTROOM_MAIN", serviceAreaKey: "restroom" } : {}),
+            }),
         });
         const data = await res.json();
         if (res.ok) {
-            toast.success(`สร้าง QR สถานีแล้ว${createAsTest ? "ในโหมดทดสอบ" : ""} — ต้องพิมพ์ป้ายก่อนเปิดใช้งาน`);
+            toast.success(`สร้าง QR ${isRestroom ? "ประเมินห้องน้ำ" : "สถานี"}แล้ว${createAsTest ? "ในโหมดทดสอบ" : ""} — ต้องพิมพ์ป้ายก่อนเปิดใช้งาน`);
             void load();
         } else {
             toast.error(data.error ?? "สร้างไม่สำเร็จ");
@@ -421,7 +428,10 @@ export function QrCodesTab() {
                         {targetType === "EMPLOYEE" ? (
                             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR พนักงาน</Button>
                         ) : (
-                            <Button size="sm" variant="outline" onClick={() => setStationPickerOpen(true)}><QrCode className="mr-1 h-4 w-4" />สร้าง QR สถานี</Button>
+                            <>
+                                <Button size="sm" variant="outline" onClick={() => { setStationCreateMode("restroom"); setStationPickerOpen(true); }}><QrCode className="mr-1 h-4 w-4" />สร้าง QR ห้องน้ำ</Button>
+                                <Button size="sm" variant="outline" onClick={() => { setStationCreateMode("station"); setStationPickerOpen(true); }}><QrCode className="mr-1 h-4 w-4" />สร้าง QR สถานี</Button>
+                            </>
                         )}
                     </div>
                 </CardContent>

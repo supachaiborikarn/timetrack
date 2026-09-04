@@ -46,6 +46,7 @@ import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
 import { RightMenuDrawer } from "@/components/layout/RightMenuDrawer";
 import { ClockInModal } from "@/components/layout/ClockInModal";
 import { ChineseNewYearBonusCard } from "@/components/dashboard/ChineseNewYearBonusCard";
+import { HousekeepingRestroomScoreCard } from "@/components/dashboard/HousekeepingRestroomScoreCard";
 
 interface Announcement {
   id: string;
@@ -783,6 +784,8 @@ export function EmployeeDashboardView() {
             </div>
           </section>
         )}
+
+        <HousekeepingRestroomScoreCard lang={lang} />
 
         <ChineseNewYearBonusCard lang={lang} />
 

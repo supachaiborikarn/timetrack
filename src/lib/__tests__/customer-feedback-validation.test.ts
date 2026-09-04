@@ -15,13 +15,16 @@ import {
     EMPLOYEE_SCORE_TOTAL,
     EMPLOYEE_REASON_OPTIONS,
     STATION_REASON_OPTIONS,
+    RESTROOM_REASON_OPTIONS,
+    RESTROOM_CLEANLINESS_QUESTIONS,
+    RESTROOM_CLEANLINESS_QUESTION_KEYS,
 } from "@/lib/customer-feedback/questions";
 import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, SEVERITY_SLA_HOURS } from "@/lib/customer-feedback/cases";
 import { summarizeRatingDistribution, summarizeRatings, meetsMinimumSample } from "@/lib/customer-feedback/metrics";
 
 describe("question registry", () => {
     it("question key ไม่ซ้ำในแต่ละ survey", () => {
-        for (const options of [EMPLOYEE_REASON_OPTIONS, STATION_REASON_OPTIONS]) {
+        for (const options of [EMPLOYEE_REASON_OPTIONS, STATION_REASON_OPTIONS, RESTROOM_REASON_OPTIONS]) {
             const keys = options.map((o) => o.key);
             expect(new Set(keys).size).toBe(keys.length);
         }
@@ -32,6 +35,7 @@ describe("question registry", () => {
         expect(SURVEYS["employee-v2"].behaviorQuestions).toEqual(EMPLOYEE_BEHAVIOR_QUESTIONS);
         expect(SURVEYS["employee-v3"].behaviorQuestions).toEqual(EMPLOYEE_SCORE_QUESTIONS);
         expect(SURVEYS["station-v1"].maxReasons).toBe(3);
+        expect(SURVEYS["restroom-v1"].behaviorQuestions).toEqual(RESTROOM_CLEANLINESS_QUESTIONS);
         expect(SURVEYS["incident-v1"].commentMaxLength).toBe(1000);
     });
 
@@ -84,6 +88,13 @@ describe("standard payload validation", () => {
         offer_rewards_promotion: "UNSURE",
         repeat_fuel_amount_after: "YES",
         thank_and_guide_exit: "YES",
+    } as const;
+    const restroomAnswers = {
+        restroom_floor_clean: "YES",
+        restroom_fixtures_clean: "YES",
+        restroom_no_bad_odor: "UNSURE",
+        restroom_supplies_ready: "NO",
+        restroom_bin_orderly: "YES",
     } as const;
     const base = {
         targetConfirmation: "YES",
@@ -221,6 +232,50 @@ describe("standard payload validation", () => {
             behaviorAnswers: { ...scoreAnswers, thank_and_guide_exit: undefined },
         }, "employee-v3").ok).toBe(false);
         expect(validateStandardPayload({ ...base, behaviorAnswers }, "employee-v3").ok).toBe(false);
+    });
+
+    it("restroom-v1 บังคับ checklist 5 ข้อและล็อก service area เป็น restroom", () => {
+        expect(RESTROOM_CLEANLINESS_QUESTIONS.map((question) => question.key)).toEqual(RESTROOM_CLEANLINESS_QUESTION_KEYS);
+        const ok = validateStandardPayload({
+            ...base,
+            overallRating: 4,
+            reasonKeys: [],
+            serviceAreas: ["restroom"],
+            behaviorAnswers: restroomAnswers,
+        }, "restroom-v1");
+        expect(ok.ok).toBe(true);
+
+        expect(validateStandardPayload({
+            ...base,
+            overallRating: 4,
+            reasonKeys: [],
+            serviceAreas: ["restroom"],
+        }, "restroom-v1").ok).toBe(false);
+
+        expect(validateStandardPayload({
+            ...base,
+            overallRating: 4,
+            reasonKeys: [],
+            serviceAreas: ["food_beverage"],
+            behaviorAnswers: restroomAnswers,
+        }, "restroom-v1").ok).toBe(false);
+    });
+
+    it("restroom-v1 คะแนนต่ำใช้ reason registry ของห้องน้ำ", () => {
+        expect(validateStandardPayload({
+            ...base,
+            overallRating: 2,
+            reasonKeys: ["restroom_bad_odor"],
+            serviceAreas: ["restroom"],
+            behaviorAnswers: restroomAnswers,
+        }, "restroom-v1").ok).toBe(true);
+        expect(validateStandardPayload({
+            ...base,
+            overallRating: 2,
+            reasonKeys: ["employee_courtesy"],
+            serviceAreas: ["restroom"],
+            behaviorAnswers: restroomAnswers,
+        }, "restroom-v1").ok).toBe(false);
     });
 
     it("employee-v2 ปฏิเสธ key เกินและค่าที่ไม่ใช่ YES, NO, UNSURE", () => {

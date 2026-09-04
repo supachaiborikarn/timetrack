@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         const surveyVersion = loaded.visit.surveyVersion;
         if (
             loaded.visit.visitKind !== "STANDARD" ||
-            (surveyVersion !== "employee-v1" && surveyVersion !== "employee-v2" && surveyVersion !== "employee-v3" && surveyVersion !== "employee-v4" && surveyVersion !== "station-v1")
+            (surveyVersion !== "employee-v1" && surveyVersion !== "employee-v2" && surveyVersion !== "employee-v3" && surveyVersion !== "employee-v4" && surveyVersion !== "station-v1" && surveyVersion !== "restroom-v1")
         ) {
             return publicError("SESSION_EXPIRED", 401);
         }

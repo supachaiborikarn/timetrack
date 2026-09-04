@@ -6,10 +6,11 @@ import type { PublicErrorCode } from "@/lib/customer-feedback/public-errors";
 import {
     EMPLOYEE_BEHAVIOR_QUESTION_KEYS,
     EMPLOYEE_SCORE_QUESTION_KEYS,
-    employeeBehaviorQuestionsForVersion,
-    employeeBehaviorQuestionKeysForVersion,
+    RESTROOM_CLEANLINESS_QUESTION_KEYS,
+    standardBehaviorQuestionsForVersion,
+    standardBehaviorQuestionKeysForVersion,
     type BehaviorAnswer,
-    type EmployeeBehaviorQuestionKey,
+    type StandardBehaviorQuestionKey,
 } from "@/lib/customer-feedback/questions";
 
 /**
@@ -24,7 +25,7 @@ type Lang = "th" | "en";
 
 type ResolveResult = {
     visitToken: string;
-    surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1";
+    surveyVersion: "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1" | "restroom-v1";
     targetType: "EMPLOYEE" | "STATION";
     target: { label: string; position: string | null };
     station: { id: string; name: string; emergencyPhone: string | null } | null;
@@ -78,6 +79,9 @@ const DICT = {
         serviceAreaQ: "วันนี้คุณใช้บริการส่วนใด",
         ratingQEmployee: "โดยรวม คุณพอใจกับการให้บริการครั้งนี้เพียงใด",
         ratingQStation: "โดยรวม คุณพอใจกับการใช้บริการที่สถานีนี้วันนี้เพียงใด",
+        ratingQRestroom: "โดยรวม คุณให้ความสะอาดห้องน้ำครั้งนี้กี่คะแนน",
+        restroomConfirmQ: "คุณกำลังประเมินความสะอาดห้องน้ำของสถานีนี้ใช่ไหม",
+        restroomChecklistQ: "ช่วยเช็กความสะอาดที่คุณพบ",
         serviceBehaviorsQ: "พนักงานทำสิ่งต่อไปนี้หรือไม่",
         serviceSideQ: "คุณอยากให้พนักงานเข้าบริการทางฝั่งไหนของรถ",
         driverSide: "ฝั่งคนขับ",
@@ -148,6 +152,9 @@ const DICT = {
         serviceAreaQ: "Which areas did you use today",
         ratingQEmployee: "Overall, how satisfied were you with this service",
         ratingQStation: "Overall, how satisfied were you with this station today",
+        ratingQRestroom: "Overall, how would you rate the restroom cleanliness?",
+        restroomConfirmQ: "Are you rating the restroom cleanliness at this station?",
+        restroomChecklistQ: "Please check the cleanliness you observed",
         serviceBehaviorsQ: "Did the employee do the following?",
         serviceSideQ: "Which side of the vehicle would you prefer the employee to approach from?",
         driverSide: "Driver side",
@@ -332,6 +339,11 @@ const REASONS = {
     station_staff_service: { th: "การบริการของพนักงานโดยรวม", en: "Overall staff service" },
     station_process: { th: "ขั้นตอนการให้บริการ", en: "Service process" },
     station_availability: { th: "สินค้าหรือบริการพร้อมใช้งาน", en: "Product or service availability" },
+    restroom_floor_dirty: { th: "พื้นหรือบริเวณโดยรอบไม่สะอาด", en: "Floor or surrounding area was not clean" },
+    restroom_fixture_dirty: { th: "โถสุขภัณฑ์ โถปัสสาวะ หรืออ่างล้างมือไม่สะอาด", en: "Toilet, urinal, or sink was not clean" },
+    restroom_bad_odor: { th: "มีกลิ่นไม่พึงประสงค์", en: "Unpleasant odor" },
+    restroom_supplies_missing: { th: "สบู่ กระดาษ น้ำ หรือของใช้ไม่พร้อม", en: "Soap, paper, water, or supplies were unavailable" },
+    restroom_bin_full: { th: "ถังขยะเต็มหรือพื้นที่ไม่เป็นระเบียบ", en: "Bin was full or the area was untidy" },
     other: { th: "อื่น ๆ", en: "Other" },
     unspecified: { th: "ไม่สะดวกระบุ", en: "Prefer not to say" },
 } as const;
@@ -365,7 +377,7 @@ const RATINGS = [
     { value: 5, th: "พอใจมาก", en: "Very satisfied" },
 ] as const;
 
-type BehaviorAnswers = Partial<Record<EmployeeBehaviorQuestionKey, BehaviorAnswer>>;
+type BehaviorAnswers = Partial<Record<StandardBehaviorQuestionKey, BehaviorAnswer>>;
 
 function isBehaviorAnswer(value: unknown): value is BehaviorAnswer {
     return value === "YES" || value === "NO" || value === "UNSURE";
@@ -374,7 +386,7 @@ function isBehaviorAnswer(value: unknown): value is BehaviorAnswer {
 function isBehaviorAnswers(value: unknown): value is BehaviorAnswers {
     if (!isRecord(value)) return false;
     return Object.entries(value).every(([key, answer]) =>
-        ([...EMPLOYEE_BEHAVIOR_QUESTION_KEYS, ...EMPLOYEE_SCORE_QUESTION_KEYS] as readonly string[]).includes(key) && isBehaviorAnswer(answer)
+        ([...EMPLOYEE_BEHAVIOR_QUESTION_KEYS, ...EMPLOYEE_SCORE_QUESTION_KEYS, ...RESTROOM_CLEANLINESS_QUESTION_KEYS] as readonly string[]).includes(key) && isBehaviorAnswer(answer)
     );
 }
 
@@ -382,7 +394,7 @@ function hasCompleteBehaviorAnswers(
     answers: BehaviorAnswers,
     surveyVersion: ResolveResult["surveyVersion"]
 ): boolean {
-    const keys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    const keys = standardBehaviorQuestionKeysForVersion(surveyVersion);
     return keys.length > 0 && keys.every((key) => isBehaviorAnswer(answers[key]));
 }
 
@@ -476,7 +488,7 @@ function isResolveResult(value: unknown): value is ResolveResult {
     const stationValid = value.station === null || isStationOption(value.station);
     return typeof value.visitToken === "string"
         && value.visitToken.length > 0
-        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "employee-v3" || value.surveyVersion === "employee-v4" || value.surveyVersion === "station-v1")
+        && (value.surveyVersion === "employee-v1" || value.surveyVersion === "employee-v2" || value.surveyVersion === "employee-v3" || value.surveyVersion === "employee-v4" || value.surveyVersion === "station-v1" || value.surveyVersion === "restroom-v1")
         && (value.targetType === "EMPLOYEE" || value.targetType === "STATION")
         && typeof value.target.label === "string"
         && (value.target.position === null || typeof value.target.position === "string")
@@ -853,7 +865,7 @@ export function FeedbackForm() {
 
     const submitStandard = useCallback(async () => {
         if (!result || rating === null) return;
-        if ((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") && !hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
+        if ((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4" || result.surveyVersion === "restroom-v1") && !hasCompleteBehaviorAnswers(behaviorAnswers, result.surveyVersion)) {
             setError({ kind: "dict", key: "required", field: "behaviorAnswers" });
             setScreen("service-behaviors");
             return;
@@ -880,9 +892,9 @@ export function FeedbackForm() {
             wantsFollowUp,
             language: lang,
         };
-        if (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") {
+        if (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4" || result.surveyVersion === "restroom-v1") {
             payload.behaviorAnswers = Object.fromEntries(
-                employeeBehaviorQuestionKeysForVersion(result.surveyVersion).map((key) => [key, behaviorAnswers[key]])
+                standardBehaviorQuestionKeysForVersion(result.surveyVersion).map((key) => [key, behaviorAnswers[key]])
             );
         }
         if (result.surveyVersion === "employee-v4") payload.serviceSidePreference = serviceSidePreference;
@@ -1272,9 +1284,9 @@ export function FeedbackForm() {
                         </button>
                     )}
                 </div>
-                <H>{isEmployee ? t.confirmQ(targetLabel) : t.confirmStationQ}</H>
+                <H>{isEmployee ? t.confirmQ(targetLabel) : result.surveyVersion === "restroom-v1" ? t.restroomConfirmQ : t.confirmStationQ}</H>
                 <fieldset id="confirmation-group" tabIndex={-1} className="space-y-2 focus:outline-none">
-                    <legend className="sr-only">{isEmployee ? t.confirmQ(targetLabel) : t.confirmStationQ}</legend>
+                    <legend className="sr-only">{isEmployee ? t.confirmQ(targetLabel) : result.surveyVersion === "restroom-v1" ? t.restroomConfirmQ : t.confirmStationQ}</legend>
                     {(["YES", "NO", "UNSURE"] as const).map((v) => (
                         <label
                             key={v}
@@ -1312,6 +1324,11 @@ export function FeedbackForm() {
                     }
                     // สถานีที่กำหนดจุดบริการไว้ล่วงหน้ายังต้องให้ลูกค้ายืนยันหรือแก้ไขได้
                     if (result.targetType === "STATION") {
+                        if (result.surveyVersion === "restroom-v1") {
+                            setServiceAreas(["restroom"]);
+                            setScreen("rating");
+                            return;
+                        }
                         if (result.serviceAreaKey && serviceAreas.length === 0) setServiceAreas([result.serviceAreaKey]);
                         setScreen("service-areas");
                         return;
@@ -1426,9 +1443,9 @@ export function FeedbackForm() {
     if (screen === "rating" && result) {
         return card(
             <div className="space-y-4">
-                <H>{result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</H>
+                <H>{result.surveyVersion === "restroom-v1" ? t.ratingQRestroom : result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</H>
                 <fieldset id="rating-group" tabIndex={-1} className="space-y-2 focus:outline-none">
-                    <legend className="sr-only">{result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</legend>
+                    <legend className="sr-only">{result.surveyVersion === "restroom-v1" ? t.ratingQRestroom : result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</legend>
                     {RATINGS.map((r) => (
                         <label
                             key={r.value}
@@ -1454,23 +1471,23 @@ export function FeedbackForm() {
                     setError(null);
                     void postProgress({ lastStep: "rating" });
                     setReasonKeys([]);
-                    setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4") ? "service-behaviors" : "reasons");
+                    setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4" || result.surveyVersion === "restroom-v1") ? "service-behaviors" : "reasons");
                 })}
                 {errorBox(error)}
             </div>
         );
     }
 
-    if (screen === "service-behaviors" && (result?.surveyVersion === "employee-v2" || result?.surveyVersion === "employee-v3" || result?.surveyVersion === "employee-v4")) {
-        const behaviorQuestions = employeeBehaviorQuestionsForVersion(result.surveyVersion);
-        const behaviorKeys = employeeBehaviorQuestionKeysForVersion(result.surveyVersion);
+    if (screen === "service-behaviors" && result && (result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4" || result.surveyVersion === "restroom-v1")) {
+        const behaviorQuestions = standardBehaviorQuestionsForVersion(result.surveyVersion);
+        const behaviorKeys = standardBehaviorQuestionKeysForVersion(result.surveyVersion);
         const answeredCount = behaviorKeys.filter((key) => isBehaviorAnswer(behaviorAnswers[key])).length;
         const behaviorError = error?.field === "behaviorAnswers";
         return card(
             <div className="space-y-4">
-                <H>{t.serviceBehaviorsQ}</H>
+                <H>{result.surveyVersion === "restroom-v1" ? t.restroomChecklistQ : t.serviceBehaviorsQ}</H>
                 <p id="service-behaviors-progress" className="text-sm text-neutral-500">
-                    {t.behaviorAnswered(answeredCount, EMPLOYEE_BEHAVIOR_QUESTION_KEYS.length)}
+                    {t.behaviorAnswered(answeredCount, behaviorKeys.length)}
                 </p>
                 <div
                     id="service-behaviors-group"
@@ -1482,7 +1499,7 @@ export function FeedbackForm() {
                     {behaviorQuestions.map(({ key, label, weight }, index) => (
                         <fieldset key={key} className="rounded-xl border border-neutral-200 bg-white p-3">
                             <legend className="px-1 text-sm font-semibold leading-snug">
-                                {index + 1}. {tr(label, lang)}{weight ? ` · ${weight} ${lang === "th" ? "คะแนน" : "pts"}` : ""}
+                                {index + 1}. {tr(label, lang)}{weight && result.surveyVersion !== "restroom-v1" ? ` · ${weight} ${lang === "th" ? "คะแนน" : "pts"}` : ""}
                             </legend>
                             <div className="mt-2 grid grid-cols-3 gap-2">
                                 {(["YES", "NO", "UNSURE"] as const).map((answer) => {
@@ -1649,11 +1666,13 @@ export function FeedbackForm() {
                 {errorBox(error)}
                 {primaryBtn(t.submit, () => void submitStandard())}
                 {secondaryBtn(t.back, () => setScreen(
-                    result.targetType === "STATION"
-                        ? "service-areas"
-                        : result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4"
-                            ? "service-behaviors"
-                            : "rating"
+                    result.surveyVersion === "restroom-v1"
+                        ? "service-behaviors"
+                        : result.targetType === "STATION"
+                            ? "service-areas"
+                            : result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4"
+                                ? "service-behaviors"
+                                : "rating"
                 ))}
             </div>
         );

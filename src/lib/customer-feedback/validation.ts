@@ -3,7 +3,7 @@ import {
     isValidReasonKey,
     isValidServiceArea,
     isValidIncidentKey,
-    employeeBehaviorQuestionKeysForVersion,
+    standardBehaviorQuestionKeysForVersion,
     type EmployeeBehaviorAnswers,
     type StandardSurveyVersion as RegistryStandardSurveyVersion,
 } from "./questions";
@@ -176,16 +176,16 @@ function validateBehaviorAnswers(
     push: (e: ValidationError) => void
 ): EmployeeBehaviorAnswers | undefined {
     const wasSent = Object.prototype.hasOwnProperty.call(raw, "behaviorAnswers");
-    const expectedKeys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    const expectedKeys = standardBehaviorQuestionKeysForVersion(surveyVersion);
     if (expectedKeys.length === 0) {
         if (wasSent) {
-            push({ field: "behaviorAnswers", message: "แบบประเมินรุ่นนี้ไม่รับคำตอบพฤติกรรมพนักงาน" });
+            push({ field: "behaviorAnswers", message: "แบบประเมินรุ่นนี้ไม่รับคำตอบ checklist" });
         }
         return undefined;
     }
 
     if (!wasSent || typeof raw.behaviorAnswers !== "object" || raw.behaviorAnswers === null || Array.isArray(raw.behaviorAnswers)) {
-        push({ field: "behaviorAnswers", message: "กรุณาตอบคำถามพฤติกรรมพนักงานให้ครบทุกข้อ" });
+        push({ field: "behaviorAnswers", message: "กรุณาตอบคำถาม checklist ให้ครบทุกข้อ" });
         return undefined;
     }
 
@@ -193,7 +193,7 @@ function validateBehaviorAnswers(
     const allowedKeys = new Set<string>(expectedKeys);
     for (const key of Object.keys(answers)) {
         if (!allowedKeys.has(key)) {
-            push({ field: `behaviorAnswers.${key}`, message: "คำถามพฤติกรรมพนักงานไม่อยู่ในรายการ" });
+            push({ field: `behaviorAnswers.${key}`, message: "คำถาม checklist ไม่อยู่ในรายการ" });
         }
     }
     for (const key of expectedKeys) {
@@ -275,6 +275,9 @@ export function validateStandardPayload(
         }
         if (surveyVersion === "station-v1" && keys.length === 0) {
             errors.push({ field: "serviceAreas", message: "กรุณาเลือกส่วนบริการอย่างน้อยหนึ่งข้อ" });
+        }
+        if (surveyVersion === "restroom-v1" && (keys.length !== 1 || keys[0] !== "restroom")) {
+            errors.push({ field: "serviceAreas", message: "แบบประเมินห้องน้ำใช้ส่วนบริการห้องน้ำเท่านั้น" });
         }
     }
 

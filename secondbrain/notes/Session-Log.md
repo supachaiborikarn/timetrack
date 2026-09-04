@@ -1494,3 +1494,34 @@ Verification:
 Pending:
 
 - Commit and push after final build/status verification.
+
+
+## 2026-09-04 — Added dedicated restroom feedback QR and housekeeper score
+
+Goal:
+
+- Add a dedicated Customer Feedback QR for restroom cleanliness instead of mixing restroom questions into the normal station QR.
+- Attribute a restroom response to the housekeeper who was actually clocked in at that station at submission time, but only when exactly one unique housekeeper can be identified.
+- Give admin and the housekeeper a separate restroom-cleanliness score view.
+
+Implementation:
+
+- Added `restroom-v1` as a versioned standard survey with five cleanliness checklist items and restroom-specific low-rating reasons.
+- Added a `RESTROOM` QR creation path in Customer Feedback admin. Restroom QRs default to `placementKey=RESTROOM_MAIN`, `serviceAreaKey=restroom`, and a public label prefixed with `ห้องน้ำ`.
+- Public resolve now selects `restroom-v1` for QR rows placed at RESTROOM or tagged with the restroom service area.
+- Restroom feedback skips the generic station-area selector and fixes the service area to restroom while preserving normal confirmation, rating, reasons, comment, anti-abuse, token, validity, and case flows.
+- At submission, the server checks same-day attendance and assigns the response to a housekeeper only when exactly one active MAID/แม่บ้าน employee is checked in at the station at that moment. Ambiguous/no-match responses remain station restroom feedback with no employee attribution.
+- Added a 100-point restroom score: overall satisfaction 40 points + cleanliness checklist 60 points. `UNSURE` is excluded from the checklist denominator rather than scored as zero. Numeric score is hidden until 10 VALID attributed responses.
+- Added admin restroom-score dashboard and employee self-service restroom-score card/API.
+- Existing Customer Feedback summary/funnel recognizes `restroom-v1` as a standard survey version; existing station/employee target-type scoping remains unchanged.
+- Added regression coverage for restroom score policy and dedicated RESTROOM QR defaults.
+
+Verification:
+
+- Targeted restroom/customer-feedback suite: 79/79 passed before final regression addition.
+- Full suite: 80 test files, 509/509 tests passed.
+- Final QR create regression: 12/12 passed.
+- `npm run lint`: 0 errors; 102 pre-existing warnings remain.
+- Plain `npm run build` failed because the shell had a non-standard `NODE_ENV`; rerun with `NODE_ENV=production npm run build` passed all 188 static pages.
+- Production build TypeScript phase passed.
+- No schema migration or production data mutation was performed by this work.

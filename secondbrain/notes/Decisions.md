@@ -168,3 +168,13 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
   - `/advances`: Migrated from legacy dark brown `#1a1412` to retro instrument meter summary, month stepper, and tactile request modal with Sonner toast feedback.
   - `/qr-scan`: Migrated from Slate-900 camera frame to retro viewfinder with Caltex-yellow corner guides, tactile camera controls, and high-contrast status feedback card.
 - Retained full compatibility with existing API endpoints, Geofence checks, device fingerprinting, and Next.js client caching patterns.
+
+
+## 2026-09-04: Restroom feedback uses a dedicated survey and attendance-based housekeeper attribution
+
+- Restroom cleanliness uses its own immutable survey version `restroom-v1`; do not reuse or reinterpret `station-v1` or employee survey answers for restroom scoring.
+- Create restroom QR rows as STATION targets with `placement=RESTROOM`, default `placementKey=RESTROOM_MAIN`, and `serviceAreaKey=restroom`.
+- Restroom responses may be attributed to a housekeeper only from real attendance at submission time and only when exactly one unique active MAID/แม่บ้าน employee is on duty at that station. If none or more than one match, keep the response unattributed rather than guessing.
+- Restroom score is 100 points: 40 from the 1–5 overall rating and 60 from the five cleanliness checklist criteria. `UNSURE` is excluded from the checklist denominator.
+- Hide the numeric housekeeper restroom score until at least 10 VALID attributed restroom responses exist.
+- Restroom feedback remains part of the standard Customer Feedback funnel/summary, while its employee-level score is shown separately from front-yard employee service scores.

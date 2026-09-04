@@ -7,12 +7,12 @@
  * - คะแนน 1–2 ต้องเลือกสาเหตุอย่างน้อยหนึ่งข้อหรือ "ไม่สะดวกระบุ"
  */
 
-export type SurveyVersion = "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1" | "incident-v1";
+export type SurveyVersion = "employee-v1" | "employee-v2" | "employee-v3" | "employee-v4" | "station-v1" | "restroom-v1" | "incident-v1";
 export type StandardSurveyVersion = Exclude<SurveyVersion, "incident-v1">;
 export type QuestionOwner = "EMPLOYEE" | "SYSTEM" | "STATION" | "UNKNOWN";
 export type BehaviorAnswer = "YES" | "NO" | "UNSURE";
 
-export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] as const satisfies readonly StandardSurveyVersion[];
+export const STANDARD_SURVEY_VERSIONS = ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1", "restroom-v1"] as const satisfies readonly StandardSurveyVersion[];
 
 export function isStandardSurveyVersion(version: string): version is StandardSurveyVersion {
     return (STANDARD_SURVEY_VERSIONS as readonly string[]).includes(version);
@@ -35,7 +35,7 @@ export interface ServiceAreaOption {
 }
 
 export interface BehaviorQuestion {
-    key: EmployeeBehaviorQuestionKey;
+    key: StandardBehaviorQuestionKey;
     label: LocalizedText;
     /** คะแนนเต็มของเกณฑ์เมื่อคำถามนี้ใช้เป็น rubric; v2 เดิมไม่มีน้ำหนักคะแนน */
     weight?: number;
@@ -104,10 +104,20 @@ export const EMPLOYEE_SCORE_QUESTION_KEYS = [
     "thank_and_guide_exit",
 ] as const;
 
+export const RESTROOM_CLEANLINESS_QUESTION_KEYS = [
+    "restroom_floor_clean",
+    "restroom_fixtures_clean",
+    "restroom_no_bad_odor",
+    "restroom_supplies_ready",
+    "restroom_bin_orderly",
+] as const;
+
 export type EmployeeV2BehaviorQuestionKey = (typeof EMPLOYEE_BEHAVIOR_QUESTION_KEYS)[number];
 export type EmployeeScoreQuestionKey = (typeof EMPLOYEE_SCORE_QUESTION_KEYS)[number];
+export type RestroomCleanlinessQuestionKey = (typeof RESTROOM_CLEANLINESS_QUESTION_KEYS)[number];
 export type EmployeeBehaviorQuestionKey = EmployeeV2BehaviorQuestionKey | EmployeeScoreQuestionKey;
-export type EmployeeBehaviorAnswers = Partial<Record<EmployeeBehaviorQuestionKey, BehaviorAnswer>>;
+export type StandardBehaviorQuestionKey = EmployeeBehaviorQuestionKey | RestroomCleanlinessQuestionKey;
+export type EmployeeBehaviorAnswers = Partial<Record<StandardBehaviorQuestionKey, BehaviorAnswer>>;
 
 /** คำถามพฤติกรรมที่เพิ่มใน employee-v2 — key ที่เผยแพร่แล้วห้ามเปลี่ยนความหมาย */
 export const EMPLOYEE_BEHAVIOR_QUESTIONS: BehaviorQuestion[] = [
@@ -159,6 +169,14 @@ export const EMPLOYEE_SCORE_QUESTIONS: BehaviorQuestion[] = [
 
 export const EMPLOYEE_SCORE_TOTAL = EMPLOYEE_SCORE_QUESTIONS.reduce((sum, question) => sum + (question.weight ?? 0), 0);
 
+export const RESTROOM_CLEANLINESS_QUESTIONS: BehaviorQuestion[] = [
+    { key: "restroom_floor_clean", weight: 12, label: { th: "พื้นและบริเวณโดยรอบสะอาดและแห้งพอเหมาะ", en: "The floor and surrounding area were clean and reasonably dry" } },
+    { key: "restroom_fixtures_clean", weight: 12, label: { th: "โถสุขภัณฑ์ โถปัสสาวะ และอ่างล้างมือสะอาด", en: "Toilets, urinals, and sinks were clean" } },
+    { key: "restroom_no_bad_odor", weight: 12, label: { th: "ไม่มีกลิ่นไม่พึงประสงค์รบกวน", en: "There was no unpleasant odor" } },
+    { key: "restroom_supplies_ready", weight: 12, label: { th: "น้ำ สบู่ และกระดาษที่จำเป็นพร้อมใช้งาน", en: "Water, soap, and essential paper supplies were available" } },
+    { key: "restroom_bin_orderly", weight: 12, label: { th: "ถังขยะไม่ล้นและพื้นที่โดยรวมเป็นระเบียบ", en: "Bins were not overflowing and the area was orderly" } },
+];
+
 export function employeeBehaviorQuestionsForVersion(version: StandardSurveyVersion): BehaviorQuestion[] {
     if (version === "employee-v2") return EMPLOYEE_BEHAVIOR_QUESTIONS;
     if (version === "employee-v3" || version === "employee-v4") return EMPLOYEE_SCORE_QUESTIONS;
@@ -166,8 +184,27 @@ export function employeeBehaviorQuestionsForVersion(version: StandardSurveyVersi
 }
 
 export function employeeBehaviorQuestionKeysForVersion(version: StandardSurveyVersion): readonly EmployeeBehaviorQuestionKey[] {
-    return employeeBehaviorQuestionsForVersion(version).map((question) => question.key);
+    return employeeBehaviorQuestionsForVersion(version).map((question) => question.key as EmployeeBehaviorQuestionKey);
 }
+
+export function standardBehaviorQuestionsForVersion(version: StandardSurveyVersion): BehaviorQuestion[] {
+    if (version === "restroom-v1") return RESTROOM_CLEANLINESS_QUESTIONS;
+    return employeeBehaviorQuestionsForVersion(version);
+}
+
+export function standardBehaviorQuestionKeysForVersion(version: StandardSurveyVersion): readonly StandardBehaviorQuestionKey[] {
+    return standardBehaviorQuestionsForVersion(version).map((question) => question.key);
+}
+
+export const RESTROOM_REASON_OPTIONS: ReasonOption[] = [
+    { key: "restroom_floor_dirty", label: { th: "พื้นหรือบริเวณโดยรอบไม่สะอาด", en: "Floor or surrounding area was not clean" }, owner: "STATION" },
+    { key: "restroom_fixture_dirty", label: { th: "โถสุขภัณฑ์ โถปัสสาวะ หรืออ่างล้างมือไม่สะอาด", en: "Toilet, urinal, or sink was not clean" }, owner: "STATION" },
+    { key: "restroom_bad_odor", label: { th: "มีกลิ่นไม่พึงประสงค์", en: "Unpleasant odor" }, owner: "STATION" },
+    { key: "restroom_supplies_missing", label: { th: "สบู่ กระดาษ น้ำ หรือของใช้ไม่พร้อม", en: "Soap, paper, water, or supplies were unavailable" }, owner: "STATION" },
+    { key: "restroom_bin_full", label: { th: "ถังขยะเต็มหรือพื้นที่ไม่เป็นระเบียบ", en: "Bin was full or the area was untidy" }, owner: "STATION" },
+    { key: "other", label: { th: "อื่น ๆ", en: "Other" }, owner: "UNKNOWN" },
+    { key: "unspecified", label: { th: "ไม่สะดวกระบุ", en: "Prefer not to say" }, owner: "UNKNOWN" },
+];
 
 
 export const STATION_REASON_OPTIONS: ReasonOption[] = [
@@ -242,6 +279,13 @@ export const SURVEYS: Record<SurveyVersion, SurveyDefinition> = {
         reasonOptions: STATION_REASON_OPTIONS,
         behaviorQuestions: [],
     },
+    "restroom-v1": {
+        version: "restroom-v1",
+        maxReasons: 3,
+        commentMaxLength: 300,
+        reasonOptions: RESTROOM_REASON_OPTIONS,
+        behaviorQuestions: RESTROOM_CLEANLINESS_QUESTIONS,
+    },
     // incident ไม่มี reason ให้เลือก — ใช้ incidentKey แทน
     "incident-v1": {
         version: "incident-v1",
@@ -271,7 +315,8 @@ export function isValidIncidentKey(key: string): boolean {
 export function getReasonOwner(key: string): QuestionOwner {
     const found =
         EMPLOYEE_REASON_OPTIONS.find((o) => o.key === key) ??
-        STATION_REASON_OPTIONS.find((o) => o.key === key);
+        STATION_REASON_OPTIONS.find((o) => o.key === key) ??
+        RESTROOM_REASON_OPTIONS.find((o) => o.key === key);
     return found?.owner ?? "UNKNOWN";
 }
 

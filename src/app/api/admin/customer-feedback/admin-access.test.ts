@@ -191,7 +191,7 @@ describe("customer feedback admin station and incident access", () => {
             where: {
                 reportDate: expect.objectContaining({ gte: expect.any(Date), lt: expect.any(Date) }),
                 isTest: false,
-                surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] },
+                surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1", "restroom-v1"] },
                 stationKey: "station-own",
                 targetType: "STATION",
             },
@@ -551,7 +551,7 @@ describe("customer feedback admin station and incident access", () => {
             expect(visitFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
                 where: expect.objectContaining({
                     isTestAtOpen: false,
-                    surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1"] },
+                    surveyVersion: { in: ["employee-v1", "employee-v2", "employee-v3", "employee-v4", "station-v1", "restroom-v1"] },
                     targetType: "STATION",
                 }),
             }));

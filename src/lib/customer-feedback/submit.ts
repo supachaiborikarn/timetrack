@@ -15,12 +15,13 @@ import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, caseNotification
 import { feedbackCaseNotificationMessage } from "./case-presentation";
 import { visitPurgeAfter, contactPurgeAfter, FORM_EXPIRY_MS } from "./retention";
 import {
-    employeeBehaviorQuestionKeysForVersion,
+    standardBehaviorQuestionKeysForVersion,
     PRIVACY_NOTICE_VERSION,
     type StandardSurveyVersion,
 } from "./questions";
 import type { StandardPayload, IncidentPayload } from "./validation";
 import { encryptField } from "@/lib/crypto-field";
+import { selectUniqueOnDutyHousekeeper } from "./restroom-score";
 
 /**
  * Server-side submission service ของระบบเสียงลูกค้า
@@ -171,7 +172,7 @@ export function buildNormalizedStandardAnswers(
         });
     }
 
-    const behaviorKeys = employeeBehaviorQuestionKeysForVersion(surveyVersion);
+    const behaviorKeys = standardBehaviorQuestionKeysForVersion(surveyVersion);
     if (behaviorKeys.length > 0) {
         if (
             !payload.behaviorAnswers ||
@@ -517,7 +518,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
     const surveyVersion = visit.surveyVersion as StandardSurveyVersion;
     const supportedForTarget = isEmployee
         ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3" || surveyVersion === "employee-v4"
-        : surveyVersion === "station-v1";
+        : surveyVersion === "station-v1" || surveyVersion === "restroom-v1";
     if (!supportedForTarget || tokenPayload.surveyVersion !== surveyVersion) {
         return { failure: "TOKEN_INVALID", status: 401 } as const;
     }
@@ -706,6 +707,50 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
             });
             const shiftAtSubmit = employeeUser?.shiftAssignments[0] ?? null;
 
+            // แบบห้องน้ำผูกแม่บ้านจากการลงเวลาจริง ณ เวลาส่งเท่านั้น
+            // ถ้าไม่มีหรือมีมากกว่าหนึ่งคน จะเก็บเป็น feedback ห้องน้ำของสถานีโดยไม่โยนคะแนนให้ใคร
+            const onDutyHousekeepingRows = !isEmployee && surveyVersion === "restroom-v1"
+                ? await tx.attendance.findMany({
+                    where: {
+                        date: bangkokCalendarDayRange(claimNow),
+                        checkInTime: { not: null, lte: claimNow },
+                        OR: [{ checkOutTime: null }, { checkOutTime: { gte: claimNow } }],
+                        user: {
+                            isActive: true,
+                            stationId,
+                            department: {
+                                is: {
+                                    OR: [
+                                        { code: "MAID" },
+                                        { name: { contains: "แม่บ้าน" } },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                    select: {
+                        userId: true,
+                        user: {
+                            select: {
+                                name: true,
+                                nickName: true,
+                                departmentId: true,
+                                department: { select: { name: true } },
+                            },
+                        },
+                    },
+                })
+                : [];
+            const housekeeperAssignment = selectUniqueOnDutyHousekeeper(onDutyHousekeepingRows);
+            const responseEmployeeId = isEmployee ? currentQr.employeeId : housekeeperAssignment?.userId ?? null;
+            const responseDepartmentId = isEmployee ? employeeUser?.departmentId ?? null : housekeeperAssignment?.user.departmentId ?? null;
+            const responseDepartmentLabel = isEmployee ? employeeUser?.department?.name ?? null : housekeeperAssignment?.user.department?.name ?? null;
+            const responseEmployeeLabel = isEmployee
+                ? currentQr.publicLabel
+                : housekeeperAssignment
+                    ? (housekeeperAssignment.user.nickName?.trim() || housekeeperAssignment.user.name)
+                    : null;
+
             const created = await tx.customerFeedbackResponse.create({
             data: {
                 refCode,
@@ -714,14 +759,14 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
                 qrVersionAtSubmit: currentQr.version,
                 kind: "STANDARD",
                 targetType: qr.targetType,
-                employeeId: isEmployee ? currentQr.employeeId : null,
+                employeeId: responseEmployeeId,
                 stationId,
-                departmentIdAtSubmit: employeeUser?.departmentId ?? null,
-                shiftIdAtSubmit: shiftAtSubmit?.shiftId ?? null,
-                departmentLabelSnapshot: employeeUser?.department?.name ?? null,
-                shiftLabelSnapshot: shiftAtSubmit?.shift.name ?? null,
+                departmentIdAtSubmit: responseDepartmentId,
+                shiftIdAtSubmit: isEmployee ? shiftAtSubmit?.shiftId ?? null : null,
+                departmentLabelSnapshot: responseDepartmentLabel,
+                shiftLabelSnapshot: isEmployee ? shiftAtSubmit?.shift.name ?? null : null,
                 stationContextSource,
-                employeeLabelSnapshot: isEmployee ? currentQr.publicLabel : null,
+                employeeLabelSnapshot: responseEmployeeLabel,
                 stationLabelSnapshot: station?.name ?? null,
                 surveyVersion,
                 privacyNoticeVersion: PRIVACY_NOTICE_VERSION,

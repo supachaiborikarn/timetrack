@@ -184,6 +184,60 @@ describe("POST /api/admin/customer-feedback/qr-codes validation", () => {
         expect(createMock).not.toHaveBeenCalled();
     });
 
+    it("creates a dedicated restroom QR with restroom defaults", async () => {
+        stationFindUniqueMock.mockResolvedValue({
+            id: "station-own",
+            name: "สถานีเดิม",
+            isActive: true,
+            publicEmergencyPhone: "191",
+        });
+        const createMock = vi.fn().mockResolvedValue({ id: "qr-restroom" });
+        const auditCreateMock = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            station: {
+                findUnique: vi.fn().mockResolvedValue({
+                    name: "สถานีเดิม",
+                    isActive: true,
+                    publicEmergencyPhone: "191",
+                }),
+            },
+            customerFeedbackQr: {
+                findFirst: vi.fn().mockResolvedValue(null),
+                create: createMock,
+            },
+            auditLog: { create: auditCreateMock },
+        }));
+
+        const response = await POST(new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                targetType: "STATION",
+                stationId: "station-own",
+                placement: "RESTROOM",
+                isTest: false,
+            }),
+        }));
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toMatchObject({ qrCode: { id: "qr-restroom" } });
+        expect(createMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                targetType: "STATION",
+                stationId: "station-own",
+                publicLabel: "ห้องน้ำ สถานีเดิม",
+                placement: "RESTROOM",
+                placementKey: "RESTROOM_MAIN",
+                serviceAreaKey: "restroom",
+                isPrimary: false,
+                isTest: false,
+                needsReprint: true,
+            }),
+        });
+        expect(auditCreateMock).toHaveBeenCalledOnce();
+    });
+
     it("does not create a second production QR for the same station placement", async () => {
         stationFindUniqueMock.mockResolvedValue({
             id: "station-own",

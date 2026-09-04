@@ -346,7 +346,8 @@ export async function POST(request: NextRequest) {
         }
 
         const placement = body.placement ?? "STATION_MAIN";
-        const placementKey = body.placementKey?.trim() ?? "MAIN";
+        const placementKey = body.placementKey?.trim() ?? (placement === "RESTROOM" ? "RESTROOM_MAIN" : "MAIN");
+        const serviceAreaKey = placement === "RESTROOM" ? "restroom" : body.serviceAreaKey ?? null;
         const isPrimary = placement === "STATION_MAIN";
 
         const creation = await prisma.$transaction(async (tx) => {
@@ -378,11 +379,11 @@ export async function POST(request: NextRequest) {
                     targetType: "STATION",
                     employeeId: null,
                     stationId: station.id,
-                    publicLabel: currentStation.name,
+                    publicLabel: placement === "RESTROOM" ? `ห้องน้ำ ${currentStation.name}` : currentStation.name,
                     publicPosition: null,
                     placement,
                     placementKey,
-                    serviceAreaKey: body.serviceAreaKey ?? null,
+                    serviceAreaKey,
                     isPrimary,
                     isActive: false,
                     isTest: body.isTest ?? false,
@@ -395,7 +396,7 @@ export async function POST(request: NextRequest) {
                     action: "CUSTOMER_FEEDBACK_QR_CREATED",
                     entity: "CustomerFeedbackQr",
                     entityId: created.id,
-                    details: JSON.stringify({ targetType: "STATION", stationId: station.id, placement, isTest: body.isTest ?? false }),
+                    details: JSON.stringify({ targetType: "STATION", stationId: station.id, placement, serviceAreaKey, isTest: body.isTest ?? false }),
                     userId: session.user!.id,
                 },
             });
