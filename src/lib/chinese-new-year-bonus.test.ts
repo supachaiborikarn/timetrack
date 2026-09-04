@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+    averageAvailableTeamPoints,
     calculateChineseNewYearBonusPreview,
+    calculateCompleteTeamCustomerQualityPoints,
     calculateDisciplineSafetyPoints,
     calculateEvaluationCooperationPoints,
     resolveChineseNewYearBonusTier,
@@ -26,6 +28,7 @@ describe("Chinese New Year bonus preview", () => {
             periodClosed: false,
         });
 
+        expect(result.profile).toBe("FRONT_YARD");
         expect(result.knownWeight).toBe(65);
         expect(result.knownPoints).toBe(58.5);
         expect(result.forecastScore).toBe(90);
@@ -67,6 +70,27 @@ describe("Chinese New Year bonus preview", () => {
         expect(result.safetyReviewRequired).toBe(true);
         expect(result.isProvisional).toBe(true);
     });
+
+    it("uses the fuel-cashier role profile so team outcomes motivate coaching without dominating the score", () => {
+        const result = calculateChineseNewYearBonusPreview({
+            profile: "FUEL_CASHIER",
+            attendancePoints: 25,
+            customerQualityPoints: 20,
+            cooperationPoints: 15,
+            supervisorSopPoints: 30,
+            disciplineSafetyPoints: 10,
+            periodClosed: true,
+        });
+
+        expect(result.profile).toBe("FUEL_CASHIER");
+        expect(result.knownWeight).toBe(100);
+        expect(result.forecastScore).toBe(100);
+        expect(result.components).toEqual(expect.arrayContaining([
+            expect.objectContaining({ key: "customerQuality", label: "คุณภาพบริการของทีม", maxPoints: 20 }),
+            expect.objectContaining({ key: "cooperation", label: "ความร่วมมือแบบประเมินของทีม", maxPoints: 15 }),
+            expect.objectContaining({ key: "supervisorSop", label: "งานเสมียน / SOP", maxPoints: 30 }),
+        ]));
+    });
 });
 
 describe("evaluation cooperation points", () => {
@@ -96,6 +120,26 @@ describe("evaluation cooperation points", () => {
             workedDayKeys: [],
             evaluationSubmittedAts: [],
         })).toBeNull();
+    });
+});
+
+describe("fuel cashier team points", () => {
+    it("weights each team member equally and waits until every active member has a customer-quality score", () => {
+        expect(calculateCompleteTeamCustomerQualityPoints({
+            memberScores64: [64, 32],
+            rubricTotal: 64,
+            maxPoints: 20,
+        })).toBe(15);
+        expect(calculateCompleteTeamCustomerQualityPoints({
+            memberScores64: [64, null],
+            rubricTotal: 64,
+            maxPoints: 20,
+        })).toBeNull();
+    });
+
+    it("averages cooperation only across team members who actually have worked days", () => {
+        expect(averageAvailableTeamPoints([15, 7.5, null])).toBe(11.3);
+        expect(averageAvailableTeamPoints([null, null])).toBeNull();
     });
 });
 

@@ -4,13 +4,28 @@ const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 export const CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY = "chinese_new_year_bonus.review_period_id.v1";
 
-export const CHINESE_NEW_YEAR_BONUS_WEIGHTS = {
-    attendance: 25,
-    customerQuality: 30,
-    cooperation: 15,
-    supervisorSop: 20,
-    disciplineSafety: 10,
+export type ChineseNewYearBonusProfile = "FRONT_YARD" | "FUEL_CASHIER";
+
+export const CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS = {
+    FRONT_YARD: {
+        attendance: 25,
+        customerQuality: 30,
+        cooperation: 15,
+        supervisorSop: 20,
+        disciplineSafety: 10,
+    },
+    FUEL_CASHIER: {
+        attendance: 25,
+        customerQuality: 20,
+        cooperation: 15,
+        supervisorSop: 30,
+        disciplineSafety: 10,
+    },
 } as const;
+
+/** Backward-compatible alias for the original front-yard policy. */
+export const CHINESE_NEW_YEAR_BONUS_WEIGHTS = CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FRONT_YARD;
+export const FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS = CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FUEL_CASHIER;
 
 export const CHINESE_NEW_YEAR_BONUS_TIERS = [
     { minScore: 90, bonusPercent: 100 },
@@ -32,6 +47,7 @@ export interface ChineseNewYearBonusComponent {
 }
 
 export interface ChineseNewYearBonusPreview {
+    profile: ChineseNewYearBonusProfile;
     forecastScore: number | null;
     bonusPercent: number | null;
     knownPoints: number;
@@ -53,6 +69,29 @@ function clampPoints(value: number | null | undefined, max: number): number | nu
     return round1(Math.max(0, Math.min(max, value)));
 }
 
+export function getChineseNewYearBonusWeights(profile: ChineseNewYearBonusProfile = "FRONT_YARD") {
+    return CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS[profile];
+}
+
+function getComponentLabels(profile: ChineseNewYearBonusProfile): Record<ChineseNewYearBonusComponentKey, string> {
+    if (profile === "FUEL_CASHIER") {
+        return {
+            attendance: "เวลา / การมาทำงาน",
+            customerQuality: "คุณภาพบริการของทีม",
+            cooperation: "ความร่วมมือแบบประเมินของทีม",
+            supervisorSop: "งานเสมียน / SOP",
+            disciplineSafety: "วินัย / ความปลอดภัย",
+        };
+    }
+    return {
+        attendance: "เวลา / การมาทำงาน",
+        customerQuality: "คุณภาพเสียงลูกค้า",
+        cooperation: "ความร่วมมือแบบประเมิน",
+        supervisorSop: "หัวหน้างาน / SOP",
+        disciplineSafety: "วินัย / ความปลอดภัย",
+    };
+}
+
 export function bangkokDateKey(value: Date | string): string {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return "";
@@ -67,11 +106,13 @@ export function calculateEvaluationCooperationPoints(input: {
     workedDayKeys: string[];
     evaluationSubmittedAts: Array<Date | string>;
     dailyTarget?: number;
+    maxPoints?: number;
 }): number | null {
     const workedDays = [...new Set(input.workedDayKeys.filter(Boolean))];
     if (workedDays.length === 0) return null;
 
     const target = Math.max(1, Math.round(input.dailyTarget ?? EMPLOYEE_DAILY_EVALUATION_TARGET));
+    const maxPoints = Math.max(0, input.maxPoints ?? CHINESE_NEW_YEAR_BONUS_WEIGHTS.cooperation);
     const counts = new Map<string, number>();
     for (const submittedAt of input.evaluationSubmittedAts) {
         const key = bangkokDateKey(submittedAt);
@@ -83,7 +124,7 @@ export function calculateEvaluationCooperationPoints(input: {
         return sum + Math.min(1, (counts.get(dayKey) ?? 0) / target);
     }, 0) / workedDays.length;
 
-    return round1(completionRate * CHINESE_NEW_YEAR_BONUS_WEIGHTS.cooperation);
+    return round1(completionRate * maxPoints);
 }
 
 export function calculateDisciplineSafetyPoints(input: {
@@ -91,6 +132,7 @@ export function calculateDisciplineSafetyPoints(input: {
     punctualityPoints: number;
     completionPoints: number;
     breakDisciplinePoints: number;
+    maxPoints?: number;
 }): number | null {
     const attendanceRate = input.presencePoints / 25;
     if (!(attendanceRate > 0)) return null;
@@ -99,8 +141,33 @@ export function calculateDisciplineSafetyPoints(input: {
     const disciplineQuality = (
         input.punctualityPoints + input.completionPoints + input.breakDisciplinePoints
     ) / (35 * attendanceRate);
+    const maxPoints = Math.max(0, input.maxPoints ?? CHINESE_NEW_YEAR_BONUS_WEIGHTS.disciplineSafety);
 
-    return round1(Math.max(0, Math.min(1, disciplineQuality)) * CHINESE_NEW_YEAR_BONUS_WEIGHTS.disciplineSafety);
+    return round1(Math.max(0, Math.min(1, disciplineQuality)) * maxPoints);
+}
+
+/**
+ * คะแนนคุณภาพทีมของเสมียนให้น้ำหนักพนักงานแต่ละคนเท่ากัน ไม่ให้คนที่ได้แบบประเมินเยอะกว่าครองคะแนนทีม
+ * และรอจนสมาชิกทีมที่กำลังใช้งานทุกคนมี sample ขั้นต่ำก่อน เพื่อไม่สร้างแรงจูงใจให้เลือกเก็บเฉพาะคนคะแนนดี
+ */
+export function calculateCompleteTeamCustomerQualityPoints(input: {
+    memberScores64: Array<number | null>;
+    rubricTotal: number;
+    maxPoints: number;
+}): number | null {
+    if (input.memberScores64.length === 0) return null;
+    const readyScores = input.memberScores64.filter((score): score is number => score != null && Number.isFinite(score));
+    if (readyScores.length !== input.memberScores64.length) return null;
+    if (!(input.rubricTotal > 0) || !(input.maxPoints >= 0)) return null;
+
+    const average = readyScores.reduce((sum, score) => sum + score, 0) / readyScores.length;
+    return round1((Math.max(0, Math.min(input.rubricTotal, average)) / input.rubricTotal) * input.maxPoints);
+}
+
+export function averageAvailableTeamPoints(values: Array<number | null>): number | null {
+    const ready = values.filter((value): value is number => value != null && Number.isFinite(value));
+    if (ready.length === 0) return null;
+    return round1(ready.reduce((sum, value) => sum + value, 0) / ready.length);
 }
 
 export function resolveChineseNewYearBonusTier(score: number): { minScore: number; bonusPercent: number } {
@@ -110,6 +177,7 @@ export function resolveChineseNewYearBonusTier(score: number): { minScore: numbe
 }
 
 export function calculateChineseNewYearBonusPreview(input: {
+    profile?: ChineseNewYearBonusProfile;
     attendancePoints?: number | null;
     customerQualityPoints?: number | null;
     cooperationPoints?: number | null;
@@ -118,43 +186,27 @@ export function calculateChineseNewYearBonusPreview(input: {
     periodClosed?: boolean;
     safetyReviewRequired?: boolean;
 }): ChineseNewYearBonusPreview {
-    const components: ChineseNewYearBonusComponent[] = [
-        {
-            key: "attendance",
-            label: "เวลา / การมาทำงาน",
-            maxPoints: CHINESE_NEW_YEAR_BONUS_WEIGHTS.attendance,
-            points: clampPoints(input.attendancePoints, CHINESE_NEW_YEAR_BONUS_WEIGHTS.attendance),
-            status: input.attendancePoints == null ? "WAITING" : "READY",
-        },
-        {
-            key: "customerQuality",
-            label: "คุณภาพเสียงลูกค้า",
-            maxPoints: CHINESE_NEW_YEAR_BONUS_WEIGHTS.customerQuality,
-            points: clampPoints(input.customerQualityPoints, CHINESE_NEW_YEAR_BONUS_WEIGHTS.customerQuality),
-            status: input.customerQualityPoints == null ? "WAITING" : "READY",
-        },
-        {
-            key: "cooperation",
-            label: "ความร่วมมือแบบประเมิน",
-            maxPoints: CHINESE_NEW_YEAR_BONUS_WEIGHTS.cooperation,
-            points: clampPoints(input.cooperationPoints, CHINESE_NEW_YEAR_BONUS_WEIGHTS.cooperation),
-            status: input.cooperationPoints == null ? "WAITING" : "READY",
-        },
-        {
-            key: "supervisorSop",
-            label: "หัวหน้างาน / SOP",
-            maxPoints: CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop,
-            points: clampPoints(input.supervisorSopPoints, CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop),
-            status: input.supervisorSopPoints == null ? "WAITING" : "READY",
-        },
-        {
-            key: "disciplineSafety",
-            label: "วินัย / ความปลอดภัย",
-            maxPoints: CHINESE_NEW_YEAR_BONUS_WEIGHTS.disciplineSafety,
-            points: clampPoints(input.disciplineSafetyPoints, CHINESE_NEW_YEAR_BONUS_WEIGHTS.disciplineSafety),
-            status: input.disciplineSafetyPoints == null ? "WAITING" : "READY",
-        },
+    const profile = input.profile ?? "FRONT_YARD";
+    const weights = getChineseNewYearBonusWeights(profile);
+    const labels = getComponentLabels(profile);
+    const rawComponents: Array<{ key: ChineseNewYearBonusComponentKey; value: number | null | undefined }> = [
+        { key: "attendance", value: input.attendancePoints },
+        { key: "customerQuality", value: input.customerQualityPoints },
+        { key: "cooperation", value: input.cooperationPoints },
+        { key: "supervisorSop", value: input.supervisorSopPoints },
+        { key: "disciplineSafety", value: input.disciplineSafetyPoints },
     ];
+    const components: ChineseNewYearBonusComponent[] = rawComponents.map(({ key, value }) => {
+        const maxPoints = weights[key];
+        const points = clampPoints(value, maxPoints);
+        return {
+            key,
+            label: labels[key],
+            maxPoints,
+            points,
+            status: points === null ? "WAITING" : "READY",
+        };
+    });
 
     const ready = components.filter((component) => component.points !== null);
     const knownWeight = ready.reduce((sum, component) => sum + component.maxPoints, 0);
@@ -172,6 +224,7 @@ export function calculateChineseNewYearBonusPreview(input: {
     const safetyReviewRequired = Boolean(input.safetyReviewRequired);
 
     return {
+        profile,
         forecastScore,
         bonusPercent: tier?.bonusPercent ?? null,
         knownPoints,

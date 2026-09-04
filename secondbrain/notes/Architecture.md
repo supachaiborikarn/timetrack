@@ -89,13 +89,13 @@ The combined score path is intentionally separate from Payroll. No performance o
 ## Chinese New Year bonus forecast flow
 
 1. ADMIN/HR choose one existing `ReviewPeriod` in `/admin/performance`; the selected period ID is stored in `SystemConfig` under `chinese_new_year_bonus.review_period_id.v1`.
-2. `/api/employee/chinese-new-year-bonus` reads only the authenticated active front-yard employee and the configured period, then loads attendance/shift/leave, VALID employee-v3/v4 feedback, the employee's ReviewSubmission rating, and unresolved employee-safety cases for that period.
-3. `src/lib/chinese-new-year-bonus.ts` is the pure policy layer. It calculates the five weighted components, forecast normalization, payout tier, next-tier distance, and provisional state.
-4. Evaluation cooperation is calculated server-side from per-worked-day completion and the current daily evaluation target. Exact response counts and the target are never returned by the employee bonus endpoint.
-5. `/api/admin/performance/chinese-new-year-bonus` lets ADMIN/HR select the period and record the existing supervisor rating/manager note. Writes are audited. No new database tables are introduced.
-6. `ChineseNewYearBonusCard` shows the forecast on the employee dashboard only when a bonus period is configured; `ChineseNewYearBonusAdminCard` exposes the policy and supervisor input on the admin performance page.
-7. Open safety cases are a review gate only: they keep the result provisional but do not subtract money or points automatically.
-8. This entire path remains outside Payroll; actual bonus payment remains a separate explicit/manual payroll decision.
+2. `/api/employee/chinese-new-year-bonus` resolves a role profile for the authenticated active user: `FRONT_YARD` for active front-yard `EMPLOYEE`, or `FUEL_CASHIER` for a normal oil-station `CASHIER`. The four department-scoped gas cashiers are intentionally excluded from the fuel-cashier profile.
+3. `src/lib/chinese-new-year-bonus.ts` is the pure policy layer. Front-yard weights are 25/30/15/20/10; oil-cashier weights are 25/20/15/30/10, creating 35% team-linked and 65% personal influence while using the same payout tiers.
+4. Front-yard calculation reads the person's attendance/shift/leave, own VALID employee-v3/v4 feedback, supervisor rating, and unresolved safety cases. Open safety cases are a review gate only and do not subtract points/money automatically.
+5. Oil-cashier calculation reads the cashier's own attendance/shift/leave + supervisor rating, then bulk-loads active front-yard teammates at the same station. Team quality is an equal-weight average of each member's /64 rubric and remains unavailable until every active member reaches the existing minimum sample. Team cooperation averages per-member worked-day completion, with each day capped at the current daily target. Team safety cases do not automatically penalize the cashier.
+6. `/api/admin/performance/chinese-new-year-bonus` lists both eligible front-yard employees and eligible oil cashiers, returns the role profile, and lets ADMIN/HR record the existing supervisor rating/manager note. Every write remains audited. No database schema change is introduced.
+7. `ChineseNewYearBonusCard` uses role-specific labels and explains to oil cashiers that team results contribute 35%; the existing oil-cashier TEAM FEEDBACK dashboard card explains that its team metrics feed those 35 forecast points.
+8. Exact response counts, the hidden customer-score minimum sample, and per-response detail are not returned by the employee bonus endpoint. This entire path remains outside Payroll; actual bonus payment remains a separate explicit/manual payroll decision.
 
 ## Competition Reward Points flow
 

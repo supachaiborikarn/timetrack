@@ -428,6 +428,9 @@ export function AdminHomeView() {
                                 <p className="mt-1 text-[8px] font-black text-zinc-400">ครบเป้าวันนี้</p>
                             </div>
                         </div>
+                        <div className="mb-2 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-[9px] font-bold leading-relaxed text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300">
+                            ผลทีมส่วนนี้เชื่อมกับแต๊ะเอียคาดการณ์ของเสมียนรวม 35 คะแนน: คุณภาพบริการทีม 20 + ความร่วมมือแบบประเมินทีม 15 คะแนน ส่วนอีก 65 คะแนนมาจากผลงานของเสมียนเอง
+                        </div>
                         {(teamFeedback.teamNeedsExplanationCount > 0 || teamFeedback.teamFollowUpCount > 0) && (
                             <div className="mb-2 flex flex-wrap gap-1.5">
                                 {teamFeedback.teamNeedsExplanationCount > 0 && (

@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import {
     CHINESE_NEW_YEAR_BONUS_TIERS,
     CHINESE_NEW_YEAR_BONUS_WEIGHTS,
+    FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS,
+    type ChineseNewYearBonusProfile,
 } from "@/lib/chinese-new-year-bonus";
 
 type Period = {
@@ -37,6 +39,7 @@ type ReviewRow = {
     label: string;
     stationLabel: string | null;
     departmentLabel: string | null;
+    profile: ChineseNewYearBonusProfile;
     submission: ReviewSubmission | null;
 };
 
@@ -189,18 +192,33 @@ export function ChineseNewYearBonusAdminCard() {
                 </div>
 
                 <div>
-                    <p className="mb-2 text-sm font-semibold">น้ำหนักคะแนน 100 คะแนน</p>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <p className="mb-2 text-sm font-semibold">น้ำหนักคะแนน 100 คะแนนตามบทบาท</p>
+                    <div className="grid gap-3 lg:grid-cols-2">
                         {[
-                            ["เวลา / การมาทำงาน", CHINESE_NEW_YEAR_BONUS_WEIGHTS.attendance],
-                            ["คุณภาพเสียงลูกค้า", CHINESE_NEW_YEAR_BONUS_WEIGHTS.customerQuality],
-                            ["ความร่วมมือแบบประเมิน", CHINESE_NEW_YEAR_BONUS_WEIGHTS.cooperation],
-                            ["หัวหน้างาน / SOP", CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop],
-                            ["วินัย / ความปลอดภัย", CHINESE_NEW_YEAR_BONUS_WEIGHTS.disciplineSafety],
-                        ].map(([label, points]) => (
-                            <div key={String(label)} className="rounded-lg border bg-background px-3 py-2 text-center">
-                                <p className="text-xs text-muted-foreground">{label}</p>
-                                <p className="mt-1 font-mono text-xl font-bold">{points}</p>
+                            {
+                                title: "พนักงานหน้าลาน",
+                                note: "คะแนนลูกค้าเป็นผลงานของเจ้าตัว",
+                                weights: CHINESE_NEW_YEAR_BONUS_WEIGHTS,
+                                labels: ["เวลา", "ลูกค้า", "ร่วมมือ", "หัวหน้า/SOP", "วินัย"],
+                            },
+                            {
+                                title: "เสมียนปั๊มน้ำมัน",
+                                note: "ทีม 35% + ผลงานเสมียนเอง 65% เพื่อให้ช่วยติดตามและโค้ชทีมโดยไม่ฝากโบนัสไว้กับทีมมากเกินไป",
+                                weights: FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS,
+                                labels: ["เวลา", "คุณภาพทีม", "ร่วมมือทีม", "งานเสมียน/SOP", "วินัย"],
+                            },
+                        ].map((policy) => (
+                            <div key={policy.title} className="rounded-xl border bg-background p-3">
+                                <p className="text-sm font-black">{policy.title}</p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">{policy.note}</p>
+                                <div className="mt-2 grid grid-cols-5 gap-1">
+                                    {Object.values(policy.weights).map((points, index) => (
+                                        <div key={`${policy.title}-${policy.labels[index]}`} className="rounded-md border bg-muted/30 px-1 py-1.5 text-center">
+                                            <p className="truncate text-[9px] text-muted-foreground">{policy.labels[index]}</p>
+                                            <p className="font-mono text-base font-black">{points}</p>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -228,20 +246,25 @@ export function ChineseNewYearBonusAdminCard() {
                 ) : !data?.selectedPeriodId ? null : (
                     <div className="space-y-2">
                         <div>
-                            <p className="text-sm font-semibold">คะแนนหัวหน้างาน / SOP (20 คะแนน)</p>
-                            <p className="text-xs text-muted-foreground">ใช้ Rating 1–5 ของ ReviewSubmission แล้วแปลงเป็น 4, 8, 12, 16, 20 คะแนน</p>
+                            <p className="text-sm font-semibold">คะแนนหัวหน้างาน / SOP ตามบทบาท</p>
+                            <p className="text-xs text-muted-foreground">พนักงานหน้าลานเต็ม 20 คะแนน; เสมียนปั๊มน้ำมันเต็ม 30 คะแนน เพื่อให้ความรับผิดชอบงานเสมียนและการช่วยคุมทีมมีน้ำหนักที่ชัดเจน</p>
                         </div>
 
                         <div className="space-y-2">
                             {data.reviews.length === 0 ? (
-                                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">ไม่พบพนักงานหน้าลานที่ใช้งานอยู่</div>
+                                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">ไม่พบพนักงานหน้าลานหรือเสมียนปั๊มน้ำมันที่ใช้งานอยู่</div>
                             ) : data.reviews.map((row) => {
                                 const draft = drafts[row.employeeId] ?? { rating: "", managerReview: "" };
                                 return (
                                     <div key={row.employeeId} className="rounded-xl border bg-background p-3">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div>
-                                                <p className="font-semibold">{row.label}</p>
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <p className="font-semibold">{row.label}</p>
+                                                    <Badge variant="outline" className="text-[9px]">
+                                                        {row.profile === "FUEL_CASHIER" ? "เสมียนปั๊มน้ำมัน" : "พนักงานหน้าลาน"}
+                                                    </Badge>
+                                                </div>
                                                 <p className="text-xs text-muted-foreground">
                                                     {[row.stationLabel, row.departmentLabel].filter(Boolean).join(" · ") || "ไม่ระบุสาขา/แผนก"}
                                                 </p>
@@ -269,7 +292,12 @@ export function ChineseNewYearBonusAdminCard() {
                                                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                                                     >
                                                         <option value="">เลือกคะแนน</option>
-                                                        {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating}/5 → {rating * 4}/20</option>)}
+                                                        {[1, 2, 3, 4, 5].map((rating) => {
+                                                            const maxPoints = row.profile === "FUEL_CASHIER"
+                                                                ? FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop
+                                                                : CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop;
+                                                            return <option key={rating} value={rating}>{rating}/5 → {(rating / 5) * maxPoints}/{maxPoints}</option>;
+                                                        })}
                                                     </select>
                                                 </div>
                                                 <div className="space-y-1">

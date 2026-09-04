@@ -7,6 +7,24 @@ updated: 2026-09-04
 
 # Session Log
 
+## 2026-09-04 — Fixed League ranking names disappearing in dark mode
+
+Goal:
+
+Fix `/league` where employee names and score values on cream ranking cards could become invisible on devices/browsers using dark appearance, while another device in light appearance still displayed them normally.
+
+Root cause / implementation:
+
+- The page root switches to `dark:text-zinc-50`, but several ranking/championship/award/Fair Play cards keep a fixed light cream background. Their primary text inherited the dark-mode near-white foreground, so names and numeric values visually disappeared while secondary text with explicit `text-zinc-500` remained visible.
+- Added explicit `text-zinc-950` to all fixed-light League cards so their foreground remains readable in both light and dark appearance modes.
+- No API, League scoring, ranking, Fair Play, reward, or database logic changed.
+
+Verification:
+
+- `npx tsc --noEmit` — passed with 0 errors.
+- `npx eslint src/app/league/page.tsx` — passed with 0 errors/warnings.
+- No production database command was executed.
+
 ## 2026-09-04 — Added Chinese New Year bonus forecast and supervisor/SOP input
 
 Goal:

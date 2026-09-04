@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { getFeedbackAccessContext } from "@/lib/customer-feedback/access";
 import { prisma } from "@/lib/prisma";
-import { CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY } from "@/lib/chinese-new-year-bonus";
+import {
+    CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY,
+    type ChineseNewYearBonusProfile,
+} from "@/lib/chinese-new-year-bonus";
+
+type BonusProfileUser = {
+    role: string;
+    employeeId: string;
+    stationId: string | null;
+    department: { isFrontYard: boolean } | null;
+};
+
+function resolveBonusProfile(user: BonusProfileUser): ChineseNewYearBonusProfile | null {
+    if (user.role === "EMPLOYEE" && user.department?.isFrontYard) return "FRONT_YARD";
+    if (isFuelCashier(user) && user.stationId) return "FUEL_CASHIER";
+    return null;
+}
 
 async function requireManager() {
     const access = await getFeedbackAccessContext();
@@ -42,20 +59,30 @@ export async function GET() {
             return NextResponse.json({ selectedPeriodId: null, periods, reviews: [] });
         }
 
-        const employees = await prisma.user.findMany({
+        const candidates = await prisma.user.findMany({
             where: {
                 isActive: true,
                 employeeStatus: "ACTIVE",
-                department: { is: { isFrontYard: true } },
+                OR: [
+                    { role: "EMPLOYEE", department: { is: { isFrontYard: true } } },
+                    { role: "CASHIER" },
+                ],
             },
             orderBy: [{ stationId: "asc" }, { name: "asc" }],
             select: {
                 id: true,
+                employeeId: true,
+                role: true,
+                stationId: true,
                 name: true,
                 nickName: true,
                 station: { select: { name: true } },
-                department: { select: { name: true } },
+                department: { select: { name: true, isFrontYard: true } },
             },
+        });
+        const employees = candidates.flatMap((employee) => {
+            const profile = resolveBonusProfile(employee);
+            return profile ? [{ ...employee, profile }] : [];
         });
         const submissions = employees.length > 0
             ? await prisma.reviewSubmission.findMany({
@@ -85,6 +112,7 @@ export async function GET() {
                 label: employee.nickName?.trim() || employee.name,
                 stationLabel: employee.station?.name ?? null,
                 departmentLabel: employee.department?.name ?? null,
+                profile: employee.profile,
                 submission: submissionByEmployee.get(employee.id) ?? null,
             })),
         });
@@ -164,12 +192,32 @@ export async function PATCH(request: NextRequest) {
 
         const periodId = body.periodId.trim();
         const employeeId = body.employeeId.trim();
-        const config = await prisma.systemConfig.findUnique({
-            where: { key: CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY },
-            select: { value: true },
-        });
+        const [config, target] = await Promise.all([
+            prisma.systemConfig.findUnique({
+                where: { key: CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY },
+                select: { value: true },
+            }),
+            prisma.user.findUnique({
+                where: { id: employeeId },
+                select: {
+                    isActive: true,
+                    employeeStatus: true,
+                    role: true,
+                    employeeId: true,
+                    stationId: true,
+                    department: { select: { isFrontYard: true } },
+                },
+            }),
+        ]);
         if (config?.value !== periodId) {
             return NextResponse.json({ error: "รอบนี้ไม่ใช่รอบแต๊ะเอียที่กำลังใช้งาน" }, { status: 409 });
+        }
+        if (!target?.isActive || target.employeeStatus !== "ACTIVE") {
+            return NextResponse.json({ error: "พนักงานนี้ไม่ได้อยู่ในสถานะใช้งาน" }, { status: 400 });
+        }
+        const profile = resolveBonusProfile(target);
+        if (!profile) {
+            return NextResponse.json({ error: "บุคคลนี้ไม่อยู่ในกลุ่มคำนวณแต๊ะเอีย" }, { status: 400 });
         }
 
         const existing = await prisma.reviewSubmission.findUnique({
@@ -207,7 +255,7 @@ export async function PATCH(request: NextRequest) {
                     action: "CNY_BONUS_SUPERVISOR_REVIEW_UPDATED",
                     entity: "ReviewSubmission",
                     entityId: existing.id,
-                    details: JSON.stringify({ periodId, employeeId, rating: body.rating }),
+                    details: JSON.stringify({ periodId, employeeId, rating: body.rating, profile }),
                     userId: access.userId,
                 },
             }),

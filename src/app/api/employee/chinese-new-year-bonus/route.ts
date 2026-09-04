@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { reviewPeriodDayBounds } from "@/lib/customer-feedback/access";
 import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/customer-feedback/questions";
@@ -8,16 +9,39 @@ import { startOfDayBangkok } from "@/lib/date-utils";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
 import {
+    averageAvailableTeamPoints,
     bangkokDateKey,
     calculateChineseNewYearBonusPreview,
+    calculateCompleteTeamCustomerQualityPoints,
     calculateDisciplineSafetyPoints,
     calculateEvaluationCooperationPoints,
     CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY,
-    CHINESE_NEW_YEAR_BONUS_WEIGHTS,
+    getChineseNewYearBonusWeights,
+    type ChineseNewYearBonusProfile,
 } from "@/lib/chinese-new-year-bonus";
 
 function round1(value: number): number {
     return Math.round((value + Number.EPSILON) * 10) / 10;
+}
+
+type FeedbackRow = {
+    id: string;
+    employeeId?: string | null;
+    submittedAt: Date;
+    answers: Array<{ questionKey: string; choiceValues: string[] }>;
+};
+
+function toRubricResponse(response: FeedbackRow): EmployeeScoreResponseInput {
+    return {
+        responseId: response.id,
+        submittedAt: response.submittedAt,
+        answers: response.answers.flatMap((answer) => {
+            const value = answer.choiceValues[0];
+            return value === "YES" || value === "NO" || value === "UNSURE"
+                ? [{ questionKey: answer.questionKey, answer: value }]
+                : [];
+        }),
+    };
 }
 
 export async function GET() {
@@ -34,6 +58,9 @@ export async function GET() {
                 select: {
                     isActive: true,
                     employeeStatus: true,
+                    role: true,
+                    employeeId: true,
+                    stationId: true,
                     station: { select: { code: true } },
                     department: { select: { isFrontYard: true } },
                 },
@@ -47,7 +74,15 @@ export async function GET() {
         if (!user?.isActive || user.employeeStatus !== "ACTIVE") {
             return NextResponse.json({ error: "บัญชีพนักงานถูกปิดใช้งาน" }, { status: 403 });
         }
-        if (!user.department?.isFrontYard) {
+
+        const isFrontYardEmployee = user.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard);
+        const isEligibleFuelCashier = isFuelCashier(user) && Boolean(user.stationId);
+        const profile: ChineseNewYearBonusProfile | null = isFrontYardEmployee
+            ? "FRONT_YARD"
+            : isEligibleFuelCashier
+                ? "FUEL_CASHIER"
+                : null;
+        if (!profile) {
             return NextResponse.json({ enabled: false, reason: "NOT_ELIGIBLE" });
         }
         if (!periodConfig?.value) {
@@ -79,7 +114,7 @@ export async function GET() {
         const hasWorkRange = periodFrom.getTime() <= workTo.getTime();
         const hasFeedbackRange = periodFrom.getTime() < feedbackToExclusive.getTime();
 
-        const [attendances, assignments, leaves, feedbackResponses, submission, safetyCaseCount] = await Promise.all([
+        const [attendances, assignments, leaves, submission, teamMembers] = await Promise.all([
             hasWorkRange
                 ? prisma.attendance.findMany({
                     where: { userId, date: { gte: periodFrom, lte: workTo } },
@@ -122,59 +157,23 @@ export async function GET() {
                     select: { startDate: true, endDate: true, status: true },
                 })
                 : Promise.resolve([]),
-            hasFeedbackRange
-                ? prisma.customerFeedbackResponse.findMany({
-                    where: {
-                        kind: "STANDARD",
-                        targetType: "EMPLOYEE",
-                        employeeId: userId,
-                        surveyVersion: { in: ["employee-v3", "employee-v4"] },
-                        validity: "VALID",
-                        submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
-                    },
-                    select: {
-                        id: true,
-                        submittedAt: true,
-                        answers: {
-                            where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
-                            select: { questionKey: true, choiceValues: true },
-                        },
-                    },
-                })
-                : Promise.resolve([]),
             prisma.reviewSubmission.findUnique({
                 where: { employeeId_periodId: { employeeId: userId, periodId: period.id } },
                 select: { rating: true, status: true, completedAt: true },
             }),
-            hasFeedbackRange
-                ? prisma.customerFeedbackCase.count({
+            profile === "FUEL_CASHIER" && user.stationId
+                ? prisma.user.findMany({
                     where: {
-                        status: { in: ["OPEN", "IN_PROGRESS"] },
-                        response: {
-                            employeeId: userId,
-                            validity: "VALID",
-                            submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
-                            OR: [
-                                { reasonKeys: { has: "employee_safety" } },
-                                { incidentKey: "safety_accident" },
-                            ],
-                        },
+                        stationId: user.stationId,
+                        isActive: true,
+                        employeeStatus: "ACTIVE",
+                        role: "EMPLOYEE",
+                        department: { is: { isFrontYard: true } },
                     },
+                    select: { id: true },
                 })
-                : Promise.resolve(0),
+                : Promise.resolve([]),
         ]);
-
-        const rubricResponses: EmployeeScoreResponseInput[] = feedbackResponses.map((response) => ({
-            responseId: response.id,
-            submittedAt: response.submittedAt,
-            answers: response.answers.flatMap((answer) => {
-                const value = answer.choiceValues[0];
-                return value === "YES" || value === "NO" || value === "UNSURE"
-                    ? [{ questionKey: answer.questionKey, answer: value }]
-                    : [];
-            }),
-        }));
-        const customerRubric = summarizeEmployeeRubric(rubricResponses);
 
         const performance = calculateEmployeePerformance({
             assignments,
@@ -192,30 +191,9 @@ export async function GET() {
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
         });
 
-        const assignmentByDay = new Map(assignments.map((assignment) => [bangkokDateKey(assignment.date), assignment]));
-        const workedDayKeys = attendances.flatMap((attendance) => {
-            if (!attendance.checkInTime) return [];
-            const key = bangkokDateKey(attendance.date);
-            const assignment = assignmentByDay.get(key);
-            return assignment && !assignment.isDayOff ? [key] : [];
-        });
-
+        const weights = getChineseNewYearBonusWeights(profile);
         const attendancePoints = performance.counts.requiredDays > 0
             ? round1(performance.components.presence)
-            : null;
-        const customerQualityPoints = customerRubric.meetsMinimumSample && customerRubric.score64 != null
-            ? round1((customerRubric.score64 / EMPLOYEE_SCORE_TOTAL) * CHINESE_NEW_YEAR_BONUS_WEIGHTS.customerQuality)
-            : null;
-        const cooperationPoints = calculateEvaluationCooperationPoints({
-            workedDayKeys,
-            evaluationSubmittedAts: feedbackResponses.map((response) => response.submittedAt),
-        });
-        const supervisorRating = submission?.rating;
-        const supervisorSopPoints = supervisorRating != null
-            && Number.isInteger(supervisorRating)
-            && supervisorRating >= 1
-            && supervisorRating <= 5
-            ? round1((supervisorRating / 5) * CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop)
             : null;
         const disciplineSafetyPoints = performance.counts.presentDays > 0
             ? calculateDisciplineSafetyPoints({
@@ -223,10 +201,159 @@ export async function GET() {
                 punctualityPoints: performance.components.punctuality,
                 completionPoints: performance.components.completion,
                 breakDisciplinePoints: performance.components.breakDiscipline,
+                maxPoints: weights.disciplineSafety,
             })
             : null;
+        const supervisorRating = submission?.rating;
+        const supervisorSopPoints = supervisorRating != null
+            && Number.isInteger(supervisorRating)
+            && supervisorRating >= 1
+            && supervisorRating <= 5
+            ? round1((supervisorRating / 5) * weights.supervisorSop)
+            : null;
+
+        let customerQualityPoints: number | null = null;
+        let cooperationPoints: number | null = null;
+        let safetyCaseCount = 0;
+
+        if (profile === "FRONT_YARD") {
+            const [feedbackResponses, openSafetyCaseCount] = await Promise.all([
+                hasFeedbackRange
+                    ? prisma.customerFeedbackResponse.findMany({
+                        where: {
+                            kind: "STANDARD",
+                            targetType: "EMPLOYEE",
+                            employeeId: userId,
+                            surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                            validity: "VALID",
+                            submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
+                        },
+                        select: {
+                            id: true,
+                            employeeId: true,
+                            submittedAt: true,
+                            answers: {
+                                where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
+                                select: { questionKey: true, choiceValues: true },
+                            },
+                        },
+                    })
+                    : Promise.resolve([]),
+                hasFeedbackRange
+                    ? prisma.customerFeedbackCase.count({
+                        where: {
+                            status: { in: ["OPEN", "IN_PROGRESS"] },
+                            response: {
+                                employeeId: userId,
+                                validity: "VALID",
+                                submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
+                                OR: [
+                                    { reasonKeys: { has: "employee_safety" } },
+                                    { incidentKey: "safety_accident" },
+                                ],
+                            },
+                        },
+                    })
+                    : Promise.resolve(0),
+            ]);
+            safetyCaseCount = openSafetyCaseCount;
+
+            const rubric = summarizeEmployeeRubric(feedbackResponses.map((response) => toRubricResponse(response)));
+            customerQualityPoints = rubric.meetsMinimumSample && rubric.score64 != null
+                ? round1((rubric.score64 / EMPLOYEE_SCORE_TOTAL) * weights.customerQuality)
+                : null;
+
+            const assignmentByDay = new Map(assignments.map((assignment) => [bangkokDateKey(assignment.date), assignment]));
+            const workedDayKeys = attendances.flatMap((attendance) => {
+                if (!attendance.checkInTime) return [];
+                const key = bangkokDateKey(attendance.date);
+                const assignment = assignmentByDay.get(key);
+                return assignment && !assignment.isDayOff ? [key] : [];
+            });
+            cooperationPoints = calculateEvaluationCooperationPoints({
+                workedDayKeys,
+                evaluationSubmittedAts: feedbackResponses.map((response) => response.submittedAt),
+                maxPoints: weights.cooperation,
+            });
+        } else {
+            const teamIds = teamMembers.map((member) => member.id);
+            const [teamFeedbackResponses, teamAssignments, teamAttendances] = teamIds.length > 0
+                ? await Promise.all([
+                    hasFeedbackRange
+                        ? prisma.customerFeedbackResponse.findMany({
+                            where: {
+                                kind: "STANDARD",
+                                targetType: "EMPLOYEE",
+                                employeeId: { in: teamIds },
+                                surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                                validity: "VALID",
+                                submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
+                            },
+                            select: {
+                                id: true,
+                                employeeId: true,
+                                submittedAt: true,
+                                answers: {
+                                    where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
+                                    select: { questionKey: true, choiceValues: true },
+                                },
+                            },
+                        })
+                        : Promise.resolve([]),
+                    hasWorkRange
+                        ? prisma.shiftAssignment.findMany({
+                            where: { userId: { in: teamIds }, date: { gte: periodFrom, lte: workTo } },
+                            select: { userId: true, date: true, isDayOff: true },
+                        })
+                        : Promise.resolve([]),
+                    hasWorkRange
+                        ? prisma.attendance.findMany({
+                            where: { userId: { in: teamIds }, date: { gte: periodFrom, lte: workTo } },
+                            select: { userId: true, date: true, checkInTime: true },
+                        })
+                        : Promise.resolve([]),
+                ])
+                : [[], [], []] as const;
+
+            const responsesByEmployee = new Map<string, FeedbackRow[]>();
+            for (const response of teamFeedbackResponses) {
+                if (!response.employeeId) continue;
+                const list = responsesByEmployee.get(response.employeeId) ?? [];
+                list.push(response);
+                responsesByEmployee.set(response.employeeId, list);
+            }
+
+            const teamScores64 = teamMembers.map((member) => {
+                const rubric = summarizeEmployeeRubric((responsesByEmployee.get(member.id) ?? []).map(toRubricResponse));
+                return rubric.meetsMinimumSample ? rubric.score64 : null;
+            });
+            customerQualityPoints = calculateCompleteTeamCustomerQualityPoints({
+                memberScores64: teamScores64,
+                rubricTotal: EMPLOYEE_SCORE_TOTAL,
+                maxPoints: weights.customerQuality,
+            });
+
+            const teamAssignmentByDay = new Map(
+                teamAssignments.map((assignment) => [`${assignment.userId}::${bangkokDateKey(assignment.date)}`, assignment]),
+            );
+            const memberCooperationPoints = teamMembers.map((member) => {
+                const workedDayKeys = teamAttendances.flatMap((attendance) => {
+                    if (attendance.userId !== member.id || !attendance.checkInTime) return [];
+                    const dayKey = bangkokDateKey(attendance.date);
+                    const assignment = teamAssignmentByDay.get(`${member.id}::${dayKey}`);
+                    return assignment && !assignment.isDayOff ? [dayKey] : [];
+                });
+                return calculateEvaluationCooperationPoints({
+                    workedDayKeys,
+                    evaluationSubmittedAts: (responsesByEmployee.get(member.id) ?? []).map((response) => response.submittedAt),
+                    maxPoints: weights.cooperation,
+                });
+            });
+            cooperationPoints = averageAvailableTeamPoints(memberCooperationPoints);
+        }
 
         const preview = calculateChineseNewYearBonusPreview({
+            profile,
             attendancePoints,
             customerQualityPoints,
             cooperationPoints,
@@ -236,8 +363,10 @@ export async function GET() {
             safetyReviewRequired: safetyCaseCount > 0,
         });
 
+        const isCashier = profile === "FUEL_CASHIER";
         return NextResponse.json({
             enabled: true,
+            profile,
             period: {
                 id: period.id,
                 title: period.title,
@@ -248,9 +377,15 @@ export async function GET() {
             preview,
             // ห้ามส่ง exact customer count / daily target ไปหน้าพนักงาน ตาม privacy/fair-play decision เดิม
             messages: {
-                customerQuality: customerQualityPoints == null ? "กำลังรวบรวมข้อมูลเสียงลูกค้า" : "คะแนนเสียงลูกค้าพร้อมใช้แล้ว",
-                cooperation: cooperationPoints == null ? "รอวันทำงานในรอบนี้" : "คำนวณจากความสม่ำเสมอของภารกิจรายวัน",
-                supervisorSop: supervisorSopPoints == null ? "รอหัวหน้างานบันทึกคะแนน" : "หัวหน้างานประเมินแล้ว",
+                customerQuality: customerQualityPoints == null
+                    ? isCashier ? "กำลังรวบรวมข้อมูลคุณภาพบริการให้ครบทั้งทีม" : "กำลังรวบรวมข้อมูลเสียงลูกค้า"
+                    : isCashier ? "คะแนนคุณภาพบริการของทีมพร้อมใช้แล้ว" : "คะแนนเสียงลูกค้าพร้อมใช้แล้ว",
+                cooperation: cooperationPoints == null
+                    ? isCashier ? "รอวันทำงานของทีมในรอบนี้" : "รอวันทำงานในรอบนี้"
+                    : isCashier ? "คำนวณจากความสม่ำเสมอของทีมตามวันทำงานจริง" : "คำนวณจากความสม่ำเสมอของภารกิจรายวัน",
+                supervisorSop: supervisorSopPoints == null
+                    ? isCashier ? "รอหัวหน้างานประเมินงานเสมียน / SOP" : "รอหัวหน้างานบันทึกคะแนน"
+                    : isCashier ? "หัวหน้างานประเมินงานเสมียนแล้ว" : "หัวหน้างานประเมินแล้ว",
                 disciplineSafety: safetyCaseCount > 0
                     ? "มีเคสความปลอดภัยที่ต้องตรวจสอบก่อนสรุปผล"
                     : "คำนวณวินัยจากตรงเวลา อยู่ครบกะ และเวลาพัก",

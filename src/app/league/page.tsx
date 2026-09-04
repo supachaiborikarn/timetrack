@@ -211,7 +211,7 @@ export default function LeaguePage() {
             />
 
             <div className="mx-auto max-w-[480px] space-y-4 p-4">
-                <section className="overflow-hidden rounded-[24px] border-2 border-zinc-800 bg-[#fffaf0] shadow-[0_5px_0_rgba(24,24,27,.12)]">
+                <section className="overflow-hidden rounded-[24px] border-2 border-zinc-800 bg-[#fffaf0] text-zinc-950 shadow-[0_5px_0_rgba(24,24,27,.12)]">
                     <div className="flex items-center justify-between bg-zinc-950 px-4 py-3 text-white">
                         <div>
                             <p className="text-[10px] font-black tracking-[0.2em] text-amber-400">WEEKLY STATION LEAGUE</p>
@@ -350,7 +350,7 @@ export default function LeaguePage() {
                     </section>
                 ) : null}
 
-                <section className="rounded-[22px] border border-zinc-800/30 bg-[#fffaf0] p-4 shadow-[0_4px_0_rgba(24,24,27,.08)]">
+                <section className="rounded-[22px] border border-zinc-800/30 bg-[#fffaf0] p-4 text-zinc-950 shadow-[0_4px_0_rgba(24,24,27,.08)]">
                     <div className="mb-3 flex items-center justify-between">
                         <div className="flex items-center gap-2"><Medal className="h-5 w-5 text-amber-500" /><h2 className="font-black">Station Championship — เดือนนี้</h2></div>
                         {monthly.me ? <span className="rounded-full bg-zinc-900 px-2.5 py-1 text-[10px] font-black text-white">คุณ #{monthly.me.rank}</span> : null}
@@ -368,7 +368,7 @@ export default function LeaguePage() {
                 </section>
 
                 {(data.awards?.length ?? 0) > 0 ? (
-                    <section className="space-y-3 rounded-[22px] border-2 border-amber-400 bg-[#fff8dc] p-4 shadow-[0_4px_0_rgba(217,119,6,.15)]">
+                    <section className="space-y-3 rounded-[22px] border-2 border-amber-400 bg-[#fff8dc] p-4 text-zinc-950 shadow-[0_4px_0_rgba(217,119,6,.15)]">
                         <div className="flex items-center gap-2"><Gift className="h-6 w-6 text-amber-600" /><h2 className="text-lg font-black">รางวัลของคุณ</h2></div>
                         {data.awards!.map((award) => (
                             <div key={award.id} className="rounded-2xl border border-amber-300 bg-white/70 p-3">
@@ -393,7 +393,7 @@ export default function LeaguePage() {
                     </section>
                 ) : null}
 
-                <section className="rounded-[22px] border border-zinc-800/30 bg-[#fffaf0] p-4">
+                <section className="rounded-[22px] border border-zinc-800/30 bg-[#fffaf0] p-4 text-zinc-950">
                     <div className="flex items-start gap-3">
                         <ShieldCheck className="mt-0.5 h-7 w-7 shrink-0 text-emerald-600" />
                         <div>
