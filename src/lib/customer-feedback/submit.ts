@@ -21,7 +21,7 @@ import {
 } from "./questions";
 import type { StandardPayload, IncidentPayload } from "./validation";
 import { encryptField } from "@/lib/crypto-field";
-import { selectUniqueOnDutyHousekeeper } from "./restroom-score";
+import { isRestroomScoreEligibleHousekeeper, selectUniqueOnDutyHousekeeper } from "./restroom-score";
 
 /**
  * Server-side submission service ของระบบเสียงลูกค้า
@@ -736,12 +736,20 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
                                 nickName: true,
                                 departmentId: true,
                                 department: { select: { name: true } },
+                                station: { select: { code: true } },
                             },
                         },
                     },
                 })
                 : [];
-            const housekeeperAssignment = selectUniqueOnDutyHousekeeper(onDutyHousekeepingRows);
+            const eligibleOnDutyHousekeepingRows = onDutyHousekeepingRows.filter((row) =>
+                isRestroomScoreEligibleHousekeeper({
+                    stationCode: row.user.station?.code ?? null,
+                    name: row.user.name,
+                    nickName: row.user.nickName,
+                })
+            );
+            const housekeeperAssignment = selectUniqueOnDutyHousekeeper(eligibleOnDutyHousekeepingRows);
             const responseEmployeeId = isEmployee ? currentQr.employeeId : housekeeperAssignment?.userId ?? null;
             const responseDepartmentId = isEmployee ? employeeUser?.departmentId ?? null : housekeeperAssignment?.user.departmentId ?? null;
             const responseDepartmentLabel = isEmployee ? employeeUser?.department?.name ?? null : housekeeperAssignment?.user.department?.name ?? null;

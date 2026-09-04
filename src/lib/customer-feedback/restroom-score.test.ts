@@ -3,6 +3,7 @@ import {
     RESTROOM_SCORE_MINIMUM_SAMPLE,
     restroomChecklistPoints,
     restroomOverallPoints,
+    isRestroomScoreEligibleHousekeeper,
     selectUniqueOnDutyHousekeeper,
     summarizeRestroomScore,
 } from "./restroom-score";
@@ -51,6 +52,13 @@ describe("restroom score policy", () => {
         expect(summary.score).toBe(100);
         expect(summary.overallPoints).toBe(40);
         expect(summary.checklistPoints).toBe(60);
+    });
+
+    it("excludes Joy at WKO because she is a home housekeeper, not station restroom staff", () => {
+        expect(isRestroomScoreEligibleHousekeeper({ stationCode: "WKO", nickName: "จอย", name: "สมหญิง" })).toBe(false);
+        expect(isRestroomScoreEligibleHousekeeper({ stationCode: "wko", name: "จอย" })).toBe(false);
+        expect(isRestroomScoreEligibleHousekeeper({ stationCode: "WKO", nickName: "แม่บ้านปั๊ม" })).toBe(true);
+        expect(isRestroomScoreEligibleHousekeeper({ stationCode: "PAP", nickName: "จอย" })).toBe(true);
     });
 
     it("assigns only when exactly one unique housekeeper is on duty", () => {

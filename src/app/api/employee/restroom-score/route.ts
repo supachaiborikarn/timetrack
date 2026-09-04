@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isHousekeepingDepartment } from "@/lib/attendance-rules";
 import { RESTROOM_CLEANLINESS_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
-import { summarizeRestroomScore } from "@/lib/customer-feedback/restroom-score";
+import { isRestroomScoreEligibleHousekeeper, summarizeRestroomScore } from "@/lib/customer-feedback/restroom-score";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +15,22 @@ export async function GET() {
         where: { id: session.user.id },
         select: {
             id: true,
+            name: true,
+            nickName: true,
             isActive: true,
             department: { select: { code: true, name: true } },
+            station: { select: { code: true } },
         },
     });
-    if (!employee?.isActive || !isHousekeepingDepartment(employee.department)) {
+    if (
+        !employee?.isActive ||
+        !isHousekeepingDepartment(employee.department) ||
+        !isRestroomScoreEligibleHousekeeper({
+            stationCode: employee.station?.code ?? null,
+            name: employee.name,
+            nickName: employee.nickName,
+        })
+    ) {
         return NextResponse.json({ applicable: false });
     }
 

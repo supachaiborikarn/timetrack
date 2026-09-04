@@ -178,3 +178,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Restroom score is 100 points: 40 from the 1–5 overall rating and 60 from the five cleanliness checklist criteria. `UNSURE` is excluded from the checklist denominator.
 - Hide the numeric housekeeper restroom score until at least 10 VALID attributed restroom responses exist.
 - Restroom feedback remains part of the standard Customer Feedback funnel/summary, while its employee-level score is shown separately from front-yard employee service scores.
+
+
+## 2026-09-04: WKO Joy is excluded from restroom QR scoring
+
+- Joy (`จอย`) at WKO is a home housekeeper, not station/restroom housekeeping staff.
+- She must never be selected for `restroom-v1` attendance-based attribution, listed in the admin restroom-score view, or shown a restroom-score card in employee self-service.
+- If a restroom response was previously attributed to this excluded identity, management reporting must treat it as unattributed rather than scoring Joy.
+- Department `MAID` alone is not sufficient proof that an employee is responsible for station restrooms; explicit business-role exclusions take precedence.

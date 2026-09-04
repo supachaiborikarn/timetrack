@@ -10,6 +10,7 @@ import {
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
 import { RESTROOM_CLEANLINESS_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import {
+    isRestroomScoreEligibleHousekeeper,
     summarizeRestroomScore,
     type RestroomScoreResponseInput,
 } from "@/lib/customer-feedback/restroom-score";
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
                     name: true,
                     nickName: true,
                     stationId: true,
-                    station: { select: { name: true } },
+                    station: { select: { name: true, code: true } },
                 },
                 orderBy: [{ stationId: "asc" }, { name: "asc" }],
             }),
@@ -89,10 +90,29 @@ export async function GET(request: NextRequest) {
             }),
         ]);
 
+        const eligibleEmployees = employees.filter((employee) =>
+            isRestroomScoreEligibleHousekeeper({
+                stationCode: employee.station?.code ?? null,
+                name: employee.name,
+                nickName: employee.nickName,
+            })
+        );
+        const eligibleEmployeeIds = new Set(eligibleEmployees.map((employee) => employee.id));
+        const explicitlyExcludedEmployeeIds = new Set(
+            employees
+                .filter((employee) => !eligibleEmployeeIds.has(employee.id))
+                .map((employee) => employee.id)
+        );
+        let excludedAttributedCount = 0;
+
         const byEmployee = new Map<string, RestroomScoreResponseInput[]>();
         const latestByEmployee = new Map<string, Date>();
         for (const response of responses) {
             if (!response.employeeId || response.overallRating === null) continue;
+            if (!eligibleEmployeeIds.has(response.employeeId)) {
+                if (explicitlyExcludedEmployeeIds.has(response.employeeId)) excludedAttributedCount++;
+                continue;
+            }
             const bucket = byEmployee.get(response.employeeId) ?? [];
             bucket.push({
                 responseId: response.id,
@@ -108,7 +128,7 @@ export async function GET(request: NextRequest) {
             latestByEmployee.set(response.employeeId, response.submittedAt);
         }
 
-        const housekeepers = employees
+        const housekeepers = eligibleEmployees
             .map((employee) => ({
                 employeeId: employee.id,
                 label: employee.nickName?.trim() || employee.name,
@@ -130,7 +150,7 @@ export async function GET(request: NextRequest) {
             from: from.toISOString(),
             toExclusive: effectiveTo.toISOString(),
             calculatedAt: now.toISOString(),
-            unattributedCount,
+            unattributedCount: unattributedCount + excludedAttributedCount,
             housekeepers,
         });
     } catch (error) {

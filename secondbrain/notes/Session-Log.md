@@ -1525,3 +1525,26 @@ Verification:
 - Plain `npm run build` failed because the shell had a non-standard `NODE_ENV`; rerun with `NODE_ENV=production npm run build` passed all 188 static pages.
 - Production build TypeScript phase passed.
 - No schema migration or production data mutation was performed by this work.
+
+
+## 2026-09-04 — Excluded WKO Joy from restroom QR scoring
+
+Correction from owner:
+
+- Joy (`จอย`) at WKO is a housekeeper for the home, not a housekeeper working at the petrol station, so she is unrelated to the restroom QR program.
+
+Implementation:
+
+- Added a shared restroom-score eligibility policy that explicitly excludes Joy at WKO.
+- Restroom submission attribution filters excluded identities before deciding whether exactly one eligible on-duty housekeeper exists.
+- Admin restroom scores hide excluded identities and count any previously attributed responses for them as unattributed.
+- Employee restroom-score API returns `applicable: false` for excluded identities so no restroom score card is shown.
+- No production database command or data mutation was used for this correction.
+
+Verification:
+
+- `npx vitest run src/lib/customer-feedback/restroom-score.test.ts`: 6/6 passed.
+- `npx tsc --noEmit`: passed.
+- Full `npx vitest run`: 80 files / 511 tests passed.
+- Targeted ESLint on all corrected restroom files: passed with 0 errors/warnings.
+- `NODE_ENV=production npm run build`: passed; Next generated all 188 static pages.

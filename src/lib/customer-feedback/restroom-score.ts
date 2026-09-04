@@ -114,6 +114,24 @@ export function summarizeRestroomScore(responses: RestroomScoreResponseInput[]) 
     };
 }
 
+export interface RestroomHousekeeperIdentity {
+    stationCode?: string | null;
+    name?: string | null;
+    nickName?: string | null;
+}
+
+/**
+ * คนในแผนกแม่บ้านไม่ได้หมายความว่าจะรับผิดชอบห้องน้ำสถานีเสมอไป
+ * จอยที่ WKO เป็นแม่บ้านประจำบ้าน จึงต้องไม่รับ/แสดงคะแนน QR ห้องน้ำสถานี
+ */
+export function isRestroomScoreEligibleHousekeeper(identity: RestroomHousekeeperIdentity): boolean {
+    const stationCode = identity.stationCode?.trim().toUpperCase() ?? "";
+    const nickName = identity.nickName?.trim() ?? "";
+    const name = identity.name?.trim() ?? "";
+    if (stationCode === "WKO" && (nickName === "จอย" || name === "จอย")) return false;
+    return true;
+}
+
 export function selectUniqueOnDutyHousekeeper<T extends { userId: string }>(rows: T[]): T | null {
     const byUser = new Map<string, T>();
     for (const row of rows) byUser.set(row.userId, row);
