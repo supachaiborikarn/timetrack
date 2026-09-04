@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatThaiDate } from "@/lib/date-utils";
 import type { ReviewPeriod } from "@/types/performance";
+import { ChineseNewYearBonusAdminCard } from "@/components/performance/ChineseNewYearBonusAdminCard";
 
 type PeriodWithClose = ReviewPeriod & { closedAt?: string | null };
 
@@ -161,6 +162,8 @@ export default function AdminPerformancePage() {
                     <h1 className="text-2xl font-bold">จัดการการประเมินผล</h1>
                     <p className="text-slate-500">สร้างรอบประเมิน ปิดรอบ และเก็บผลเสียงลูกค้าเป็นหลักฐานของรอบนั้น</p>
                 </div>
+
+                <ChineseNewYearBonusAdminCard />
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     <Card className="h-fit lg:col-span-1">

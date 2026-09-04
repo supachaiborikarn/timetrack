@@ -52,7 +52,7 @@ describe("PerformancePage period switching", () => {
         });
 
         render(<PerformancePage />);
-        const periodSelect = await screen.findByLabelText("เลือกรอบประเมิน");
+        const periodSelect = await screen.findByLabelText("เลือกรอบการประเมิน");
         fireEvent.change(periodSelect, { target: { value: "period-b" } });
 
         const review = await screen.findByDisplayValue("ผลงานรอบบี");

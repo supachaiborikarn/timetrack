@@ -2,10 +2,54 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Session Log
+
+## 2026-09-04 — Added Chinese New Year bonus forecast and supervisor/SOP input
+
+Goal:
+
+Add an employee-visible Chinese New Year bonus (แต๊ะเอีย) forecast that explains progress toward a percentage of the base bonus, while preserving the existing rule that Customer Feedback and performance evidence must not write money into Payroll automatically.
+
+Implementation:
+
+- Added `src/lib/chinese-new-year-bonus.ts` as the pure policy layer with the fixed 100-point weights: attendance 25, customer quality 30, evaluation cooperation 15, supervisor/SOP 20, discipline/safety 10.
+- Added payout forecast tiers: 90+ = 100%, 85+ = 90%, 80+ = 80%, 75+ = 70%, 70+ = 50%, below 70 = 0%.
+- Missing components are normalized out of the current forecast instead of becoming zero; the result remains provisional and exposes the distance to the next tier.
+- Evaluation cooperation is based on actual worked days, caps each day at the existing daily target of 5 VALID employee evaluations, averages daily completion, and scales to /15. Exact counts/target are not returned to the employee UI.
+- Customer quality reuses the existing employee-v3/v4 64-point rubric and the existing minimum VALID sample before contributing /30.
+- Attendance reuses the existing presence /25. Discipline/safety derives /10 from punctuality, shift completion, and break discipline while removing the attendance-rate multiplier so absence is not penalized twice.
+- Supervisor/SOP reuses `ReviewSubmission.rating` (1–5 mapped to 4/8/12/16/20). Invalid/legacy ratings outside 1–5 are treated as waiting, not clamped into a score.
+- Added `/api/employee/chinese-new-year-bonus` for the authenticated active front-yard employee. It reads the configured ReviewPeriod, calculates the five components, and returns only privacy-safe summary data.
+- Added `ChineseNewYearBonusCard` to the employee dashboard. It appears only after ADMIN/HR configure a period and clearly labels the result as a forecast that does not write Payroll.
+- Added `/api/admin/performance/chinese-new-year-bonus` and `ChineseNewYearBonusAdminCard` in `/admin/performance` so ADMIN/HR can choose the existing ReviewPeriod and record supervisor rating/manager note for an existing employee self-assessment. All writes create AuditLog rows.
+- No ReviewSubmission is auto-created for a missing employee self-assessment, and missing supervisor input never becomes an automatic zero.
+- Unresolved employee-safety feedback cases make the forecast provisional; they do not automatically deduct points or money from a single customer response.
+- The configured bonus period is stored in existing `SystemConfig` key `chinese_new_year_bonus.review_period_id.v1`; no Prisma schema change is required.
+- Updated `docs/customer-feedback-qr-evaluation-plan.md`, `docs/customer-feedback-qr-handoff.md`, `secondbrain/notes/Decisions.md`, and `secondbrain/notes/Architecture.md` so the documentation no longer says the forecast formula is absent from the repository.
+- Updated stale `src/app/performance/page.test.tsx` label expectation from `เลือกรอบประเมิน` to the current UI label `เลือกรอบการประเมิน`; production UI was not changed for this test.
+
+Business / technical decisions:
+
+- This feature is **forecast-only**. It never writes `PayrollRecord`, `adjustment`, SpecialIncome, or any actual bonus amount. Final payment remains an explicit separate payroll decision.
+- A safety complaint is a review gate, not an automatic monetary penalty.
+- Actual Payroll integration still requires explicit approval of the base bonus amount, final freeze/finalization process, safety-case review rules, and appeal/data-correction workflow.
+
+Verification (no production database connection):
+
+- `npx vitest run src/lib/chinese-new-year-bonus.test.ts src/app/api/employee/chinese-new-year-bonus/route.test.ts src/app/api/admin/performance/chinese-new-year-bonus/route.test.ts src/lib/__tests__/employee-performance.test.ts src/app/api/employee/dashboard/route.test.ts src/app/api/performance/submissions/route.test.ts src/app/admin/performance/page.test.ts src/app/performance/page.test.tsx` — **8 files passed, 37 tests passed** (includes authorization, period configuration, privacy-safe employee response, invalid legacy supervisor rating, no-auto-create supervisor review, and existing performance regressions).
+- `npx tsc --noEmit` — passed with 0 errors.
+- Focused `npx eslint` for the CNY policy, APIs, UI integrations, admin page, dashboard, and updated performance test — passed with 0 errors/warnings.
+- `git diff --check` — passed after the final code/test/documentation updates.
+- No `DATABASE_URL`, Prisma push/migrate, seed, or production-data command was executed.
+
+Outstanding / risks:
+
+- ADMIN/HR must select a ReviewPeriod in `/admin/performance` before employees see the CNY forecast card.
+- The feature intentionally does not freeze or pay a monetary bonus yet. Actual payout integration remains a separately approved change.
+- Changes are local and uncommitted/unpushed in this session.
 
 ## 2026-09-04 — Autonomous Completion of Comprehensive Redesign (Phases A through E)
 

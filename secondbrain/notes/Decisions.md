@@ -2,10 +2,23 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Decisions
+
+## 2026-09-04: Chinese New Year bonus is a forecast-only 100-point score
+
+- The employee-facing Chinese New Year bonus is a **forecast of the percentage of the base bonus**, not an automatic payroll instruction. It must never write `PayrollRecord`, `adjustment`, or any bonus amount automatically.
+- Fixed weights: attendance/presence 25, customer quality 30, evaluation cooperation 15, supervisor/SOP 20, discipline/safety 10.
+- Payout forecast tiers: score 90+ = 100% of base bonus, 85–89.9 = 90%, 80–84.9 = 80%, 75–79.9 = 70%, 70–74.9 = 50%, below 70 = 0%.
+- Missing components are **not treated as zero**. The preview normalizes only the weight that is currently available and marks the result provisional; the UI shows the distance to the next payout tier.
+- Attendance uses the existing presence component /25. Discipline uses punctuality + shift completion + break discipline normalized to /10 after removing the attendance-rate multiplier so absence is not penalized twice.
+- Customer quality uses the existing employee-v3/v4 rubric /64 normalized to /30 and remains unavailable until the existing minimum valid-sample rule is met.
+- Evaluation cooperation uses consistency by actual worked day: each worked day is capped at the current daily mission target (5 VALID evaluations), then daily completion is averaged and scaled to /15. Employee UI must not expose exact evaluation counts or the target.
+- Supervisor/SOP uses the existing `ReviewSubmission.rating` 1–5, mapped linearly to 4/8/12/16/20. The admin surface can record this only after the employee has created the existing self-assessment submission; missing submission stays `WAITING`, never automatic zero.
+- Open employee-safety feedback cases do not deduct bonus automatically. They make the preview provisional until reviewed, preserving the rule that a single customer response cannot automatically become a monetary/disciplinary penalty.
+- ADMIN/HR select the ReviewPeriod used for the bonus through `SystemConfig` key `chinese_new_year_bonus.review_period_id.v1`. This reuses the existing period and review models and requires no Prisma schema change.
 
 ## 2026-09-04: System-wide Retro-Tactile & Caltex Command Center design standard (Phases A through E)
 

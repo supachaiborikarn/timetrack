@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - architecture
-updated: 2026-09-02
+updated: 2026-09-04
 ---
 
 # Architecture
@@ -85,6 +85,18 @@ Employee self-service visibility path:
 5. Admin Customer Feedback routes and screens keep exact counts and the separate monthly 60-response benchmark.
 
 The combined score path is intentionally separate from Payroll. No performance or Customer Feedback score is persisted into payroll records or bonus amounts by this flow.
+
+## Chinese New Year bonus forecast flow
+
+1. ADMIN/HR choose one existing `ReviewPeriod` in `/admin/performance`; the selected period ID is stored in `SystemConfig` under `chinese_new_year_bonus.review_period_id.v1`.
+2. `/api/employee/chinese-new-year-bonus` reads only the authenticated active front-yard employee and the configured period, then loads attendance/shift/leave, VALID employee-v3/v4 feedback, the employee's ReviewSubmission rating, and unresolved employee-safety cases for that period.
+3. `src/lib/chinese-new-year-bonus.ts` is the pure policy layer. It calculates the five weighted components, forecast normalization, payout tier, next-tier distance, and provisional state.
+4. Evaluation cooperation is calculated server-side from per-worked-day completion and the current daily evaluation target. Exact response counts and the target are never returned by the employee bonus endpoint.
+5. `/api/admin/performance/chinese-new-year-bonus` lets ADMIN/HR select the period and record the existing supervisor rating/manager note. Writes are audited. No new database tables are introduced.
+6. `ChineseNewYearBonusCard` shows the forecast on the employee dashboard only when a bonus period is configured; `ChineseNewYearBonusAdminCard` exposes the policy and supervisor input on the admin performance page.
+7. Open safety cases are a review gate only: they keep the result provisional but do not subtract money or points automatically.
+8. This entire path remains outside Payroll; actual bonus payment remains a separate explicit/manual payroll decision.
+
 ## Competition Reward Points flow
 
 The employee competition has three separate score concepts:

@@ -45,6 +45,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
 import { RightMenuDrawer } from "@/components/layout/RightMenuDrawer";
 import { ClockInModal } from "@/components/layout/ClockInModal";
+import { ChineseNewYearBonusCard } from "@/components/dashboard/ChineseNewYearBonusCard";
 
 interface Announcement {
   id: string;
@@ -782,6 +783,8 @@ export function EmployeeDashboardView() {
             </div>
           </section>
         )}
+
+        <ChineseNewYearBonusCard lang={lang} />
 
         {leagueData?.eligible && (
           <Link

@@ -4,7 +4,7 @@
 
 สถานะ implementation และขั้นตอนทำงานต่อให้อ่าน [customer-feedback-qr-handoff.md](customer-feedback-qr-handoff.md)
 
-เกณฑ์โบนัสตรุษจีนยังเป็นร่างภายในและไม่รวมใน repository สาธารณะ
+ปัจจุบันระบบมีเกณฑ์แต๊ะเอียตรุษจีนแบบ **คาดการณ์เท่านั้น** ใน repository แล้ว โดยยังแยกจาก Payroll และไม่เขียนยอดโบนัสอัตโนมัติ; ดูกติกาปัจจุบันใน `secondbrain/notes/Decisions.md`
 
 รายการ `[ ]` ในไฟล์นี้คือ requirement เดิมและห้ามใช้เป็นสถานะว่างานยังไม่ทำโดยไม่เทียบ handoff กับโค้ดปัจจุบัน
 
