@@ -7,6 +7,16 @@ updated: 2026-09-03
 
 # Decisions
 
+## 2026-09-04: System-wide Retro-Tactile & Caltex Command Center design standard (Phases A through E)
+
+- **Comprehensive coverage across all application tiers**:
+  - **Employee Surfaces (Phase A)**: Mobile-optimized `max-w-[480px]` container, `#eee8db` cream paper background, `EmployeePageHeader`, and `.tt-paper-card .tt-instrument-frame`.
+  - **Public & Careers (Phase B)**: Caltex Careers brand styling, high-contrast application tracker, and multi-step candidate application flows.
+  - **Admin Operations (Phase C)**: Dark Command Center headers (`rounded-[24px] border border-zinc-700/35 bg-zinc-950 text-white`), Caltex yellow eyebrow labels (`tracking-[0.2em]`), and instrument metric frames.
+  - **Admin Payroll & Financials (Phase D)**: Financial operations command cards, summary KPI instrument frames, and structured income/deduction breakdowns.
+  - **Admin Service Excellence & Governance (Phase E)**: Command headers, tactile pill tab selectors, and high-contrast matrix cards across Voice of Customer (VOC), Service League, Staff Registry, Organization Architecture, Branch Network, Geolocation, Housing, and Security/Audit logs.
+- **Strict Preservations**: 100% of underlying server actions, API route contracts, database mutations, and permission guards are preserved with zero regression.
+
 ## 2026-09-03: Unified Retro-Tactile Dashboard design system across all employee routes
 
 - All employee routes adhere strictly to the Retro-Tactile Dashboard design system:
