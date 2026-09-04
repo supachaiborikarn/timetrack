@@ -111,10 +111,10 @@ export default function ApplyStatusPage() {
                     ← ดูตำแหน่งงานทั้งหมด
                 </Link>
 
-                <header className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-4 bg-zinc-950 text-white shadow-[0_2px_0_rgba(0,0,0,0.06)]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">APPLICATION STATUS</p>
-                    <h1 className="text-lg font-black mt-0.5">{t("applyStatus.pageTitle")}</h1>
-                    <p className="text-xs text-zinc-400 mt-0.5">{t("applyStatus.pageDesc")}</p>
+                <header className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-4 text-zinc-950 dark:text-white shadow-[0_2px_0_rgba(0,0,0,0.06)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">APPLICATION STATUS</p>
+                    <h1 className="text-lg font-black text-zinc-950 dark:text-white mt-0.5">{t("applyStatus.pageTitle")}</h1>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{t("applyStatus.pageDesc")}</p>
                 </header>
 
                 <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-3.5">
@@ -159,7 +159,7 @@ export default function ApplyStatusPage() {
                     <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.06)] space-y-3.5">
                         <div className="flex items-center justify-between border-b border-zinc-700/15 dark:border-white/10 pb-3">
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">REF CODE</p>
+                                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">REF CODE</p>
                                 <span className="font-mono text-base font-black text-zinc-900 dark:text-zinc-100">{result.refCode}</span>
                             </div>
                             <Badge className="font-black text-xs px-3 py-1 rounded-full border border-amber-500/40 bg-amber-500/20 text-amber-900 dark:text-amber-300">

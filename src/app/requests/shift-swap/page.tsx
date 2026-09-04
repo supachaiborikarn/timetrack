@@ -324,7 +324,7 @@ export default function ShiftSwapPage() {
 
                                 <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
                                     <div>
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             วันที่ของฉัน
                                         </span>
                                         <span className="font-black text-zinc-800 dark:text-zinc-200">
@@ -332,7 +332,7 @@ export default function ShiftSwapPage() {
                                         </span>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             วันที่ของเพื่อน
                                         </span>
                                         <span className="font-black text-zinc-800 dark:text-zinc-200">

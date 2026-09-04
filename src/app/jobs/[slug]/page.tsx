@@ -54,10 +54,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                     <ArrowLeft className="size-4" /> ดูตำแหน่งงานทั้งหมด
                 </Link>
 
-                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] bg-zinc-950 text-white">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">CALTEX CAREERS</p>
-                    <h1 className="text-2xl font-black text-white mt-1">{opening.title}</h1>
-                    <p className="text-xs text-zinc-400 mt-1">{companyName}</p>
+                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">CALTEX CAREERS</p>
+                    <h1 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">{opening.title}</h1>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{companyName}</p>
                 </header>
 
                 <div className="tt-paper-card tt-instrument-frame rounded-[22px] border border-zinc-700/35 dark:border-white/15 p-5 space-y-5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
@@ -65,14 +65,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                         <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
                             <MapPin className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                             <div>
-                                <p className="text-zinc-400 text-[10px] font-black uppercase">สถานที่ทำงาน</p>
+                                <p className="text-zinc-600 dark:text-zinc-400 text-[10px] font-black uppercase">สถานที่ทำงาน</p>
                                 <p className="font-bold text-zinc-900 dark:text-zinc-100">{opening.station?.name ?? "ทุกสาขา"}{opening.department ? ` · ${opening.department.name}` : ""}</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
                             <Wallet className="size-4 mt-0.5 text-[#fbbf24] shrink-0" />
                             <div>
-                                <p className="text-zinc-400 text-[10px] font-black uppercase">ค่าตอบแทน</p>
+                                <p className="text-zinc-600 dark:text-zinc-400 text-[10px] font-black uppercase">ค่าตอบแทน</p>
                                 <p className="font-black text-amber-700 dark:text-amber-400 font-mono">{formatSalaryRange(
                                     opening.salaryMin ? Number(opening.salaryMin) : null,
                                     opening.salaryMax ? Number(opening.salaryMax) : null,
@@ -84,7 +84,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                             <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
                                 <Briefcase className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-zinc-400 text-[10px] font-black uppercase">ประเภทการจ้าง</p>
+                                    <p className="text-zinc-600 dark:text-zinc-400 text-[10px] font-black uppercase">ประเภทการจ้าง</p>
                                     <p className="font-bold text-zinc-900 dark:text-zinc-100">{EMPLOYMENT_TYPE_LABELS[opening.employmentType] ?? opening.employmentType}</p>
                                 </div>
                             </div>
@@ -93,7 +93,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                             <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40">
                                 <Users className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-zinc-400 text-[10px] font-black uppercase">จำนวนที่รับ</p>
+                                    <p className="text-zinc-600 dark:text-zinc-400 text-[10px] font-black uppercase">จำนวนที่รับ</p>
                                     <p className="font-bold text-zinc-900 dark:text-zinc-100">{opening.positionsAvailable} อัตรา</p>
                                 </div>
                             </div>
@@ -102,7 +102,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                             <div className="flex items-start gap-2 p-2.5 rounded-xl border border-zinc-700/15 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 col-span-2">
                                 <CalendarClock className="size-4 mt-0.5 text-zinc-400 shrink-0" />
                                 <div>
-                                    <p className="text-zinc-400 text-[10px] font-black uppercase">ปิดรับสมัคร</p>
+                                    <p className="text-zinc-600 dark:text-zinc-400 text-[10px] font-black uppercase">ปิดรับสมัคร</p>
                                     <p className="font-bold text-zinc-900 dark:text-zinc-100">{new Date(opening.closesAt).toLocaleDateString("th-TH-u-ca-buddhist", { day: "numeric", month: "long", year: "numeric" })}</p>
                                 </div>
                             </div>

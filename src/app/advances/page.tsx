@@ -194,7 +194,7 @@ export default function EmployeeAdvancesPage() {
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                     <div className="text-center">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 block">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 block">
                             ประจำเดือน
                         </span>
                         <span className="font-black text-sm text-zinc-900 dark:text-zinc-100">
@@ -214,22 +214,22 @@ export default function EmployeeAdvancesPage() {
                 <section className="tt-paper-card tt-instrument-frame rounded-[20px] border border-zinc-700/35 dark:border-white/15 p-4 shadow-[0_2px_0_rgba(0,0,0,0.06)]">
                     <div className="grid grid-cols-2 gap-3 divide-x divide-zinc-700/15 dark:divide-white/10">
                         <div>
-                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                 ยอดขอเบิกรวม
                             </p>
                             <p className="mt-1 font-mono text-2xl font-black text-amber-600 dark:text-[#fbbf24]">
                                 ฿{totalAmount.toLocaleString()}
                             </p>
-                            <p className="text-[10px] font-bold text-zinc-500">ในรอบเดือนนี้</p>
+                            <p className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">ในรอบเดือนนี้</p>
                         </div>
                         <div className="pl-4">
-                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                            <p className="font-mono text-[9px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                 จำนวนคำขอ
                             </p>
                             <p className="mt-1 font-mono text-2xl font-black text-zinc-900 dark:text-zinc-100">
                                 {advances.length}
                             </p>
-                            <p className="text-[10px] font-bold text-zinc-500">รายการทั้งหมด</p>
+                            <p className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">รายการทั้งหมด</p>
                         </div>
                     </div>
                 </section>
@@ -274,7 +274,7 @@ export default function EmployeeAdvancesPage() {
                                 >
                                     <div className="flex items-start justify-between">
                                         <div>
-                                            <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-400">
+                                            <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                                 จำนวนเงินที่ขอเบิก
                                             </p>
                                             <p className="text-xl font-mono font-black text-zinc-900 dark:text-zinc-100">
@@ -301,7 +301,7 @@ export default function EmployeeAdvancesPage() {
                                         </div>
                                     )}
 
-                                    <div className="pt-1 border-t border-zinc-700/10 dark:border-white/5 flex items-center justify-between text-[9px] font-mono font-bold text-zinc-400">
+                                    <div className="pt-1 border-t border-zinc-700/10 dark:border-white/5 flex items-center justify-between text-[9px] font-mono font-bold text-zinc-600 dark:text-zinc-400">
                                         <div className="flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
                                             <span>

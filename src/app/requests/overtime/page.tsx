@@ -296,7 +296,7 @@ export default function OvertimeRequestPage() {
 
                                 <div className="flex items-center justify-between bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
                                     <div>
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             จำนวนชั่วโมง
                                         </span>
                                         <span className="font-mono font-black text-base text-amber-600 dark:text-[#fbbf24]">
@@ -304,10 +304,10 @@ export default function OvertimeRequestPage() {
                                         </span>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             วันที่ยื่นขอ
                                         </span>
-                                        <span className="font-mono text-[10px] font-bold text-zinc-500">
+                                        <span className="font-mono text-[10px] font-bold text-zinc-600 dark:text-zinc-400">
                                             {formatThaiDate(new Date(req.createdAt), "d/M/yy HH:mm")}
                                         </span>
                                     </div>

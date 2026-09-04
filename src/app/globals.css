@@ -224,6 +224,7 @@
 }
 
 .tt-paper-card {
+  color: #18181b;
   background-color: #f8f1e4;
   background-image:
     radial-gradient(circle at 15% 26%, rgba(76, 61, 41, 0.055) 0 0.7px, transparent 0.9px),
@@ -233,6 +234,7 @@
 }
 
 .dark .tt-paper-card {
+  color: #fafafa;
   background-color: #18181b;
   background-image:
     radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.035) 0 0.7px, transparent 0.9px),

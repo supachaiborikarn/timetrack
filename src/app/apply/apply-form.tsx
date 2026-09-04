@@ -390,10 +390,10 @@ export function ApplyForm({ stations, companyName, formToken, opening }: ApplyFo
     return (
         <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50">
             <div className="max-w-lg mx-auto p-4 space-y-4">
-                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] bg-zinc-950 text-white">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">JOB APPLICATION</p>
-                    <h1 className="text-xl font-black mt-0.5">{t("apply.pageTitle")}</h1>
-                    <p className="text-xs text-zinc-400 mt-1">{companyName}</p>
+                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">JOB APPLICATION</p>
+                    <h1 className="text-xl font-black text-zinc-950 dark:text-white mt-0.5">{t("apply.pageTitle")}</h1>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{companyName}</p>
                 </header>
 
                 <div className="flex items-center gap-1.5 px-1" aria-label={t("apply.progressLabel")}>

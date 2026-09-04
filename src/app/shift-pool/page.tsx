@@ -188,7 +188,7 @@ export default function ShiftPoolPage() {
                     <div className="tt-paper-card rounded-[18px] border border-zinc-700/25 p-10 text-center dark:border-white/10 space-y-2">
                         <Layers className="w-10 h-10 text-zinc-400 mx-auto opacity-40" />
                         <p className="text-xs font-black text-zinc-500">ไม่มีกะว่างในตลาดขณะนี้</p>
-                        <p className="text-[10px] text-zinc-400">เมื่อมีเพื่อนร่วมงานปล่อยกะ รายการจะปรากฏที่นี่</p>
+                        <p className="text-[10px] text-zinc-600 dark:text-zinc-400">เมื่อมีเพื่อนร่วมงานปล่อยกะ รายการจะปรากฏที่นี่</p>
                     </div>
                 ) : (
                     <div className="space-y-3">

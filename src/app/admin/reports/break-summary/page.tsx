@@ -189,11 +189,11 @@ export default function BreakSummaryPage() {
     return (
         <div className="space-y-6 max-w-7xl mx-auto font-sans">
             {/* Header */}
-            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Link href="/admin/reports">
-                            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl">
+                            <Button variant="ghost" size="icon" className="text-zinc-600 hover:text-zinc-950 hover:bg-zinc-900/5 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 rounded-xl">
                                 <ArrowLeft className="w-5 h-5" />
                             </Button>
                         </Link>
@@ -201,9 +201,9 @@ export default function BreakSummaryPage() {
                             <Coffee className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">BREAK TIME MONITOR</p>
-                            <h1 className="text-xl sm:text-2xl font-black text-white">สรุปเวลาพัก</h1>
-                            <p className="text-zinc-400 text-xs mt-0.5">รายงานและแจ้งเตือนพนักงานพักเกินเวลาที่กำหนด</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">BREAK TIME MONITOR</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-zinc-950 dark:text-white">สรุปเวลาพัก</h1>
+                            <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-0.5">รายงานและแจ้งเตือนพนักงานพักเกินเวลาที่กำหนด</p>
                         </div>
                     </div>
                 </div>

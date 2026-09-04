@@ -334,7 +334,7 @@ function TimeCorrectionForm() {
 
                                     <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
                                         <div>
-                                            <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                                 ประเภท
                                             </span>
                                             <span className="font-black text-zinc-800 dark:text-zinc-200">
@@ -346,7 +346,7 @@ function TimeCorrectionForm() {
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                            <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                                 เวลาที่ขอแก้
                                             </span>
                                             <span className="font-mono font-black text-zinc-800 dark:text-zinc-200">
@@ -372,7 +372,7 @@ function TimeCorrectionForm() {
                                             >
                                                 <Paperclip className="w-3.5 h-3.5" /> ดูหลักฐานแนบ
                                             </a>
-                                            <span className="text-[9px] font-mono font-bold text-zinc-400">
+                                            <span className="text-[9px] font-mono font-bold text-zinc-600 dark:text-zinc-400">
                                                 ยื่นเมื่อ {formatThaiDate(new Date(req.createdAt), "d/M/yy HH:mm")}
                                             </span>
                                         </div>

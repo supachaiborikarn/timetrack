@@ -158,16 +158,16 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6 max-w-4xl font-sans">
             {/* Header */}
-            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner shrink-0">
                             <Shield className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">SYSTEM CONFIGURATION</p>
-                            <h1 className="text-xl sm:text-2xl font-black text-white">ตั้งค่าระบบ & เอกสาร</h1>
-                            <p className="text-zinc-400 text-xs mt-0.5">ปรับเกณฑ์การลงเวลา การแจ้งเตือน และข้อมูลนิติบุคคลในเอกสารเงินเดือน</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">SYSTEM CONFIGURATION</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-zinc-950 dark:text-white">ตั้งค่าระบบ & เอกสาร</h1>
+                            <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-0.5">ปรับเกณฑ์การลงเวลา การแจ้งเตือน และข้อมูลนิติบุคคลในเอกสารเงินเดือน</p>
                         </div>
                     </div>
                     <Button

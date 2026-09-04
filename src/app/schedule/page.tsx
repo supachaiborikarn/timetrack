@@ -366,7 +366,7 @@ export default function SchedulePage() {
                                                 </div>
                                             )
                                         ) : (
-                                            <Badge variant="outline" className="border-zinc-700/20 text-zinc-400 text-[10px] font-bold">
+                                            <Badge variant="outline" className="border-zinc-700/20 text-zinc-600 dark:text-zinc-400 text-[10px] font-bold">
                                                 ไม่มีกะ
                                             </Badge>
                                         )}
@@ -384,7 +384,7 @@ export default function SchedulePage() {
                                 <div
                                     key={day}
                                     className={`text-center text-[10px] font-mono font-black py-1 ${
-                                        i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-zinc-400"
+                                        i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-zinc-600 dark:text-zinc-400"
                                     }`}
                                 >
                                     {day}

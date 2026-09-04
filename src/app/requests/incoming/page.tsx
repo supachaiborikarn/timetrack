@@ -145,7 +145,7 @@ export default function IncomingSwapRequestsPage() {
                                         <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">
                                             {req.requester.nickName || req.requester.name}
                                         </h3>
-                                        <p className="text-[10px] font-mono font-bold text-zinc-400">
+                                        <p className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-400">
                                             รหัส: {req.requester.employeeId}
                                         </p>
                                     </div>
@@ -153,7 +153,7 @@ export default function IncomingSwapRequestsPage() {
 
                                 <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 bg-black/[0.03] dark:bg-white/[0.03] p-2.5 rounded-xl border border-zinc-700/10 dark:border-white/5">
                                     <div>
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             กะของเขา (เราจะได้)
                                         </span>
                                         <span className="font-black text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-0.5">
@@ -162,7 +162,7 @@ export default function IncomingSwapRequestsPage() {
                                         </span>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
+                                        <span className="text-zinc-600 dark:text-zinc-400 block text-[9px] uppercase tracking-wider font-mono">
                                             กะของเรา (เขาจะได้)
                                         </span>
                                         <span className="font-black text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-0.5">
@@ -223,7 +223,7 @@ export default function IncomingSwapRequestsPage() {
                                         <p className="text-xs font-black text-zinc-900 dark:text-zinc-100">
                                             {req.requester.nickName || req.requester.name}
                                         </p>
-                                        <p className="text-[10px] font-mono text-zinc-400">
+                                        <p className="text-[10px] font-mono text-zinc-600 dark:text-zinc-400">
                                             {formatThaiDate(new Date(req.requesterDate), "d MMM")} ↔ {formatThaiDate(new Date(req.targetDate), "d MMM")}
                                         </p>
                                     </div>

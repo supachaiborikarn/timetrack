@@ -32,12 +32,12 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-16 font-sans text-zinc-950 dark:text-zinc-50">
             <div className="max-w-2xl mx-auto p-4 space-y-4">
                 {/* Careers Header */}
-                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] bg-zinc-950 text-white">
+                <header className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-5 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">CALTEX CAREERS</p>
-                            <h1 className="text-xl font-black text-white mt-0.5">ร่วมงานกับเรา</h1>
-                            <p className="text-xs text-zinc-400 mt-1">{companyName}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">CALTEX CAREERS</p>
+                            <h1 className="text-xl font-black text-zinc-950 dark:text-white mt-0.5">ร่วมงานกับเรา</h1>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{companyName}</p>
                         </div>
                         <div className="w-12 h-12 rounded-2xl bg-[#fbbf24] text-zinc-950 grid place-items-center font-black shadow-inner">
                             <Briefcase className="w-6 h-6" />

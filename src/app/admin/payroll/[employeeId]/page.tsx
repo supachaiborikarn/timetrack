@@ -343,20 +343,20 @@ export default function EmployeePayrollDetailPage() {
     return (
         <div className="space-y-6 font-sans">
             {/* Header */}
-            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 bg-zinc-950 text-white p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.2)]">
+            <div className="tt-paper-card tt-instrument-frame rounded-[24px] border border-zinc-700/35 dark:border-white/15 p-6 sm:p-7 shadow-[0_3px_0_rgba(0,0,0,0.06)] text-zinc-950 dark:text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" asChild className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl">
+                        <Button variant="ghost" size="icon" asChild className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/10 rounded-xl">
                             <Link href="/admin/payroll">
                                 <ChevronLeft className="w-5 h-5" />
                             </Link>
                         </Button>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#fbbf24]">EMPLOYEE PAYROLL SHEET</p>
-                            <h1 className="text-xl sm:text-2xl font-black text-white">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-[#fbbf24]">EMPLOYEE PAYROLL SHEET</p>
+                            <h1 className="text-xl sm:text-2xl font-black text-zinc-950 dark:text-white">
                                 {data?.employee.name || "กำลังโหลด..."}
                             </h1>
-                            <p className="text-zinc-400 text-xs mt-0.5 font-mono">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-0.5 font-mono">
                                 {data?.employee.employeeId} • {data?.employee.department}
                             </p>
                         </div>
@@ -366,20 +366,20 @@ export default function EmployeePayrollDetailPage() {
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-36 h-9 rounded-xl font-mono font-bold bg-zinc-900 border-white/20 text-white text-xs"
+                            className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border border-zinc-700/30 dark:border-white/20 text-zinc-900 dark:text-white text-xs"
                         />
                         <span className="text-zinc-500 font-bold">-</span>
                         <Input
                             type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="w-36 h-9 rounded-xl font-mono font-bold bg-zinc-900 border-white/20 text-white text-xs"
+                            className="w-36 h-9 rounded-xl font-mono font-bold bg-white dark:bg-zinc-900 border border-zinc-700/30 dark:border-white/20 text-zinc-900 dark:text-white text-xs"
                         />
                         <Button
                             variant="secondary"
                             onClick={fetchData}
                             disabled={isLoading}
-                            className="tt-retro-control bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-xl font-bold h-9 px-3 text-xs"
+                            className="tt-retro-control bg-zinc-900/5 hover:bg-zinc-900/10 text-zinc-900 border-zinc-700/20 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/20 rounded-xl font-bold h-9 px-3 text-xs"
                         >
                             <Calendar className="w-3.5 h-3.5 mr-1" />
                             โหลด

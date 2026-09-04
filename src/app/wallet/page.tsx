@@ -105,13 +105,13 @@ function getStatusBadge(status: string) {
     switch (status) {
         case "APPROVED":
         case "PAID":
-            return <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-[10px]">อนุมัติ</Badge>;
+            return <Badge className="bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border-0 text-[10px]">อนุมัติ</Badge>;
         case "PENDING":
-            return <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px]">รออนุมัติ</Badge>;
+            return <Badge className="bg-amber-500/20 text-amber-900 dark:text-amber-400 border-0 text-[10px]">รออนุมัติ</Badge>;
         case "REJECTED":
-            return <Badge className="bg-red-500/20 text-red-400 border-0 text-[10px]">ปฏิเสธ</Badge>;
+            return <Badge className="bg-red-500/20 text-red-700 dark:text-red-400 border-0 text-[10px]">ปฏิเสธ</Badge>;
         default:
-            return <Badge className="bg-stone-500/20 text-stone-400 border-0 text-[10px]">{status}</Badge>;
+            return <Badge className="bg-stone-500/20 text-stone-700 dark:text-stone-400 border-0 text-[10px]">{status}</Badge>;
     }
 }
 
