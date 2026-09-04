@@ -157,7 +157,7 @@ const navItems: NavItem[] = [
         requiredPermissions: ["report.view"],
     },
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
-    { title: "League & Rewards", href: "/admin/league", icon: Trophy, roles: ["ADMIN", "HR", "MANAGER"] },
+    { title: "League & Rewards", href: "/admin/league", icon: Trophy, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
     {
         title: "เสียงลูกค้า",
         href: "/admin/customer-feedback",

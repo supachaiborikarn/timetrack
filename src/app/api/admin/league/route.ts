@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { finalizeCompetitionPeriodRanking } from "@/lib/competition/league";
+import { calculateStationWeeklyLeague, finalizeCompetitionPeriodRanking, getBangkokWeekBounds } from "@/lib/competition/league";
 import { getFeedbackAccessContext, getStationScope } from "@/lib/customer-feedback/access";
 
 async function requireLeagueAdmin() {
@@ -11,9 +11,50 @@ async function requireLeagueAdmin() {
     return { userId: access.ctx.userId, stationId: scope.stationId, role: access.ctx.role };
 }
 
-export async function GET() {
-    const admin = await requireLeagueAdmin();
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+async function requireLeagueViewer() {
+    const access = await getFeedbackAccessContext();
+    if (!access.ok) return null;
+    if (access.ctx.role === "ADMIN" || access.ctx.role === "HR") {
+        return { userId: access.ctx.userId, role: access.ctx.role, stationId: null, canSelectStation: true, canManageFairPlay: true };
+    }
+    if (access.ctx.role === "MANAGER" || access.ctx.role === "CASHIER") {
+        if (!access.ctx.stationId) return null;
+        return {
+            userId: access.ctx.userId,
+            role: access.ctx.role,
+            stationId: access.ctx.stationId,
+            canSelectStation: false,
+            canManageFairPlay: access.ctx.role === "MANAGER",
+        };
+    }
+    return null;
+}
+
+export async function GET(request: NextRequest) {
+    const viewer = await requireLeagueViewer();
+    if (!viewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const requestedStationId = request.nextUrl.searchParams.get("stationId");
+    const stations = await prisma.station.findMany({
+        where: {
+            isActive: true,
+            departments: { some: { isFrontYard: true } },
+            ...(viewer.stationId ? { id: viewer.stationId } : {}),
+        },
+        select: { id: true, code: true, name: true },
+        orderBy: [{ name: "asc" }],
+    });
+    const selectedStation = viewer.stationId
+        ? stations.find((station) => station.id === viewer.stationId) ?? null
+        : stations.find((station) => station.id === requestedStationId) ?? stations[0] ?? null;
+
+    const now = new Date();
+    const week = getBangkokWeekBounds(now);
+    const liveLeague = selectedStation
+        ? await calculateStationWeeklyLeague({ stationId: selectedStation.id, from: week.from, to: week.to, referenceTime: now })
+        : null;
+
+    const admin = { userId: viewer.userId, stationId: viewer.stationId, role: viewer.role };
 
     const [pendingPeriods, selectedAwards] = await Promise.all([
         prisma.competitionPeriod.findMany({
@@ -41,7 +82,28 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-        pendingPeriods: pendingPeriods.map((period) => ({
+        stations,
+        selectedStationId: selectedStation?.id ?? null,
+        canSelectStation: viewer.canSelectStation,
+        canManageFairPlay: viewer.canManageFairPlay,
+        liveLeague: liveLeague ? {
+            periodKey: week.key,
+            station: liveLeague.station,
+            standings: liveLeague.standings.map((standing) => ({
+                rank: standing.rank,
+                employeeId: standing.employeeId,
+                label: standing.label,
+                totalScore: standing.totalScore,
+                workPoints: standing.workPoints,
+                customerPoints: standing.customerPoints,
+                missionPoints: standing.missionPoints,
+                eligibleCustomerCount: standing.eligibleCustomerCount,
+                isEligible: standing.isEligible,
+                isProvisional: standing.isProvisional,
+                fairPlayStatus: standing.fairPlayStatus,
+            })),
+        } : null,
+        pendingPeriods: viewer.canManageFairPlay ? pendingPeriods.map((period) => ({
             ...period,
             standings: period.standings.map((standing) => ({
                 ...standing,
@@ -50,8 +112,8 @@ export async function GET() {
                 customerPoints: Number(standing.customerPoints),
                 missionPoints: Number(standing.missionPoints),
             })),
-        })),
-        selectedAwards,
+        })) : [],
+        selectedAwards: viewer.canManageFairPlay ? selectedAwards : [],
         canManageRewards: admin.role === "ADMIN" || admin.role === "HR",
     });
 }

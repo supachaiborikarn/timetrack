@@ -186,3 +186,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - She must never be selected for `restroom-v1` attendance-based attribution, listed in the admin restroom-score view, or shown a restroom-score card in employee self-service.
 - If a restroom response was previously attributed to this excluded identity, management reporting must treat it as unattributed rather than scoring Joy.
 - Department `MAID` alone is not sufficient proof that an employee is responsible for station restrooms; explicit business-role exclusions take precedence.
+
+
+## 2026-09-04: League leaderboard visibility follows station scope
+
+- ADMIN/HR may switch between active petrol stations to inspect current League standings.
+- MANAGER/CASHIER are station-scoped on the server and may view only the League standings for their current station.
+- CASHIER access to League is read-only; competition moderation, Fair Play decisions, reward fulfillment, and Reward Points administration remain management functions.
+- Station scope must be enforced by the API rather than relying only on hidden UI controls.

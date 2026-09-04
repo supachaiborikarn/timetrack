@@ -1548,3 +1548,30 @@ Verification:
 - Full `npx vitest run`: 80 files / 511 tests passed.
 - Targeted ESLint on all corrected restroom files: passed with 0 errors/warnings.
 - `NODE_ENV=production npm run build`: passed; Next generated all 188 static pages.
+
+
+## 2026-09-04 — Added station League rankings for Admin and cashiers
+
+Goal:
+
+- Admin must be able to open League & Rewards and inspect the current weekly ranking for each petrol station.
+- Each station cashier/clerk must be able to see the current ranking for their own station only.
+
+Implementation:
+
+- Added a live weekly station leaderboard to `/admin/league`, showing rank, total League score, Work, Customer, Mission, eligible customer count, eligibility state, and Fair Play review state.
+- ADMIN/HR receive a station selector covering active stations that have a front-yard department.
+- MANAGER/CASHIER viewers are server-scoped to their current `stationId`; a forged `stationId` query cannot switch them to another station.
+- CASHIER access is read-only: no Fair Play approval/disqualification controls, no champion reward fulfillment controls, and no Reward Points administration.
+- Added League & Rewards to CASHIER admin navigation so station clerks can reach the leaderboard.
+- Existing ADMIN/HR/MANAGER Fair Play and reward-management behavior remains intact.
+- No production database mutation or schema change was required.
+
+Verification:
+
+- Dedicated API access tests: 2/2 passed (ADMIN station switching; CASHIER station lock/read-only).
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for changed files: passed.
+- Full `npx vitest run`: 81 files / 513 tests passed.
+- `NODE_ENV=production npm run build`: passed; 188/188 static pages generated.
+- `git diff --check`: passed.

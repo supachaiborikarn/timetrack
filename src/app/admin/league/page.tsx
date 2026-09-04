@@ -6,6 +6,27 @@ import { toast } from "sonner";
 
 interface AdminLeagueData {
     canManageRewards: boolean;
+    canManageFairPlay: boolean;
+    canSelectStation: boolean;
+    selectedStationId: string | null;
+    stations: Array<{ id: string; code: string; name: string }>;
+    liveLeague: {
+        periodKey: string;
+        station: { id: string; code: string; name: string };
+        standings: Array<{
+            rank: number;
+            employeeId: string;
+            label: string;
+            totalScore: number;
+            workPoints: number;
+            customerPoints: number;
+            missionPoints: number;
+            eligibleCustomerCount: number;
+            isEligible: boolean;
+            isProvisional: boolean;
+            fairPlayStatus: string;
+        }>;
+    } | null;
     pendingPeriods: Array<{
         id: string;
         periodKey: string;
@@ -79,14 +100,17 @@ export default function AdminLeaguePage() {
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState<string | null>(null);
     const [savingReward, setSavingReward] = useState(false);
+    const [selectedStationId, setSelectedStationId] = useState("");
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (stationId?: string) => {
         setLoading(true);
         try {
-            const response = await fetch("/api/admin/league", { cache: "no-store" });
+            const query = stationId ? `?stationId=${encodeURIComponent(stationId)}` : "";
+            const response = await fetch(`/api/admin/league${query}`, { cache: "no-store" });
             if (!response.ok) throw new Error("โหลดข้อมูล League ไม่สำเร็จ");
             const leaguePayload = await response.json() as AdminLeagueData;
             setData(leaguePayload);
+            setSelectedStationId(leaguePayload.selectedStationId ?? "");
 
             if (leaguePayload.canManageRewards) {
                 const rewardResponse = await fetch("/api/admin/league/rewards", { cache: "no-store" });
@@ -104,6 +128,11 @@ export default function AdminLeaguePage() {
 
     useEffect(() => { void load(); }, [load]);
 
+    const selectStation = (stationId: string) => {
+        setSelectedStationId(stationId);
+        void load(stationId);
+    };
+
     const act = async (payload: Record<string, string>) => {
         const key = payload.standingId || payload.awardId || "action";
         setBusy(key);
@@ -116,7 +145,7 @@ export default function AdminLeaguePage() {
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || "ดำเนินการไม่สำเร็จ");
             toast.success("บันทึกเรียบร้อยแล้ว");
-            await load();
+            await load(selectedStationId || undefined);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "ดำเนินการไม่สำเร็จ");
         } finally {
@@ -135,7 +164,7 @@ export default function AdminLeaguePage() {
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || "ดำเนินการไม่สำเร็จ");
             toast.success("บันทึก Reward Points แล้ว");
-            await load();
+            await load(selectedStationId || undefined);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "ดำเนินการไม่สำเร็จ");
         } finally {
@@ -185,7 +214,7 @@ export default function AdminLeaguePage() {
             if (!response.ok) throw new Error(result.error || "เพิ่มของรางวัลไม่สำเร็จ");
             toast.success("เพิ่มของรางวัลแล้ว 🎁");
             setRewardForm(EMPTY_REWARD_FORM);
-            await load();
+            await load(selectedStationId || undefined);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "เพิ่มของรางวัลไม่สำเร็จ");
         } finally {
@@ -229,7 +258,7 @@ export default function AdminLeaguePage() {
                         </div>
                     </div>
                     <button
-                        onClick={() => void load()}
+                        onClick={() => void load(selectedStationId || undefined)}
                         className="tt-retro-control flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900/5 hover:bg-zinc-900/10 text-zinc-900 border border-zinc-700/20 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/20 text-xs font-bold self-start sm:self-auto"
                         aria-label="รีเฟรช"
                     >
@@ -238,6 +267,61 @@ export default function AdminLeaguePage() {
                     </button>
                 </div>
             </div>
+
+            <section className="space-y-3 tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" /><h2 className="text-lg font-black">อันดับการแข่งขันแต่ละปั๊ม</h2></div>
+                        <p className="mt-1 text-xs text-muted-foreground">อันดับสัปดาห์ปัจจุบันคำนวณจากข้อมูลจริง และอาจเปลี่ยนได้จนกว่าจะปิดรอบ</p>
+                    </div>
+                    {data?.canSelectStation && data.stations.length > 0 ? (
+                        <label className="grid gap-1 text-xs font-bold sm:min-w-[260px]">
+                            เลือกปั๊ม
+                            <select
+                                value={selectedStationId}
+                                onChange={(event) => selectStation(event.target.value)}
+                                className="rounded-xl border bg-background px-3 py-2.5 text-sm font-semibold"
+                            >
+                                {data.stations.map((station) => <option key={station.id} value={station.id}>{station.name} ({station.code})</option>)}
+                            </select>
+                        </label>
+                    ) : data?.liveLeague ? (
+                        <div className="rounded-full border bg-muted/40 px-3 py-1.5 text-xs font-bold">{data.liveLeague.station.name}</div>
+                    ) : null}
+                </div>
+
+                {loading && !data?.liveLeague ? <div className="grid min-h-28 place-items-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : null}
+                {data?.liveLeague ? (
+                    <div className="overflow-hidden rounded-xl border bg-card">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-3">
+                            <div><p className="font-black">{data.liveLeague.station.name}</p><p className="text-xs text-muted-foreground">สัปดาห์ {data.liveLeague.periodKey}</p></div>
+                            <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-zinc-950">{data.liveLeague.standings.length} คน</span>
+                        </div>
+                        {data.liveLeague.standings.length === 0 ? (
+                            <div className="p-6 text-center text-sm text-muted-foreground">ยังไม่มีพนักงานหน้าลานที่อยู่ในลีกของสถานีนี้</div>
+                        ) : (
+                            <div className="divide-y">
+                                {data.liveLeague.standings.map((standing) => (
+                                    <div key={standing.employeeId} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+                                        <div className={`grid h-10 w-10 place-items-center rounded-full border-2 font-black ${standing.rank === 1 ? "border-amber-500 bg-amber-300 text-zinc-950" : "border-zinc-300 bg-muted"}`}>
+                                            {standing.rank === 1 ? "🥇" : standing.rank === 2 ? "🥈" : standing.rank === 3 ? "🥉" : `#${standing.rank}`}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="truncate font-black">{standing.label}</p>
+                                                {!standing.isEligible ? <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">กำลังสะสมข้อมูล</span> : null}
+                                                {standing.fairPlayStatus === "REVIEW" ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">รอตรวจ Fair Play</span> : null}
+                                            </div>
+                                            <p className="mt-0.5 text-[10px] text-muted-foreground">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)} · ประเมิน {standing.eligibleCustomerCount}</p>
+                                        </div>
+                                        <div className="text-right"><p className="text-xl font-black tabular-nums">{standing.totalScore.toFixed(1)}</p><p className="text-[9px] font-bold text-muted-foreground">คะแนนลีก</p></div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : !loading ? <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">ไม่พบสถานีที่มีทีมหน้าลานสำหรับการแข่งขัน</div> : null}
+            </section>
 
             {data?.canManageRewards ? (
                 <section className="space-y-4 tt-paper-card tt-instrument-frame rounded-2xl border border-zinc-700/30 dark:border-white/15 p-5 shadow-[0_2px_0_rgba(0,0,0,0.05)]">
@@ -306,6 +390,7 @@ export default function AdminLeaguePage() {
                 </section>
             ) : null}
 
+            {data?.canManageFairPlay ? (
             <section className="space-y-3">
                 <div className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-amber-600" /><h2 className="text-lg font-bold">รอตรวจ Fair Play</h2></div>
                 {loading && !data ? <div className="grid min-h-32 place-items-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : null}
@@ -334,7 +419,9 @@ export default function AdminLeaguePage() {
                     </div>
                 ))}
             </section>
+            ) : null}
 
+            {data?.canManageFairPlay ? (
             <section className="space-y-3">
                 <div className="flex items-center gap-2"><Gift className="h-5 w-5 text-emerald-600" /><h2 className="text-lg font-bold">รางวัลแชมป์ที่พนักงานเลือกแล้ว</h2></div>
                 {data?.selectedAwards.length === 0 ? <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">ยังไม่มีรางวัลแชมป์รอมอบ</div> : null}
@@ -353,6 +440,7 @@ export default function AdminLeaguePage() {
                     ))}
                 </div>
             </section>
+            ) : null}
         </div>
     );
 }
