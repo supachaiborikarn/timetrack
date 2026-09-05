@@ -2,10 +2,17 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-04
+updated: 2026-09-05
 ---
 
 # Decisions
+
+## 2026-09-05: Printing a production primary station QR completes activation
+
+- A real primary station QR should not require a separate manual activation click after the operator has confirmed that the current poster version was printed or saved as PDF.
+- `MARK_PRINTED` is the completion point: for `STATION + isPrimary + !isTest`, it records the print and auto-activates only after server-side station eligibility, version, and competing-primary checks pass.
+- Test QR and non-primary station QR, including restroom QR, remain non-auto-activating so printing a test or area-specific poster cannot silently enable it.
+- The activation remains audited and concurrency-safe; the client UI is not trusted to enforce these rules.
 
 ## 2026-09-04: Chinese New Year bonus is a forecast-only 100-point score
 

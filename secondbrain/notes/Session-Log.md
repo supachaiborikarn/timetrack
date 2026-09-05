@@ -2,10 +2,33 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-04
+updated: 2026-09-05
 ---
 
 # Session Log
+
+## 2026-09-05 — Fixed station QR print-to-activation flow
+
+Goal:
+
+Fix the Voice of Customer QR workflow where an operator could print or save a station QR poster but still be unable to activate it because `MARK_PRINTED` only cleared `needsReprint` and required a second activation action.
+
+Implementation:
+
+- Production primary station QR (`targetType=STATION`, `isPrimary=true`, `isTest=false`) now auto-activates in the same `MARK_PRINTED` transaction after the operator confirms the poster was printed/saved.
+- The transaction re-locks the Station and relevant station QR rows, re-checks version, station active/emergency-phone eligibility, and competing active primary QR before activation.
+- Test QR and non-primary station QR (including restroom/other placement QR) are still only marked printed; they are not auto-activated.
+- `CUSTOMER_FEEDBACK_QR_PRINTED` remains recorded and successful automatic activation adds `CUSTOMER_FEEDBACK_QR_ACTIVATED` with source `MARK_PRINTED_STATION_PRIMARY`.
+- The print confirmation UI now explicitly says that OK will save the print state and auto-activate a production primary station QR.
+- No production database command or direct production-data mutation was executed for this fix.
+
+Verification:
+
+- Dedicated QR mutation tests passed: 23/23.
+- `npx tsc --noEmit` passed.
+- Targeted ESLint for the changed route/test/UI passed.
+- Full `npx vitest run` passed: 81 files, 515/515 tests.
+- `NODE_ENV=production npm run build` passed: 188/188 static pages generated.
 
 ## 2026-09-04 — Fixed League ranking names disappearing in dark mode
 

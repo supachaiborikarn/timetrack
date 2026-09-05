@@ -31,6 +31,7 @@ interface QrRow {
     publicProfileApprovedAt: string | null;
     placement: string;
     placementKey: string | null;
+    isPrimary: boolean;
     isActive: boolean;
     isTest: boolean;
     needsReprint: boolean;
@@ -174,7 +175,10 @@ export function QrCodesTab() {
 
             printWindow.focus();
             printWindow.print();
-            return window.confirm("พิมพ์ป้ายหรือบันทึกเป็น PDF สำเร็จแล้วใช่หรือไม่?");
+            const confirmationMessage = row.targetType === "STATION" && row.isPrimary && !row.isTest
+                ? "พิมพ์ป้ายหรือบันทึกเป็น PDF สำเร็จแล้วใช่หรือไม่?\n\nกด OK เพื่อบันทึกว่าพิมพ์แล้ว และเปิดใช้งาน QR หลักของสถานีอัตโนมัติ"
+                : "พิมพ์ป้ายหรือบันทึกเป็น PDF สำเร็จแล้วใช่หรือไม่?\n\nกด OK เพื่อบันทึกว่าพิมพ์ป้ายเวอร์ชันนี้แล้ว";
+            return window.confirm(confirmationMessage);
         } catch {
             toast.error("สร้างป้าย QR ไม่สำเร็จ");
             return false;

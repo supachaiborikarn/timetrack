@@ -780,12 +780,63 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                                 },
                             });
                         }
-                        return { status: "PRINTED" as const, autoActivated };
+                        return { status: "PRINTED" as const, autoActivated, activationBlockedReason: null };
+                    }
+
+                    await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Station" WHERE "id" = ${qr.stationId} FOR UPDATE`);
+                    await tx.$queryRaw(Prisma.sql`
+                        SELECT "id" FROM "CustomerFeedbackQr"
+                        WHERE "stationId" = ${qr.stationId}
+                          AND "targetType" = 'STATION'
+                          AND ("id" = ${id} OR "isPrimary" = true)
+                        ORDER BY "id"
+                        FOR UPDATE
+                    `);
+                    const current = await tx.customerFeedbackQr.findUnique({
+                        where: { id },
+                        select: {
+                            version: true,
+                            isActive: true,
+                            isPrimary: true,
+                            isTest: true,
+                            stationId: true,
+                        },
+                    });
+                    if (!current || current.version !== body.expectedVersion) return { status: "STALE" as const };
+
+                    let autoActivated = false;
+                    let activationBlockedReason: "STATION_INELIGIBLE" | "OTHER_ACTIVE" | null = null;
+                    if (!current.isActive && current.isPrimary && !current.isTest && current.stationId) {
+                        const station = await tx.station.findUnique({
+                            where: { id: current.stationId },
+                            select: { isActive: true, publicEmergencyPhone: true },
+                        });
+                        if (!station?.isActive || !station.publicEmergencyPhone) {
+                            activationBlockedReason = "STATION_INELIGIBLE";
+                        } else {
+                            const activeOther = await tx.customerFeedbackQr.findFirst({
+                                where: {
+                                    stationId: current.stationId,
+                                    targetType: "STATION",
+                                    isPrimary: true,
+                                    isActive: true,
+                                    id: { not: id },
+                                },
+                                select: { id: true },
+                            });
+                            if (activeOther) activationBlockedReason = "OTHER_ACTIVE";
+                            else autoActivated = true;
+                        }
                     }
 
                     const updated = await tx.customerFeedbackQr.updateMany({
                         where: { id, version: body.expectedVersion },
-                        data: { lastPrintedAt: now, lastPrintedById: session.user.id, needsReprint: false },
+                        data: {
+                            lastPrintedAt: now,
+                            lastPrintedById: session.user.id,
+                            needsReprint: false,
+                            ...(autoActivated ? { isActive: true, revokedAt: null } : {}),
+                        },
                     });
                     if (updated.count !== 1) return { status: "STALE" as const };
                     await tx.auditLog.create({
@@ -793,11 +844,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                             action: "CUSTOMER_FEEDBACK_QR_PRINTED",
                             entity: "CustomerFeedbackQr",
                             entityId: id,
-                            details: JSON.stringify({ version: body.expectedVersion, autoActivated: false }),
+                            details: JSON.stringify({ version: body.expectedVersion, autoActivated, activationBlockedReason }),
                             userId: session.user.id,
                         },
                     });
-                    return { status: "PRINTED" as const, autoActivated: false };
+                    if (autoActivated) {
+                        await tx.auditLog.create({
+                            data: {
+                                action: "CUSTOMER_FEEDBACK_QR_ACTIVATED",
+                                entity: "CustomerFeedbackQr",
+                                entityId: id,
+                                details: JSON.stringify({ version: body.expectedVersion, source: "MARK_PRINTED_STATION_PRIMARY" }),
+                                userId: session.user.id,
+                            },
+                        });
+                    }
+                    return { status: "PRINTED" as const, autoActivated, activationBlockedReason };
                 });
 
                 if (marked.status === "PROFILE_NOT_APPROVED") {
@@ -812,11 +874,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 if (marked.status === "STALE") {
                     return NextResponse.json({ error: "QR เปลี่ยนเวอร์ชันระหว่างพิมพ์ กรุณาพิมพ์ป้ายเวอร์ชันใหม่" }, { status: 409 });
                 }
+                const autoActivatedMessage = qr.targetType === "STATION"
+                    ? "บันทึกการพิมพ์และเปิดใช้งาน QR หลักของสถานีอัตโนมัติแล้ว"
+                    : "บันทึกการพิมพ์และเปิดใช้งาน QR พนักงานอัตโนมัติแล้ว";
+                const blockedMessage = marked.activationBlockedReason === "STATION_INELIGIBLE"
+                    ? "บันทึกการพิมพ์แล้ว แต่สถานียังไม่พร้อมเปิดใช้งาน QR"
+                    : marked.activationBlockedReason === "OTHER_ACTIVE"
+                        ? "บันทึกการพิมพ์แล้ว แต่สถานีมี QR หลักที่ใช้งานอยู่แล้ว"
+                        : "บันทึกการพิมพ์แล้ว";
                 return NextResponse.json({
-                    message: marked.autoActivated
-                        ? "บันทึกการพิมพ์และเปิดใช้งาน QR พนักงานอัตโนมัติแล้ว"
-                        : "บันทึกการพิมพ์แล้ว",
+                    message: marked.autoActivated ? autoActivatedMessage : blockedMessage,
                     autoActivated: marked.autoActivated,
+                    activationBlockedReason: marked.activationBlockedReason ?? null,
                 });
             }
 

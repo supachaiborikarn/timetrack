@@ -232,7 +232,7 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
         }));
     });
 
-    it("MARK_PRINTED ของสถานีไม่เปิดใช้งานอัตโนมัติ", async () => {
+    it("MARK_PRINTED เปิด QR หลักของสถานีใช้งานจริงอัตโนมัติ", async () => {
         qrFindMock.mockResolvedValue({
             ...employeeQr,
             targetType: "STATION",
@@ -241,10 +241,74 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
             stationId: "station-own",
             station: { id: "station-own", isActive: true, publicEmergencyPhone: "191" },
             isPrimary: true,
+            isTest: false,
+        });
+        const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const createAudit = vi.fn().mockResolvedValue({});
+        transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            station: { findUnique: vi.fn().mockResolvedValue({ isActive: true, publicEmergencyPhone: "191" }) },
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    isActive: false,
+                    isPrimary: true,
+                    isTest: false,
+                    stationId: "station-own",
+                }),
+                findFirst: vi.fn().mockResolvedValue(null),
+                updateMany,
+            },
+            auditLog: { create: createAudit },
+        }));
+        const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "MARK_PRINTED", expectedVersion: 2 }),
+        });
+
+        const response = await PATCH(request, { params: Promise.resolve({ id: "qr-1" }) });
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.autoActivated).toBe(true);
+        expect(body.message).toContain("เปิดใช้งาน QR หลักของสถานีอัตโนมัติ");
+        expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "qr-1", version: 2 },
+            data: expect.objectContaining({ needsReprint: false, isActive: true, revokedAt: null }),
+        }));
+        expect(createAudit).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "CUSTOMER_FEEDBACK_QR_ACTIVATED" }),
+        }));
+    });
+
+    it.each([
+        ["QR ทดสอบ", { isPrimary: true, isTest: true }],
+        ["QR จุดย่อย", { isPrimary: false, isTest: false }],
+    ])("MARK_PRINTED ของ %s บันทึกการพิมพ์แต่ไม่เปิดอัตโนมัติ", async (_label, flags) => {
+        qrFindMock.mockResolvedValue({
+            ...employeeQr,
+            targetType: "STATION",
+            employeeId: null,
+            employee: null,
+            stationId: "station-own",
+            station: { id: "station-own", isActive: true, publicEmergencyPhone: "191" },
+            ...flags,
         });
         const updateMany = vi.fn().mockResolvedValue({ count: 1 });
         transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => callback({
-            customerFeedbackQr: { updateMany },
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            station: { findUnique: vi.fn() },
+            customerFeedbackQr: {
+                findUnique: vi.fn().mockResolvedValue({
+                    version: 2,
+                    isActive: false,
+                    stationId: "station-own",
+                    ...flags,
+                }),
+                findFirst: vi.fn(),
+                updateMany,
+            },
             auditLog: { create: vi.fn().mockResolvedValue({}) },
         }));
         const request = new NextRequest("http://localhost/api/admin/customer-feedback/qr-codes/qr-1", {
@@ -258,7 +322,6 @@ describe("PATCH /api/admin/customer-feedback/qr-codes/[id]", () => {
 
         expect(response.status).toBe(200);
         expect(body.autoActivated).toBe(false);
-        expect(updateMany).toHaveBeenCalledTimes(1);
         expect(updateMany.mock.calls[0][0].data).not.toHaveProperty("isActive");
         expect(updateMany.mock.calls[0][0].data).toEqual(expect.objectContaining({ needsReprint: false }));
     });
