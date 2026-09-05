@@ -403,9 +403,10 @@ export function QrCodesTab() {
         if (res.ok) {
             toast.success(`สร้าง QR ${isRestroom ? "ประเมินห้องน้ำ" : "สถานี"}แล้ว${createAsTest ? "ในโหมดทดสอบ" : ""} — ต้องพิมพ์ป้ายก่อนเปิดใช้งาน`);
             void load();
-        } else {
-            toast.error(data.error ?? "สร้างไม่สำเร็จ");
+            return true;
         }
+        toast.error(data.error ?? "สร้างไม่สำเร็จ");
+        return false;
     };
 
     return (
@@ -610,6 +611,7 @@ export function QrCodesTab() {
                 open={stationPickerOpen}
                 onOpenChange={setStationPickerOpen}
                 onSelect={createForStation}
+                kind={stationCreateMode}
             />
             <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
                 <DialogContent>

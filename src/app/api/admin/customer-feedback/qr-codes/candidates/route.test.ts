@@ -70,4 +70,35 @@ describe("customer feedback QR candidates", () => {
             truncated: false,
         });
     });
+
+    it("looks up the restroom slot independently from the station main QR", async () => {
+        stationFindManyMock.mockResolvedValue([
+            {
+                id: "station-own",
+                name: "สถานีของเรา",
+                isActive: true,
+                publicEmergencyPhone: "191",
+                feedbackQrs: [],
+            },
+        ]);
+
+        const response = await GET(new NextRequest(
+            "http://localhost/api/admin/customer-feedback/qr-codes/candidates?targetType=STATION&stationQrKind=restroom"
+        ));
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(stationFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
+            select: expect.objectContaining({
+                feedbackQrs: {
+                    where: { targetType: "STATION", placement: "RESTROOM", placementKey: "RESTROOM_MAIN" },
+                    select: { id: true, isActive: true, publicLabel: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                },
+            }),
+        }));
+        expect(body.stations[0].existingQr).toBeNull();
+    });
+
 });

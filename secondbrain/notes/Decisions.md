@@ -7,6 +7,12 @@ updated: 2026-09-05
 
 # Decisions
 
+## 2026-09-05: Station-main QR and restroom QR use separate uniqueness slots
+
+- A station may have both its normal station feedback QR and its restroom feedback QR concurrently.
+- Duplicate prevention is per QR kind, not per station: `STATION_MAIN` blocks only another station-main QR; `RESTROOM + RESTROOM_MAIN` blocks only another restroom QR.
+- Admin candidate/picker status must be scoped to the QR kind being created so an existing station QR never prevents creating the restroom QR, and vice versa.
+
 ## 2026-09-05: Printing a production primary station QR completes activation
 
 - A real primary station QR should not require a separate manual activation click after the operator has confirmed that the current poster version was printed or saved as PDF.

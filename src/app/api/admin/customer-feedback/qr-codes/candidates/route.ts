@@ -48,6 +48,14 @@ export async function GET(request: NextRequest) {
         if (!targetType.ok) return NextResponse.json({ error: targetType.message }, { status: 400 });
 
         if (targetType.value === "STATION") {
+            const stationQrKind = parseOptionalFeedbackFilter(
+                request.nextUrl.searchParams.get("stationQrKind"),
+                ["station", "restroom"] as const,
+                "stationQrKind"
+            );
+            if (!stationQrKind.ok) return NextResponse.json({ error: stationQrKind.message }, { status: 400 });
+            const requestedKind = stationQrKind.value ?? "station";
+
             const stations = await prisma.station.findMany({
                 where: {
                     ...(scope.stationId ? { id: scope.stationId } : {}),
@@ -66,7 +74,9 @@ export async function GET(request: NextRequest) {
                     isActive: true,
                     publicEmergencyPhone: true,
                     feedbackQrs: {
-                        where: { targetType: "STATION", placement: "STATION_MAIN", isPrimary: true },
+                        where: requestedKind === "restroom"
+                            ? { targetType: "STATION", placement: "RESTROOM", placementKey: "RESTROOM_MAIN" }
+                            : { targetType: "STATION", placement: "STATION_MAIN", isPrimary: true },
                         select: { id: true, isActive: true, publicLabel: true },
                         orderBy: { createdAt: "desc" },
                         take: 1,

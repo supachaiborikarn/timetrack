@@ -14,20 +14,27 @@ interface StationCandidate {
     existingQr: { id: string; isActive: boolean; publicLabel: string } | null;
 }
 
+type StationQrKind = "station" | "restroom";
+
 interface StationPickerDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSelect: (stationId: string) => Promise<void> | void;
+    onSelect: (stationId: string) => Promise<boolean | void> | boolean | void;
+    kind?: StationQrKind;
 }
 
-function blockedReason(station: StationCandidate): string | null {
+function blockedReason(station: StationCandidate, kind: StationQrKind): string | null {
     if (!station.isActive) return "สถานีปิดใช้งานอยู่";
     if (!station.publicEmergencyPhone) return "ยังไม่มีหมายเลขฉุกเฉินสาธารณะ";
-    if (station.existingQr) return "มี QR หลักแล้ว กรุณาจัดการจากรายการด้านล่าง";
+    if (station.existingQr) {
+        return kind === "restroom"
+            ? "มี QR ห้องน้ำแล้ว กรุณาจัดการจากรายการด้านล่าง"
+            : "มี QR สถานีแล้ว กรุณาจัดการจากรายการด้านล่าง";
+    }
     return null;
 }
 
-export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPickerDialogProps) {
+export function StationPickerDialog({ open, onOpenChange, onSelect, kind = "station" }: StationPickerDialogProps) {
     const [search, setSearch] = useState("");
     const [stations, setStations] = useState<StationCandidate[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +46,7 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
         setIsLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ targetType: "STATION" });
+            const params = new URLSearchParams({ targetType: "STATION", stationQrKind: kind });
             if (term.trim()) params.set("search", term.trim());
             const response = await fetch(`/api/admin/customer-feedback/qr-codes/candidates?${params.toString()}`, { cache: "no-store" });
             const data = await response.json().catch(() => ({}));
@@ -58,7 +65,7 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [kind]);
 
     useEffect(() => {
         if (!open) return;
@@ -67,10 +74,11 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
     }, [load, open, search]);
 
     const choose = async (station: StationCandidate) => {
-        if (blockedReason(station)) return;
+        if (blockedReason(station, kind)) return;
         setSubmittingId(station.id);
         try {
-            await onSelect(station.id);
+            const result = await onSelect(station.id);
+            if (result === false) return;
             onOpenChange(false);
             setSearch("");
         } finally {
@@ -82,8 +90,12 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>เลือกสถานีที่จะสร้าง QR</DialogTitle>
-                    <DialogDescription>รายการนี้แสดงเฉพาะสถานีที่คุณมีสิทธิ์จัดการ และต้องมีหมายเลขฉุกเฉินสาธารณะก่อนสร้าง</DialogDescription>
+                    <DialogTitle>{kind === "restroom" ? "เลือกสถานีที่จะสร้าง QR ห้องน้ำ" : "เลือกสถานีที่จะสร้าง QR สถานี"}</DialogTitle>
+                    <DialogDescription>
+                        {kind === "restroom"
+                            ? "QR ห้องน้ำแยกจาก QR สถานีหลัก เลือกได้แม้สถานีนี้มี QR หลักอยู่แล้ว"
+                            : "QR สถานีหลักแยกจาก QR ห้องน้ำ เลือกได้แม้สถานีนี้มี QR ห้องน้ำอยู่แล้ว"}
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden />
@@ -94,7 +106,7 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
                     {!isLoading && error && <p className="py-6 text-center text-sm text-destructive">{error}</p>}
                     {!isLoading && !error && stations.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">ไม่พบสถานีที่เลือกได้</p>}
                     {!isLoading && !error && stations.map((station) => {
-                        const reason = blockedReason(station);
+                        const reason = blockedReason(station, kind);
                         const disabled = Boolean(reason) || submittingId !== null;
                         return (
                             <button
@@ -107,7 +119,13 @@ export function StationPickerDialog({ open, onOpenChange, onSelect }: StationPic
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="font-medium">{station.name}</span>
-                                        {station.existingQr && <Badge variant={station.existingQr.isActive ? "default" : "secondary"}>{station.existingQr.isActive ? "มี QR ใช้งานอยู่" : "มี QR รอเปิดใช้"}</Badge>}
+                                        {station.existingQr && (
+                                            <Badge variant={station.existingQr.isActive ? "default" : "secondary"}>
+                                                {kind === "restroom"
+                                                    ? (station.existingQr.isActive ? "มี QR ห้องน้ำใช้งานอยู่" : "มี QR ห้องน้ำรอเปิดใช้")
+                                                    : (station.existingQr.isActive ? "มี QR สถานีใช้งานอยู่" : "มี QR สถานีรอเปิดใช้")}
+                                            </Badge>
+                                        )}
                                     </div>
                                     <p className="text-xs text-muted-foreground">เบอร์ฉุกเฉิน: {station.publicEmergencyPhone ?? "ยังไม่ได้ตั้งค่า"}</p>
                                     {reason && <p className="mt-0.5 text-xs text-destructive">{reason}</p>}

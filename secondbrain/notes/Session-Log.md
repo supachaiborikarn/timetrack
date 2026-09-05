@@ -2,10 +2,43 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Session Log
+
+## 2026-09-06 — Release restroom QR creation fix
+
+- Owner authorized committing and pushing the completed QR separation change to `origin/main`.
+- Scope: candidate API, station picker, QR creation callback, regression tests, and Second Brain decisions/session notes.
+- Verification from the preceding session: 27 tests passed, TypeScript and targeted ESLint passed; pre-commit `git diff --check` passed.
+- No database command or schema change is required; production deployment status must be checked separately from Git push success.
+
+## 2026-09-05 — Separated restroom QR creation from station-main QR
+
+Goal:
+
+Fix the Customer Feedback admin flow where `สร้าง QR ห้องน้ำ` was blocked whenever the station already had its normal station QR.
+
+Implementation:
+
+- Station picker now receives an explicit creation kind: `station` or `restroom`.
+- Candidate lookup checks only the matching QR slot: station-main checks `STATION_MAIN`; restroom checks `RESTROOM + RESTROOM_MAIN`.
+- A station may therefore have one normal station QR and one restroom QR at the same time; only a duplicate of the same kind blocks creation.
+- Restroom picker copy/badges now identify restroom QR status separately from station QR status.
+- The picker stays open when QR creation fails, instead of closing and hiding the error context.
+- Existing POST creation already enforces uniqueness by `placement + placementKey`, so no schema/database change was required.
+- No production database command or direct production-data mutation was executed.
+
+Verification:
+
+- Resumed the unfinished working-tree change on 2026-09-05; the four implementation/test files and two Second Brain notes were already modified, with HEAD at `3b8ac77`.
+- Added `station-picker-dialog.test.tsx`, exercising the rendered picker against the real candidate handler with an in-memory station/QR fixture and no database connection.
+- Reproduction: substituted the HEAD candidate handler in temporary test files; 2/5 tests failed, including restroom creation blocked by an existing station-main QR. Temporary files were removed afterwards.
+- Fixed handler: all 5 picker/API tests pass, covering both creation directions, duplicate blocking for both kinds (including an inactive restroom QR), and keeping the picker open on failed creation.
+- Existing candidate, QR creation, poster, and restroom scoring suites: 4 files, 22/22 tests passed.
+- `npx tsc --noEmit`, targeted ESLint across all five changed source/test files, and `git diff --check`: passed.
+- No new commit, push, deployment, or live browser/database verification was performed; these changes remain local and must be released before the live website benefits.
 
 ## 2026-09-05 — Fixed station QR print-to-activation flow
 
