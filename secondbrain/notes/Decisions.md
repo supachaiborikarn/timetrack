@@ -207,3 +207,10 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Official results are finalized/announced by the existing Vercel cron every Monday at 07:30 Asia/Bangkok (00:30 UTC).
 - During the active week, ranking shown in League is live/provisional only.
 - Employee and admin/cashier League views must clearly separate current live ranking from the latest finalized weekly result.
+
+
+## 2026-09-05: Do not depend on native print-dialog return for QR state changes
+
+- Browser-native Print / Save as PDF dialogs are not a reliable completion signal for server-side QR state transitions.
+- Keep `MARK_PRINTED` as the audited backend operation, but expose an explicit in-page acknowledgement when the user has already printed/saved a primary station QR.
+- Never mark TEST/secondary/employee QR rows printed through this station-primary shortcut.

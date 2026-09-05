@@ -149,6 +149,14 @@ export function QrCodesTab() {
         await load();
     }
 
+    const confirmStationPrintedAndActivate = async (row: QrRow) => {
+        const confirmed = window.confirm(
+            `ยืนยันว่าพิมพ์หรือบันทึกเป็น PDF ป้าย "${row.publicLabel}" เวอร์ชัน ${row.version} แล้ว?\n\nเมื่อกด OK ระบบจะบันทึกการพิมพ์และเปิดใช้งาน QR หลักของสถานีทันที`
+        );
+        if (!confirmed) return;
+        await markPrinted(row.id, row.version);
+    };
+
     async function openPrintWindow(
         qrUrl: string,
         manualEntryUrl: string,
@@ -548,6 +556,14 @@ export function QrCodesTab() {
                                                 )}
                                                 {q.isActive ? (
                                                     <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
+                                                ) : q.targetType === "STATION" && q.isPrimary && !q.isTest && q.needsReprint ? (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => void confirmStationPrintedAndActivate(q)}
+                                                        title="ใช้เมื่อพิมพ์หรือบันทึก PDF แล้ว แต่ browser ไม่ส่งสถานะกลับจากหน้าต่างพิมพ์"
+                                                    >
+                                                        พิมพ์/เซฟแล้ว → เปิดใช้
+                                                    </Button>
                                                 ) : q.targetType === "EMPLOYEE" && q.publicProfileApprovedAt && q.needsReprint ? (
                                                     <Button size="sm" variant="outline" disabled>กดพิมพ์เพื่อเปิดอัตโนมัติ</Button>
                                                 ) : q.targetType !== "EMPLOYEE" || q.publicProfileApprovedAt ? (

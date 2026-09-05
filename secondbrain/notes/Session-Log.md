@@ -1605,3 +1605,20 @@ Verification:
 - Added latest finalized weekly result to employee League API/page and Admin/Cashier League API/page.
 - Current-week leaderboard remains explicitly provisional; official result card states Monday 07:30 announcement cadence.
 - No database schema change or production data mutation.
+
+
+## 2026-09-05 — Added explicit station QR print acknowledgement
+
+Production diagnosis:
+
+- Owner reported that printing or saving the station QR poster still did not allow activation.
+- Read-only Production inspection showed repeated `CUSTOMER_FEEDBACK_QR_REVEALED` audit events but no `CUSTOMER_FEEDBACK_QR_PRINTED` events for the affected primary station QRs.
+- Therefore the backend `MARK_PRINTED`/auto-activation path was not being reached; the native browser print dialog did not reliably return to the post-print confirmation flow.
+
+Implementation:
+
+- Added an explicit in-page `พิมพ์/เซฟแล้ว → เปิดใช้` action for inactive, production, primary STATION QRs that still have `needsReprint=true`.
+- The action asks for a final acknowledgement and then calls the existing `MARK_PRINTED` API directly.
+- Backend remains the source of truth: it records the print, validates station eligibility and active-primary conflicts, writes audit logs, and auto-activates the primary production QR when allowed.
+- The shortcut is not shown for TEST QRs, secondary station QRs, or employee QRs.
+- No direct Production database mutation is performed by this code change.
