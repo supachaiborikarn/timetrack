@@ -32,9 +32,21 @@ export async function GET() {
     const now = new Date();
     const week = getBangkokWeekBounds(now);
     const month = getBangkokMonthBounds(now);
-    const [weekly, monthly, awards, latestGrand, rewardWallet, rewardCatalog] = await Promise.all([
+    const [weekly, monthly, latestWeekly, awards, latestGrand, rewardWallet, rewardCatalog] = await Promise.all([
         calculateStationWeeklyLeague({ stationId: user.stationId, from: week.from, to: week.to, referenceTime: now }),
         getMonthlyStationLeaderboard(user.stationId, month.key),
+        prisma.competitionPeriod.findFirst({
+            where: { type: "WEEKLY_STATION", stationId: user.stationId, status: "FINALIZED" },
+            include: {
+                standings: {
+                    where: { finalRank: { not: null } },
+                    orderBy: { finalRank: "asc" },
+                    take: 8,
+                    select: { employeeLabelSnapshot: true, totalScore: true, finalRank: true },
+                },
+            },
+            orderBy: { endDate: "desc" },
+        }),
         prisma.competitionAward.findMany({
             where: { userId: user.id, status: { in: ["AVAILABLE", "SELECTED"] } },
             include: { period: { select: { type: true, periodKey: true, startDate: true, endDate: true } } },
@@ -89,6 +101,11 @@ export async function GET() {
             standings: publicMonthlyStandings,
             me: publicMonthlyStandings.find((standing) => standing.isMe) ?? null,
         },
+        latestWeekly: latestWeekly ? {
+            periodKey: latestWeekly.periodKey,
+            finalizedAt: latestWeekly.finalizedAt?.toISOString() ?? null,
+            standings: latestWeekly.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
+        } : null,
         latestGrand: latestGrand ? {
             periodKey: latestGrand.periodKey,
             standings: latestGrand.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),

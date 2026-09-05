@@ -56,7 +56,19 @@ export async function GET(request: NextRequest) {
 
     const admin = { userId: viewer.userId, stationId: viewer.stationId, role: viewer.role };
 
-    const [pendingPeriods, selectedAwards] = await Promise.all([
+    const [latestWeekly, pendingPeriods, selectedAwards] = await Promise.all([
+        selectedStation ? prisma.competitionPeriod.findFirst({
+            where: { type: "WEEKLY_STATION", stationId: selectedStation.id, status: "FINALIZED" },
+            include: {
+                standings: {
+                    where: { finalRank: { not: null } },
+                    orderBy: { finalRank: "asc" },
+                    take: 8,
+                    select: { employeeLabelSnapshot: true, totalScore: true, finalRank: true },
+                },
+            },
+            orderBy: { endDate: "desc" },
+        }) : Promise.resolve(null),
         prisma.competitionPeriod.findMany({
             where: { status: "PENDING_REVIEW", ...(admin.stationId ? { stationId: admin.stationId } : {}) },
             include: {
@@ -86,6 +98,12 @@ export async function GET(request: NextRequest) {
         selectedStationId: selectedStation?.id ?? null,
         canSelectStation: viewer.canSelectStation,
         canManageFairPlay: viewer.canManageFairPlay,
+        latestWeekly: latestWeekly ? {
+            periodKey: latestWeekly.periodKey,
+            finalizedAt: latestWeekly.finalizedAt?.toISOString() ?? null,
+            station: selectedStation,
+            standings: latestWeekly.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
+        } : null,
         liveLeague: liveLeague ? {
             periodKey: week.key,
             station: liveLeague.station,

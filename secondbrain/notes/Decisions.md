@@ -194,3 +194,9 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - MANAGER/CASHIER are station-scoped on the server and may view only the League standings for their current station.
 - CASHIER access to League is read-only; competition moderation, Fair Play decisions, reward fulfillment, and Reward Points administration remain management functions.
 - Station scope must be enforced by the API rather than relying only on hidden UI controls.
+
+## 2026-09-05: Weekly League results are officially announced every Monday
+- Weekly competition runs Monday-Sunday in Asia/Bangkok.
+- Official results are finalized/announced by the existing Vercel cron every Monday at 07:30 Asia/Bangkok (00:30 UTC).
+- During the active week, ranking shown in League is live/provisional only.
+- Employee and admin/cashier League views must clearly separate current live ranking from the latest finalized weekly result.

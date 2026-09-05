@@ -10,6 +10,12 @@ interface AdminLeagueData {
     canSelectStation: boolean;
     selectedStationId: string | null;
     stations: Array<{ id: string; code: string; name: string }>;
+    latestWeekly: {
+        periodKey: string;
+        finalizedAt: string | null;
+        station: { id: string; code: string; name: string } | null;
+        standings: Array<{ employeeLabelSnapshot: string; totalScore: number; finalRank: number | null }>;
+    } | null;
     liveLeague: {
         periodKey: string;
         station: { id: string; code: string; name: string };
@@ -272,7 +278,7 @@ export default function AdminLeaguePage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" /><h2 className="text-lg font-black">อันดับการแข่งขันแต่ละปั๊ม</h2></div>
-                        <p className="mt-1 text-xs text-muted-foreground">อันดับสัปดาห์ปัจจุบันคำนวณจากข้อมูลจริง และอาจเปลี่ยนได้จนกว่าจะปิดรอบ</p>
+                        <p className="mt-1 text-xs text-muted-foreground">อันดับสดสัปดาห์ปัจจุบันอาจเปลี่ยนได้จนกว่าจะปิดรอบ · ผลอย่างเป็นทางการประกาศทุกวันจันทร์ 07:30 น.</p>
                     </div>
                     {data?.canSelectStation && data.stations.length > 0 ? (
                         <label className="grid gap-1 text-xs font-bold sm:min-w-[260px]">
@@ -289,6 +295,28 @@ export default function AdminLeaguePage() {
                         <div className="rounded-full border bg-muted/40 px-3 py-1.5 text-xs font-bold">{data.liveLeague.station.name}</div>
                     ) : null}
                 </div>
+
+                {data?.latestWeekly?.standings?.length ? (
+                    <div className="overflow-hidden rounded-xl border-2 border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/20">
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-800 px-4 py-3 text-white">
+                            <div>
+                                <p className="text-[10px] font-black tracking-[0.16em] text-emerald-200">OFFICIAL WEEKLY RESULT</p>
+                                <p className="font-black">ผลอย่างเป็นทางการ · {data.latestWeekly.station?.name ?? "สถานี"}</p>
+                                <p className="text-[10px] text-emerald-100">ประกาศทุกวันจันทร์ 07:30 น. · รอบ {data.latestWeekly.periodKey}</p>
+                            </div>
+                            <Trophy className="h-6 w-6 text-amber-300" />
+                        </div>
+                        <div className="divide-y">
+                            {data.latestWeekly.standings.map((standing) => (
+                                <div key={`${standing.finalRank}:${standing.employeeLabelSnapshot}`} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+                                    <div className="text-center font-black">{standing.finalRank === 1 ? "🥇" : standing.finalRank === 2 ? "🥈" : standing.finalRank === 3 ? "🥉" : standing.finalRank ? `#${standing.finalRank}` : "-"}</div>
+                                    <p className="truncate font-black">{standing.employeeLabelSnapshot}</p>
+                                    <p className="font-black tabular-nums">{standing.totalScore.toFixed(1)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
 
                 {loading && !data?.liveLeague ? <div className="grid min-h-28 place-items-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : null}
                 {data?.liveLeague ? (

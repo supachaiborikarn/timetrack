@@ -5,12 +5,14 @@ const {
     accessMock,
     stationFindManyMock,
     periodFindManyMock,
+    periodFindFirstMock,
     awardFindManyMock,
     calculateLeagueMock,
 } = vi.hoisted(() => ({
     accessMock: vi.fn(),
     stationFindManyMock: vi.fn(),
     periodFindManyMock: vi.fn(),
+    periodFindFirstMock: vi.fn(),
     awardFindManyMock: vi.fn(),
     calculateLeagueMock: vi.fn(),
 }));
@@ -33,7 +35,7 @@ vi.mock("@/lib/competition/league", () => ({
 vi.mock("@/lib/prisma", () => ({
     prisma: {
         station: { findMany: stationFindManyMock },
-        competitionPeriod: { findMany: periodFindManyMock },
+        competitionPeriod: { findMany: periodFindManyMock, findFirst: periodFindFirstMock },
         competitionAward: { findMany: awardFindManyMock },
     },
 }));
@@ -80,6 +82,7 @@ describe("admin league ranking access", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         periodFindManyMock.mockResolvedValue([]);
+        periodFindFirstMock.mockResolvedValue(null);
         awardFindManyMock.mockResolvedValue([]);
         calculateLeagueMock.mockResolvedValue(leagueFor());
     });

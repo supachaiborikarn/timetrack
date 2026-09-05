@@ -1575,3 +1575,10 @@ Verification:
 - Full `npx vitest run`: 81 files / 513 tests passed.
 - `NODE_ENV=production npm run build`: passed; 188/188 static pages generated.
 - `git diff --check`: passed.
+
+## 2026-09-05 — Made Monday the official weekly League result announcement
+- Owner confirmed weekly competition results should be announced every Monday.
+- Verified `vercel.json` already schedules `/api/cron/league-finalize` at `30 0 * * 1`, which is Monday 07:30 Asia/Bangkok.
+- Added latest finalized weekly result to employee League API/page and Admin/Cashier League API/page.
+- Current-week leaderboard remains explicitly provisional; official result card states Monday 07:30 announcement cadence.
+- No database schema change or production data mutation.
