@@ -10,6 +10,7 @@ updated: 2026-09-06
 ## 2026-09-06 — Release restroom QR creation fix
 
 - Owner authorized committing and pushing the completed QR separation change to `origin/main`.
+- Implementation commit: `b3d4625` — `fix: separate restroom and station QR creation slots`.
 - Scope: candidate API, station picker, QR creation callback, regression tests, and Second Brain decisions/session notes.
 - Verification from the preceding session: 27 tests passed, TypeScript and targeted ESLint passed; pre-commit `git diff --check` passed.
 - No database command or schema change is required; production deployment status must be checked separately from Git push success.
