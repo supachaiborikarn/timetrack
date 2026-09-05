@@ -1622,3 +1622,35 @@ Implementation:
 - Backend remains the source of truth: it records the print, validates station eligibility and active-primary conflicts, writes audit logs, and auto-activates the primary production QR when allowed.
 - The shortcut is not shown for TEST QRs, secondary station QRs, or employee QRs.
 - No direct Production database mutation is performed by this code change.
+
+
+## 2026-09-05 — Dedicated A4 restroom feedback poster
+
+Goal:
+
+- Redesign the full-size A4 Customer Feedback sign specifically for restrooms instead of reusing the forecourt/station poster.
+- Keep restroom questions and scoring isolated from the normal station/pump survey.
+
+Implementation:
+
+- Confirmed the existing `restroom-v1` survey already has its own five cleanliness checklist questions and restroom-specific reason keys, and public resolve routes RESTROOM QR rows to that survey rather than `station-v1`.
+- Added a `posterVariant` to the shared print input so full-size restroom artwork can be selected without changing employee/station posters or compact 54x88 labels.
+- RESTROOM / `RESTROOM_MAIN` QR rows now automatically print a dedicated A4 portrait poster from the admin QR screen; other station and employee A4 posters remain landscape and unchanged.
+- New restroom artwork uses the headline `ห้องน้ำสะอาดไหม?`, a large unobstructed QR, manual 8-character code, station name, and previews the five restroom-only assessment topics: floor/area, fixtures/sinks, odor, supplies, and bins/orderliness.
+- Admin print action is labelled `A4 ห้องน้ำ` for restroom QR rows so staff can distinguish it from the normal `A4 แนวนอน` action.
+- Added regression tests proving RESTROOM artwork is portrait/restroom-specific and standard station artwork remains landscape.
+- No database command, schema change, production data write, or production deployment was performed.
+
+Verification:
+
+- `npx vitest run src/lib/customer-feedback/print-poster.test.ts src/lib/customer-feedback/restroom-score.test.ts src/lib/__tests__/customer-feedback-validation.test.ts`: 3 files, 51/51 tests passed.
+- `npx tsc --noEmit`: passed.
+- Targeted ESLint for the changed poster/admin files: passed with no output.
+
+Files changed:
+
+- `src/lib/customer-feedback/print-poster.ts`
+- `src/lib/customer-feedback/print-poster.test.ts`
+- `src/components/customer-feedback/admin/qr-codes-tab.tsx`
+- `secondbrain/notes/Session-Log.md`
+- `secondbrain/notes/Decisions.md`

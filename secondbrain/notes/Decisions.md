@@ -214,3 +214,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Browser-native Print / Save as PDF dialogs are not a reliable completion signal for server-side QR state transitions.
 - Keep `MARK_PRINTED` as the audited backend operation, but expose an explicit in-page acknowledgement when the user has already printed/saved a primary station QR.
 - Never mark TEST/secondary/employee QR rows printed through this station-primary shortcut.
+
+
+## 2026-09-05: Restroom A4 feedback signage is a dedicated portrait design
+
+- RESTROOM Customer Feedback QR rows must use the dedicated A4 portrait restroom artwork rather than the normal station/forecourt A4 landscape artwork.
+- The restroom sign should clearly communicate that the survey is about restroom cleanliness and preview the five `restroom-v1` topics; do not present generic pump/station-service wording on this poster.
+- Standard station and employee A4 artwork remains unchanged. Compact 54x88 labels continue using the shared compact layout unless a separate requirement is approved later.
+- `restroom-v1` remains the authoritative survey for restroom QR responses; do not mix its question keys or scoring into `station-v1`.

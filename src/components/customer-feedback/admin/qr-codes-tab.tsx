@@ -108,6 +108,9 @@ export function QrCodesTab() {
             manualEntryUrl,
             manualCode,
             targetType: row.targetType === "EMPLOYEE" ? "EMPLOYEE" : "STATION",
+            posterVariant: row.targetType === "STATION" && (row.placement === "RESTROOM" || row.placementKey === "RESTROOM_MAIN")
+                ? "RESTROOM"
+                : "STANDARD",
             targetLabel: rawTargetLabel,
             positionLabel: row.targetType === "EMPLOYEE" ? resolvedPosition ?? undefined : undefined,
             stationLabel: row.targetType === "EMPLOYEE" ? row.employee?.stationName ?? undefined : row.station?.name ?? undefined,
@@ -544,10 +547,12 @@ export function QrCodesTab() {
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            title="A4 แนวนอน สำหรับใส่กรอบหรือป้ายวางหน้ารถ"
+                                                            title={q.targetType === "STATION" && (q.placement === "RESTROOM" || q.placementKey === "RESTROOM_MAIN")
+                                                                ? "A4 แนวตั้ง ออกแบบเฉพาะสำหรับติดหน้าห้องน้ำ"
+                                                                : "A4 แนวนอน สำหรับใส่กรอบหรือป้ายวางหน้ารถ"}
                                                             onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version }, undefined, "a4-landscape")}
                                                         >
-                                                            <Printer className="mr-1 h-4 w-4" />A4 แนวนอน
+                                                            <Printer className="mr-1 h-4 w-4" />{q.targetType === "STATION" && (q.placement === "RESTROOM" || q.placementKey === "RESTROOM_MAIN") ? "A4 ห้องน้ำ" : "A4 แนวนอน"}
                                                         </Button>
                                                         <Button size="sm" variant="ghost" title="ป้ายเล็กขนาดจริง 54 × 88 มม. สไตล์เดียวกับ A4" onClick={() => void act(q.id, { action: "reveal", expectedVersion: q.version })}>
                                                             ป้ายเล็ก

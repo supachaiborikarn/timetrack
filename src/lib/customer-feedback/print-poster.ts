@@ -7,6 +7,8 @@ export interface CustomerFeedbackA4PosterInput {
     manualEntryUrl: string;
     manualCode: string;
     targetType: CustomerFeedbackPosterTargetType;
+    /** Visual treatment for the full-size A4 poster. Small labels stay on the shared compact design. */
+    posterVariant?: "STANDARD" | "RESTROOM";
     targetLabel: string;
     subtitle?: string;
     positionLabel?: string;
@@ -512,6 +514,386 @@ ${pages.join("\n")}
 }
 
 /**
+ * A4 portrait poster dedicated to restroom feedback.
+ * It intentionally does not reuse the forecourt/station marketing layout: the CTA, copy,
+ * checklist preview and visual hierarchy are all restroom-specific, while the QR remains
+ * completely unobstructed on white for reliable scanning on a wall/door.
+ */
+function buildCustomerFeedbackRestroomA4PosterHtml(input: CustomerFeedbackA4PosterInput): string {
+    const qrSvg = generateQRCodeSVG(input.qrUrl, 960);
+    const stationLabel = escapeHtml(input.stationLabel || input.targetLabel.replace(/^ห้องน้ำ\s*/, "") || "สถานีบริการ");
+    const manualEntryDisplay = escapeHtml(input.manualEntryUrl.replace(/^https?:\/\//, "").replace(/\/$/, ""));
+    const version = input.version ? `QR version ${input.version}` : "";
+    const caltexLogo = absoluteAssetUrl(input.assetBaseUrl, "/customer-feedback/caltex-logo.png");
+    const codeCells = makeCodeCells(input.manualCode);
+    const checklist = [
+        ["01", "พื้นและพื้นที่", "สะอาด ไม่ลื่น ไม่เปียกเกินไป"],
+        ["02", "สุขภัณฑ์และอ่าง", "สะอาด พร้อมใช้งาน"],
+        ["03", "กลิ่น", "ไม่มีกลิ่นรบกวน"],
+        ["04", "ของใช้จำเป็น", "น้ำ สบู่ กระดาษพร้อม"],
+        ["05", "ถังขยะ", "ไม่ล้น พื้นที่เป็นระเบียบ"],
+    ].map(([number, title, detail]) => `
+      <div class="restroom-check-item">
+        <div class="restroom-check-no">${number}</div>
+        <div class="restroom-check-title">${title}</div>
+        <div class="restroom-check-detail">${detail}</div>
+      </div>`).join("");
+
+    return `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ป้ายประเมินห้องน้ำ A4 - ${stationLabel}</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Regular.ttf")}") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-SemiBold.ttf")}") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Bold.ttf")}") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-ExtraBold.ttf")}") format("truetype"); font-weight: 800; font-style: normal; font-display: swap; }
+  @font-face { font-family: "KanitPoster"; src: url("${absoluteAssetUrl(input.assetBaseUrl, "/fonts/Kanit-Black.ttf")}") format("truetype"); font-weight: 900; font-style: normal; font-display: swap; }
+
+  :root {
+    --restroom-deep: #003f4c;
+    --restroom-teal: #006d78;
+    --restroom-aqua: #e9f8f7;
+    --restroom-aqua-2: #f5fbfb;
+    --restroom-red: #ed0015;
+    --restroom-ink: #12363d;
+    --restroom-muted: #61777c;
+  }
+  * { box-sizing: border-box; }
+  html, body { width: 210mm; height: 297mm; margin: 0; padding: 0; }
+  body {
+    background: #fff;
+    color: var(--restroom-ink);
+    font-family: "KanitPoster", "Noto Sans Thai", Tahoma, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .restroom-sheet {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 92% 7%, rgba(0,109,120,.10), transparent 29%),
+      radial-gradient(circle at 4% 45%, rgba(0,109,120,.06), transparent 23%),
+      linear-gradient(180deg, #fff 0%, #fff 68%, var(--restroom-aqua-2) 100%);
+  }
+  .restroom-wave {
+    position: absolute;
+    top: -41mm;
+    right: -48mm;
+    width: 138mm;
+    height: 92mm;
+    border-radius: 50%;
+    background: var(--restroom-aqua);
+    transform: rotate(-13deg);
+  }
+  .restroom-wave::after {
+    content: "";
+    position: absolute;
+    left: 14mm;
+    top: 9mm;
+    width: 116mm;
+    height: 73mm;
+    border: 1.2mm solid rgba(0,109,120,.13);
+    border-radius: 50%;
+  }
+  .restroom-brand {
+    position: absolute;
+    left: 12mm;
+    top: 9mm;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+  }
+  .restroom-brand img { width: 48mm; height: auto; display: block; }
+  .restroom-brand-divider { width: .45mm; height: 11mm; background: #d8e4e5; }
+  .restroom-brand-copy { color: var(--restroom-deep); }
+  .restroom-brand-copy strong { display: block; font-size: 5.2mm; line-height: 1; font-weight: 800; }
+  .restroom-brand-copy span { display: block; margin-top: 1mm; font-size: 3.1mm; line-height: 1; font-weight: 500; color: var(--restroom-muted); }
+
+  .restroom-hero {
+    position: absolute;
+    left: 12mm;
+    right: 12mm;
+    top: 37mm;
+    text-align: center;
+    z-index: 2;
+  }
+  .restroom-kicker {
+    display: inline-flex;
+    min-height: 8.5mm;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5mm 5mm;
+    border-radius: 99mm;
+    background: var(--restroom-aqua);
+    color: var(--restroom-deep);
+    font-size: 4.4mm;
+    line-height: 1;
+    font-weight: 700;
+  }
+  .restroom-title {
+    margin-top: 3.5mm;
+    color: var(--restroom-deep);
+    font-size: 17.5mm;
+    line-height: .96;
+    font-weight: 900;
+    letter-spacing: -.55mm;
+  }
+  .restroom-title strong { color: var(--restroom-red); font-weight: 900; }
+  .restroom-subtitle {
+    margin-top: 3mm;
+    color: var(--restroom-ink);
+    font-size: 6.2mm;
+    line-height: 1.18;
+    font-weight: 600;
+  }
+  .restroom-station {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 3mm;
+    padding: 1.7mm 5mm;
+    border: .4mm solid #cfe2e3;
+    border-radius: 99mm;
+    background: #fff;
+    color: var(--restroom-deep);
+    font-size: 4.1mm;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .restroom-qr-card {
+    position: absolute;
+    left: 43mm;
+    top: 92mm;
+    width: 124mm;
+    height: 116mm;
+    z-index: 5;
+    border: .45mm solid #d7e7e8;
+    border-radius: 8mm;
+    background: #fff;
+    box-shadow: 0 3mm 10mm rgba(0,63,76,.13);
+  }
+  .restroom-scan-pill {
+    position: absolute;
+    left: 20mm;
+    right: 20mm;
+    top: -5.4mm;
+    height: 11mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 99mm;
+    background: linear-gradient(105deg, #007681 0%, #003f4c 100%);
+    color: #fff;
+    font-size: 5.7mm;
+    line-height: 1;
+    font-weight: 800;
+    box-shadow: 0 1mm 3mm rgba(0,63,76,.18);
+  }
+  .restroom-qr-shell {
+    position: absolute;
+    left: 19mm;
+    top: 9mm;
+    width: 86mm;
+    height: 86mm;
+    padding: 2mm;
+    background: #fff;
+  }
+  .restroom-qr-shell svg { width: 100%; height: 100%; display: block; }
+  .restroom-scan-note {
+    position: absolute;
+    left: 8mm;
+    right: 8mm;
+    top: 97mm;
+    text-align: center;
+    color: var(--restroom-muted);
+    font-size: 3.3mm;
+    line-height: 1.2;
+    font-weight: 500;
+  }
+  .restroom-scan-note strong { color: var(--restroom-deep); font-weight: 800; }
+
+  .restroom-manual {
+    position: absolute;
+    left: 18mm;
+    right: 18mm;
+    top: 214mm;
+    z-index: 4;
+    text-align: center;
+  }
+  .restroom-manual-title { color: var(--restroom-muted); font-size: 3.8mm; font-weight: 600; }
+  .restroom-code-cells {
+    width: 114mm;
+    margin: 2mm auto 0;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1.5mm;
+  }
+  .restroom-code-cells .code-cell {
+    height: 11.5mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: .45mm solid var(--restroom-red);
+    border-radius: 2mm;
+    background: #fff;
+    color: #111;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 7.4mm;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .restroom-manual-url {
+    margin-top: 1.6mm;
+    color: var(--restroom-deep);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3mm;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+
+  .restroom-checks {
+    position: absolute;
+    left: 8mm;
+    right: 8mm;
+    top: 246mm;
+    z-index: 4;
+  }
+  .restroom-checks-label {
+    margin-bottom: 2mm;
+    text-align: center;
+    color: var(--restroom-muted);
+    font-size: 3.5mm;
+    line-height: 1;
+    font-weight: 600;
+  }
+  .restroom-check-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2mm;
+  }
+  .restroom-check-item {
+    min-height: 29mm;
+    padding: 3mm 2mm 2mm;
+    border: .4mm solid #d8e8e8;
+    border-radius: 4mm;
+    background: rgba(255,255,255,.94);
+    text-align: center;
+  }
+  .restroom-check-no {
+    width: 7mm;
+    height: 7mm;
+    margin: 0 auto 1.6mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--restroom-aqua);
+    color: var(--restroom-teal);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3.1mm;
+    font-weight: 900;
+  }
+  .restroom-check-title { color: var(--restroom-deep); font-size: 3mm; line-height: 1.1; font-weight: 800; }
+  .restroom-check-detail { margin-top: 1mm; color: var(--restroom-muted); font-size: 2.25mm; line-height: 1.25; font-weight: 500; }
+
+  .restroom-footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 13mm;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2mm;
+    background: var(--restroom-deep);
+    color: #fff;
+    font-size: 3.7mm;
+    line-height: 1;
+    font-weight: 600;
+  }
+  .restroom-footer svg { width: 4.7mm; height: 4.7mm; }
+  .restroom-version { position: absolute; right: 4mm; bottom: 1.4mm; color: rgba(255,255,255,.5); font-size: 1.7mm; }
+  .restroom-test-ribbon {
+    position: absolute;
+    z-index: 30;
+    top: 12mm;
+    right: -23mm;
+    width: 86mm;
+    transform: rotate(39deg);
+    padding: 2.2mm 0;
+    background: var(--restroom-red);
+    color: #fff;
+    text-align: center;
+    font-size: 4mm;
+    line-height: 1;
+    font-weight: 800;
+    box-shadow: 0 .8mm 2mm rgba(0,0,0,.15);
+  }
+  @media screen {
+    body { width: auto; height: auto; min-height: 100vh; padding: 8px; background: #d8dde0; }
+    .restroom-sheet { margin: 0 auto; box-shadow: 0 3mm 12mm rgba(0,0,0,.18); }
+  }
+  @media print {
+    body { padding: 0; background: #fff; }
+    .restroom-sheet { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<section class="restroom-sheet">
+  ${input.isTest ? '<div class="restroom-test-ribbon">ตัวอย่าง / แบบทดสอบ</div>' : ""}
+  <div class="restroom-wave" aria-hidden="true"></div>
+
+  <div class="restroom-brand">
+    <img src="${caltexLogo}" alt="Caltex" />
+    <span class="restroom-brand-divider" aria-hidden="true"></span>
+    <span class="restroom-brand-copy"><strong>เสียงลูกค้า</strong><span>RESTROOM FEEDBACK</span></span>
+  </div>
+
+  <div class="restroom-hero">
+    <div class="restroom-kicker">ช่วยกันดูแลห้องน้ำของเรา</div>
+    <div class="restroom-title">ห้องน้ำ<strong>สะอาดไหม?</strong></div>
+    <div class="restroom-subtitle">สแกนแล้วบอกเราได้ทันที</div>
+    <div class="restroom-station">${stationLabel}</div>
+  </div>
+
+  <div class="restroom-qr-card">
+    <div class="restroom-scan-pill">สแกนเพื่อประเมินความสะอาด</div>
+    <div class="restroom-qr-shell">${qrSvg}</div>
+    <div class="restroom-scan-note">ใช้เวลาไม่ถึง <strong>1 นาที</strong> · ไม่ต้องระบุชื่อ</div>
+  </div>
+
+  <div class="restroom-manual">
+    <div class="restroom-manual-title">สแกนไม่ได้? เข้าเว็บไซต์ด้านล่าง แล้วกรอกรหัส 8 ตัว</div>
+    <div class="restroom-code-cells">${codeCells}</div>
+    <div class="restroom-manual-url">${manualEntryDisplay}</div>
+  </div>
+
+  <div class="restroom-checks">
+    <div class="restroom-checks-label">แบบประเมินห้องน้ำถามเฉพาะ 5 เรื่องนี้</div>
+    <div class="restroom-check-grid">${checklist}</div>
+  </div>
+
+  <div class="restroom-footer">
+    ${heartOutlineIcon()}
+    <span>ทุกความคิดเห็นช่วยให้ทีมแก้ไขและดูแลห้องน้ำได้ตรงจุด</span>
+    <span class="restroom-version">${escapeHtml(version)}</span>
+  </div>
+</section>
+</body>
+</html>`;
+}
+
+/**
  * A4-landscape customer-feedback poster.
  *
  * Employee posters deliberately mirror the approved Caltex reference artwork:
@@ -520,6 +902,8 @@ ${pages.join("\n")}
  * All person/QR values stay live HTML/SVG so every printed poster is unique and scannable.
  */
 export function buildCustomerFeedbackA4PosterHtml(input: CustomerFeedbackA4PosterInput): string {
+    if (input.posterVariant === "RESTROOM") return buildCustomerFeedbackRestroomA4PosterHtml(input);
+
     const qrSvg = generateQRCodeSVG(input.qrUrl, 960);
     const targetLabel = escapeHtml(input.targetLabel);
     const subtitle = input.subtitle ? escapeHtml(input.subtitle) : "";
