@@ -1688,3 +1688,24 @@ Files changed:
 - `src/components/customer-feedback/admin/qr-codes-tab.tsx`
 - `secondbrain/notes/Session-Log.md`
 - `secondbrain/notes/Decisions.md`
+
+
+## 2026-09-06 — Persistent weekly station champion on employee Dashboard
+
+Goal:
+
+- Keep each station's weekly winner visible to employees throughout the following week after the official Monday announcement, using a compact placement.
+
+Implementation:
+
+- Extended the employee Dashboard League response type to consume the existing `latestWeekly` payload already returned by `/api/league`.
+- Added a compact amber `แชมป์ประจำปั๊ม · สัปดาห์ล่าสุด` strip inside the employee League card, under the card header and above League/Championship/Reward Points.
+- The strip shows the finalized rank-1 employee name and weekly period key.
+- Because `latestWeekly` is the latest finalized `WEEKLY_STATION` period, the champion remains visible all week and is replaced automatically after the next Monday 07:30 finalization.
+- No database schema change, production data mutation, or additional persistence mechanism was added.
+
+Files changed:
+
+- `src/components/dashboard/views/EmployeeDashboardView.tsx`
+- `secondbrain/notes/Decisions.md`
+- `secondbrain/notes/Session-Log.md`

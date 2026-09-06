@@ -228,3 +228,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - The restroom sign should clearly communicate that the survey is about restroom cleanliness and preview the five `restroom-v1` topics; do not present generic pump/station-service wording on this poster.
 - Standard station and employee A4 artwork remains unchanged. Compact 54x88 labels continue using the shared compact layout unless a separate requirement is approved later.
 - `restroom-v1` remains the authoritative survey for restroom QR responses; do not mix its question keys or scoring into `station-v1`.
+
+
+## 2026-09-06: Keep the latest station weekly champion visible all week
+
+- After Monday weekly finalization, the employee Dashboard should keep the station's latest finalized weekly champion visible until the next weekly result replaces it.
+- Reuse `latestWeekly` from `/api/league`; do not add another persistence model or manual announcement state.
+- Place the champion as a compact amber strip inside the existing League card, directly below the League header and above the score summary so it is noticeable without competing with attendance or daily mission actions.
+- Show only the rank-1 employee name plus the finalized period key on the Dashboard; detailed official standings remain on `/league`.
