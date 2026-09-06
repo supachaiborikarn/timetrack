@@ -54,6 +54,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
 
         const now = new Date();
+        const isRestroomStationQr = qr.targetType === "STATION" && (
+            qr.placement === "RESTROOM" || qr.placementKey === "RESTROOM_MAIN" || qr.serviceAreaKey === "restroom"
+        );
 
         switch (body.action) {
             case "activate": {
@@ -80,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     if (activeOther) return NextResponse.json({ error: "พนักงานมี QR ที่ใช้งานอยู่แล้ว" }, { status: 409 });
                 } else {
                     const enabled = await isStationFeedbackEnabled(qr.stationId!);
-                    if (!qr.isPrimary && !enabled) {
+                    if (!qr.isPrimary && !isRestroomStationQr && !enabled) {
                         return NextResponse.json({ error: "ต้องเปิด QR หลักของสถานีก่อนเปิด QR จุดย่อย" }, { status: 400 });
                     }
                     if (qr.isPrimary && !enabled) {
@@ -153,7 +156,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                             select: { id: true },
                         });
                         if (qr.isPrimary && activePrimary) return { status: "OTHER_ACTIVE" as const };
-                        if (!qr.isPrimary && !activePrimary) return { status: "PRIMARY_REQUIRED" as const };
+                        if (!qr.isPrimary && !isRestroomStationQr && !activePrimary) return { status: "PRIMARY_REQUIRED" as const };
                     }
                     const updated = await tx.customerFeedbackQr.updateMany({
                         where: { id, version: body.expectedVersion, isActive: false, needsReprint: false },

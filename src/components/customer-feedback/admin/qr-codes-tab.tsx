@@ -135,7 +135,7 @@ export function QrCodesTab() {
         ]);
     }
 
-    async function markPrinted(id: string, expectedVersion: number): Promise<void> {
+    async function markPrinted(id: string, expectedVersion: number): Promise<{ ok: boolean; autoActivated: boolean }> {
         const response = await fetch(`/api/admin/customer-feedback/qr-codes/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -144,20 +144,26 @@ export function QrCodesTab() {
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
             toast.success(data.message ?? "สร้างป้ายสำหรับ QR เวอร์ชันนี้แล้ว");
+            await load();
+            return { ok: true, autoActivated: data.autoActivated === true };
         } else if (response.status === 409) {
             toast.error("QR ถูกหมุนรหัสระหว่างสร้างป้าย รายการถูกโหลดใหม่แล้ว");
         } else {
             toast.error(data.error ?? "บันทึกเวอร์ชันป้ายไม่สำเร็จ");
         }
         await load();
+        return { ok: false, autoActivated: false };
     }
 
     const confirmStationPrintedAndActivate = async (row: QrRow) => {
+        const isRestroom = row.placement === "RESTROOM" || row.placementKey === "RESTROOM_MAIN";
         const confirmed = window.confirm(
-            `ยืนยันว่าพิมพ์หรือบันทึกเป็น PDF ป้าย "${row.publicLabel}" เวอร์ชัน ${row.version} แล้ว?\n\nเมื่อกด OK ระบบจะบันทึกการพิมพ์และเปิดใช้งาน QR หลักของสถานีทันที`
+            `ยืนยันว่าพิมพ์หรือบันทึกเป็น PDF ป้าย "${row.publicLabel}" เวอร์ชัน ${row.version} แล้ว?\n\nเมื่อกด OK ระบบจะบันทึกการพิมพ์และเปิดใช้งาน ${isRestroom ? "QR ห้องน้ำ" : "QR หลักของสถานี"} ทันที`
         );
         if (!confirmed) return;
-        await markPrinted(row.id, row.version);
+        const printed = await markPrinted(row.id, row.version);
+        if (!printed.ok || printed.autoActivated) return;
+        await act(row.id, { action: "activate", expectedVersion: row.version });
     };
 
     async function openPrintWindow(
@@ -562,7 +568,7 @@ export function QrCodesTab() {
                                                 )}
                                                 {q.isActive ? (
                                                     <Button size="sm" variant="ghost" onClick={() => void act(q.id, { action: "deactivate", expectedVersion: q.version }, "ปิดใช้งาน QR นี้?")}>ปิดใช้งาน</Button>
-                                                ) : q.targetType === "STATION" && q.isPrimary && !q.isTest && q.needsReprint ? (
+                                                ) : q.targetType === "STATION" && !q.isTest && q.needsReprint && (q.isPrimary || q.placement === "RESTROOM" || q.placementKey === "RESTROOM_MAIN") ? (
                                                     <Button
                                                         size="sm"
                                                         onClick={() => void confirmStationPrintedAndActivate(q)}
@@ -576,7 +582,7 @@ export function QrCodesTab() {
                                                     <Button size="sm" onClick={() => void act(q.id, { action: "activate", expectedVersion: q.version })}>เปิดใช้งาน</Button>
                                                 ) : null}
                                                 {q.isTest && !q.isActive && (
-                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "promote-test", expectedVersion: q.version }, "สร้าง QR ใช้งานจริงแยกจาก QR ทดสอบใบนี้? ต้องพิมพ์ป้ายใหม่ก่อนเปิดใช้")}>เปลี่ยนเป็นใช้งานจริง</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => void act(q.id, { action: "promote-test", expectedVersion: q.version }, "สร้าง QR ใช้งานจริงแยกจาก QR ทดสอบใบนี้? ต้องพิมพ์ป้ายใหม่ก่อนเปิดใช้", q.targetType === "STATION" && (q.placement === "RESTROOM" || q.placementKey === "RESTROOM_MAIN") ? "a4-landscape" : "badge")}>เปลี่ยนเป็นใช้งานจริง</Button>
                                                 )}
                                                 {!q.isActive && (
                                                     <Button size="sm" variant="ghost" onClick={() => {

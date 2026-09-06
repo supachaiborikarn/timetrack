@@ -516,6 +516,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
 
     const isEmployee = qr.targetType === "EMPLOYEE";
     const surveyVersion = visit.surveyVersion as StandardSurveyVersion;
+    const isRestroomSurvey = !isEmployee && surveyVersion === "restroom-v1";
     const supportedForTarget = isEmployee
         ? surveyVersion === "employee-v1" || surveyVersion === "employee-v2" || surveyVersion === "employee-v3" || surveyVersion === "employee-v4"
         : surveyVersion === "station-v1" || surveyVersion === "restroom-v1";
@@ -617,7 +618,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
             });
             if (!station?.isActive) throw new SubmitDomainError("STATION_NOT_ELIGIBLE", 409);
             if (!isEmployee) {
-                const activePrimary = await tx.customerFeedbackQr.findFirst({
+                const activePrimary = isRestroomSurvey ? { id: qr.id } : await tx.customerFeedbackQr.findFirst({
                     where: { stationId, targetType: "STATION", isPrimary: true, isActive: true },
                     select: { id: true },
                 });

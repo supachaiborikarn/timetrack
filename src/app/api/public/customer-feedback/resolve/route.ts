@@ -218,6 +218,9 @@ export async function POST(request: NextRequest) {
         let stationContext: { stationId: string | null; source: string } = { stationId: null, source: "UNKNOWN" };
         let departmentIdAtOpen: string | null = null;
         let shiftIdAtOpen: string | null = null;
+        const isRestroomQr = qr.targetType === "STATION" && (
+            qr.placement === "RESTROOM" || qr.placementKey === "RESTROOM_MAIN" || qr.serviceAreaKey === "restroom"
+        );
         if (qr.targetType === "EMPLOYEE") {
             const target = await prisma.user.findUnique({
                 where: { id: qr.employeeId! },
@@ -245,9 +248,9 @@ export async function POST(request: NextRequest) {
                 where: { id: qr.stationId! },
                 select: { isActive: true, publicEmergencyPhone: true },
             });
-            const stationFeedbackEnabled = station?.isActive && station.publicEmergencyPhone
+            const stationFeedbackEnabled = station?.isActive && station.publicEmergencyPhone && !isRestroomQr
                 ? await isStationFeedbackEnabled(qr.stationId!)
-                : false;
+                : Boolean(station?.isActive && station.publicEmergencyPhone && isRestroomQr);
             if (!stationFeedbackEnabled) {
                 await recordResolve(resolverType, "INACTIVE");
                 return publicError("INVALID_QR", 404);
@@ -325,7 +328,7 @@ export async function POST(request: NextRequest) {
                 if (!currentStation?.isActive || !currentStation.publicEmergencyPhone) {
                     return { status: "INACTIVE" as const };
                 }
-                const activePrimary = await tx.customerFeedbackQr.findFirst({
+                const activePrimary = isRestroomQr ? { id: qr.id } : await tx.customerFeedbackQr.findFirst({
                     where: {
                         stationId: qr.stationId,
                         targetType: "STATION",
