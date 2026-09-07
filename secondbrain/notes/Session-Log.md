@@ -1744,3 +1744,13 @@ Limits and follow-up:
 - Until a snapshot is saved, the previous week's displayed scores remain a labelled calculation from retained source data, and do not grant rewards.
 - Announcement still uses the existing weekly scheduler; pending status prevents scores disappearing while it runs.
 - Admin needs Fair Play approval only for flagged rows; winner chooses at `/league`, and admin records actual delivery with มอบแล้ว in `/admin/league`.
+
+Release validation (same session):
+- Commit `5db6320` pushed to `origin/main`; GitHub reports Vercel deployment started for this commit.
+- Final full suite: **87 files / 549 tests passed**; final targeted tests 41 passed; TypeScript, changed-file ESLint and `git diff --check` passed.
+- Production build passed, generating 188/188 pages.
+- Production reward inspection: all three weekly champion awards remain AVAILABLE; UI must currently show รอเลือกรางวัล, and will show the selected/received item only after the normal employee/admin actions.
+- Production deployment `dpl_9w3QwHXVRZ1Je1Xhy1tm9LgHKGRN` reached Ready and is aliased to `https://timetrack-lake.vercel.app`.
+- Browser verification on production `/admin/league`: all three stations show prior-week scores and their correct champion plus รอเลือกรางวัล (PAP 99.75, WKO 97.00, SPC 90.92); screenshot checked in dark mode and original SPC selection restored.
+- Employee endpoint/privacy and shared Dashboard/result components verified by regression tests; no live employee login or reward mutation was performed.
+- Existing unrelated `scripts/.tmp-restroom-flow.patch` and `scripts/.tmp-restroom-preview.ts` were left unchanged and excluded from commit.
