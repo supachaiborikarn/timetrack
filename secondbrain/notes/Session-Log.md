@@ -1770,3 +1770,5 @@ Verification:
 - Final check and deployment results recorded below after completion.
 - Targeted tests: 4 files / 22 tests passed; TypeScript, changed-file ESLint and `git diff --check` passed.
 - `NODE_ENV=production npm run build` passed with 188/188 pages; production build used the previously authorized network access for required fonts.
+- Released as commit `8c0b9cc` on `origin/main`; Vercel production deployment `dpl_BM2RKZsMZmwKifySWVg3B1VjreKv` reached Ready and is aliased to `https://timetrack-lake.vercel.app`.
+- Cash selection was verified with isolated API tests; no real employee award was selected or marked delivered during verification.
