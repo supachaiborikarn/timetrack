@@ -31,6 +31,7 @@ export async function GET() {
         getRewardWalletForUser(user.id),
         getRewardCatalog(week.key),
         calculateFuelCashierStationScoreForRange({
+            qualityWeekKey: week.key,
             stationId: user.stationId,
             stationCode: user.station?.code,
             feedbackFrom: week.from,

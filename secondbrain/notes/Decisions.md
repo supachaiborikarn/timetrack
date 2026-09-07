@@ -279,3 +279,10 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Existing 700 THB Station Champion and 1,500 THB Grand Champion options remain the fallback policy when no admin override exists.
 - Employee `/api/league`, Dashboard League card, and `/league` show the current month's Championship rewards before month-end. Once an award becomes AVAILABLE, reward selection validates against that award period's configured options and stores the selected label/value on `CompetitionAward`.
 - Championship rewards remain independent from weekly champion awards and the spendable Reward Points (RP) catalog.
+
+## 2026-09-07 — Cashier historical display and admin quality fallback
+
+- At the owner's explicit request, the week starting 2026-08-31 displays fuel-cashier scores from the equal-weight average of finalized employee League scores with requiredDays > 0, weighted 60%, plus full station 20 and restroom 20. This historical full-score grant is confined to that week and labeled INITIAL_GRANT; it is not an RP backfill.
+- Other weeks retain the existing employee-performance source (work 60 + customer 40) and cashier weights 60/20/20. Gas cashiers remain outside fuel-cashier scoring.
+- ADMIN/HR can enter separate station/restroom scores out of 100 per station/week when that component has zero valid customer responses. Once any valid response exists, customer scoring and existing minimum-sample rules take precedence; insufficient samples do not permit manual substitution. Historical initial-grant week is the explicit exception.
+- Overrides use existing SystemConfig keys `cashier-quality:<stationId>:<weekKey>` and are atomically audited. No schema change. Weekly RP calculation consumes zero-response overrides before closing; already finalized RP is untouched.

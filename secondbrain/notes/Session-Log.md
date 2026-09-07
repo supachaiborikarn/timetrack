@@ -1836,3 +1836,11 @@ Verification:
 - `git diff --check`: passed.
 - Production build with `NODE_ENV=production`: passed; 189 pages generated including `/admin/championship` and `/api/admin/championship`.
 - No Prisma schema migration and no production data mutation. Existing unrelated restroom scratch files remain untracked.
+
+## 2026-09-07 — Show prior-week cashier score and allow admin quality assessments
+
+- Added shared weekly report + admin GET/PUT `/api/admin/cashier-scores` and a score card on `/admin/league` and fuel-cashier dashboard. Inputs are ADMIN/HR-only, station/week-scoped, validated 0–100, and audited transactionally. Cashiers/managers read only their current station.
+- Owner-requested 2026-08-31 exception uses finalized employee League scores ×60% and full station/restroom points (20 each), visibly labeled. Future weekly zero-response admin fallbacks feed existing cashier RP preview/finalization; existing finalized RP and awards are unchanged.
+- Added `cashier-quality`, `cashier-weekly-report`, tests, and read-only diagnostic `inspect-cashier-history.cjs`. No schema change or production data writes.
+- Production read-only verification on previously authorized Neon host: PAP 5 eligible-work employees, mean74.3, cashier84.6; SPC 5, mean70.3, cashier82.2; WKO 8, mean76.7, cashier86.0. Counts include all employee standing rows with requiredDays>0, not just champion-eligible employees.
+- Validation: focused six files / 15 tests passed; TypeScript, changed-file ESLint, diff check passed. Production build passed with 190 pages. Deployment pending at time of this entry. Unrelated restroom scratch files untouched.

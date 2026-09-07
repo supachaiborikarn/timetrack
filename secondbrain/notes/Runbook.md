@@ -112,3 +112,10 @@ For `EMPLOYEE` QR rows, recording public-profile acknowledgement immediately act
 - ADMIN/HR: `/admin/league` → select a station → RP สะสมของพนักงาน, above previous-week results.
 - Columns: employee name/code, สะสมทั้งหมด, ใช้ไป/รอมอบ, คงเหลือ RP; sorted by remaining RP descending.
 - Balances include confirmed lifetime earnings and exclude cancelled redemptions; current-week estimated RP is not yet included.
+
+## Cashier weekly scores and missing customer assessments
+
+- Open `/admin/league`, select a station, and use “คะแนนเสมียนประจำสัปดาห์”. Default is previous week; switch to current week for admin fallback entry. ADMIN/HR can save separate 0–100 values; blank removes the manual value. MANAGER/CASHIER can only view their station. Fuel cashiers also see the previous-week card below their dashboard RP card.
+- The initial 2026-08-31 historical display is employee League average × 0.6 + 40. No data migration or historical RP credit is performed. Later weeks follow existing employee performance scoring.
+- Read-only verification: `node scripts/inspect-cashier-history.cjs`. Prints host and fixed week before executing a BEGIN READ ONLY query. Follow repository production-host authorization rules.
+- Records: SystemConfig `cashier-quality:<stationId>:<weekKey>` and AuditLog `CASHIER_QUALITY_SCORE_UPDATED`; editing a closed week does not change credited RP.

@@ -578,6 +578,7 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
 
     if (fuelCashiers.length > 0) {
         const cashierStationScore = await calculateFuelCashierStationScoreForRange({
+            qualityWeekKey: params.periodKey,
             stationId: params.stationId,
             stationCode: live.station.code,
             feedbackFrom: params.from,

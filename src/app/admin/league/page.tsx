@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { championRewardLabel, PreviousWeeklyResultCard } from "@/components/league/weekly-result";
 import type { ChampionReward, PreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
+import { CashierWeeklyScore } from "@/components/league/cashier-weekly-score";
+
 interface AdminLeagueData {
     employeeRewardPoints: Array<{ employeeId: string; label: string; earnedPoints: number; spentPoints: number; balance: number }>;
     previousWeekly: PreviousWeeklyResult | null;
@@ -331,6 +333,7 @@ export default function AdminLeaguePage() {
                     </section>
                 ) : null}
 
+                {data?.selectedStationId ? <CashierWeeklyScore key={data.selectedStationId} stationId={data.selectedStationId} /> : null}
                 {data?.previousWeekly ? <PreviousWeeklyResultCard result={data.previousWeekly} /> : null}
 
                 {data?.latestWeekly?.standings?.length && data.latestWeekly.periodKey !== data.previousWeekly?.periodKey ? (

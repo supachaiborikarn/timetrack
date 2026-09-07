@@ -7,6 +7,8 @@ import { summarizeRestroomScore } from "@/lib/customer-feedback/restroom-score";
 import { summarizeStationScore } from "@/lib/customer-feedback/station-score";
 import { calculateCompleteTeamPerformanceScore, calculateFuelCashierScore } from "@/lib/cashier-score";
 
+import { cashierOverrideKey, resolveCashierQuality, type QualityOverride } from "@/lib/cashier-quality";
+
 type FeedbackRow = {
     id: string;
     employeeId?: string | null;
@@ -28,6 +30,7 @@ function toRubricResponse(response: FeedbackRow): EmployeeScoreResponseInput {
 }
 
 export async function calculateFuelCashierStationScoreForRange(params: {
+    qualityWeekKey?: string;
     stationId: string;
     stationCode?: string | null;
     feedbackFrom: Date;
@@ -170,9 +173,16 @@ export async function calculateFuelCashierStationScoreForRange(params: {
             }),
         }];
     }));
-    const score = calculateFuelCashierScore({
-        teamPerformanceScore, stationScore: stationSummary.score, restroomScore: restroomSummary.score,
-    });
+    let stationScore = stationSummary.score;
+    let restroomScore = restroomSummary.score;
+    if (params.qualityWeekKey) {
+        const config = await prisma.systemConfig.findUnique({ where: { key: cashierOverrideKey(params.stationId, params.qualityWeekKey) } });
+        const manual: QualityOverride = config ? JSON.parse(config.value) : { station: null, restroom: null };
+        // The historical full-score grant is display-only; ordinary weekly RP uses zero-response fallbacks.
+        stationScore = resolveCashierQuality(stationScore, stationSummary.responseCount, manual.station, false).score;
+        restroomScore = resolveCashierQuality(restroomScore, restroomSummary.responseCount, manual.restroom, false).score;
+    }
+    const score = calculateFuelCashierScore({ teamPerformanceScore, stationScore, restroomScore });
 
     return { score, teamPerformanceScore, stationSummary, restroomSummary, relevantTeamMemberCount: relevantMemberScores.length };
 }
