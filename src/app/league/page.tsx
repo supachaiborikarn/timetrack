@@ -37,6 +37,7 @@ interface RewardCatalogItem {
 interface LeagueData {
     previousWeekly?: PreviousWeeklyResult | null;
     eligible: boolean;
+    profile?: "FRONT_YARD" | "FUEL_CASHIER";
     station?: { id: string; code: string; name: string };
     weekly?: {
         periodKey: string;
@@ -70,6 +71,8 @@ interface LeagueData {
         };
         featured: RewardCatalogItem | null;
         catalog: RewardCatalogItem[];
+        canRedeem: boolean;
+        canRedeemReason: string;
     };
     awards?: Array<{
         id: string;
@@ -199,7 +202,10 @@ export default function LeaguePage() {
     const monthly = data.monthly!;
     const myWeekly = weekly.me;
     const reward = data.rewardPoints;
-    const rewardEligibility = rewardEligibilityLabel(myWeekly);
+    const isFuelCashier = data.profile === "FUEL_CASHIER";
+    const rewardEligibility = isFuelCashier
+        ? { label: "✓ เสมียนสามารถใช้ RP ที่สะสมไว้แลกของได้", tone: "green" as const }
+        : rewardEligibilityLabel(myWeekly);
 
     return (
         <main className="min-h-screen bg-[#eee8db] dark:bg-zinc-950 pb-28 font-sans text-zinc-950 dark:text-zinc-50 overflow-x-hidden">
@@ -276,7 +282,10 @@ export default function LeaguePage() {
                             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                                 <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-2"><p className="text-[9px] text-zinc-400">สะสมทั้งหมด</p><p className="font-black">{reward.wallet.earnedPoints} RP</p></div>
                                 <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-2"><p className="text-[9px] text-zinc-400">ใช้ไป/รอมอบ</p><p className="font-black">{reward.wallet.spentPoints} RP</p></div>
-                                <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-2"><p className="text-[9px] text-zinc-400">สัปดาห์นี้</p><p className="font-black text-amber-300">+{myWeekly?.rewardPointsPreview ?? 0} RP</p></div>
+                                <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-2">
+                                    <p className="text-[9px] text-zinc-400">{isFuelCashier ? "สิทธิ์แลก" : "สัปดาห์นี้"}</p>
+                                    <p className="font-black text-amber-300">{isFuelCashier ? "พร้อม" : `+${myWeekly?.rewardPointsPreview ?? 0} RP`}</p>
+                                </div>
                             </div>
                         </div>
 
@@ -302,7 +311,7 @@ export default function LeaguePage() {
                                             {reward.featured.stock !== null ? <span className="text-[10px] text-zinc-400">เหลือ {reward.featured.stock} ชิ้น</span> : null}
                                         </div>
                                         <button
-                                            disabled={redeeming !== null || !myWeekly?.isRewardEligible || reward.wallet.balance < reward.featured.pointsCost || reward.featured.stock === 0}
+                                            disabled={redeeming !== null || !reward.canRedeem || reward.wallet.balance < reward.featured.pointsCost || reward.featured.stock === 0}
                                             onClick={() => void redeemReward(reward.featured!)}
                                             className="mt-2 rounded-lg bg-amber-300 px-3 py-2 text-[11px] font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
@@ -331,11 +340,11 @@ export default function LeaguePage() {
                                                 <p className="truncate text-sm font-black">{item.title}</p>
                                                 <p className="text-[10px] font-bold text-emerald-300">{item.pointsCost} RP{item.stock !== null ? ` · เหลือ ${item.stock}` : ""}</p>
                                                 <button
-                                                    disabled={redeeming !== null || !myWeekly?.isRewardEligible || reward.wallet.balance < item.pointsCost || item.stock === 0}
+                                                    disabled={redeeming !== null || !reward.canRedeem || reward.wallet.balance < item.pointsCost || item.stock === 0}
                                                     onClick={() => void redeemReward(item)}
                                                     className="mt-1 text-[10px] font-black text-amber-300 underline underline-offset-2 disabled:text-zinc-600 disabled:no-underline"
                                                 >
-                                                    {item.stock === 0 ? "ของหมด" : !myWeekly?.isRewardEligible ? "ยังไม่มีสิทธิ์" : reward.wallet.balance < item.pointsCost ? "RP ยังไม่พอ" : "แลกของรางวัล"}
+                                                    {item.stock === 0 ? "ของหมด" : !reward.canRedeem ? "ยังไม่มีสิทธิ์" : reward.wallet.balance < item.pointsCost ? "RP ยังไม่พอ" : "แลกของรางวัล"}
                                                 </button>
                                             </div>
                                         </div>

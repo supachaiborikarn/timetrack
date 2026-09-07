@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { calculateStationWeeklyLeague, getBangkokWeekBounds } from "@/lib/competition/league";
 
 export const dynamic = "force-dynamic";
@@ -24,30 +25,36 @@ export async function POST(request: NextRequest) {
         where: { id: session.user.id },
         select: {
             id: true,
+            role: true,
+            employeeId: true,
             stationId: true,
             isActive: true,
             employeeStatus: true,
             department: { select: { isFrontYard: true } },
         },
     });
-    if (!user?.isActive || user.employeeStatus !== "ACTIVE" || !user.stationId || !user.department?.isFrontYard) {
+    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard);
+    const isEligibleFuelCashier = Boolean(user?.isActive && user.employeeStatus === "ACTIVE" && user.stationId && isFuelCashier(user));
+    if (!user?.isActive || user.employeeStatus !== "ACTIVE" || !user.stationId || (!isFrontYardEmployee && !isEligibleFuelCashier)) {
         return NextResponse.json({ error: "ไม่มีสิทธิ์ใช้ Reward Points" }, { status: 403 });
     }
 
-    const now = new Date();
-    const week = getBangkokWeekBounds(now);
-    const live = await calculateStationWeeklyLeague({
-        stationId: user.stationId,
-        from: week.from,
-        to: week.to,
-        referenceTime: now,
-    });
-    const myStanding = live.standings.find((standing) => standing.userId === user.id);
-    if (!myStanding?.isRewardEligible) {
-        return NextResponse.json({
-            error: "สัปดาห์นี้ยังไม่มีสิทธิ์แลกรางวัล",
-            reason: myStanding?.rewardEligibilityReason ?? "NO_REQUIRED_WORK_DAYS",
-        }, { status: 403 });
+    if (isFrontYardEmployee) {
+        const now = new Date();
+        const week = getBangkokWeekBounds(now);
+        const live = await calculateStationWeeklyLeague({
+            stationId: user.stationId,
+            from: week.from,
+            to: week.to,
+            referenceTime: now,
+        });
+        const myStanding = live.standings.find((standing) => standing.userId === user.id);
+        if (!myStanding?.isRewardEligible) {
+            return NextResponse.json({
+                error: "สัปดาห์นี้ยังไม่มีสิทธิ์แลกรางวัล",
+                reason: myStanding?.rewardEligibilityReason ?? "NO_REQUIRED_WORK_DAYS",
+            }, { status: 403 });
+        }
     }
 
     try {

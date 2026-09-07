@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-05
+updated: 2026-09-07
 ---
 
 # Decisions
@@ -259,3 +259,13 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Display lifetime earned RP from finalized weekly standings, spent/reserved RP from PENDING/FULFILLED redemptions, and remaining RP clamped at zero.
 - Cancelled redemptions are excluded; live weekly preview points and champion cash awards are not wallet transactions.
 - Employees carry their lifetime RP across station transfers; the current station controls roster visibility, not the historical earnings filter.
+
+## 2026-09-07: Fuel-cashier score = team 60 + station 20 + restroom 20
+
+- Normal oil-station CASHIER accounts use a fully automatic `FUEL_CASHIER` score out of 100: equal-weight average of front-yard employee performance 60 points + station customer score 20 points + restroom score 20 points.
+- Fuel-cashier score no longer uses cashier attendance, cashier self-assessment, supervisor/SOP rating, or discipline as separate bonus components. The manual supervisor/SOP review remains front-yard-only.
+- Missing source data is never converted to zero. Team performance waits until every relevant working front-yard employee has a usable performance score; station and restroom sources also keep their existing minimum-sample gates.
+- The same 60/20/20 formula is reused weekly for cashier RP. Cashier rows are RP-only snapshots: no League rank and no Championship Points.
+- Confirmed cashier RP is credited only when the weekly period finalizes, using the shared RP tiers. Existing confirmed RP may be spent in the reward catalog without requiring a personal League standing.
+- Cashiers see both the CNY bonus forecast and an RP wallet/reward card on `AdminHomeView`, with the reward card linking to `/league` for catalog redemption.
+- The four department-scoped gas cashiers remain excluded from this oil-station cashier score/RP flow.

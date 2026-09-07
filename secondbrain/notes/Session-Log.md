@@ -1783,3 +1783,30 @@ Verification:
 - Added API tests for correct totals and scoped employee IDs, cashier exclusion, and no reads for an empty station selection.
 - No data/schema changes or point adjustments; unrelated restroom scratch files left intact.
 - Validation: targeted League API tests passed (3 files / 14 tests), TypeScript, changed-file ESLint and production build (188 pages) passed.
+- Commit `c2b6b36` was successfully pushed to `origin/main` (confirmed by git output).
+- Production deployment verification remains unconfirmed: automatic approval review rejected the read-only GitHub deployment-status request because the workspace is out of credits; no alternate network/browser route was used to bypass the rejection. Workspace owner refill is needed before continuing external verification.
+
+## 2026-09-07 — Fuel-cashier 60/20/20 bonus score + RP wallet/redemption
+
+Decision and scoring:
+
+- Replaced the old cashier 35% team + 65% personal/SOP structure with one automatic 100-point station-linked score: front-yard employee performance 60 + station customer score 20 + restroom score 20.
+- Team performance gives each relevant front-yard employee equal weight. A member with required work days but without a usable performance score keeps the team component waiting rather than silently contributing zero.
+- Station score uses valid `station-v1` overall ratings and the existing station comparison minimum-sample threshold. Restroom score reuses the existing `restroom-v1` score/minimum-sample rules.
+- Manual supervisor/SOP scoring is now front-yard-only; normal oil cashiers are removed from the ADMIN/HR manual review target list because their score is fully automatic.
+
+Cashier visibility and rewards:
+
+- Mounted the CNY bonus card and a dedicated `CashierRewardPointsCard` on the normal oil-cashier `AdminHomeView` dashboard; the four department-scoped gas cashiers remain excluded via `isFuelCashier`.
+- Added `/api/employee/reward-points` for cashier wallet balance, featured/catalog summary, and live weekly 60/20/20 RP preview.
+- Weekly snapshot creates RP-only cashier `CompetitionStanding` rows using the same 60/20/20 score. These rows are never ranked and receive zero Championship Points.
+- Weekly finalization credits RP only for score-ready cashier rows using the existing RP score tiers; incomplete 60/20/20 data yields no RP credit.
+- Extended `/api/league` and `/api/league/points/redeem` so normal oil cashiers can open the reward catalog and spend confirmed RP without needing a personal League standing. Existing front-yard reward eligibility gates are unchanged.
+- Reward redemption continues to calculate balance from finalized RP earnings minus PENDING/FULFILLED redemptions and uses serializable transaction/stock protection already present in the redemption flow.
+
+Verification:
+
+- Targeted feature suite: 10 files / 42 tests passed, covering 60/20/20 math, minimum-sample waiting behavior, employee/admin bonus APIs, cashier RP summary, League access, cashier RP finalization, redemption, and admin policy UI.
+- `npx tsc --noEmit`: passed.
+- Production build passed for all 188 routes with `NODE_ENV=production`. A first build inherited a non-standard NODE_ENV and failed while prerendering `/apply/status`; rerunning with the supported production environment completed successfully.
+- No Prisma schema migration or production data mutation was required. Unrelated restroom scratch files were left untracked.

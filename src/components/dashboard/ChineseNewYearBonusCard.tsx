@@ -7,7 +7,7 @@ type Lang = "th" | "en" | "my";
 type BonusProfile = "FRONT_YARD" | "FUEL_CASHIER";
 
 type BonusComponent = {
-    key: "attendance" | "customerQuality" | "cooperation" | "supervisorSop" | "disciplineSafety";
+    key: "attendance" | "customerQuality" | "cooperation" | "supervisorSop" | "disciplineSafety" | "teamPerformance" | "stationQuality" | "restroomQuality";
     label: string;
     maxPoints: number;
     points: number | null;
@@ -54,7 +54,8 @@ const COPY = {
         top: "อยู่ในขั้นสูงสุดตามคะแนนปัจจุบัน",
         safety: "มีเคสความปลอดภัยที่ต้องตรวจสอบก่อนสรุปผล",
         note: "ตัวเลขนี้เป็นเครื่องมือคาดการณ์ ยังไม่เขียนโบนัสเข้า Payroll อัตโนมัติ",
-        cashierHint: "คะแนนทีมมีผล 35% เพื่อให้ช่วยติดตามและโค้ชทีมหน้าลาน ส่วนอีก 65% มาจากผลงานของเสมียนเอง",
+        cashierScore: "คะแนนเสมียน",
+        cashierHint: "คะแนนเสมียน 100 คะแนน = ผลงานพนักงานในปั๊ม 60 + คะแนนภาพรวมปั๊ม 20 + คะแนนห้องน้ำ 20",
     },
     en: {
         eyebrow: "CHINESE NEW YEAR BONUS",
@@ -69,7 +70,8 @@ const COPY = {
         top: "Current score is in the top payout tier",
         safety: "A safety case must be reviewed before the result is finalized",
         note: "This is a forecast only. It does not write a bonus into Payroll automatically.",
-        cashierHint: "Team results contribute 35% to encourage coaching; the remaining 65% comes from the cashier's own performance.",
+        cashierScore: "Cashier score",
+        cashierHint: "Cashier score = team performance 60 + station feedback 20 + restroom 20.",
     },
     my: {
         eyebrow: "CHINESE NEW YEAR BONUS",
@@ -84,56 +86,41 @@ const COPY = {
         top: "လက်ရှိအမှတ်သည် အမြင့်ဆုံးအဆင့်တွင်ရှိသည်",
         safety: "အပြီးသတ်မတိုင်မီ လုံခြုံရေးကိစ္စကို စစ်ဆေးရမည်",
         note: "ဤကိန်းဂဏန်းသည် ခန့်မှန်းချက်သာဖြစ်ပြီး Payroll ထဲသို့ အလိုအလျောက် မထည့်ပါ။",
-        cashierHint: "အဖွဲ့ရလဒ် 35% ပါဝင်ပြီး အဖွဲ့ကို ကူညီလေ့ကျင့်ရန် ရည်ရွယ်သည်။ ကျန် 65% သည် စာရေး၏ ကိုယ်ပိုင်လုပ်ဆောင်မှုဖြစ်သည်။",
+        cashierScore: "စာရေးအမှတ်",
+        cashierHint: "စာရေးအမှတ် = ဝန်ထမ်းလုပ်ဆောင်မှု 60 + ဆိုင်အမှတ် 20 + သန့်စင်ခန်း 20။",
     },
 } as const;
 
-const COMPONENT_LABELS: Record<BonusProfile, Record<Lang, Record<BonusComponent["key"], string>>> = {
-    FRONT_YARD: {
-        th: {
-            attendance: "เวลา / การมาทำงาน",
-            customerQuality: "คุณภาพเสียงลูกค้า",
-            cooperation: "ความร่วมมือแบบประเมิน",
-            supervisorSop: "หัวหน้างาน / SOP",
-            disciplineSafety: "วินัย / ความปลอดภัย",
-        },
-        en: {
-            attendance: "Attendance",
-            customerQuality: "Customer quality",
-            cooperation: "Feedback cooperation",
-            supervisorSop: "Supervisor / SOP",
-            disciplineSafety: "Discipline / safety",
-        },
-        my: {
-            attendance: "အလုပ်တက်ရောက်မှု",
-            customerQuality: "ဖောက်သည်အရည်အသွေး",
-            cooperation: "အကဲဖြတ်ပူးပေါင်းမှု",
-            supervisorSop: "ကြီးကြပ်သူ / SOP",
-            disciplineSafety: "စည်းကမ်း / လုံခြုံရေး",
-        },
+const COMPONENT_LABELS: Record<Lang, Record<BonusComponent["key"], string>> = {
+    th: {
+        attendance: "เวลา / การมาทำงาน",
+        customerQuality: "คุณภาพเสียงลูกค้า",
+        cooperation: "ความร่วมมือแบบประเมิน",
+        supervisorSop: "หัวหน้างาน / SOP",
+        disciplineSafety: "วินัย / ความปลอดภัย",
+        teamPerformance: "ผลงานพนักงานในปั๊ม",
+        stationQuality: "คะแนนภาพรวมปั๊ม",
+        restroomQuality: "คะแนนห้องน้ำ",
     },
-    FUEL_CASHIER: {
-        th: {
-            attendance: "เวลา / การมาทำงาน",
-            customerQuality: "คุณภาพบริการของทีม",
-            cooperation: "ความร่วมมือแบบประเมินของทีม",
-            supervisorSop: "งานเสมียน / SOP",
-            disciplineSafety: "วินัย / ความปลอดภัย",
-        },
-        en: {
-            attendance: "Attendance",
-            customerQuality: "Team service quality",
-            cooperation: "Team feedback cooperation",
-            supervisorSop: "Cashier work / SOP",
-            disciplineSafety: "Discipline / safety",
-        },
-        my: {
-            attendance: "အလုပ်တက်ရောက်မှု",
-            customerQuality: "အဖွဲ့ဝန်ဆောင်မှုအရည်အသွေး",
-            cooperation: "အဖွဲ့အကဲဖြတ်ပူးပေါင်းမှု",
-            supervisorSop: "စာရေးအလုပ် / SOP",
-            disciplineSafety: "စည်းကမ်း / လုံခြုံရေး",
-        },
+    en: {
+        attendance: "Attendance",
+        customerQuality: "Customer quality",
+        cooperation: "Feedback cooperation",
+        supervisorSop: "Supervisor / SOP",
+        disciplineSafety: "Discipline / safety",
+        teamPerformance: "Team performance",
+        stationQuality: "Station feedback",
+        restroomQuality: "Restroom score",
+    },
+    my: {
+        attendance: "အလုပ်တက်ရောက်မှု",
+        customerQuality: "ဖောက်သည်အရည်အသွေး",
+        cooperation: "အကဲဖြတ်ပူးပေါင်းမှု",
+        supervisorSop: "ကြီးကြပ်သူ / SOP",
+        disciplineSafety: "စည်းကမ်း / လုံခြုံရေး",
+        teamPerformance: "ဝန်ထမ်းလုပ်ဆောင်မှု",
+        stationQuality: "ဆိုင်အမှတ်",
+        restroomQuality: "သန့်စင်ခန်းအမှတ်",
     },
 };
 
@@ -214,7 +201,7 @@ export function ChineseNewYearBonusCard({ lang = "th" }: { lang?: Lang }) {
                             <p className="mt-1 text-[8px] font-bold text-zinc-500 dark:text-zinc-400">{T.note}</p>
                         </div>
                         <div className="px-3 py-3.5 text-center">
-                            <p className="text-[8px] font-black text-zinc-500 dark:text-zinc-400">{T.score}</p>
+                            <p className="text-[8px] font-black text-zinc-500 dark:text-zinc-400">{profile === "FUEL_CASHIER" ? T.cashierScore : T.score}</p>
                             <p className="mt-1 font-mono text-[30px] font-black leading-none tabular-nums">
                                 {preview.forecastScore ?? "—"}
                             </p>
@@ -241,7 +228,7 @@ export function ChineseNewYearBonusCard({ lang = "th" }: { lang?: Lang }) {
                         {preview.components.map((component) => (
                             <div key={component.key} className="flex items-center justify-between gap-2 border-b border-red-900/10 px-3.5 py-2.5 last:border-b-0 dark:border-white/5">
                                 <div className="min-w-0">
-                                    <p className="truncate text-[9px] font-black">{COMPONENT_LABELS[profile][lang][component.key]}</p>
+                                    <p className="truncate text-[9px] font-black">{COMPONENT_LABELS[lang][component.key]}</p>
                                     <p className="text-[7px] font-bold text-zinc-400">MAX {component.maxPoints}</p>
                                 </div>
                                 <p className={`shrink-0 font-mono text-[12px] font-black ${component.points == null ? "text-zinc-400" : "text-zinc-900 dark:text-white"}`}>

@@ -6,7 +6,16 @@ import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/custom
 import { EMPLOYEE_DAILY_EVALUATION_TARGET } from "@/lib/customer-feedback/evaluation-target";
 import { ABUSE_SUSPECT_THRESHOLD } from "@/lib/customer-feedback/anti-abuse";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
-import { REWARD_CUSTOMER_QUALITY_MIN_POINTS, rewardPointsForLeagueScore, resolveRewardEligibility, type RewardEligibilityReason } from "@/lib/competition/reward-policy";
+import {
+    FUEL_CASHIER_RP_READY_REASON,
+    FUEL_CASHIER_RP_WAITING_REASON,
+    REWARD_CUSTOMER_QUALITY_MIN_POINTS,
+    rewardPointsForLeagueScore,
+    resolveRewardEligibility,
+    type RewardEligibilityReason,
+} from "@/lib/competition/reward-policy";
+import { isFuelCashier } from "@/lib/cashier-employee-scope";
+import { calculateFuelCashierStationScoreForRange } from "@/lib/cashier-score-server";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -380,6 +389,12 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
         isEligible: true,
         fairPlayStatus: { in: ["CLEAR", "APPROVED"] as CompetitionFairPlayStatus[] },
     };
+    const cashierRewardStandings = period.type === "WEEKLY_STATION"
+        ? await prisma.competitionStanding.findMany({
+            where: { periodId, fairPlayReasons: { has: FUEL_CASHIER_RP_READY_REASON } },
+        })
+        : [];
+
     const standings = period.type === "MONTHLY_STATION"
         ? await prisma.competitionStanding.findMany({
             where: eligibleWhere,
@@ -411,6 +426,18 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
                     }
                     : { finalRank: rank },
             });
+        }
+        if (period.type === "WEEKLY_STATION") {
+            for (const cashierStanding of cashierRewardStandings) {
+                await tx.competitionStanding.update({
+                    where: { id: cashierStanding.id },
+                    data: {
+                        finalRank: null,
+                        championshipPoints: 0,
+                        rewardPoints: rewardPointsForLeagueScore(Number(cashierStanding.totalScore)),
+                    },
+                });
+            }
         }
         await tx.competitionPeriod.update({
             where: { id: periodId },
@@ -525,6 +552,89 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
                 fairPlayReasons: standing.fairPlayReasons,
             },
         });
+    }
+
+    const cashierCandidates = await prisma.user.findMany({
+        where: {
+            stationId: params.stationId,
+            role: "CASHIER",
+            isActive: true,
+            employeeStatus: "ACTIVE",
+        },
+        select: { id: true, role: true, employeeId: true, stationId: true, name: true, nickName: true },
+    });
+    const fuelCashiers = cashierCandidates.filter((cashier) => isFuelCashier(cashier));
+
+    // Remove only RP-only cashier snapshots from an OPEN weekly period before rebuilding them.
+    await prisma.competitionStanding.deleteMany({
+        where: {
+            periodId: period.id,
+            OR: [
+                { fairPlayReasons: { has: FUEL_CASHIER_RP_READY_REASON } },
+                { fairPlayReasons: { has: FUEL_CASHIER_RP_WAITING_REASON } },
+            ],
+        },
+    });
+
+    if (fuelCashiers.length > 0) {
+        const cashierStationScore = await calculateFuelCashierStationScoreForRange({
+            stationId: params.stationId,
+            stationCode: live.station.code,
+            feedbackFrom: params.from,
+            feedbackToExclusive: params.to,
+            workFrom: params.from,
+            workToExclusive: params.to,
+            referenceTime: params.to,
+        });
+        const score = cashierStationScore.score;
+        const scoreReady = score.score !== null;
+        const totalScore = score.score ?? score.forecastScore ?? 0;
+        const teamPoints = score.points.teamPerformance ?? 0;
+        const stationAndRestroomPoints = (score.points.stationQuality ?? 0) + (score.points.restroomQuality ?? 0);
+
+        for (const cashier of fuelCashiers) {
+            await prisma.competitionStanding.upsert({
+                where: { periodId_userId: { periodId: period.id, userId: cashier.id } },
+                update: {
+                    employeeLabelSnapshot: labelOf(cashier),
+                    totalScore,
+                    workPoints: teamPoints,
+                    customerPoints: stationAndRestroomPoints,
+                    missionPoints: 0,
+                    eligibleCustomerCount: 0,
+                    excludedRepeatCustomerCount: 0,
+                    suspiciousCustomerCount: 0,
+                    requiredDays: 0,
+                    missionCompletedDays: 0,
+                    isEligible: false,
+                    fairPlayStatus: "INELIGIBLE",
+                    fairPlayReasons: [scoreReady ? FUEL_CASHIER_RP_READY_REASON : FUEL_CASHIER_RP_WAITING_REASON],
+                    finalRank: null,
+                    championshipPoints: 0,
+                    rewardPoints: 0,
+                },
+                create: {
+                    periodId: period.id,
+                    userId: cashier.id,
+                    employeeLabelSnapshot: labelOf(cashier),
+                    totalScore,
+                    workPoints: teamPoints,
+                    customerPoints: stationAndRestroomPoints,
+                    missionPoints: 0,
+                    eligibleCustomerCount: 0,
+                    excludedRepeatCustomerCount: 0,
+                    suspiciousCustomerCount: 0,
+                    requiredDays: 0,
+                    missionCompletedDays: 0,
+                    isEligible: false,
+                    fairPlayStatus: "INELIGIBLE",
+                    fairPlayReasons: [scoreReady ? FUEL_CASHIER_RP_READY_REASON : FUEL_CASHIER_RP_WAITING_REASON],
+                    finalRank: null,
+                    championshipPoints: 0,
+                    rewardPoints: 0,
+                },
+            });
+        }
     }
 
     const reviewCount = live.standings.filter((standing) => standing.isEligible && standing.fairPlayStatus === "REVIEW").length;

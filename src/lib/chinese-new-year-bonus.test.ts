@@ -71,25 +71,23 @@ describe("Chinese New Year bonus preview", () => {
         expect(result.isProvisional).toBe(true);
     });
 
-    it("uses the fuel-cashier role profile so team outcomes motivate coaching without dominating the score", () => {
+    it("uses the approved fuel-cashier 60/20/20 profile", () => {
         const result = calculateChineseNewYearBonusPreview({
             profile: "FUEL_CASHIER",
-            attendancePoints: 25,
-            customerQualityPoints: 20,
-            cooperationPoints: 15,
-            supervisorSopPoints: 30,
-            disciplineSafetyPoints: 10,
+            teamPerformancePoints: 60,
+            stationQualityPoints: 20,
+            restroomQualityPoints: 20,
             periodClosed: true,
         });
 
         expect(result.profile).toBe("FUEL_CASHIER");
         expect(result.knownWeight).toBe(100);
         expect(result.forecastScore).toBe(100);
-        expect(result.components).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "customerQuality", label: "คุณภาพบริการของทีม", maxPoints: 20 }),
-            expect.objectContaining({ key: "cooperation", label: "ความร่วมมือแบบประเมินของทีม", maxPoints: 15 }),
-            expect.objectContaining({ key: "supervisorSop", label: "งานเสมียน / SOP", maxPoints: 30 }),
-        ]));
+        expect(result.components).toEqual([
+            expect.objectContaining({ key: "teamPerformance", label: "ผลงานพนักงานในปั๊ม", points: 60, maxPoints: 60 }),
+            expect.objectContaining({ key: "stationQuality", label: "คะแนนภาพรวมปั๊ม", points: 20, maxPoints: 20 }),
+            expect.objectContaining({ key: "restroomQuality", label: "คะแนนห้องน้ำ", points: 20, maxPoints: 20 }),
+        ]);
     });
 });
 

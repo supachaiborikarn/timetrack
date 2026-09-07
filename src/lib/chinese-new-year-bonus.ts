@@ -15,11 +15,9 @@ export const CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS = {
         disciplineSafety: 10,
     },
     FUEL_CASHIER: {
-        attendance: 25,
-        customerQuality: 20,
-        cooperation: 15,
-        supervisorSop: 30,
-        disciplineSafety: 10,
+        teamPerformance: 60,
+        stationQuality: 20,
+        restroomQuality: 20,
     },
 } as const;
 
@@ -36,7 +34,9 @@ export const CHINESE_NEW_YEAR_BONUS_TIERS = [
     { minScore: 0, bonusPercent: 0 },
 ] as const;
 
-export type ChineseNewYearBonusComponentKey = keyof typeof CHINESE_NEW_YEAR_BONUS_WEIGHTS;
+export type FrontYardBonusComponentKey = keyof typeof CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FRONT_YARD;
+export type FuelCashierBonusComponentKey = keyof typeof CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FUEL_CASHIER;
+export type ChineseNewYearBonusComponentKey = FrontYardBonusComponentKey | FuelCashierBonusComponentKey;
 
 export interface ChineseNewYearBonusComponent {
     key: ChineseNewYearBonusComponentKey;
@@ -73,22 +73,21 @@ export function getChineseNewYearBonusWeights(profile: ChineseNewYearBonusProfil
     return CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS[profile];
 }
 
-function getComponentLabels(profile: ChineseNewYearBonusProfile): Record<ChineseNewYearBonusComponentKey, string> {
-    if (profile === "FUEL_CASHIER") {
-        return {
-            attendance: "เวลา / การมาทำงาน",
-            customerQuality: "คุณภาพบริการของทีม",
-            cooperation: "ความร่วมมือแบบประเมินของทีม",
-            supervisorSop: "งานเสมียน / SOP",
-            disciplineSafety: "วินัย / ความปลอดภัย",
-        };
-    }
+function getFrontYardComponentLabels(): Record<FrontYardBonusComponentKey, string> {
     return {
         attendance: "เวลา / การมาทำงาน",
         customerQuality: "คุณภาพเสียงลูกค้า",
         cooperation: "ความร่วมมือแบบประเมิน",
         supervisorSop: "หัวหน้างาน / SOP",
         disciplineSafety: "วินัย / ความปลอดภัย",
+    };
+}
+
+function getFuelCashierComponentLabels(): Record<FuelCashierBonusComponentKey, string> {
+    return {
+        teamPerformance: "ผลงานพนักงานในปั๊ม",
+        stationQuality: "คะแนนภาพรวมปั๊ม",
+        restroomQuality: "คะแนนห้องน้ำ",
     };
 }
 
@@ -183,30 +182,44 @@ export function calculateChineseNewYearBonusPreview(input: {
     cooperationPoints?: number | null;
     supervisorSopPoints?: number | null;
     disciplineSafetyPoints?: number | null;
+    teamPerformancePoints?: number | null;
+    stationQualityPoints?: number | null;
+    restroomQualityPoints?: number | null;
     periodClosed?: boolean;
     safetyReviewRequired?: boolean;
 }): ChineseNewYearBonusPreview {
     const profile = input.profile ?? "FRONT_YARD";
-    const weights = getChineseNewYearBonusWeights(profile);
-    const labels = getComponentLabels(profile);
-    const rawComponents: Array<{ key: ChineseNewYearBonusComponentKey; value: number | null | undefined }> = [
-        { key: "attendance", value: input.attendancePoints },
-        { key: "customerQuality", value: input.customerQualityPoints },
-        { key: "cooperation", value: input.cooperationPoints },
-        { key: "supervisorSop", value: input.supervisorSopPoints },
-        { key: "disciplineSafety", value: input.disciplineSafetyPoints },
-    ];
-    const components: ChineseNewYearBonusComponent[] = rawComponents.map(({ key, value }) => {
-        const maxPoints = weights[key];
-        const points = clampPoints(value, maxPoints);
-        return {
-            key,
-            label: labels[key],
-            maxPoints,
-            points,
-            status: points === null ? "WAITING" : "READY",
-        };
-    });
+    let components: ChineseNewYearBonusComponent[];
+
+    if (profile === "FUEL_CASHIER") {
+        const weights = CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FUEL_CASHIER;
+        const labels = getFuelCashierComponentLabels();
+        const rawComponents: Array<{ key: FuelCashierBonusComponentKey; value: number | null | undefined }> = [
+            { key: "teamPerformance", value: input.teamPerformancePoints },
+            { key: "stationQuality", value: input.stationQualityPoints },
+            { key: "restroomQuality", value: input.restroomQualityPoints },
+        ];
+        components = rawComponents.map(({ key, value }) => {
+            const maxPoints = weights[key];
+            const points = clampPoints(value, maxPoints);
+            return { key, label: labels[key], maxPoints, points, status: points === null ? "WAITING" : "READY" };
+        });
+    } else {
+        const weights = CHINESE_NEW_YEAR_BONUS_PROFILE_WEIGHTS.FRONT_YARD;
+        const labels = getFrontYardComponentLabels();
+        const rawComponents: Array<{ key: FrontYardBonusComponentKey; value: number | null | undefined }> = [
+            { key: "attendance", value: input.attendancePoints },
+            { key: "customerQuality", value: input.customerQualityPoints },
+            { key: "cooperation", value: input.cooperationPoints },
+            { key: "supervisorSop", value: input.supervisorSopPoints },
+            { key: "disciplineSafety", value: input.disciplineSafetyPoints },
+        ];
+        components = rawComponents.map(({ key, value }) => {
+            const maxPoints = weights[key];
+            const points = clampPoints(value, maxPoints);
+            return { key, label: labels[key], maxPoints, points, status: points === null ? "WAITING" : "READY" };
+        });
+    }
 
     const ready = components.filter((component) => component.points !== null);
     const knownWeight = ready.reduce((sum, component) => sum + component.maxPoints, 0);

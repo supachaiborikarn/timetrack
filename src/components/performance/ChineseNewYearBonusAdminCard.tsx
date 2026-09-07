@@ -203,15 +203,15 @@ export function ChineseNewYearBonusAdminCard() {
                             },
                             {
                                 title: "เสมียนปั๊มน้ำมัน",
-                                note: "ทีม 35% + ผลงานเสมียนเอง 65% เพื่อให้ช่วยติดตามและโค้ชทีมโดยไม่ฝากโบนัสไว้กับทีมมากเกินไป",
+                                note: "คะแนนเสมียนใช้ข้อมูลจริงทั้งสถานี: ผลงานพนักงาน 60% + คะแนนปั๊ม 20% + ห้องน้ำ 20%",
                                 weights: FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS,
-                                labels: ["เวลา", "คุณภาพทีม", "ร่วมมือทีม", "งานเสมียน/SOP", "วินัย"],
+                                labels: ["ผลงานพนักงาน", "คะแนนปั๊ม", "ห้องน้ำ"],
                             },
                         ].map((policy) => (
                             <div key={policy.title} className="rounded-xl border bg-background p-3">
                                 <p className="text-sm font-black">{policy.title}</p>
                                 <p className="mt-0.5 text-[11px] text-muted-foreground">{policy.note}</p>
-                                <div className="mt-2 grid grid-cols-5 gap-1">
+                                <div className={`mt-2 grid gap-1 ${policy.labels.length === 3 ? "grid-cols-3" : "grid-cols-5"}`}>
                                     {Object.values(policy.weights).map((points, index) => (
                                         <div key={`${policy.title}-${policy.labels[index]}`} className="rounded-md border bg-muted/30 px-1 py-1.5 text-center">
                                             <p className="truncate text-[9px] text-muted-foreground">{policy.labels[index]}</p>
@@ -246,13 +246,13 @@ export function ChineseNewYearBonusAdminCard() {
                 ) : !data?.selectedPeriodId ? null : (
                     <div className="space-y-2">
                         <div>
-                            <p className="text-sm font-semibold">คะแนนหัวหน้างาน / SOP ตามบทบาท</p>
-                            <p className="text-xs text-muted-foreground">พนักงานหน้าลานเต็ม 20 คะแนน; เสมียนปั๊มน้ำมันเต็ม 30 คะแนน เพื่อให้ความรับผิดชอบงานเสมียนและการช่วยคุมทีมมีน้ำหนักที่ชัดเจน</p>
+                            <p className="text-sm font-semibold">คะแนนหัวหน้างาน / SOP — พนักงานหน้าลาน</p>
+                            <p className="text-xs text-muted-foreground">ส่วนนี้ใช้กับพนักงานหน้าลานเต็ม 20 คะแนนเท่านั้น คะแนนเสมียนไม่ใช้คะแนนหัวหน้าและคำนวณอัตโนมัติจาก 60/20/20</p>
                         </div>
 
                         <div className="space-y-2">
                             {data.reviews.length === 0 ? (
-                                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">ไม่พบพนักงานหน้าลานหรือเสมียนปั๊มน้ำมันที่ใช้งานอยู่</div>
+                                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">ไม่พบพนักงานหน้าลานที่ใช้งานอยู่</div>
                             ) : data.reviews.map((row) => {
                                 const draft = drafts[row.employeeId] ?? { rating: "", managerReview: "" };
                                 return (
@@ -261,9 +261,7 @@ export function ChineseNewYearBonusAdminCard() {
                                             <div>
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <p className="font-semibold">{row.label}</p>
-                                                    <Badge variant="outline" className="text-[9px]">
-                                                        {row.profile === "FUEL_CASHIER" ? "เสมียนปั๊มน้ำมัน" : "พนักงานหน้าลาน"}
-                                                    </Badge>
+                                                    <Badge variant="outline" className="text-[9px]">พนักงานหน้าลาน</Badge>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
                                                     {[row.stationLabel, row.departmentLabel].filter(Boolean).join(" · ") || "ไม่ระบุสาขา/แผนก"}
@@ -277,6 +275,13 @@ export function ChineseNewYearBonusAdminCard() {
                                                 <Badge variant="outline">รอพนักงานส่ง Self Assessment</Badge>
                                             )}
                                         </div>
+
+                                        {row.submission?.selfReview ? (
+                                            <div className="mt-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2">
+                                                <p className="text-[10px] font-black text-muted-foreground">SELF ASSESSMENT ของพนักงาน</p>
+                                                <p className="mt-1 max-h-20 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed">{row.submission.selfReview}</p>
+                                            </div>
+                                        ) : null}
 
                                         {row.submission ? (
                                             <div className="mt-3 grid gap-2 md:grid-cols-[120px_1fr_auto] md:items-end">
@@ -293,9 +298,7 @@ export function ChineseNewYearBonusAdminCard() {
                                                     >
                                                         <option value="">เลือกคะแนน</option>
                                                         {[1, 2, 3, 4, 5].map((rating) => {
-                                                            const maxPoints = row.profile === "FUEL_CASHIER"
-                                                                ? FUEL_CASHIER_CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop
-                                                                : CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop;
+                                                            const maxPoints = CHINESE_NEW_YEAR_BONUS_WEIGHTS.supervisorSop;
                                                             return <option key={rating} value={rating}>{rating}/5 → {(rating / 5) * maxPoints}/{maxPoints}</option>;
                                                         })}
                                                     </select>

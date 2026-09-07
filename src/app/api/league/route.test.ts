@@ -27,7 +27,10 @@ describe("employee weekly result API", () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-09-07T00:40:00Z"));
         mocks.auth.mockResolvedValue({ user: { id: "employee-1" } });
-        mocks.user.mockResolvedValue({ id: "employee-1", stationId: "station-own", station: { id: "station-own" }, department: { isFrontYard: true } });
+        mocks.user.mockResolvedValue({
+            id: "employee-1", role: "EMPLOYEE", employeeId: "EMP001", stationId: "station-own", isActive: true, employeeStatus: "ACTIVE",
+            station: { id: "station-own", code: "WKO", name: "วัชรเกียรติ" }, department: { isFrontYard: true },
+        });
         mocks.period.mockResolvedValue(null);
         mocks.latest.mockResolvedValue(null);
         mocks.calculate.mockImplementation(async ({ from }) => ({
@@ -69,8 +72,42 @@ describe("employee weekly result API", () => {
     });
 
     it("does not disclose League results to an employee outside the front yard", async () => {
-        mocks.user.mockResolvedValue({ stationId: "station-own", station: {}, department: { isFrontYard: false } });
-        expect(await (await GET()).json()).toEqual({ eligible: false, reason: "NOT_FRONT_YARD" });
+        mocks.user.mockResolvedValue({
+            id: "employee-2", role: "EMPLOYEE", employeeId: "EMP002", stationId: "station-own", isActive: true, employeeStatus: "ACTIVE",
+            station: { id: "station-own" }, department: { isFrontYard: false },
+        });
+        expect(await (await GET()).json()).toEqual({ eligible: false, reason: "NOT_ELIGIBLE" });
         expect(mocks.period).not.toHaveBeenCalled();
+    });
+
+    it("lets a normal oil cashier open the station League wallet/catalog without needing a personal standing", async () => {
+        mocks.user.mockResolvedValue({
+            id: "cashier-1", role: "CASHIER", employeeId: "CASH001", stationId: "station-own", isActive: true, employeeStatus: "ACTIVE",
+            station: { id: "station-own", code: "WKO", name: "วัชรเกียรติ" }, department: { isFrontYard: false },
+        });
+        mocks.calculate.mockResolvedValue({
+            station: { id: "station-own", code: "WKO", name: "วัชรเกียรติ" },
+            standings: [{
+                userId: "front-1", label: "หน้าลานหนึ่ง", totalScore: 90, workPoints: 55, customerPoints: 25, missionPoints: 10,
+                rank: 1, isEligible: true, isRewardEligible: true, rewardEligibilityReason: "ELIGIBLE", rewardPointsPreview: 30,
+                isProvisional: false, fairPlayStatus: "CLEAR", fairPlayReasons: [],
+            }],
+        });
+
+        const body = await (await GET()).json();
+        expect(body.eligible).toBe(true);
+        expect(body.profile).toBe("FUEL_CASHIER");
+        expect(body.weekly.me).toBeNull();
+        expect(body.rewardPoints.canRedeem).toBe(true);
+        expect(body.rewardPoints.canRedeemReason).toBe("FUEL_CASHIER_WALLET");
+    });
+
+    it("keeps department-scoped gas cashiers out of the RP/catalog extension", async () => {
+        mocks.user.mockResolvedValue({
+            id: "gas-cashier", role: "CASHIER", employeeId: "EMPE2D20", stationId: "station-own", isActive: true, employeeStatus: "ACTIVE",
+            station: { id: "station-own" }, department: { isFrontYard: false },
+        });
+        expect(await (await GET()).json()).toEqual({ eligible: false, reason: "NOT_ELIGIBLE" });
+        expect(mocks.calculate).not.toHaveBeenCalled();
     });
 });

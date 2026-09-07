@@ -89,6 +89,26 @@ function perfectFeedback(employeeId?: string) {
     }));
 }
 
+const restroomQuestionKeys = [
+    "restroom_floor_clean",
+    "restroom_fixtures_clean",
+    "restroom_no_bad_odor",
+    "restroom_supplies_ready",
+    "restroom_bin_orderly",
+] as const;
+
+function perfectStationFeedback() {
+    return Array.from({ length: 20 }, () => ({ overallRating: 5 }));
+}
+
+function perfectRestroomFeedback() {
+    return Array.from({ length: 10 }, (_, index) => ({
+        id: `restroom-${index + 1}`,
+        overallRating: 5,
+        answers: restroomQuestionKeys.map((questionKey) => ({ questionKey, choiceValues: ["YES"] })),
+    }));
+}
+
 describe("employee Chinese New Year bonus forecast", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -195,7 +215,7 @@ describe("employee Chinese New Year bonus forecast", () => {
         expect(JSON.stringify(body)).not.toContain("minimumSample");
     });
 
-    it("gives an oil-station cashier a team-linked forecast with 35% team influence and 65% personal influence", async () => {
+    it("gives an oil-station cashier the automatic 60/20/20 score", async () => {
         userFindUniqueMock.mockResolvedValue({
             isActive: true,
             employeeStatus: "ACTIVE",
@@ -208,22 +228,13 @@ describe("employee Chinese New Year bonus forecast", () => {
         configFindUniqueMock.mockResolvedValue({ value: "period-1" });
         periodFindUniqueMock.mockResolvedValue(closedPeriod);
         userFindManyMock.mockResolvedValue([{ id: "team-1" }]);
-        attendanceFindManyMock
-            .mockResolvedValueOnce([perfectAttendance])
-            .mockResolvedValueOnce([{
-                userId: "team-1",
-                date: perfectAttendance.date,
-                checkInTime: perfectAttendance.checkInTime,
-            }]);
-        assignmentFindManyMock
-            .mockResolvedValueOnce([perfectAssignment])
-            .mockResolvedValueOnce([{
-                userId: "team-1",
-                date: perfectAssignment.date,
-                isDayOff: false,
-            }]);
-        responseFindManyMock.mockResolvedValue(perfectFeedback("team-1"));
-        submissionFindUniqueMock.mockResolvedValue({ rating: 5, status: "COMPLETED", completedAt: new Date("2026-09-02T00:00:00.000Z") });
+        assignmentFindManyMock.mockResolvedValue([{ ...perfectAssignment, userId: "team-1" }]);
+        attendanceFindManyMock.mockResolvedValue([{ ...perfectAttendance, userId: "team-1" }]);
+        leaveFindManyMock.mockResolvedValue([]);
+        responseFindManyMock
+            .mockResolvedValueOnce(perfectFeedback("team-1"))
+            .mockResolvedValueOnce(perfectStationFeedback())
+            .mockResolvedValueOnce(perfectRestroomFeedback());
 
         const response = await GET();
         const body = await response.json();
@@ -231,26 +242,25 @@ describe("employee Chinese New Year bonus forecast", () => {
         expect(response.status).toBe(200);
         expect(body.enabled).toBe(true);
         expect(body.profile).toBe("FUEL_CASHIER");
-        expect(body.preview).toMatchObject({
-            profile: "FUEL_CASHIER",
+        expect(body.score).toMatchObject({
+            score: 100,
             forecastScore: 100,
-            bonusPercent: 100,
             knownWeight: 100,
+            sourceScores: { teamPerformanceScore: 100, stationScore: 100, restroomScore: 100 },
         });
-        expect(body.preview.components).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "attendance", points: 25, maxPoints: 25 }),
-            expect.objectContaining({ key: "customerQuality", label: "คุณภาพบริการของทีม", points: 20, maxPoints: 20 }),
-            expect.objectContaining({ key: "cooperation", label: "ความร่วมมือแบบประเมินของทีม", points: 15, maxPoints: 15 }),
-            expect.objectContaining({ key: "supervisorSop", label: "งานเสมียน / SOP", points: 30, maxPoints: 30 }),
-            expect.objectContaining({ key: "disciplineSafety", points: 10, maxPoints: 10 }),
-        ]));
+        expect(body.preview).toMatchObject({ profile: "FUEL_CASHIER", forecastScore: 100, bonusPercent: 100, knownWeight: 100 });
+        expect(body.preview.components).toEqual([
+            expect.objectContaining({ key: "teamPerformance", label: "ผลงานพนักงานในปั๊ม", points: 60, maxPoints: 60 }),
+            expect.objectContaining({ key: "stationQuality", label: "คะแนนภาพรวมปั๊ม", points: 20, maxPoints: 20 }),
+            expect.objectContaining({ key: "restroomQuality", label: "คะแนนห้องน้ำ", points: 20, maxPoints: 20 }),
+        ]);
+        expect(submissionFindUniqueMock).not.toHaveBeenCalled();
         expect(caseCountMock).not.toHaveBeenCalled();
         expect(JSON.stringify(body)).not.toContain("responseCount");
-        expect(JSON.stringify(body)).not.toContain("dailyTarget");
         expect(JSON.stringify(body)).not.toContain("minimumSample");
     });
 
-    it("keeps team quality waiting when even one active team member lacks the minimum customer sample", async () => {
+    it("keeps team performance waiting when a relevant teammate lacks the customer minimum", async () => {
         userFindUniqueMock.mockResolvedValue({
             isActive: true,
             employeeStatus: "ACTIVE",
@@ -263,18 +273,33 @@ describe("employee Chinese New Year bonus forecast", () => {
         configFindUniqueMock.mockResolvedValue({ value: "period-1" });
         periodFindUniqueMock.mockResolvedValue(closedPeriod);
         userFindManyMock.mockResolvedValue([{ id: "team-1" }, { id: "team-2" }]);
-        attendanceFindManyMock.mockResolvedValueOnce([perfectAttendance]).mockResolvedValueOnce([]);
-        assignmentFindManyMock.mockResolvedValueOnce([perfectAssignment]).mockResolvedValueOnce([]);
-        responseFindManyMock.mockResolvedValue(perfectFeedback("team-1"));
-        submissionFindUniqueMock.mockResolvedValue({ rating: 5, status: "COMPLETED", completedAt: new Date("2026-09-02T00:00:00.000Z") });
+        assignmentFindManyMock.mockResolvedValue([
+            { ...perfectAssignment, userId: "team-1" },
+            { ...perfectAssignment, userId: "team-2" },
+        ]);
+        attendanceFindManyMock.mockResolvedValue([
+            { ...perfectAttendance, userId: "team-1" },
+            { ...perfectAttendance, userId: "team-2" },
+        ]);
+        leaveFindManyMock.mockResolvedValue([]);
+        responseFindManyMock
+            .mockResolvedValueOnce(perfectFeedback("team-1"))
+            .mockResolvedValueOnce(perfectStationFeedback())
+            .mockResolvedValueOnce(perfectRestroomFeedback());
 
         const response = await GET();
         const body = await response.json();
-        const quality = body.preview.components.find((component: { key: string }) => component.key === "customerQuality");
+        const team = body.preview.components.find((component: { key: string }) => component.key === "teamPerformance");
 
-        expect(quality.points).toBeNull();
-        expect(body.preview.missingComponents).toContain("customerQuality");
+        expect(response.status).toBe(200);
+        expect(team.points).toBeNull();
+        expect(body.preview.missingComponents).toContain("teamPerformance");
+        expect(body.preview.knownWeight).toBe(40);
         expect(body.preview.isProvisional).toBe(true);
+        expect(body.preview.components).toEqual(expect.arrayContaining([
+            expect.objectContaining({ key: "stationQuality", points: 20 }),
+            expect.objectContaining({ key: "restroomQuality", points: 20 }),
+        ]));
     });
 
     it("keeps an invalid legacy supervisor rating waiting instead of clamping it into points", async () => {

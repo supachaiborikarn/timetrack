@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { getFeedbackAccessContext } from "@/lib/customer-feedback/access";
 import { prisma } from "@/lib/prisma";
 import {
@@ -16,7 +15,6 @@ type BonusProfileUser = {
 
 function resolveBonusProfile(user: BonusProfileUser): ChineseNewYearBonusProfile | null {
     if (user.role === "EMPLOYEE" && user.department?.isFrontYard) return "FRONT_YARD";
-    if (isFuelCashier(user) && user.stationId) return "FUEL_CASHIER";
     return null;
 }
 
@@ -63,10 +61,8 @@ export async function GET() {
             where: {
                 isActive: true,
                 employeeStatus: "ACTIVE",
-                OR: [
-                    { role: "EMPLOYEE", department: { is: { isFrontYard: true } } },
-                    { role: "CASHIER" },
-                ],
+                role: "EMPLOYEE",
+                department: { is: { isFrontYard: true } },
             },
             orderBy: [{ stationId: "asc" }, { name: "asc" }],
             select: {

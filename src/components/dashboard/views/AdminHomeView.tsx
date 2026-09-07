@@ -32,6 +32,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceCalendar } from "@/components/dashboard";
+import { ChineseNewYearBonusCard } from "@/components/dashboard/ChineseNewYearBonusCard";
+import { CashierRewardPointsCard } from "@/components/dashboard/CashierRewardPointsCard";
 import { RightMenuDrawer } from "@/components/layout/RightMenuDrawer";
 import { ClockInModal } from "@/components/layout/ClockInModal";
 import { MoodCheckOutDialog } from "@/components/engagement/MoodCheckOutDialog";
@@ -505,6 +507,13 @@ export function AdminHomeView() {
                                 })}
                             </div>
                         )}
+                    </section>
+                )}
+
+                {isCashier && teamFeedback && (
+                    <section className="space-y-2">
+                        <ChineseNewYearBonusCard lang="th" />
+                        <CashierRewardPointsCard />
                     </section>
                 )}
 

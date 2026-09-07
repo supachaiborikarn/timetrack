@@ -81,7 +81,7 @@ describe("admin Chinese New Year bonus configuration", () => {
         expect(periodFindManyMock).not.toHaveBeenCalled();
     });
 
-    it("includes front-yard employees and oil-station cashiers but excludes department-scoped gas cashiers", async () => {
+    it("keeps supervisor review rows limited to front-yard employees", async () => {
         configFindUniqueMock.mockResolvedValue({ value: "period-1" });
         userFindManyMock.mockResolvedValue([
             {
@@ -104,10 +104,9 @@ describe("admin Chinese New Year bonus configuration", () => {
         expect(response.status).toBe(200);
         expect(body.reviews.map((row: { employeeId: string; profile: string }) => [row.employeeId, row.profile])).toEqual([
             ["front-1", "FRONT_YARD"],
-            ["cashier-1", "FUEL_CASHIER"],
         ]);
         expect(submissionFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
-            where: expect.objectContaining({ employeeId: { in: ["front-1", "cashier-1"] } }),
+            where: expect.objectContaining({ employeeId: { in: ["front-1"] } }),
         }));
     });
 
@@ -148,7 +147,7 @@ describe("admin Chinese New Year bonus configuration", () => {
         expect(submissionUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("accepts an oil-station cashier as a supervisor-review target", async () => {
+    it("does not accept an oil-station cashier as a supervisor-review target because cashier score is automatic 60/20/20", async () => {
         configFindUniqueMock.mockResolvedValue({ value: "period-1" });
         userFindUniqueMock.mockResolvedValue({
             isActive: true,
@@ -158,8 +157,6 @@ describe("admin Chinese New Year bonus configuration", () => {
             stationId: "station-1",
             department: { isFrontYard: false },
         });
-        submissionFindUniqueMock.mockResolvedValue({ id: "submission-cashier" });
-        submissionUpdateMock.mockResolvedValue({ id: "submission-cashier", employeeId: "cashier-1", rating: 5, status: "COMPLETED" });
 
         const response = await PATCH(new NextRequest("http://localhost/api/admin/performance/chinese-new-year-bonus", {
             method: "PATCH",
@@ -167,10 +164,9 @@ describe("admin Chinese New Year bonus configuration", () => {
             body: JSON.stringify({ periodId: "period-1", employeeId: "cashier-1", rating: 5 }),
         }));
 
-        expect(response.status).toBe(200);
-        expect(submissionUpdateMock).toHaveBeenCalled();
-        const auditArg = auditCreateMock.mock.calls.find((call) => call[0]?.data?.action === "CNY_BONUS_SUPERVISOR_REVIEW_UPDATED")?.[0];
-        expect(auditArg?.data?.details).toContain("FUEL_CASHIER");
+        expect(response.status).toBe(400);
+        expect(submissionFindUniqueMock).not.toHaveBeenCalled();
+        expect(submissionUpdateMock).not.toHaveBeenCalled();
     });
 
     it("rejects a department-scoped gas cashier from the oil-station cashier bonus profile", async () => {

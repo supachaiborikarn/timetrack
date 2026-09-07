@@ -1,5 +1,10 @@
 export const REWARD_CUSTOMER_QUALITY_MIN_POINTS = 20;
 
+// Stored in CompetitionStanding.fairPlayReasons for RP-only cashier rows.
+// These rows never participate in League ranking/championship points.
+export const FUEL_CASHIER_RP_READY_REASON = "fuel-cashier-rp-ready";
+export const FUEL_CASHIER_RP_WAITING_REASON = "fuel-cashier-rp-waiting";
+
 export const REWARD_POINT_TIERS = [
     { minimumScore: 90, points: 30 },
     { minimumScore: 80, points: 20 },

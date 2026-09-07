@@ -9,16 +9,15 @@ import { startOfDayBangkok } from "@/lib/date-utils";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
 import {
-    averageAvailableTeamPoints,
     bangkokDateKey,
     calculateChineseNewYearBonusPreview,
-    calculateCompleteTeamCustomerQualityPoints,
     calculateDisciplineSafetyPoints,
     calculateEvaluationCooperationPoints,
     CHINESE_NEW_YEAR_BONUS_PERIOD_CONFIG_KEY,
-    getChineseNewYearBonusWeights,
+    CHINESE_NEW_YEAR_BONUS_WEIGHTS,
     type ChineseNewYearBonusProfile,
 } from "@/lib/chinese-new-year-bonus";
+import { calculateFuelCashierStationScoreForRange } from "@/lib/cashier-score-server";
 
 function round1(value: number): number {
     return Math.round((value + Number.EPSILON) * 10) / 10;
@@ -114,7 +113,60 @@ export async function GET() {
         const hasWorkRange = periodFrom.getTime() <= workTo.getTime();
         const hasFeedbackRange = periodFrom.getTime() < feedbackToExclusive.getTime();
 
-        const [attendances, assignments, leaves, submission, teamMembers] = await Promise.all([
+        if (profile === "FUEL_CASHIER") {
+            const workToExclusive = hasWorkRange
+                ? reviewPeriodDayBounds(workTo).nextDayStart
+                : periodFrom;
+            const cashierStationScore = await calculateFuelCashierStationScoreForRange({
+                stationId: user.stationId!,
+                stationCode: user.station?.code,
+                feedbackFrom: periodFrom,
+                feedbackToExclusive,
+                workFrom: periodFrom,
+                workToExclusive,
+                referenceTime: now,
+            });
+            const cashierScore = cashierStationScore.score;
+            const preview = calculateChineseNewYearBonusPreview({
+                profile,
+                teamPerformancePoints: cashierScore.points.teamPerformance,
+                stationQualityPoints: cashierScore.points.stationQuality,
+                restroomQualityPoints: cashierScore.points.restroomQuality,
+                periodClosed: Boolean(period.closedAt) && !period.isActive,
+            });
+
+            return NextResponse.json({
+                enabled: true,
+                profile,
+                period: {
+                    id: period.id,
+                    title: period.title,
+                    startDate: periodFrom.toISOString(),
+                    endDate: periodEndBounds.dayStart.toISOString(),
+                    closed: Boolean(period.closedAt) && !period.isActive,
+                },
+                score: {
+                    score: cashierScore.score,
+                    forecastScore: cashierScore.forecastScore,
+                    knownWeight: cashierScore.knownWeight,
+                    sourceScores: cashierScore.sourceScores,
+                },
+                preview,
+                messages: {
+                    teamPerformance: cashierStationScore.teamPerformanceScore == null
+                        ? "กำลังรอคะแนนผลงานพนักงานที่มีวันทำงานจริงให้ครบ"
+                        : "ผลงานพนักงานในปั๊มพร้อมใช้แล้ว",
+                    stationQuality: cashierStationScore.stationSummary.score == null
+                        ? "กำลังรวบรวมคะแนนภาพรวมปั๊มให้ถึงเกณฑ์"
+                        : "คะแนนภาพรวมปั๊มพร้อมใช้แล้ว",
+                    restroomQuality: cashierStationScore.restroomSummary.score == null
+                        ? "กำลังรวบรวมคะแนนห้องน้ำให้ถึงเกณฑ์"
+                        : "คะแนนห้องน้ำพร้อมใช้แล้ว",
+                },
+            });
+        }
+
+        const [attendances, assignments, leaves, submission] = await Promise.all([
             hasWorkRange
                 ? prisma.attendance.findMany({
                     where: { userId, date: { gte: periodFrom, lte: workTo } },
@@ -161,18 +213,6 @@ export async function GET() {
                 where: { employeeId_periodId: { employeeId: userId, periodId: period.id } },
                 select: { rating: true, status: true, completedAt: true },
             }),
-            profile === "FUEL_CASHIER" && user.stationId
-                ? prisma.user.findMany({
-                    where: {
-                        stationId: user.stationId,
-                        isActive: true,
-                        employeeStatus: "ACTIVE",
-                        role: "EMPLOYEE",
-                        department: { is: { isFrontYard: true } },
-                    },
-                    select: { id: true },
-                })
-                : Promise.resolve([]),
         ]);
 
         const performance = calculateEmployeePerformance({
@@ -191,7 +231,7 @@ export async function GET() {
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
         });
 
-        const weights = getChineseNewYearBonusWeights(profile);
+        const weights = CHINESE_NEW_YEAR_BONUS_WEIGHTS;
         const attendancePoints = performance.counts.requiredDays > 0
             ? round1(performance.components.presence)
             : null;
@@ -216,8 +256,7 @@ export async function GET() {
         let cooperationPoints: number | null = null;
         let safetyCaseCount = 0;
 
-        if (profile === "FRONT_YARD") {
-            const [feedbackResponses, openSafetyCaseCount] = await Promise.all([
+        const [feedbackResponses, openSafetyCaseCount] = await Promise.all([
                 hasFeedbackRange
                     ? prisma.customerFeedbackResponse.findMany({
                         where: {
@@ -275,82 +314,7 @@ export async function GET() {
                 evaluationSubmittedAts: feedbackResponses.map((response) => response.submittedAt),
                 maxPoints: weights.cooperation,
             });
-        } else {
-            const teamIds = teamMembers.map((member) => member.id);
-            const [teamFeedbackResponses, teamAssignments, teamAttendances] = teamIds.length > 0
-                ? await Promise.all([
-                    hasFeedbackRange
-                        ? prisma.customerFeedbackResponse.findMany({
-                            where: {
-                                kind: "STANDARD",
-                                targetType: "EMPLOYEE",
-                                employeeId: { in: teamIds },
-                                surveyVersion: { in: ["employee-v3", "employee-v4"] },
-                                validity: "VALID",
-                                submittedAt: { gte: periodFrom, lt: feedbackToExclusive },
-                            },
-                            select: {
-                                id: true,
-                                employeeId: true,
-                                submittedAt: true,
-                                answers: {
-                                    where: { questionKey: { in: [...EMPLOYEE_SCORE_QUESTION_KEYS] } },
-                                    select: { questionKey: true, choiceValues: true },
-                                },
-                            },
-                        })
-                        : Promise.resolve([]),
-                    hasWorkRange
-                        ? prisma.shiftAssignment.findMany({
-                            where: { userId: { in: teamIds }, date: { gte: periodFrom, lte: workTo } },
-                            select: { userId: true, date: true, isDayOff: true },
-                        })
-                        : Promise.resolve([]),
-                    hasWorkRange
-                        ? prisma.attendance.findMany({
-                            where: { userId: { in: teamIds }, date: { gte: periodFrom, lte: workTo } },
-                            select: { userId: true, date: true, checkInTime: true },
-                        })
-                        : Promise.resolve([]),
-                ])
-                : [[], [], []] as const;
 
-            const responsesByEmployee = new Map<string, FeedbackRow[]>();
-            for (const response of teamFeedbackResponses) {
-                if (!response.employeeId) continue;
-                const list = responsesByEmployee.get(response.employeeId) ?? [];
-                list.push(response);
-                responsesByEmployee.set(response.employeeId, list);
-            }
-
-            const teamScores64 = teamMembers.map((member) => {
-                const rubric = summarizeEmployeeRubric((responsesByEmployee.get(member.id) ?? []).map(toRubricResponse));
-                return rubric.meetsMinimumSample ? rubric.score64 : null;
-            });
-            customerQualityPoints = calculateCompleteTeamCustomerQualityPoints({
-                memberScores64: teamScores64,
-                rubricTotal: EMPLOYEE_SCORE_TOTAL,
-                maxPoints: weights.customerQuality,
-            });
-
-            const teamAssignmentByDay = new Map(
-                teamAssignments.map((assignment) => [`${assignment.userId}::${bangkokDateKey(assignment.date)}`, assignment]),
-            );
-            const memberCooperationPoints = teamMembers.map((member) => {
-                const workedDayKeys = teamAttendances.flatMap((attendance) => {
-                    if (attendance.userId !== member.id || !attendance.checkInTime) return [];
-                    const dayKey = bangkokDateKey(attendance.date);
-                    const assignment = teamAssignmentByDay.get(`${member.id}::${dayKey}`);
-                    return assignment && !assignment.isDayOff ? [dayKey] : [];
-                });
-                return calculateEvaluationCooperationPoints({
-                    workedDayKeys,
-                    evaluationSubmittedAts: (responsesByEmployee.get(member.id) ?? []).map((response) => response.submittedAt),
-                    maxPoints: weights.cooperation,
-                });
-            });
-            cooperationPoints = averageAvailableTeamPoints(memberCooperationPoints);
-        }
 
         const preview = calculateChineseNewYearBonusPreview({
             profile,
@@ -363,7 +327,6 @@ export async function GET() {
             safetyReviewRequired: safetyCaseCount > 0,
         });
 
-        const isCashier = profile === "FUEL_CASHIER";
         return NextResponse.json({
             enabled: true,
             profile,
@@ -378,14 +341,14 @@ export async function GET() {
             // ห้ามส่ง exact customer count / daily target ไปหน้าพนักงาน ตาม privacy/fair-play decision เดิม
             messages: {
                 customerQuality: customerQualityPoints == null
-                    ? isCashier ? "กำลังรวบรวมข้อมูลคุณภาพบริการให้ครบทั้งทีม" : "กำลังรวบรวมข้อมูลเสียงลูกค้า"
-                    : isCashier ? "คะแนนคุณภาพบริการของทีมพร้อมใช้แล้ว" : "คะแนนเสียงลูกค้าพร้อมใช้แล้ว",
+                    ? "กำลังรวบรวมข้อมูลเสียงลูกค้า"
+                    : "คะแนนเสียงลูกค้าพร้อมใช้แล้ว",
                 cooperation: cooperationPoints == null
-                    ? isCashier ? "รอวันทำงานของทีมในรอบนี้" : "รอวันทำงานในรอบนี้"
-                    : isCashier ? "คำนวณจากความสม่ำเสมอของทีมตามวันทำงานจริง" : "คำนวณจากความสม่ำเสมอของภารกิจรายวัน",
+                    ? "รอวันทำงานในรอบนี้"
+                    : "คำนวณจากความสม่ำเสมอของภารกิจรายวัน",
                 supervisorSop: supervisorSopPoints == null
-                    ? isCashier ? "รอหัวหน้างานประเมินงานเสมียน / SOP" : "รอหัวหน้างานบันทึกคะแนน"
-                    : isCashier ? "หัวหน้างานประเมินงานเสมียนแล้ว" : "หัวหน้างานประเมินแล้ว",
+                    ? "รอหัวหน้างานบันทึกคะแนน"
+                    : "หัวหน้างานประเมินแล้ว",
                 disciplineSafety: safetyCaseCount > 0
                     ? "มีเคสความปลอดภัยที่ต้องตรวจสอบก่อนสรุปผล"
                     : "คำนวณวินัยจากตรงเวลา อยู่ครบกะ และเวลาพัก",

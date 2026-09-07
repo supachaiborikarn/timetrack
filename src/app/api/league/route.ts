@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import {
     calculateStationWeeklyLeague,
     getBangkokMonthBounds,
@@ -21,13 +22,19 @@ export async function GET() {
         where: { id: session.user.id },
         select: {
             id: true,
+            role: true,
+            employeeId: true,
             stationId: true,
+            isActive: true,
+            employeeStatus: true,
             station: { select: { id: true, code: true, name: true } },
             department: { select: { isFrontYard: true } },
         },
     });
-    if (!user?.stationId || !user.station || !user.department?.isFrontYard) {
-        return NextResponse.json({ eligible: false, reason: "NOT_FRONT_YARD" });
+    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard);
+    const isEligibleFuelCashier = Boolean(user?.isActive && user.employeeStatus === "ACTIVE" && user.stationId && isFuelCashier(user));
+    if (!user?.stationId || !user.station || (!isFrontYardEmployee && !isEligibleFuelCashier)) {
+        return NextResponse.json({ eligible: false, reason: "NOT_ELIGIBLE" });
     }
 
     const now = new Date();
@@ -79,6 +86,7 @@ export async function GET() {
     const publicMonthlyStandings = monthly.map(({ userId, ...standing }) => ({ ...standing, isMe: userId === user.id }));
     const response = NextResponse.json({
         eligible: true,
+        profile: isEligibleFuelCashier ? "FUEL_CASHIER" : "FRONT_YARD",
         station: weekly.station,
         previousWeekly,
         weekly: {
@@ -102,6 +110,8 @@ export async function GET() {
             wallet: rewardWallet,
             featured: rewardCatalog.featured,
             catalog: rewardCatalog.items,
+            canRedeem: isEligibleFuelCashier || Boolean(me?.isRewardEligible),
+            canRedeemReason: isEligibleFuelCashier ? "FUEL_CASHIER_WALLET" : me?.rewardEligibilityReason ?? "NO_REQUIRED_WORK_DAYS",
         },
         awards: awards.map((award) => ({
             id: award.id,
