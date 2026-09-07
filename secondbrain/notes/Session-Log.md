@@ -1845,3 +1845,28 @@ Verification:
 - Production read-only verification on previously authorized Neon host: PAP 5 eligible-work employees, mean74.3, cashier84.6; SPC 5, mean70.3, cashier82.2; WKO 8, mean76.7, cashier86.0. Counts include all employee standing rows with requiredDays>0, not just champion-eligible employees.
 - Validation: focused six files / 15 tests passed; TypeScript, changed-file ESLint, diff check passed. Production build passed with 190 pages. Deployment pending at time of this entry. Unrelated restroom scratch files untouched.
 - Release: code commit `f766ab4` pushed to main; Vercel deployment `dpl_4ydVPKEcyJHaovUkKTELHL1SNfcK` confirmed Ready, target production, alias `https://timetrack-lake.vercel.app`. Authenticated browser rendering was not separately verified in this session.
+
+## 2026-09-07 — Merged cashier weekly score into the CNY bonus card
+
+Problem:
+
+- Fuel-cashier Dashboard could show the CNY card as waiting/0 while a separate `คะแนนเสมียนประจำสัปดาห์` card below RP already showed a finalized score such as 82.2/100. The two cards used different time bases, so the UI looked broken and the score sources contradicted each other.
+- The TEAM FEEDBACK card still contained obsolete 35% team + 65% personal wording after the cashier policy changed to 60/20/20.
+
+Implemented:
+
+- Added `getCashierBonusPeriodReport` in `src/lib/cashier-weekly-report.ts`. It finds finalized weekly periods overlapping the configured CNY ReviewPeriod, reuses the existing weekly cashier report, ignores incomplete weeks rather than converting them to zero, and averages ready finalized component points.
+- Updated `/api/employee/chinese-new-year-bonus` so a fuel cashier uses the finalized-week average as the visible CNY forecast whenever at least one ready finalized week exists. The API returns the weekly basis metadata and keeps the forecast provisional while the ReviewPeriod is open or a finalized week is unresolved.
+- The historical week starting 2026-08-31 is included when it overlaps the September CNY period, so an existing 82.2 score can flow into the CNY card instead of appearing only in a separate card.
+- Updated `ChineseNewYearBonusCard` to explain that the cashier forecast comes from finalized weekly scores and will average new finalized weeks automatically.
+- Removed the embedded `CashierWeeklyScore personal` from `CashierRewardPointsCard`; the RP card now focuses on wallet balance, current-week RP preview, featured reward, and redemption link.
+- Updated cashier TEAM FEEDBACK copy to the current formula: front-yard team performance 60 + station 20 + restroom 20.
+
+Verification:
+
+- `npx vitest run src/lib/cashier-weekly-report.test.ts src/app/api/employee/chinese-new-year-bonus/route.test.ts src/app/api/employee/reward-points/route.test.ts`: 3 files / 14 tests passed, including a regression where finalized cashier score 82.2 becomes the CNY forecast with an 80% payout tier.
+- `npx tsc --noEmit`: passed.
+- Changed-file ESLint: passed.
+- `git diff --check`: passed.
+- Production build with `NODE_ENV=production`: passed; 190 pages generated.
+- No schema change and no production data mutation. Unrelated restroom scratch files remain untracked.

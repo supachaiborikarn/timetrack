@@ -12,6 +12,7 @@ const {
     responseFindManyMock,
     submissionFindUniqueMock,
     caseCountMock,
+    bonusPeriodReportMock,
 } = vi.hoisted(() => ({
     authMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
@@ -24,9 +25,11 @@ const {
     responseFindManyMock: vi.fn(),
     submissionFindUniqueMock: vi.fn(),
     caseCountMock: vi.fn(),
+    bonusPeriodReportMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: authMock }));
+vi.mock("@/lib/cashier-weekly-report", () => ({ getCashierBonusPeriodReport: bonusPeriodReportMock }));
 vi.mock("@/lib/prisma", () => ({
     prisma: {
         user: { findUnique: userFindUniqueMock, findMany: userFindManyMock },
@@ -130,6 +133,7 @@ describe("employee Chinese New Year bonus forecast", () => {
         responseFindManyMock.mockResolvedValue([]);
         submissionFindUniqueMock.mockResolvedValue(null);
         caseCountMock.mockResolvedValue(0);
+        bonusPeriodReportMock.mockResolvedValue({ finalizedWeekCount: 0, readyWeekCount: 0, periodKeys: [], result: null });
     });
 
     it("stays hidden until ADMIN/HR configures a ReviewPeriod", async () => {
@@ -213,6 +217,50 @@ describe("employee Chinese New Year bonus forecast", () => {
         expect(JSON.stringify(body)).not.toContain("responseCount");
         expect(JSON.stringify(body)).not.toContain("dailyTarget");
         expect(JSON.stringify(body)).not.toContain("minimumSample");
+    });
+
+    it("uses finalized weekly cashier scores as the visible CNY forecast", async () => {
+        userFindUniqueMock.mockResolvedValue({
+            isActive: true,
+            employeeStatus: "ACTIVE",
+            role: "CASHIER",
+            employeeId: "CASH001",
+            stationId: "station-1",
+            station: { code: "WKO" },
+            department: { isFrontYard: false },
+        });
+        configFindUniqueMock.mockResolvedValue({ value: "period-1" });
+        periodFindUniqueMock.mockResolvedValue({ ...closedPeriod, isActive: true, closedAt: null, endDate: new Date("2027-02-28T17:00:00.000Z") });
+        bonusPeriodReportMock.mockResolvedValue({
+            finalizedWeekCount: 1,
+            readyWeekCount: 1,
+            periodKeys: ["2026-08-31"],
+            result: {
+                score: 82.2,
+                points: { teamPerformance: 42.2, stationQuality: 20, restroomQuality: 20 },
+            },
+        });
+
+        const response = await GET();
+        const body = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body.profile).toBe("FUEL_CASHIER");
+        expect(body.basis).toEqual({
+            type: "FINALIZED_WEEKLY_AVERAGE",
+            readyWeeks: 1,
+            finalizedWeeks: 1,
+            periodKeys: ["2026-08-31"],
+        });
+        expect(body.score).toMatchObject({ score: 82.2, forecastScore: 82.2, knownWeight: 100 });
+        expect(body.preview).toMatchObject({ forecastScore: 82.2, bonusPercent: 80, knownWeight: 100, isProvisional: true });
+        expect(body.preview.components).toEqual([
+            expect.objectContaining({ key: "teamPerformance", points: 42.2, maxPoints: 60 }),
+            expect.objectContaining({ key: "stationQuality", points: 20, maxPoints: 20 }),
+            expect.objectContaining({ key: "restroomQuality", points: 20, maxPoints: 20 }),
+        ]);
+        expect(userFindManyMock).not.toHaveBeenCalled();
+        expect(responseFindManyMock).not.toHaveBeenCalled();
     });
 
     it("gives an oil-station cashier the automatic 60/20/20 score", async () => {

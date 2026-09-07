@@ -7,6 +7,10 @@ import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { cashierOverrideKey, resolveCashierQuality, type QualityOverride } from "@/lib/cashier-quality";
 export { cashierOverrideKey } from "@/lib/cashier-quality";
 
+function round1(value: number): number {
+    return Math.round((value + Number.EPSILON) * 10) / 10;
+}
+
 export async function getCashierWeeklyReport(stationId: string, periodKey: string) {
     const week = getBangkokWeekBounds(new Date(`${periodKey}T12:00:00+07:00`));
     const [station, period, config, candidates] = await Promise.all([
@@ -34,5 +38,49 @@ export async function getCashierWeeklyReport(stationId: string, periodKey: strin
         restroom: { ...restroomQuality, responseCount: live.restroomSummary.responseCount, manual: manual.restroom },
         result: calculateFuelCashierScore({ teamPerformanceScore: teamScore, stationScore: stationQuality.score, restroomScore: restroomQuality.score }),
         cashiers: candidates.filter(isFuelCashier).map((user) => ({ employeeId: user.employeeId, label: user.nickName || user.name })),
+    };
+}
+
+export async function getCashierBonusPeriodReport(stationId: string, from: Date, toExclusive: Date) {
+    const periods = await prisma.competitionPeriod.findMany({
+        where: {
+            stationId,
+            type: "WEEKLY_STATION",
+            status: "FINALIZED",
+            startDate: { lt: toExclusive },
+            endDate: { gt: from },
+        },
+        select: { periodKey: true },
+        orderBy: { startDate: "asc" },
+    });
+
+    const reports = await Promise.all(periods.map((period) => getCashierWeeklyReport(stationId, period.periodKey)));
+    const ready = reports.filter((report) => report.result.score !== null
+        && report.result.points.teamPerformance !== null
+        && report.result.points.stationQuality !== null
+        && report.result.points.restroomQuality !== null);
+
+    if (ready.length === 0) {
+        return {
+            finalizedWeekCount: periods.length,
+            readyWeekCount: 0,
+            periodKeys: [] as string[],
+            result: null,
+        };
+    }
+
+    const average = (values: number[]) => round1(values.reduce((sum, value) => sum + value, 0) / values.length);
+    const teamPerformance = average(ready.map((report) => report.result.points.teamPerformance as number));
+    const stationQuality = average(ready.map((report) => report.result.points.stationQuality as number));
+    const restroomQuality = average(ready.map((report) => report.result.points.restroomQuality as number));
+
+    return {
+        finalizedWeekCount: periods.length,
+        readyWeekCount: ready.length,
+        periodKeys: ready.map((report) => report.periodKey),
+        result: {
+            score: round1(teamPerformance + stationQuality + restroomQuality),
+            points: { teamPerformance, stationQuality, restroomQuality },
+        },
     };
 }

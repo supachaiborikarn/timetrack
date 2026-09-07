@@ -286,3 +286,12 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Other weeks retain the existing employee-performance source (work 60 + customer 40) and cashier weights 60/20/20. Gas cashiers remain outside fuel-cashier scoring.
 - ADMIN/HR can enter separate station/restroom scores out of 100 per station/week when that component has zero valid customer responses. Once any valid response exists, customer scoring and existing minimum-sample rules take precedence; insufficient samples do not permit manual substitution. Historical initial-grant week is the explicit exception.
 - Overrides use existing SystemConfig keys `cashier-quality:<stationId>:<weekKey>` and are atomically audited. No schema change. Weekly RP calculation consumes zero-response overrides before closing; already finalized RP is untouched.
+
+## 2026-09-07: Fuel-cashier CNY card uses finalized weekly 60/20/20 scores
+
+- The fuel-cashier Chinese New Year bonus forecast must not show a second contradictory score source beside the weekly cashier score.
+- Once at least one overlapping WEEKLY_STATION period is FINALIZED and has a complete cashier 60/20/20 report, the CNY forecast uses the equal-weight average of those finalized weekly component points: team performance /60 + station /20 + restroom /20.
+- A weekly period that overlaps the configured CNY ReviewPeriod counts even when its Monday started just before the ReviewPeriod (for example 2026-08-31 overlapping September 2026). This preserves the owner-approved initial-week score in the September-February CNY forecast.
+- Missing finalized-week data is never converted to zero. Ready finalized weeks may provide a provisional forecast while unresolved finalized weeks keep the forecast provisional. Before the first ready finalized week exists, the existing in-period raw-data calculation remains the fallback.
+- The fuel-cashier Dashboard keeps the CNY score inside the CNY card. The RP card remains a wallet/current-week RP preview and no longer renders a second full-size personal weekly-score card underneath it.
+- TEAM FEEDBACK explanatory copy must reflect the current 60/20/20 cashier formula; the retired 35/65 wording must not be shown.

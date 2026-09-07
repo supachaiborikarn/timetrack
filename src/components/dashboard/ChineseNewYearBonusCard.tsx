@@ -25,6 +25,12 @@ type BonusPayload = {
         endDate: string;
         closed: boolean;
     };
+    basis?: {
+        type: "FINALIZED_WEEKLY_AVERAGE";
+        readyWeeks: number;
+        finalizedWeeks: number;
+        periodKeys: string[];
+    };
     preview?: {
         profile: BonusProfile;
         forecastScore: number | null;
@@ -56,6 +62,7 @@ const COPY = {
         note: "ตัวเลขนี้เป็นเครื่องมือคาดการณ์ ยังไม่เขียนโบนัสเข้า Payroll อัตโนมัติ",
         cashierScore: "คะแนนเสมียน",
         cashierHint: "คะแนนเสมียน 100 คะแนน = ผลงานพนักงานในปั๊ม 60 + คะแนนภาพรวมปั๊ม 20 + คะแนนห้องน้ำ 20",
+        cashierBasis: (weeks: number) => `คาดการณ์จากคะแนนเสมียนสัปดาห์ที่ปิดผลแล้ว ${weeks} รอบ และจะเฉลี่ยสะสมเมื่อมีรอบใหม่`,
     },
     en: {
         eyebrow: "CHINESE NEW YEAR BONUS",
@@ -72,6 +79,7 @@ const COPY = {
         note: "This is a forecast only. It does not write a bonus into Payroll automatically.",
         cashierScore: "Cashier score",
         cashierHint: "Cashier score = team performance 60 + station feedback 20 + restroom 20.",
+        cashierBasis: (weeks: number) => `Forecast uses ${weeks} finalized cashier week(s) and averages new finalized weeks automatically.`,
     },
     my: {
         eyebrow: "CHINESE NEW YEAR BONUS",
@@ -88,6 +96,7 @@ const COPY = {
         note: "ဤကိန်းဂဏန်းသည် ခန့်မှန်းချက်သာဖြစ်ပြီး Payroll ထဲသို့ အလိုအလျောက် မထည့်ပါ။",
         cashierScore: "စာရေးအမှတ်",
         cashierHint: "စာရေးအမှတ် = ဝန်ထမ်းလုပ်ဆောင်မှု 60 + ဆိုင်အမှတ် 20 + သန့်စင်ခန်း 20။",
+        cashierBasis: (weeks: number) => `ပိတ်ပြီးအပတ် ${weeks} ပတ်၏ စာရေးအမှတ်ကို ပျမ်းမျှတွက်ထားသည်။`,
     },
 } as const;
 
@@ -185,7 +194,10 @@ export function ChineseNewYearBonusCard({ lang = "th" }: { lang?: Lang }) {
                 <>
                     {profile === "FUEL_CASHIER" ? (
                         <div className="border-b border-red-900/15 bg-amber-50 px-3.5 py-2 text-[8px] font-bold leading-relaxed text-amber-900 dark:border-white/10 dark:bg-amber-950/20 dark:text-amber-200">
-                            {T.cashierHint}
+                            <p>{T.cashierHint}</p>
+                            {data?.basis?.type === "FINALIZED_WEEKLY_AVERAGE" ? (
+                                <p className="mt-1 font-black text-red-800 dark:text-amber-100">{T.cashierBasis(data.basis.readyWeeks)}</p>
+                            ) : null}
                         </div>
                     ) : null}
 

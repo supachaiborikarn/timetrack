@@ -433,7 +433,7 @@ export function AdminHomeView() {
                             </div>
                         </div>
                         <div className="mb-2 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-[9px] font-bold leading-relaxed text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300">
-                            ผลทีมส่วนนี้เชื่อมกับแต๊ะเอียคาดการณ์ของเสมียนรวม 35 คะแนน: คุณภาพบริการทีม 20 + ความร่วมมือแบบประเมินทีม 15 คะแนน ส่วนอีก 65 คะแนนมาจากผลงานของเสมียนเอง
+                            ผลทีมหน้าลานเป็นส่วนหลักของคะแนนเสมียน 60/100 ส่วนอีก 40 คะแนนมาจากคะแนนภาพรวมปั๊ม 20 + คะแนนห้องน้ำ 20
                         </div>
                         {(teamFeedback.teamNeedsExplanationCount > 0 || teamFeedback.teamFollowUpCount > 0) && (
                             <div className="mb-2 flex flex-wrap gap-1.5">

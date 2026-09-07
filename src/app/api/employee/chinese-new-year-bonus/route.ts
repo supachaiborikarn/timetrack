@@ -18,6 +18,7 @@ import {
     type ChineseNewYearBonusProfile,
 } from "@/lib/chinese-new-year-bonus";
 import { calculateFuelCashierStationScoreForRange } from "@/lib/cashier-score-server";
+import { getCashierBonusPeriodReport } from "@/lib/cashier-weekly-report";
 
 function round1(value: number): number {
     return Math.round((value + Number.EPSILON) * 10) / 10;
@@ -114,6 +115,53 @@ export async function GET() {
         const hasFeedbackRange = periodFrom.getTime() < feedbackToExclusive.getTime();
 
         if (profile === "FUEL_CASHIER") {
+            const closedWeekly = await getCashierBonusPeriodReport(user.stationId!, periodFrom, feedbackToExclusive);
+            if (closedWeekly.result) {
+                const weeklyPoints = closedWeekly.result.points;
+                const fullyResolvedClosedWeeks = closedWeekly.readyWeekCount === closedWeekly.finalizedWeekCount;
+                const preview = calculateChineseNewYearBonusPreview({
+                    profile,
+                    teamPerformancePoints: weeklyPoints.teamPerformance,
+                    stationQualityPoints: weeklyPoints.stationQuality,
+                    restroomQualityPoints: weeklyPoints.restroomQuality,
+                    periodClosed: Boolean(period.closedAt) && !period.isActive && fullyResolvedClosedWeeks,
+                });
+
+                return NextResponse.json({
+                    enabled: true,
+                    profile,
+                    period: {
+                        id: period.id,
+                        title: period.title,
+                        startDate: periodFrom.toISOString(),
+                        endDate: periodEndBounds.dayStart.toISOString(),
+                        closed: Boolean(period.closedAt) && !period.isActive,
+                    },
+                    basis: {
+                        type: "FINALIZED_WEEKLY_AVERAGE",
+                        readyWeeks: closedWeekly.readyWeekCount,
+                        finalizedWeeks: closedWeekly.finalizedWeekCount,
+                        periodKeys: closedWeekly.periodKeys,
+                    },
+                    score: {
+                        score: closedWeekly.result.score,
+                        forecastScore: closedWeekly.result.score,
+                        knownWeight: 100,
+                        sourceScores: {
+                            teamPerformanceScore: round1(weeklyPoints.teamPerformance / 0.60),
+                            stationScore: round1(weeklyPoints.stationQuality / 0.20),
+                            restroomScore: round1(weeklyPoints.restroomQuality / 0.20),
+                        },
+                    },
+                    preview,
+                    messages: {
+                        teamPerformance: `เฉลี่ยจากผลสัปดาห์ที่ปิดแล้ว ${closedWeekly.readyWeekCount} รอบ`,
+                        stationQuality: `เฉลี่ยจากผลสัปดาห์ที่ปิดแล้ว ${closedWeekly.readyWeekCount} รอบ`,
+                        restroomQuality: `เฉลี่ยจากผลสัปดาห์ที่ปิดแล้ว ${closedWeekly.readyWeekCount} รอบ`,
+                    },
+                });
+            }
+
             const workToExclusive = hasWorkRange
                 ? reviewPeriodDayBounds(workTo).nextDayStart
                 : periodFrom;

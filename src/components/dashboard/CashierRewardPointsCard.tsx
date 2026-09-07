@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Gift, Loader2, WalletCards } from "lucide-react";
 
-import { CashierWeeklyScore } from "@/components/league/cashier-weekly-score";
-
 type RewardPayload = {
     enabled: boolean;
     wallet?: { earnedPoints: number; spentPoints: number; balance: number };
@@ -41,7 +39,7 @@ export function CashierRewardPointsCard() {
     const wallet = data?.wallet;
 
     return (
-        <><section className="overflow-hidden rounded-[18px] border border-emerald-700/30 bg-zinc-950 text-white shadow-[0_3px_0_rgba(0,0,0,0.12)]">
+        <section className="overflow-hidden rounded-[18px] border border-emerald-700/30 bg-zinc-950 text-white shadow-[0_3px_0_rgba(0,0,0,0.12)]">
             <div className="flex items-center justify-between gap-3 px-3.5 py-3">
                 <div className="flex min-w-0 items-center gap-2.5">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-400 text-zinc-950">
@@ -67,10 +65,10 @@ export function CashierRewardPointsCard() {
                 <div className="border-t border-white/10 px-3.5 py-2.5">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-[8px] font-black text-zinc-500">คะแนน RP สัปดาห์นี้</p>
+                            <p className="text-[8px] font-black text-zinc-500">RP สัปดาห์นี้</p>
                             <p className="mt-0.5 text-[10px] font-black">
                                 {data.weekly.ready
-                                    ? `${data.weekly.score}/100`
+                                    ? `คะแนน ${data.weekly.score}/100`
                                     : `กำลังรวบรวมข้อมูล ${data.weekly.knownWeight}/100`}
                             </p>
                         </div>
@@ -97,6 +95,6 @@ export function CashierRewardPointsCard() {
                 <span>ดูของรางวัลและแลก RP {data?.catalogCount ? `(${data.catalogCount})` : ""}</span>
                 <ArrowRight className="h-4 w-4" />
             </Link>
-        </section>{data?.enabled ? <CashierWeeklyScore personal /> : null}</>
+        </section>
     );
 }
