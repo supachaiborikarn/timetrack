@@ -1844,3 +1844,4 @@ Verification:
 - Added `cashier-quality`, `cashier-weekly-report`, tests, and read-only diagnostic `inspect-cashier-history.cjs`. No schema change or production data writes.
 - Production read-only verification on previously authorized Neon host: PAP 5 eligible-work employees, mean74.3, cashier84.6; SPC 5, mean70.3, cashier82.2; WKO 8, mean76.7, cashier86.0. Counts include all employee standing rows with requiredDays>0, not just champion-eligible employees.
 - Validation: focused six files / 15 tests passed; TypeScript, changed-file ESLint, diff check passed. Production build passed with 190 pages. Deployment pending at time of this entry. Unrelated restroom scratch files untouched.
+- Release: code commit `f766ab4` pushed to main; Vercel deployment `dpl_4ydVPKEcyJHaovUkKTELHL1SNfcK` confirmed Ready, target production, alias `https://timetrack-lake.vercel.app`. Authenticated browser rendering was not separately verified in this session.
