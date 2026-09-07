@@ -107,6 +107,11 @@ interface EmployeeLeagueSummary {
     wallet: { balance: number; earnedPoints: number; spentPoints: number };
     featured: { id: string; title: string; description: string | null; imageUrl: string | null; pointsCost: number; stock: number | null } | null;
   };
+  championshipRewards?: {
+    periodKey: string;
+    stationChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+    grandChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+  };
 }
 
 type CustomerEvaluationStatus = "NOT_YET" | "NEAR" | "DONE";
@@ -835,6 +840,13 @@ export function EmployeeDashboardView() {
                 <p className="text-[7px] text-zinc-500">RP</p>
               </div>
             </div>
+
+            {leagueData.championshipRewards ? (
+              <div className="grid gap-1 border-b border-white/10 bg-amber-400/10 px-3 py-2 text-[9px]">
+                <p className="font-black text-amber-300">🏆 Station Champion เดือนนี้: <span className="text-white">{leagueData.championshipRewards.stationChampion.map((reward) => `${reward.label} (฿${reward.valueBaht.toLocaleString("th-TH")})`).join(" / ")}</span></p>
+                <p className="font-black text-violet-300">👑 Grand Champion ระหว่างปั๊ม: <span className="text-white">{leagueData.championshipRewards.grandChampion.map((reward) => `${reward.label} (฿${reward.valueBaht.toLocaleString("th-TH")})`).join(" / ")}</span></p>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-[84px_1fr] gap-3 p-3">
               <div

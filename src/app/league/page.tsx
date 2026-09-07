@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Gift, Medal, RefreshCw, ShieldCheck, Star, Trophy } from "lucide-react";
+import { Crown, Gift, Medal, RefreshCw, ShieldCheck, Star, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
 import { championRewardLabel, PreviousWeeklyResultCard } from "@/components/league/weekly-result";
@@ -61,6 +61,11 @@ interface LeagueData {
         periodKey: string;
         standings: Array<{ employeeLabelSnapshot: string; totalScore: number; finalRank: number | null }>;
     } | null;
+    championshipRewards?: {
+        periodKey: string;
+        stationChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+        grandChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+    };
     rewardPoints?: {
         wallet: {
             earnedPoints: number;
@@ -384,7 +389,36 @@ export default function LeaguePage() {
                         ))}
                     </div>
                     <p className="mt-3 text-[10px] text-zinc-500">Weekly: 🥇 10 CP · 🥈 6 CP · 🥉 4 CP · อันดับ 4–5 = 2 CP</p>
+                    {data.championshipRewards?.stationChampion?.length ? (
+                        <div className="mt-3 border-t border-amber-200 pt-3">
+                            <p className="text-[10px] font-black tracking-[0.12em] text-amber-700">🏆 รางวัล STATION CHAMPION เดือนนี้</p>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                {data.championshipRewards.stationChampion.map((option) => (
+                                    <div key={option.code} className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2">
+                                        <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-amber-700">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
+                                        {option.description ? <p className="mt-1 text-[10px] text-zinc-500">{option.description}</p> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
                 </section>
+
+                {data.championshipRewards?.grandChampion?.length ? (
+                    <section className="rounded-[22px] border-2 border-violet-500 bg-zinc-950 p-4 text-white shadow-lg">
+                        <div className="flex items-center gap-2 text-violet-300"><Crown className="h-5 w-5" /><span className="text-[10px] font-black tracking-[0.16em]">GRAND CHAMPION · ระหว่างปั๊ม</span></div>
+                        <h2 className="mt-2 text-lg font-black">👑 รางวัลใหญ่ประจำเดือน {data.championshipRewards.periodKey}</h2>
+                        <p className="mt-1 text-[10px] text-zinc-400">นำ Station Champion ของแต่ละปั๊มมาเทียบเพื่อหา Grand Champion</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {data.championshipRewards.grandChampion.map((option) => (
+                                <div key={option.code} className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2">
+                                    <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-violet-300">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
+                                    {option.description ? <p className="mt-1 text-[10px] text-zinc-400">{option.description}</p> : null}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
 
                 {data.latestWeekly?.standings?.length && data.latestWeekly.periodKey !== data.previousWeekly?.periodKey ? (
                     <section className="overflow-hidden rounded-[22px] border-2 border-emerald-700 bg-[#f4fff7] text-zinc-950 shadow-[0_4px_0_rgba(5,150,105,.12)]">

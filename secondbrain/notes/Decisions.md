@@ -269,3 +269,13 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Confirmed cashier RP is credited only when the weekly period finalizes, using the shared RP tiers. Existing confirmed RP may be spent in the reward catalog without requiring a personal League standing.
 - Cashiers see both the CNY bonus forecast and an RP wallet/reward card on `AdminHomeView`, with the reward card linking to `/league` for catalog redemption.
 - The four department-scoped gas cashiers remain excluded from this oil-station cashier score/RP flow.
+
+## 2026-09-07: Championship rewards are admin-configurable by month
+
+- ADMIN/HR get a dedicated `/admin/championship` control surface and navigation entry; MANAGER/CASHIER keep League access but cannot change Championship reward policy.
+- Station Champion remains a monthly per-station competition ranked by accumulated Championship Points (CP), with average League score as tie-break context.
+- Grand Champion remains a cross-station comparison of each Station Champion using normalized/average League score; CP is shown as context but is not the cross-station ranking metric.
+- Station Champion and Grand Champion reward choices are stored as month-specific `SystemConfig` JSON overrides, so changing a future/current month does not rewrite a reward already selected in another period.
+- Existing 700 THB Station Champion and 1,500 THB Grand Champion options remain the fallback policy when no admin override exists.
+- Employee `/api/league`, Dashboard League card, and `/league` show the current month's Championship rewards before month-end. Once an award becomes AVAILABLE, reward selection validates against that award period's configured options and stores the selected label/value on `CompetitionAward`.
+- Championship rewards remain independent from weekly champion awards and the spendable Reward Points (RP) catalog.

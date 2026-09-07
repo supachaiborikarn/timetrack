@@ -26,6 +26,7 @@ import {
     ShieldAlert,
     Shuffle,
     Trophy,
+    Crown,
     UserCheck,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -287,6 +288,7 @@ export function AdminHomeView() {
             { label: "Attendance", sub: "ตรวจเวลาวันนี้", href: "/admin/attendance", icon: Clock3 },
             { label: "อนุมัติ", sub: `${stats?.pendingApprovals ?? 0} รายการค้าง`, href: "/admin/approvals", icon: UserCheck },
             { label: "League", sub: "Fair Play & รางวัล", href: "/admin/league", icon: Trophy },
+            ...(session.user.role === "ADMIN" || session.user.role === "HR" ? [{ label: "Championship", sub: "CP & รางวัลระหว่างปั๊ม", href: "/admin/championship", icon: Crown }] : []),
             { label: "เสียงลูกค้า", sub: "เคสและคะแนน", href: "/admin/customer-feedback", icon: MessageSquareHeart },
         ];
 

@@ -7,10 +7,10 @@ import {
     getBangkokMonthBounds,
     getBangkokWeekBounds,
     getMonthlyStationLeaderboard,
-    rewardOptionsForAwardType,
 } from "@/lib/competition/league";
 import { getRewardCatalog, getRewardWalletForUser } from "@/lib/competition/reward-wallet";
 import { getLatestWeeklyResult, getPreviousWeeklyResult } from "@/lib/competition/weekly-results";
+import { getChampionshipRewardOptions } from "@/lib/competition/championship-rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export async function GET() {
     const now = new Date();
     const week = getBangkokWeekBounds(now);
     const month = getBangkokMonthBounds(now);
-    const [weekly, monthly, latestWeekly, awards, latestGrand, rewardWallet, rewardCatalog, previousWeekly] = await Promise.all([
+    const [weekly, monthly, latestWeekly, awards, latestGrand, rewardWallet, rewardCatalog, previousWeekly, stationChampionshipRewards, grandChampionshipRewards] = await Promise.all([
         calculateStationWeeklyLeague({ stationId: user.stationId, from: week.from, to: week.to, referenceTime: now }),
         getMonthlyStationLeaderboard(user.stationId, month.key),
         getLatestWeeklyResult(user.stationId),
@@ -65,6 +65,8 @@ export async function GET() {
         getRewardWalletForUser(user.id),
         getRewardCatalog(week.key),
         getPreviousWeeklyResult(user.stationId, now),
+        getChampionshipRewardOptions("MONTHLY_STATION_CHAMPION", month.key),
+        getChampionshipRewardOptions("GRAND_CHAMPION", month.key),
     ]);
 
     const publicWeeklyStandings = weekly.standings.map((standing) => ({
@@ -84,6 +86,17 @@ export async function GET() {
     }));
     const me = publicWeeklyStandings.find((standing) => standing.isMe) ?? null;
     const publicMonthlyStandings = monthly.map(({ userId, ...standing }) => ({ ...standing, isMe: userId === user.id }));
+    const publicAwards = await Promise.all(awards.map(async (award) => ({
+        id: award.id,
+        awardType: award.awardType,
+        title: award.title,
+        status: award.status,
+        rewardCode: award.rewardCode,
+        rewardLabel: award.rewardLabel,
+        rewardValueBaht: award.rewardValueBaht,
+        period: award.period,
+        options: await getChampionshipRewardOptions(award.awardType, award.period.periodKey),
+    })));
     const response = NextResponse.json({
         eligible: true,
         profile: isEligibleFuelCashier ? "FUEL_CASHIER" : "FRONT_YARD",
@@ -102,6 +115,11 @@ export async function GET() {
             me: publicMonthlyStandings.find((standing) => standing.isMe) ?? null,
         },
         latestWeekly,
+        championshipRewards: {
+            periodKey: month.key,
+            stationChampion: stationChampionshipRewards,
+            grandChampion: grandChampionshipRewards,
+        },
         latestGrand: latestGrand ? {
             periodKey: latestGrand.periodKey,
             standings: latestGrand.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
@@ -113,17 +131,7 @@ export async function GET() {
             canRedeem: isEligibleFuelCashier || Boolean(me?.isRewardEligible),
             canRedeemReason: isEligibleFuelCashier ? "FUEL_CASHIER_WALLET" : me?.rewardEligibilityReason ?? "NO_REQUIRED_WORK_DAYS",
         },
-        awards: awards.map((award) => ({
-            id: award.id,
-            awardType: award.awardType,
-            title: award.title,
-            status: award.status,
-            rewardCode: award.rewardCode,
-            rewardLabel: award.rewardLabel,
-            rewardValueBaht: award.rewardValueBaht,
-            period: award.period,
-            options: rewardOptionsForAwardType(award.awardType),
-        })),
+        awards: publicAwards,
     });
     response.headers.set("Cache-Control", "private, no-store");
     return response;

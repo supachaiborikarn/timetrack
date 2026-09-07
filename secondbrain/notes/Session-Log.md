@@ -1810,3 +1810,29 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Production build passed for all 188 routes with `NODE_ENV=production`. A first build inherited a non-standard NODE_ENV and failed while prerendering `/apply/status`; rerunning with the supported production environment completed successfully.
 - No Prisma schema migration or production data mutation was required. Unrelated restroom scratch files were left untracked.
+
+## 2026-09-07 — Added dedicated Championship admin control + visible monthly rewards
+
+Problem found:
+
+- Championship Points and monthly/Grand award models already existed, but admin operations were buried under League & Rewards and ADMIN/HR had no dedicated place to configure Championship rewards.
+- Station Champion and Grand Champion choices were hard-coded (700 / 1,500 THB policy), so employees could not see an admin-announced month-specific prize before month-end.
+
+Implemented:
+
+- Added ADMIN/HR-only `/admin/championship` plus sidebar and admin-dashboard/menu entries. MANAGER/CASHIER do not receive the management entry.
+- Added `/api/admin/championship` to load monthly CP standings for all active front-yard stations, show a Grand Champion preview, inspect Championship award statuses, and save month-specific Station Champion / Grand Champion reward choices.
+- Added `src/lib/competition/championship-rewards.ts`; overrides are stored in existing `SystemConfig` keys per month and award type, with 1-3 reward choices and no Prisma migration. Existing hard-coded monthly/grand options remain fallback when no override exists.
+- Kept ranking rules unchanged: Station Champion is ranked by accumulated CP; Grand Champion compares each Station Champion using normalized/average League score.
+- Extended employee `/api/league` with the current month's Station Champion and Grand Champion reward choices. Dashboard shows both rewards directly under League/CP/RP, and `/league` shows full reward descriptions.
+- Existing AVAILABLE monthly/grand awards now validate employee selection against the configuration for that award's own period. Selected awards keep the recorded reward label/value even if a later month's configuration changes. Weekly champion rewards and RP catalog/redemption remain independent.
+- Updated weekly reward regression mock for the award-period relation and added coverage proving an admin-configured monthly Championship reward is selectable.
+
+Verification:
+
+- Focused Championship/League suite: 5 files / 31 tests passed.
+- `npx tsc --noEmit`: passed.
+- Changed-file ESLint: passed.
+- `git diff --check`: passed.
+- Production build with `NODE_ENV=production`: passed; 189 pages generated including `/admin/championship` and `/api/admin/championship`.
+- No Prisma schema migration and no production data mutation. Existing unrelated restroom scratch files remain untracked.

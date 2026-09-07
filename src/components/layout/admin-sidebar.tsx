@@ -48,6 +48,7 @@ import {
     BedDouble,
     MessageSquareHeart,
     Trophy,
+    Crown,
 } from "lucide-react";
 
 interface NavItem extends AdminAccessItem {
@@ -158,6 +159,7 @@ const navItems: NavItem[] = [
     },
     { title: "Performance", href: "/admin/performance", icon: TrendingUp, roles: ["ADMIN", "HR", "MANAGER"] },
     { title: "League & Rewards", href: "/admin/league", icon: Trophy, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
+    { title: "Championship", href: "/admin/championship", icon: Crown, roles: ["ADMIN", "HR"] },
     {
         title: "เสียงลูกค้า",
         href: "/admin/customer-feedback",

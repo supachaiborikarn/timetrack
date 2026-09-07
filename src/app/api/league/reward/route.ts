@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { rewardOptionsForAwardType } from "@/lib/competition/league";
+import { getChampionshipRewardOptions } from "@/lib/competition/championship-rewards";
 
 export async function POST(request: NextRequest) {
     const session = await auth();
@@ -14,13 +14,15 @@ export async function POST(request: NextRequest) {
 
     const award = await prisma.competitionAward.findFirst({
         where: { id: body.awardId, userId: session.user.id },
+        include: { period: { select: { periodKey: true } } },
     });
     if (!award) return NextResponse.json({ error: "Award not found" }, { status: 404 });
     if (award.status !== "AVAILABLE") {
         return NextResponse.json({ error: "Reward has already been selected" }, { status: 409 });
     }
 
-    const option = rewardOptionsForAwardType(award.awardType).find((item) => item.code === body.rewardCode);
+    const options = await getChampionshipRewardOptions(award.awardType, award.period?.periodKey ?? "");
+    const option = options.find((item) => item.code === body.rewardCode);
     if (!option) return NextResponse.json({ error: "Invalid reward option" }, { status: 400 });
 
     const selectedAt = new Date();
