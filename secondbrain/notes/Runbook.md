@@ -100,3 +100,9 @@ For `EMPLOYEE` QR rows, recording public-profile acknowledgement immediately act
 5. `/admin/league` → รอตรวจ Fair Play: approve/disqualify only rows actually awaiting review; unflagged rounds finalize automatically.
 6. Champion selects their award on `/league` → รางวัลของคุณ; admin physically delivers it, then uses `/admin/league` → รางวัลแชมป์ที่พนักงานเลือกแล้ว → มอบแล้ว. Never mark delivered during a smoke test.
 7. Champion text shows รอเลือกรางวัล / เลือกแล้ว…รอมอบ / ได้รับแล้ว according to recorded award status.
+
+
+## Weekly champion: 300 baht cash option
+- Employee: open `/league` → รางวัลของคุณ → เงินสด 300 บาท; selecting creates SELECTED / รอมอบ and spends no RP.
+- Admin: open `/admin/league` → รางวัลแชมป์ที่พนักงานเลือกแล้ว; pay the 300 baht, then click มอบแล้ว to record delivery.
+- Weekly champions whose award is still AVAILABLE, including the previous week's winners, can select cash immediately after deployment; no data migration is needed.

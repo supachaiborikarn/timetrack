@@ -18,6 +18,7 @@ export const LEAGUE_WEIGHTS = {
 } as const;
 
 export const WEEKLY_REWARD_OPTIONS = [
+    { code: "CASH_300", label: "เงินสด 300 บาท", description: "รับเงินสด 300 บาทเป็นรางวัลแชมป์ประจำสัปดาห์ โดยไม่หัก RP", valueBaht: 300 },
     { code: "CHAMPION_MEAL", label: "Champion Meal", description: "เลือกชุดอาหารพิเศษมูลค่าไม่เกิน 300 บาท", valueBaht: 300 },
     { code: "MYSTERY_REWARD", label: "Mystery Reward", description: "ของรางวัลพิเศษประจำสัปดาห์ มูลค่าประมาณ 300 บาท", valueBaht: 300 },
 ] as const;

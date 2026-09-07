@@ -244,3 +244,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Reuse frozen standings once finalized or pending review; never mutate competition/reward state from a GET request.
 - Keep the latest actual rank-1 champion until replaced by another champion, including weeks with no eligible winner; label its period explicitly.
 - Append the winner's recorded reward/status to their name. Only FULFILLED means received; SELECTED means waiting for delivery; AVAILABLE means awaiting selection.
+
+
+## 2026-09-07: Weekly champion may choose 300 baht cash
+- Added `CASH_300` (เงินสด 300 บาท, value 300 THB) to the weekly champion reward options, with no RP deduction.
+- This is an employee choice from an existing AVAILABLE weekly champion award; it does not automatically select or deliver a reward.
+- The employee chooses on `/league` → รางวัลของคุณ; admin pays in real life and records มอบแล้ว under รางวัลแชมป์ที่พนักงานเลือกแล้ว on `/admin/league`.
+- Existing AVAILABLE weekly awards receive the new option through the shared option list without backfill; selected rewards retain their recorded selection.
+- The cash item priced at 300 RP remains an independent catalog redemption path.

@@ -1754,3 +1754,19 @@ Release validation (same session):
 - Browser verification on production `/admin/league`: all three stations show prior-week scores and their correct champion plus รอเลือกรางวัล (PAP 99.75, WKO 97.00, SPC 90.92); screenshot checked in dark mode and original SPC selection restored.
 - Employee endpoint/privacy and shared Dashboard/result components verified by regression tests; no live employee login or reward mutation was performed.
 - Existing unrelated `scripts/.tmp-restroom-flow.patch` and `scripts/.tmp-restroom-preview.ts` were left unchanged and excluded from commit.
+
+
+## 2026-09-07 — Add 300 baht cash to weekly champion choices
+
+Request and change:
+- User explicitly requested adding cash after clarification that it belongs to the weekly champion award choices and does not spend RP.
+- Added `CASH_300` / เงินสด 300 บาท / 300 THB to `WEEKLY_REWARD_OPTIONS` in `src/lib/competition/league.ts` with a plain Thai description stating no RP deduction.
+- Existing `/api/league` option loading and `/api/league/reward` validation share this list, so the employee gets the new choice and the server accepts it for AVAILABLE weekly champion awards, including existing awards.
+- Existing admin delivery flow and champion reward-status display consume the stored label/value automatically.
+- No database/schema edits, changes to the 300 RP catalog, automatic award selection, or cash delivery were performed.
+
+Verification:
+- Added selection API tests covering cash selection/no RP or standing mutation, weekly-only availability, prevention of replacing an existing choice, and award ownership.
+- Final check and deployment results recorded below after completion.
+- Targeted tests: 4 files / 22 tests passed; TypeScript, changed-file ESLint and `git diff --check` passed.
+- `NODE_ENV=production npm run build` passed with 188/188 pages; production build used the previously authorized network access for required fonts.
