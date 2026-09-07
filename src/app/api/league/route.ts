@@ -9,6 +9,7 @@ import {
     rewardOptionsForAwardType,
 } from "@/lib/competition/league";
 import { getRewardCatalog, getRewardWalletForUser } from "@/lib/competition/reward-wallet";
+import { getLatestWeeklyResult, getPreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
 export const dynamic = "force-dynamic";
 
@@ -32,21 +33,10 @@ export async function GET() {
     const now = new Date();
     const week = getBangkokWeekBounds(now);
     const month = getBangkokMonthBounds(now);
-    const [weekly, monthly, latestWeekly, awards, latestGrand, rewardWallet, rewardCatalog] = await Promise.all([
+    const [weekly, monthly, latestWeekly, awards, latestGrand, rewardWallet, rewardCatalog, previousWeekly] = await Promise.all([
         calculateStationWeeklyLeague({ stationId: user.stationId, from: week.from, to: week.to, referenceTime: now }),
         getMonthlyStationLeaderboard(user.stationId, month.key),
-        prisma.competitionPeriod.findFirst({
-            where: { type: "WEEKLY_STATION", stationId: user.stationId, status: "FINALIZED" },
-            include: {
-                standings: {
-                    where: { finalRank: { not: null } },
-                    orderBy: { finalRank: "asc" },
-                    take: 8,
-                    select: { employeeLabelSnapshot: true, totalScore: true, finalRank: true },
-                },
-            },
-            orderBy: { endDate: "desc" },
-        }),
+        getLatestWeeklyResult(user.stationId),
         prisma.competitionAward.findMany({
             where: { userId: user.id, status: { in: ["AVAILABLE", "SELECTED"] } },
             include: { period: { select: { type: true, periodKey: true, startDate: true, endDate: true } } },
@@ -67,6 +57,7 @@ export async function GET() {
         }),
         getRewardWalletForUser(user.id),
         getRewardCatalog(week.key),
+        getPreviousWeeklyResult(user.stationId, now),
     ]);
 
     const publicWeeklyStandings = weekly.standings.map((standing) => ({
@@ -89,6 +80,7 @@ export async function GET() {
     const response = NextResponse.json({
         eligible: true,
         station: weekly.station,
+        previousWeekly,
         weekly: {
             periodKey: week.key,
             from: week.from.toISOString(),
@@ -101,11 +93,7 @@ export async function GET() {
             standings: publicMonthlyStandings,
             me: publicMonthlyStandings.find((standing) => standing.isMe) ?? null,
         },
-        latestWeekly: latestWeekly ? {
-            periodKey: latestWeekly.periodKey,
-            finalizedAt: latestWeekly.finalizedAt?.toISOString() ?? null,
-            standings: latestWeekly.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
-        } : null,
+        latestWeekly,
         latestGrand: latestGrand ? {
             periodKey: latestGrand.periodKey,
             standings: latestGrand.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),

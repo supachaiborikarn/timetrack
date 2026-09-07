@@ -90,3 +90,13 @@ For `EMPLOYEE` QR rows, recording public-profile acknowledgement immediately act
 - Keep `employee-v1` registered and accepted for already-open visits. Never coerce an old visit/token to v2 during submit or idempotent resolve reuse.
 - STATION remains `station-v1`; incident remains `incident-v1`.
 - Adding/changing a published behavior meaning requires a new survey version rather than silently reusing a published key.
+
+
+## League result missing after Monday rollover
+1. Obtain the production DB confirmation required by AGENTS.md, then run `node scripts/inspect-league-week.cjs YYYY-MM-DD` using that week's Bangkok Monday.
+2. The script prints host, period/standings/source-feedback/reward summaries and uses BEGIN READ ONLY; it never finalizes periods or awards points.
+3. DateTime values are UTC in PostgreSQL timestamp-without-time-zone columns; parse as UTC before translating to Bangkok time.
+4. Check actual finalizedAt against the displayed 07:30 schedule. A missing result before finalization is not evidence that feedback was deleted.
+5. `/admin/league` → รอตรวจ Fair Play: approve/disqualify only rows actually awaiting review; unflagged rounds finalize automatically.
+6. Champion selects their award on `/league` → รางวัลของคุณ; admin physically delivers it, then uses `/admin/league` → รางวัลแชมป์ที่พนักงานเลือกแล้ว → มอบแล้ว. Never mark delivered during a smoke test.
+7. Champion text shows รอเลือกรางวัล / เลือกแล้ว…รอมอบ / ได้รับแล้ว according to recorded award status.

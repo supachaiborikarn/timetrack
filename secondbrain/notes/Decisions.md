@@ -236,3 +236,11 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Reuse `latestWeekly` from `/api/league`; do not add another persistence model or manual announcement state.
 - Place the champion as a compact amber strip inside the existing League card, directly below the League header and above the score summary so it is noticeable without competing with attendance or daily mission actions.
 - Show only the rank-1 employee name plus the finalized period key on the Dashboard; detailed official standings remain on `/league`.
+
+
+## 2026-09-07: Preserve closed-week visibility independently of finalization
+- Current live scores switch to the new Bangkok week at Monday 00:00; the previous week's scores must remain visible before the scheduled announcement completes.
+- Pending/OPEN/missing snapshots must never be announced as an official champion; show waiting or review status with closed-week scores.
+- Reuse frozen standings once finalized or pending review; never mutate competition/reward state from a GET request.
+- Keep the latest actual rank-1 champion until replaced by another champion, including weeks with no eligible winner; label its period explicitly.
+- Append the winner's recorded reward/status to their name. Only FULFILLED means received; SELECTED means waiting for delivery; AVAILABLE means awaiting selection.

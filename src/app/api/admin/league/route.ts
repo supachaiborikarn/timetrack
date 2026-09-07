@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateStationWeeklyLeague, finalizeCompetitionPeriodRanking, getBangkokWeekBounds } from "@/lib/competition/league";
 import { getFeedbackAccessContext, getStationScope } from "@/lib/customer-feedback/access";
+import { getLatestWeeklyResult, getPreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
 async function requireLeagueAdmin() {
     const access = await getFeedbackAccessContext();
@@ -56,19 +57,8 @@ export async function GET(request: NextRequest) {
 
     const admin = { userId: viewer.userId, stationId: viewer.stationId, role: viewer.role };
 
-    const [latestWeekly, pendingPeriods, selectedAwards] = await Promise.all([
-        selectedStation ? prisma.competitionPeriod.findFirst({
-            where: { type: "WEEKLY_STATION", stationId: selectedStation.id, status: "FINALIZED" },
-            include: {
-                standings: {
-                    where: { finalRank: { not: null } },
-                    orderBy: { finalRank: "asc" },
-                    take: 8,
-                    select: { employeeLabelSnapshot: true, totalScore: true, finalRank: true },
-                },
-            },
-            orderBy: { endDate: "desc" },
-        }) : Promise.resolve(null),
+    const [latestWeekly, pendingPeriods, selectedAwards, previousWeekly] = await Promise.all([
+        selectedStation ? getLatestWeeklyResult(selectedStation.id) : Promise.resolve(null),
         prisma.competitionPeriod.findMany({
             where: { status: "PENDING_REVIEW", ...(admin.stationId ? { stationId: admin.stationId } : {}) },
             include: {
@@ -91,6 +81,7 @@ export async function GET(request: NextRequest) {
             orderBy: { selectedAt: "asc" },
             take: 50,
         }),
+        selectedStation ? getPreviousWeeklyResult(selectedStation.id, now) : Promise.resolve(null),
     ]);
 
     return NextResponse.json({
@@ -98,12 +89,8 @@ export async function GET(request: NextRequest) {
         selectedStationId: selectedStation?.id ?? null,
         canSelectStation: viewer.canSelectStation,
         canManageFairPlay: viewer.canManageFairPlay,
-        latestWeekly: latestWeekly ? {
-            periodKey: latestWeekly.periodKey,
-            finalizedAt: latestWeekly.finalizedAt?.toISOString() ?? null,
-            station: selectedStation,
-            standings: latestWeekly.standings.map((standing) => ({ ...standing, totalScore: Number(standing.totalScore) })),
-        } : null,
+        previousWeekly,
+        latestWeekly: latestWeekly ? { ...latestWeekly, station: selectedStation } : null,
         liveLeague: liveLeague ? {
             periodKey: week.key,
             station: liveLeague.station,

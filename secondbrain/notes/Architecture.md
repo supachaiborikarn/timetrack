@@ -123,3 +123,10 @@ Read/write paths:
 - Employee Dashboard is a compact summary; `/league` is the detailed wallet/catalog/redemption view; `/admin/league` is the operations surface.
 
 Champion awards (`CompetitionAward` and `/api/league/reward`) remain independent. RP redemption must not mutate CP or replace the champion-award workflow.
+
+
+## 2026-09-07: Weekly result read model
+- `competition/weekly-results.ts` serves both `/api/league` and `/api/admin/league` after each endpoint resolves station scope.
+- `previousWeekly` identifies the exact closed Bangkok week, all standings, finalization state and champion reward; `latestWeekly` identifies the latest finalized period with an actual winner.
+- For absent/OPEN periods, read-only calculation uses week-end reference time and strips official ranks. FINALIZED/PENDING_REVIEW use frozen rows.
+- `components/league/weekly-result.tsx` renders the shared prior-week card and compact Dashboard champion banner, including truthful reward selection/delivery status.

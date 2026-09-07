@@ -1709,3 +1709,38 @@ Files changed:
 - `src/components/dashboard/views/EmployeeDashboardView.tsx`
 - `secondbrain/notes/Decisions.md`
 - `secondbrain/notes/Session-Log.md`
+
+
+## 2026-09-07 — Preserve closed-week scores before announcement; show champion reward status
+
+Problem and evidence:
+- User reported that after `1c913fd` the previous week's scores/champion disappeared Monday morning in admin and employee views.
+- Deterministic Monday API repro: current-week score resets, no finalized period exists, and neither API returns the closed week's scores (2 regression tests failed before the fix).
+- Ranked hypotheses: missing/delayed finalization; Fair Play pending; outdated deployment; deleted source data.
+- Authorized read-only production inspection on `ep-delicate-sound-a1mi5n1t-pooler.ap-southeast-1.aws.neon.tech` found all source feedback and 20 frozen standings intact; all three periods finalized at **2026-09-07 07:52:26 Asia/Bangkok**, later than the displayed 07:30 schedule, with zero pending reviews.
+- Corrected the diagnostic PostgreSQL timestamp parser to interpret Prisma DateTime columns as UTC; the first diagnostic rendering was seven hours early, and was not used as the finalization-time conclusion.
+- Existing live admin page already displayed official results after finalization, ruling out a persistent deployment/UI absence. The confirmed failure is the display gap from Monday rollover until actual finalization.
+- Weekly champions: PAP นิด 99.75, SPC ต้อย 90.92, WKO กราฟ 97.00. Their awards were all AVAILABLE (unselected), so none may be labelled received.
+- Vercel documents that scheduled invocation timing is not assured: https://vercel.com/docs/cron-jobs/usage-and-pricing . The exact scheduler delay cause was not independently established; attempted CLI path filter returned unrelated requests.
+
+Changes:
+- Shared `src/lib/competition/weekly-results.ts` returns the exact previous Bangkok week plus latest finalized period containing a rank-1 winner.
+- Frozen FINALIZED/PENDING_REVIEW standings are reused; missing/OPEN periods use a read-only complete calculation at the closed week's end, with no official ranks or premature champion.
+- Both League APIs expose `previousWeekly`; station authorization remains enforced before reads. Public results exclude user IDs and private review reasons.
+- Shared result card appears above live standings for employee/admin pages; includes all closed-week scores and explicit waiting/review/no-qualified-champion states.
+- Dashboard keeps the last actual champion visible and explains the next result's pending state; removes first-row fallback when no finalRank=1 exists.
+- User additionally requested reward text after the winner's name: joins only that winner's weekly award and shows AVAILABLE=รอเลือกรางวัล, SELECTED=เลือกแล้ว/รอมอบ, FULFILLED=ได้รับแล้ว, CANCELLED=รางวัลถูกยกเลิก across Dashboard and both League pages.
+- Added read-only `scripts/inspect-league-week.cjs` with explicit host output, read-only transaction, bounded queries, UTC DateTime parsing, and reward status inspection.
+- No schema changes, source-data edits, manual finalization, reward selection, review approval, or fulfillment were performed.
+
+Verification:
+- Initial rollover repro: 2 failed / 2 existing tests passed; both failing cases passed after adding previous-week results.
+- Full suite before reward extension: 87 files / 543 tests passed.
+- Final focused suite including reward states: 6 files / 41 tests passed; TypeScript and changed-file ESLint passed.
+- Initial build could not fetch Google Fonts inside network sandbox; authorized rerun with network access passed (188 pages).
+- Final full suite / deployment verification recorded below when complete.
+
+Limits and follow-up:
+- Until a snapshot is saved, the previous week's displayed scores remain a labelled calculation from retained source data, and do not grant rewards.
+- Announcement still uses the existing weekly scheduler; pending status prevents scores disappearing while it runs.
+- Admin needs Fair Play approval only for flagged rows; winner chooses at `/league`, and admin records actual delivery with มอบแล้ว in `/admin/league`.

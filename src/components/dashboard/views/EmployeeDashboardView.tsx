@@ -5,6 +5,8 @@ import { useSession, signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { WeeklyChampionBanner } from "@/components/league/weekly-result";
+import type { ChampionReward, PreviousWeeklyResult } from "@/lib/competition/weekly-results";
 import {
   format,
   subMonths,
@@ -82,6 +84,7 @@ type RewardEligibilityReason =
   | "FAIR_PLAY_REVIEW";
 
 interface EmployeeLeagueSummary {
+  previousWeekly?: PreviousWeeklyResult | null;
   eligible: boolean;
   weekly?: {
     me: {
@@ -95,6 +98,7 @@ interface EmployeeLeagueSummary {
   };
   monthly?: { me: { championshipPoints: number } | null };
   latestWeekly?: {
+    championReward?: ChampionReward | null;
     periodKey: string;
     finalizedAt: string | null;
     standings: Array<{ employeeLabelSnapshot: string; totalScore: number; finalRank: number | null }>;
@@ -550,9 +554,6 @@ export function EmployeeDashboardView() {
   const myChampionshipPoints = leagueData?.monthly?.me?.championshipPoints ?? 0;
   const rewardWallet = leagueData?.rewardPoints?.wallet ?? null;
   const featuredReward = leagueData?.rewardPoints?.featured ?? null;
-  const latestWeeklyWinner = leagueData?.latestWeekly?.standings.find((standing) => standing.finalRank === 1)
-    ?? leagueData?.latestWeekly?.standings[0]
-    ?? null;
   const rewardEligibilityText = !myLeague
     ? "กำลังรอข้อมูล League"
     : myLeague.rewardEligibilityReason === "ELIGIBLE"
@@ -815,20 +816,7 @@ export function EmployeeDashboardView() {
               <ChevronRight className="h-5 w-5 shrink-0 text-amber-300" />
             </div>
 
-            {latestWeeklyWinner && (
-              <div className="flex items-center gap-2.5 border-b border-amber-300/20 bg-amber-400/10 px-3.5 py-2">
-                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-amber-300/50 bg-amber-300/15 text-amber-300">
-                  <Trophy className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[7px] font-black tracking-[0.14em] text-amber-300/80">แชมป์ประจำปั๊ม · สัปดาห์ล่าสุด</p>
-                  <p className="mt-0.5 truncate text-[12px] font-black text-amber-100">{latestWeeklyWinner.employeeLabelSnapshot}</p>
-                </div>
-                <span className="shrink-0 rounded-full border border-amber-300/25 px-2 py-1 font-mono text-[7px] font-black text-amber-200/80">
-                  {leagueData.latestWeekly?.periodKey}
-                </span>
-              </div>
-            )}
+            <WeeklyChampionBanner latest={leagueData.latestWeekly} previous={leagueData.previousWeekly} />
 
             <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
               <div className="px-2 py-2.5 text-center">

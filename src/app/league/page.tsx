@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Gift, Medal, RefreshCw, ShieldCheck, Star, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { EmployeePageHeader } from "@/components/layout/EmployeePageHeader";
+import { championRewardLabel, PreviousWeeklyResultCard } from "@/components/league/weekly-result";
+import type { ChampionReward, PreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
 interface WeeklyStanding {
     label: string;
@@ -33,6 +35,7 @@ interface RewardCatalogItem {
 }
 
 interface LeagueData {
+    previousWeekly?: PreviousWeeklyResult | null;
     eligible: boolean;
     station?: { id: string; code: string; name: string };
     weekly?: {
@@ -48,6 +51,7 @@ interface LeagueData {
         me: { label: string; championshipPoints: number; averageScore: number; weeks: number; rank: number; isMe: boolean } | null;
     };
     latestWeekly?: {
+        championReward?: ChampionReward | null;
         periodKey: string;
         finalizedAt: string | null;
         standings: Array<{ employeeLabelSnapshot: string; totalScore: number; finalRank: number | null }>;
@@ -216,6 +220,7 @@ export default function LeaguePage() {
             />
 
             <div className="mx-auto max-w-[480px] space-y-4 p-4">
+                {data.previousWeekly ? <PreviousWeeklyResultCard result={data.previousWeekly} /> : null}
                 <section className="overflow-hidden rounded-[24px] border-2 border-zinc-800 bg-[#fffaf0] text-zinc-950 shadow-[0_5px_0_rgba(24,24,27,.12)]">
                     <div className="flex items-center justify-between bg-zinc-950 px-4 py-3 text-white">
                         <div>
@@ -372,7 +377,7 @@ export default function LeaguePage() {
                     <p className="mt-3 text-[10px] text-zinc-500">Weekly: 🥇 10 CP · 🥈 6 CP · 🥉 4 CP · อันดับ 4–5 = 2 CP</p>
                 </section>
 
-                {data.latestWeekly?.standings?.length ? (
+                {data.latestWeekly?.standings?.length && data.latestWeekly.periodKey !== data.previousWeekly?.periodKey ? (
                     <section className="overflow-hidden rounded-[22px] border-2 border-emerald-700 bg-[#f4fff7] text-zinc-950 shadow-[0_4px_0_rgba(5,150,105,.12)]">
                         <div className="flex items-center justify-between gap-3 bg-emerald-800 px-4 py-3 text-white">
                             <div>
@@ -386,7 +391,7 @@ export default function LeaguePage() {
                             {data.latestWeekly.standings.map((standing) => (
                                 <div key={`${standing.finalRank}:${standing.employeeLabelSnapshot}`} className="grid grid-cols-[44px_1fr_auto] items-center gap-2 px-4 py-3">
                                     <span className="text-center text-lg font-black">{standing.finalRank ? rankIcon(standing.finalRank) : "-"}</span>
-                                    <span className="truncate font-black">{standing.employeeLabelSnapshot}</span>
+                                    <span className="break-words font-black">{standing.employeeLabelSnapshot}{standing.finalRank === 1 ? <span className="ml-2 text-xs font-semibold text-emerald-800">· {championRewardLabel(data.latestWeekly?.championReward)}</span> : null}</span>
                                     <span className="font-black tabular-nums">{standing.totalScore.toFixed(1)}</span>
                                 </div>
                             ))}

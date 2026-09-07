@@ -3,14 +3,18 @@
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Gift, ImagePlus, Loader2, RefreshCw, ShieldAlert, Sparkles, Trophy, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { championRewardLabel, PreviousWeeklyResultCard } from "@/components/league/weekly-result";
+import type { ChampionReward, PreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
 interface AdminLeagueData {
+    previousWeekly: PreviousWeeklyResult | null;
     canManageRewards: boolean;
     canManageFairPlay: boolean;
     canSelectStation: boolean;
     selectedStationId: string | null;
     stations: Array<{ id: string; code: string; name: string }>;
     latestWeekly: {
+        championReward?: ChampionReward | null;
         periodKey: string;
         finalizedAt: string | null;
         station: { id: string; code: string; name: string } | null;
@@ -278,7 +282,7 @@ export default function AdminLeaguePage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" /><h2 className="text-lg font-black">อันดับการแข่งขันแต่ละปั๊ม</h2></div>
-                        <p className="mt-1 text-xs text-muted-foreground">อันดับสดสัปดาห์ปัจจุบันอาจเปลี่ยนได้จนกว่าจะปิดรอบ · ผลอย่างเป็นทางการประกาศทุกวันจันทร์ 07:30 น.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">อันดับสดสัปดาห์ปัจจุบันอาจเปลี่ยนได้จนกว่าจะปิดรอบ · กำหนดประกาศผลวันจันทร์ 07:30 น. อาจใช้เวลาประมวลผลเพิ่มเติม</p>
                     </div>
                     {data?.canSelectStation && data.stations.length > 0 ? (
                         <label className="grid gap-1 text-xs font-bold sm:min-w-[260px]">
@@ -296,7 +300,9 @@ export default function AdminLeaguePage() {
                     ) : null}
                 </div>
 
-                {data?.latestWeekly?.standings?.length ? (
+                {data?.previousWeekly ? <PreviousWeeklyResultCard result={data.previousWeekly} /> : null}
+
+                {data?.latestWeekly?.standings?.length && data.latestWeekly.periodKey !== data.previousWeekly?.periodKey ? (
                     <div className="overflow-hidden rounded-xl border-2 border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/20">
                         <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-800 px-4 py-3 text-white">
                             <div>
@@ -310,7 +316,7 @@ export default function AdminLeaguePage() {
                             {data.latestWeekly.standings.map((standing) => (
                                 <div key={`${standing.finalRank}:${standing.employeeLabelSnapshot}`} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
                                     <div className="text-center font-black">{standing.finalRank === 1 ? "🥇" : standing.finalRank === 2 ? "🥈" : standing.finalRank === 3 ? "🥉" : standing.finalRank ? `#${standing.finalRank}` : "-"}</div>
-                                    <p className="truncate font-black">{standing.employeeLabelSnapshot}</p>
+                                    <p className="break-words font-black">{standing.employeeLabelSnapshot}{standing.finalRank === 1 ? <span className="ml-2 text-xs font-semibold text-emerald-700">· {championRewardLabel(data.latestWeekly?.championReward)}</span> : null}</p>
                                     <p className="font-black tabular-nums">{standing.totalScore.toFixed(1)}</p>
                                 </div>
                             ))}
