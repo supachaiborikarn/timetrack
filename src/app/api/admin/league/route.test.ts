@@ -9,6 +9,8 @@ const {
     periodFindUniqueMock,
     awardFindManyMock,
     calculateLeagueMock,
+    earningsMock,
+    spendingMock,
 } = vi.hoisted(() => ({
     accessMock: vi.fn(),
     stationFindManyMock: vi.fn(),
@@ -17,6 +19,8 @@ const {
     periodFindUniqueMock: vi.fn(),
     awardFindManyMock: vi.fn(),
     calculateLeagueMock: vi.fn(),
+    earningsMock: vi.fn(),
+    spendingMock: vi.fn(),
 }));
 
 vi.mock("@/lib/customer-feedback/access", () => ({
@@ -44,6 +48,8 @@ vi.mock("@/lib/prisma", () => ({
         station: { findMany: stationFindManyMock },
         competitionPeriod: { findMany: periodFindManyMock, findFirst: periodFindFirstMock, findUnique: periodFindUniqueMock },
         competitionAward: { findMany: awardFindManyMock },
+        competitionStanding: { groupBy: earningsMock },
+        rewardRedemption: { groupBy: spendingMock },
     },
 }));
 
@@ -93,6 +99,8 @@ describe("admin league ranking access", () => {
         periodFindUniqueMock.mockResolvedValue(null);
         awardFindManyMock.mockResolvedValue([]);
         calculateLeagueMock.mockResolvedValue(leagueFor());
+        earningsMock.mockResolvedValue([]);
+        spendingMock.mockResolvedValue([]);
     });
 
     it("lets ADMIN select another station leaderboard", async () => {
@@ -107,6 +115,7 @@ describe("admin league ranking access", () => {
         expect(body.canSelectStation).toBe(true);
         expect(body.selectedStationId).toBe("station-other");
         expect(body.liveLeague.station.code).toBe("PAP");
+        expect(body.employeeRewardPoints).toEqual([{ employeeId: "EMP001", label: "หนึ่ง", earnedPoints: 0, spentPoints: 0, balance: 0 }]);
         expect(calculateLeagueMock).toHaveBeenCalledWith(expect.objectContaining({ stationId: "station-other" }));
     });
 
@@ -125,6 +134,8 @@ describe("admin league ranking access", () => {
         expect(body.selectedStationId).toBe("station-own");
         expect(body.pendingPeriods).toEqual([]);
         expect(body.selectedAwards).toEqual([]);
+        expect(body.employeeRewardPoints).toEqual([]);
+        expect(earningsMock).not.toHaveBeenCalled();
         expect(stationFindManyMock).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({ id: "station-own" }),
         }));
@@ -150,6 +161,30 @@ describe("admin league ranking access", () => {
             standings: [{ employeeLabelSnapshot: "หนึ่ง", totalScore: 88.5, finalRank: null }],
         });
         expect(body.latestWeekly).toBeNull();
+    });
+
+    it("shows confirmed lifetime RP and reserved spending for only the selected station's employees", async () => {
+        accessMock.mockResolvedValue({ ok: true, ctx: { userId: "admin-1", role: "ADMIN", stationId: null } });
+        stationFindManyMock.mockResolvedValue([ownStation]);
+        earningsMock.mockResolvedValue([{ userId: "employee-1", _sum: { rewardPoints: 90 } }]);
+        spendingMock.mockResolvedValue([{ userId: "employee-1", _sum: { pointsCost: 20 } }]);
+        const body = await (await GET(new NextRequest("http://localhost/api/admin/league"))).json();
+        expect(body.employeeRewardPoints).toEqual([{ employeeId: "EMP001", label: "หนึ่ง", earnedPoints: 90, spentPoints: 20, balance: 70 }]);
+        expect(earningsMock).toHaveBeenCalledWith({
+            by: ["userId"], where: { userId: { in: ["employee-1"] }, rewardPoints: { gt: 0 }, period: { type: "WEEKLY_STATION", status: "FINALIZED" } }, _sum: { rewardPoints: true },
+        });
+        expect(spendingMock).toHaveBeenCalledWith({
+            by: ["userId"], where: { userId: { in: ["employee-1"] }, status: { in: ["PENDING", "FULFILLED"] } }, _sum: { pointsCost: true },
+        });
+    });
+
+    it("returns no wallets and performs no totals queries for an empty station list", async () => {
+        accessMock.mockResolvedValue({ ok: true, ctx: { userId: "admin-1", role: "ADMIN", stationId: null } });
+        stationFindManyMock.mockResolvedValue([]);
+        const body = await (await GET(new NextRequest("http://localhost/api/admin/league"))).json();
+        expect(body.employeeRewardPoints).toEqual([]);
+        expect(earningsMock).not.toHaveBeenCalled();
+        expect(spendingMock).not.toHaveBeenCalled();
     });
 
     it("shows pending results to a cashier without exposing moderation details", async () => {

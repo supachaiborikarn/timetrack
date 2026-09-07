@@ -106,3 +106,9 @@ For `EMPLOYEE` QR rows, recording public-profile acknowledgement immediately act
 - Employee: open `/league` → รางวัลของคุณ → เงินสด 300 บาท; selecting creates SELECTED / รอมอบ and spends no RP.
 - Admin: open `/admin/league` → รางวัลแชมป์ที่พนักงานเลือกแล้ว; pay the 300 baht, then click มอบแล้ว to record delivery.
 - Weekly champions whose award is still AVAILABLE, including the previous week's winners, can select cash immediately after deployment; no data migration is needed.
+
+
+## View employee RP balances
+- ADMIN/HR: `/admin/league` → select a station → RP สะสมของพนักงาน, above previous-week results.
+- Columns: employee name/code, สะสมทั้งหมด, ใช้ไป/รอมอบ, คงเหลือ RP; sorted by remaining RP descending.
+- Balances include confirmed lifetime earnings and exclude cancelled redemptions; current-week estimated RP is not yet included.

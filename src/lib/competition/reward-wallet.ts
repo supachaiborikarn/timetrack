@@ -1,5 +1,30 @@
 import { prisma } from "@/lib/prisma";
 
+// Callers must resolve which employees the viewer is allowed to see first.
+export async function getRewardBalancesForUsers(userIds: string[]) {
+    if (userIds.length === 0) return [];
+    const ids = [...new Set(userIds)];
+    const [earnings, redemptions] = await Promise.all([
+        prisma.competitionStanding.groupBy({
+            by: ["userId"],
+            where: { userId: { in: ids }, rewardPoints: { gt: 0 }, period: { type: "WEEKLY_STATION", status: "FINALIZED" } },
+            _sum: { rewardPoints: true },
+        }),
+        prisma.rewardRedemption.groupBy({
+            by: ["userId"],
+            where: { userId: { in: ids }, status: { in: ["PENDING", "FULFILLED"] } },
+            _sum: { pointsCost: true },
+        }),
+    ]);
+    const earnedByUser = new Map(earnings.map((row) => [row.userId, row._sum.rewardPoints ?? 0]));
+    const spentByUser = new Map(redemptions.map((row) => [row.userId, row._sum.pointsCost ?? 0]));
+    return ids.map((userId) => {
+        const earnedPoints = earnedByUser.get(userId) ?? 0;
+        const spentPoints = spentByUser.get(userId) ?? 0;
+        return { userId, earnedPoints, spentPoints, balance: Math.max(0, earnedPoints - spentPoints) };
+    });
+}
+
 export async function getRewardWalletForUser(userId: string) {
     const [earnings, redemptions] = await Promise.all([
         prisma.competitionStanding.findMany({

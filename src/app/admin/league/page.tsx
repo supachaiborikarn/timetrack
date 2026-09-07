@@ -7,6 +7,7 @@ import { championRewardLabel, PreviousWeeklyResultCard } from "@/components/leag
 import type { ChampionReward, PreviousWeeklyResult } from "@/lib/competition/weekly-results";
 
 interface AdminLeagueData {
+    employeeRewardPoints: Array<{ employeeId: string; label: string; earnedPoints: number; spentPoints: number; balance: number }>;
     previousWeekly: PreviousWeeklyResult | null;
     canManageRewards: boolean;
     canManageFairPlay: boolean;
@@ -299,6 +300,36 @@ export default function AdminLeaguePage() {
                         <div className="rounded-full border bg-muted/40 px-3 py-1.5 text-xs font-bold">{data.liveLeague.station.name}</div>
                     ) : null}
                 </div>
+
+                {data?.canManageRewards && data.liveLeague ? (
+                    <section aria-label="RP สะสมของพนักงาน" className="overflow-hidden rounded-xl border bg-card">
+                        <div className="border-b bg-muted/40 px-4 py-3">
+                            <h3 className="font-bold">RP สะสมของพนักงาน · {data.liveLeague.station.name}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">ยอดสะสมทุกสัปดาห์ที่รับรองแล้ว · ใช้ไป/รอมอบรวมคะแนนที่กันไว้แลกของ · รายการยกเลิกคืนคะแนนแล้ว</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[400px] text-sm">
+                                <thead className="bg-muted/20 text-xs text-muted-foreground"><tr>
+                                    <th scope="col" className="px-4 py-2 text-left">พนักงาน</th>
+                                    <th scope="col" className="px-3 py-2 text-right">สะสมทั้งหมด</th>
+                                    <th scope="col" className="px-3 py-2 text-right">ใช้ไป/รอมอบ</th>
+                                    <th scope="col" className="px-4 py-2 text-right">คงเหลือ RP</th>
+                                </tr></thead>
+                                <tbody className="divide-y">
+                                    {data.employeeRewardPoints.map((employee) => (
+                                        <tr key={employee.employeeId}>
+                                            <th scope="row" className="px-4 py-3 text-left"><p className="font-bold">{employee.label}</p><p className="text-[10px] font-normal text-muted-foreground">{employee.employeeId}</p></th>
+                                            <td className="px-3 py-3 text-right tabular-nums">{employee.earnedPoints.toLocaleString("th-TH")}</td>
+                                            <td className="px-3 py-3 text-right tabular-nums">{employee.spentPoints.toLocaleString("th-TH")}</td>
+                                            <td className="px-4 py-3 text-right text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-300">{employee.balance.toLocaleString("th-TH")}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {data.employeeRewardPoints.length === 0 ? <p className="p-4 text-sm text-muted-foreground">ไม่มีพนักงานหน้าลานในปั๊มนี้</p> : null}
+                    </section>
+                ) : null}
 
                 {data?.previousWeekly ? <PreviousWeeklyResultCard result={data.previousWeekly} /> : null}
 

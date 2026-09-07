@@ -1772,3 +1772,14 @@ Verification:
 - `NODE_ENV=production npm run build` passed with 188/188 pages; production build used the previously authorized network access for required fonts.
 - Released as commit `8c0b9cc` on `origin/main`; Vercel production deployment `dpl_BM2RKZsMZmwKifySWVg3B1VjreKv` reached Ready and is aliased to `https://timetrack-lake.vercel.app`.
 - Cash selection was verified with isolated API tests; no real employee award was selected or marked delivered during verification.
+
+
+## 2026-09-07 — Show employee RP balances to admins
+- User requested visibility of each employee's accumulated RP.
+- Added `getRewardBalancesForUsers` in `src/lib/competition/reward-wallet.ts`, using two grouped aggregate reads for the authorized roster rather than one wallet/history query per employee.
+- `/api/admin/league` returns `employeeRewardPoints` only to ADMIN/HR for the selected station's active front-yard roster; names/employee codes, earned, spent/reserved and balance are returned without internal user IDs.
+- Added responsive RP table above previous-week results on `/admin/league`, showing zero balances as well as funded wallets, sorted by remaining RP.
+- Lifetime totals follow the existing employee wallet rules: finalized weekly rewards only, PENDING/FULFILLED redemptions count as spent, CANCELLED restores balance, no station/date restriction on an authorized employee's historical wallet.
+- Added API tests for correct totals and scoped employee IDs, cashier exclusion, and no reads for an empty station selection.
+- No data/schema changes or point adjustments; unrelated restroom scratch files left intact.
+- Validation: targeted League API tests passed (3 files / 14 tests), TypeScript, changed-file ESLint and production build (188 pages) passed.

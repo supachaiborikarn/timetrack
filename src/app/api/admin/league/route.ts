@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateStationWeeklyLeague, finalizeCompetitionPeriodRanking, getBangkokWeekBounds } from "@/lib/competition/league";
 import { getFeedbackAccessContext, getStationScope } from "@/lib/customer-feedback/access";
 import { getLatestWeeklyResult, getPreviousWeeklyResult } from "@/lib/competition/weekly-results";
+import { getRewardBalancesForUsers } from "@/lib/competition/reward-wallet";
 
 async function requireLeagueAdmin() {
     const access = await getFeedbackAccessContext();
@@ -57,7 +58,8 @@ export async function GET(request: NextRequest) {
 
     const admin = { userId: viewer.userId, stationId: viewer.stationId, role: viewer.role };
 
-    const [latestWeekly, pendingPeriods, selectedAwards, previousWeekly] = await Promise.all([
+    const canManageRewards = admin.role === "ADMIN" || admin.role === "HR";
+    const [latestWeekly, pendingPeriods, selectedAwards, previousWeekly, rewardBalances] = await Promise.all([
         selectedStation ? getLatestWeeklyResult(selectedStation.id) : Promise.resolve(null),
         prisma.competitionPeriod.findMany({
             where: { status: "PENDING_REVIEW", ...(admin.stationId ? { stationId: admin.stationId } : {}) },
@@ -82,7 +84,10 @@ export async function GET(request: NextRequest) {
             take: 50,
         }),
         selectedStation ? getPreviousWeeklyResult(selectedStation.id, now) : Promise.resolve(null),
+        canManageRewards && liveLeague ? getRewardBalancesForUsers(liveLeague.standings.map((standing) => standing.userId)) : Promise.resolve([]),
     ]);
+
+    const balancesByUser = new Map(rewardBalances.map((wallet) => [wallet.userId, wallet]));
 
     return NextResponse.json({
         stations,
@@ -90,6 +95,16 @@ export async function GET(request: NextRequest) {
         canSelectStation: viewer.canSelectStation,
         canManageFairPlay: viewer.canManageFairPlay,
         previousWeekly,
+        employeeRewardPoints: canManageRewards ? (liveLeague?.standings ?? []).map((standing) => {
+            const wallet = balancesByUser.get(standing.userId);
+            return {
+                employeeId: standing.employeeId,
+                label: standing.label,
+                earnedPoints: wallet?.earnedPoints ?? 0,
+                spentPoints: wallet?.spentPoints ?? 0,
+                balance: wallet?.balance ?? 0,
+            };
+        }).sort((a, b) => b.balance - a.balance || a.employeeId.localeCompare(b.employeeId)) : [],
         latestWeekly: latestWeekly ? { ...latestWeekly, station: selectedStation } : null,
         liveLeague: liveLeague ? {
             periodKey: week.key,
@@ -119,7 +134,7 @@ export async function GET(request: NextRequest) {
             })),
         })) : [],
         selectedAwards: viewer.canManageFairPlay ? selectedAwards : [],
-        canManageRewards: admin.role === "ADMIN" || admin.role === "HR",
+        canManageRewards,
     });
 }
 

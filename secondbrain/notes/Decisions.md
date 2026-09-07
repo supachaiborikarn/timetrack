@@ -252,3 +252,10 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - The employee chooses on `/league` → รางวัลของคุณ; admin pays in real life and records มอบแล้ว under รางวัลแชมป์ที่พนักงานเลือกแล้ว on `/admin/league`.
 - Existing AVAILABLE weekly awards receive the new option through the shared option list without backfill; selected rewards retain their recorded selection.
 - The cash item priced at 300 RP remains an independent catalog redemption path.
+
+
+## 2026-09-07: Admin visibility of employee RP balances
+- ADMIN/HR can view RP balances for active front-yard employees in the selected League station; cashier/manager permissions are unchanged.
+- Display lifetime earned RP from finalized weekly standings, spent/reserved RP from PENDING/FULFILLED redemptions, and remaining RP clamped at zero.
+- Cancelled redemptions are excluded; live weekly preview points and champion cash awards are not wallet transactions.
+- Employees carry their lifetime RP across station transfers; the current station controls roster visibility, not the historical earnings filter.
