@@ -26,6 +26,9 @@ export const LEAGUE_WEIGHTS = {
     mission: 15,
 } as const;
 
+export const LEAGUE_SUPPORT_BONUS_PER_DAY = 1;
+export const LEAGUE_SUPPORT_BONUS_MAX = 3;
+
 export const WEEKLY_REWARD_OPTIONS = [
     { code: "CASH_300", label: "เงินสด 300 บาท", description: "รับเงินสด 300 บาทเป็นรางวัลแชมป์ประจำสัปดาห์ โดยไม่หัก RP", valueBaht: 300 },
     { code: "CHAMPION_MEAL", label: "Champion Meal", description: "เลือกชุดอาหารพิเศษมูลค่าไม่เกิน 300 บาท", valueBaht: 300 },
@@ -54,6 +57,8 @@ export type LeagueStandingResult = {
     workPoints: number;
     customerPoints: number;
     missionPoints: number;
+    supportPoints: number;
+    supportDays: number;
     eligibleCustomerCount: number;
     excludedRepeatCustomerCount: number;
     suspiciousCustomerCount: number;
@@ -154,6 +159,14 @@ function bangkokDateKey(date: Date): string {
     return new Date(date.getTime() + BANGKOK_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+export function calculateSupportStationBonus(transferTimes: Date[]) {
+    const supportDays = new Set(transferTimes.map(bangkokDateKey)).size;
+    return {
+        supportDays,
+        supportPoints: Math.min(LEAGUE_SUPPORT_BONUS_MAX, supportDays * LEAGUE_SUPPORT_BONUS_PER_DAY),
+    };
+}
+
 function round2(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -202,7 +215,7 @@ export async function calculateStationWeeklyLeague(params: {
     if (employees.length === 0) return { station, standings: [] };
 
     const userIds = employees.map((employee) => employee.id);
-    const [assignments, attendances, leaves, feedbackResponses] = await Promise.all([
+    const [assignments, attendances, leaves, feedbackResponses, supportTransfers] = await Promise.all([
         prisma.shiftAssignment.findMany({
             where: { userId: { in: userIds }, date: { gte: params.from, lt: params.to } },
             select: {
@@ -257,6 +270,15 @@ export async function calculateStationWeeklyLeague(params: {
                 },
             },
             orderBy: [{ submittedAt: "asc" }, { id: "asc" }],
+        }),
+        prisma.stationTransfer.findMany({
+            where: {
+                userId: { in: userIds },
+                method: "MANAGER",
+                toStationId: { not: params.stationId },
+                transferTime: { gte: params.from, lt: params.to },
+            },
+            select: { userId: true, transferTime: true },
         }),
     ]);
 
@@ -325,6 +347,9 @@ export async function calculateStationWeeklyLeague(params: {
             : 0;
 
         const fairPlayReasons = feedbackClassification.fairPlayReasons;
+        const supportBonus = calculateSupportStationBonus(
+            supportTransfers.filter((row) => row.userId === employee.id).map((row) => row.transferTime)
+        );
 
         const isEligible = performance.counts.requiredDays > 0 && rubric.meetsMinimumSample;
         const fairPlayStatus: LeagueFairPlayStatus = !isEligible
@@ -332,7 +357,7 @@ export async function calculateStationWeeklyLeague(params: {
             : fairPlayReasons.length > 0
                 ? "REVIEW"
                 : "CLEAR";
-        const totalScore = round2(Math.min(100, performance.workPoints + customerPoints + missionPoints));
+        const totalScore = round2(Math.min(100, performance.workPoints + customerPoints + missionPoints + supportBonus.supportPoints));
         const rewardEligibility = resolveRewardEligibility({
             requiredDays: performance.counts.requiredDays,
             meetsMinimumCustomerSample: rubric.meetsMinimumSample,
@@ -351,6 +376,8 @@ export async function calculateStationWeeklyLeague(params: {
             workPoints: round2(performance.workPoints),
             customerPoints,
             missionPoints,
+            supportPoints: supportBonus.supportPoints,
+            supportDays: supportBonus.supportDays,
             eligibleCustomerCount: eligibleResponses.length,
             excludedRepeatCustomerCount,
             suspiciousCustomerCount,
@@ -373,6 +400,7 @@ export async function calculateStationWeeklyLeague(params: {
     standings.sort((a, b) =>
         Number(b.isEligible) - Number(a.isEligible)
         || b.totalScore - a.totalScore
+        || b.supportPoints - a.supportPoints
         || b.eligibleCustomerCount - a.eligibleCustomerCount
         || a.employeeId.localeCompare(b.employeeId)
     );
@@ -402,7 +430,7 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
         })
         : await prisma.competitionStanding.findMany({
             where: eligibleWhere,
-            orderBy: [{ totalScore: "desc" }, { eligibleCustomerCount: "desc" }, { userId: "asc" }],
+            orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { eligibleCustomerCount: "desc" }, { userId: "asc" }],
         });
 
     await prisma.$transaction(async (tx) => {
@@ -525,6 +553,8 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
                 workPoints: standing.workPoints,
                 customerPoints: standing.customerPoints,
                 missionPoints: standing.missionPoints,
+                supportPoints: standing.supportPoints,
+                supportDays: standing.supportDays,
                 eligibleCustomerCount: standing.eligibleCustomerCount,
                 excludedRepeatCustomerCount: standing.excludedRepeatCustomerCount,
                 suspiciousCustomerCount: standing.suspiciousCustomerCount,
@@ -542,6 +572,8 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
                 workPoints: standing.workPoints,
                 customerPoints: standing.customerPoints,
                 missionPoints: standing.missionPoints,
+                supportPoints: standing.supportPoints,
+                supportDays: standing.supportDays,
                 eligibleCustomerCount: standing.eligibleCustomerCount,
                 excludedRepeatCustomerCount: standing.excludedRepeatCustomerCount,
                 suspiciousCustomerCount: standing.suspiciousCustomerCount,
@@ -602,6 +634,8 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
                     workPoints: teamPoints,
                     customerPoints: stationAndRestroomPoints,
                     missionPoints: 0,
+                    supportPoints: 0,
+                    supportDays: 0,
                     eligibleCustomerCount: 0,
                     excludedRepeatCustomerCount: 0,
                     suspiciousCustomerCount: 0,
@@ -622,6 +656,8 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
                     workPoints: teamPoints,
                     customerPoints: stationAndRestroomPoints,
                     missionPoints: 0,
+                    supportPoints: 0,
+                    supportDays: 0,
                     eligibleCustomerCount: 0,
                     excludedRepeatCustomerCount: 0,
                     suspiciousCustomerCount: 0,

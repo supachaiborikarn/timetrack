@@ -1870,3 +1870,38 @@ Verification:
 - `git diff --check`: passed.
 - Production build with `NODE_ENV=production`: passed; 190 pages generated.
 - No schema change and no production data mutation. Unrelated restroom scratch files remain untracked.
+
+## 2026-09-08 — PAP temporary 08:00–20:00 shift request + support-station League bonus
+
+Requested:
+
+- Change employees nicknamed “น้อย” and “น้ำ” at พงษ์อนันต์ (PAP) for the current Monday–Sunday week, 2026-09-07 through 2026-09-13, to 08:00–20:00.
+- Give employees a small extra score when management sends them to help another station.
+
+Implemented in source:
+
+- Added weekly League support bonus: +1 point per distinct Bangkok day with a manager-recorded transfer away from the employee's League/home station, capped at +3/week. `SELF_QR` transfers are excluded.
+- League total remains capped at 100; required-workday/customer-minimum/Fair Play/RP-quality gates remain unchanged. The support bonus does not directly mint CP or RP.
+- Added persisted `CompetitionStanding.supportPoints` and `supportDays`; fuel-cashier RP-only rows explicitly remain at zero.
+- Employee Dashboard, `/league`, and `/admin/league` expose the support bonus when non-zero.
+- Added migration `20260908035000_add_competition_support_points` using scoped idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; no broad `db push`.
+- Fixed bulk schedule assignment to parse `YYYY-MM-DD` as Bangkok midnight with `parseDateStringToBangkokMidnight`, matching the individual schedule route, and added a regression test.
+
+Production completion after owner confirmation:
+
+- User explicitly confirmed production access after disclosure of Neon endpoint `ep-delicate-sound-a1mi5n1t`; the endpoint was asserted before every production write.
+- Verified PAP targets: น้อย = EMP76265 (วราพร แดงอาจ), น้ำ = EMPE5453 (saw kyaw saw), both active front-yard employees at `PAP`.
+- Verified the active target shift `S-0800` is 08:00–20:00.
+- Found duplicate logical-day assignments caused by the bulk route storing `YYYY-MM-DD` at UTC midnight while the main schedule route stores Bangkok midnight. The canonical Bangkok-midnight rows still held `S-0545`; duplicate UTC-midnight rows held `S-0800`.
+- In one production transaction, updated/created 14 canonical assignments for 2026-09-07 through 2026-09-13 to `S-0800`, `isDayOff=false`, and removed 14 UTC-midnight duplicates. Post-write verification found exactly 14 canonical rows, all 08:00–20:00, with zero duplicate UTC-midnight rows remaining.
+- Verified 2026-09-14 remained `S-0545` for both employees and was not touched. Attendance, payroll, leave, and other dates were not changed.
+- Added production `CompetitionStanding.supportPoints` and `supportDays` as integer, NOT NULL, default 0 using scoped idempotent SQL, then verified both columns from `information_schema`.
+- Production schedule data and support columns are live now. The application source for displaying/calculating the new support bonus remains local until a separate commit/push/deploy is requested.
+
+Verification:
+
+- Earlier focused League suite: 4 files / 20 tests passed, including same-day de-duplication and +3 weekly cap.
+- After the schedule-timezone fix: `npx vitest run src/app/api/admin/schedule/bulk/route.test.ts src/lib/competition/league.test.ts` → 2 files / 8 tests passed.
+- `npx tsc --noEmit`: passed.
+- Changed-file ESLint: passed.
+- Final production build after the bulk-route fix: the first run inherited a non-standard `NODE_ENV` and failed while prerendering `/apply/status`; rerunning with `NODE_ENV=production` passed successfully with all 190 pages generated.

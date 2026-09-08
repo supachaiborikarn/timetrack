@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - architecture
-updated: 2026-09-04
+updated: 2026-09-08
 ---
 
 # Architecture
@@ -90,20 +90,26 @@ The combined score path is intentionally separate from Payroll. No performance o
 
 1. ADMIN/HR choose one existing `ReviewPeriod` in `/admin/performance`; the selected period ID is stored in `SystemConfig` under `chinese_new_year_bonus.review_period_id.v1`.
 2. `/api/employee/chinese-new-year-bonus` resolves a role profile for the authenticated active user: `FRONT_YARD` for active front-yard `EMPLOYEE`, or `FUEL_CASHIER` for a normal oil-station `CASHIER`. The four department-scoped gas cashiers are intentionally excluded from the fuel-cashier profile.
-3. `src/lib/chinese-new-year-bonus.ts` is the pure policy layer. Front-yard weights are 25/30/15/20/10; oil-cashier weights are 25/20/15/30/10, creating 35% team-linked and 65% personal influence while using the same payout tiers.
+3. `src/lib/chinese-new-year-bonus.ts` is the pure policy layer. Front-yard weights remain 25/30/15/20/10. Oil-cashier score is fully automatic: equal-weight front-yard employee performance 60 + station customer score 20 + restroom score 20, using the same payout tiers.
 4. Front-yard calculation reads the person's attendance/shift/leave, own VALID employee-v3/v4 feedback, supervisor rating, and unresolved safety cases. Open safety cases are a review gate only and do not subtract points/money automatically.
-5. Oil-cashier calculation reads the cashier's own attendance/shift/leave + supervisor rating, then bulk-loads active front-yard teammates at the same station. Team quality is an equal-weight average of each member's /64 rubric and remains unavailable until every active member reaches the existing minimum sample. Team cooperation averages per-member worked-day completion, with each day capped at the current daily target. Team safety cases do not automatically penalize the cashier.
-6. `/api/admin/performance/chinese-new-year-bonus` lists both eligible front-yard employees and eligible oil cashiers, returns the role profile, and lets ADMIN/HR record the existing supervisor rating/manager note. Every write remains audited. No database schema change is introduced.
-7. `ChineseNewYearBonusCard` uses role-specific labels and explains to oil cashiers that team results contribute 35%; the existing oil-cashier TEAM FEEDBACK dashboard card explains that its team metrics feed those 35 forecast points.
+5. Oil-cashier calculation reuses the station-linked 60/20/20 score. Once complete finalized weekly cashier reports overlap the configured CNY period, the employee forecast uses their equal-weight component average; incomplete weeks stay provisional instead of becoming zero. Before any ready finalized week exists, the raw in-period station calculation is the fallback.
+6. `/api/admin/performance/chinese-new-year-bonus` keeps manual supervisor/SOP scoring for front-yard employees only. Oil cashiers are no longer manual review targets because their 60/20/20 score is automatic.
+7. `ChineseNewYearBonusCard` is the single full-size cashier score surface on Dashboard; the RP card shows wallet/current-week RP information without duplicating a separate weekly cashier-score card.
 8. Exact response counts, the hidden customer-score minimum sample, and per-response detail are not returned by the employee bonus endpoint. This entire path remains outside Payroll; actual bonus payment remains a separate explicit/manual payroll decision.
 
 ## Competition Reward Points flow
 
 The employee competition has three separate score concepts:
 
-1. Live/final weekly `League Score` (/100) comes from work /60, customer /25, and mission /15.
+1. Live/final weekly `League Score` starts from work /60, customer /25, and mission /15. A manager-recorded transfer to help another station adds +1 support point per distinct Bangkok day, capped at +3/week; the final total remains capped at 100.
 2. Final weekly rank grants `Championship Points (CP)` for monthly ranking.
 3. Final weekly performance may grant spendable `Reward Points (RP)` using `src/lib/competition/reward-policy.ts`.
+
+Support-station persistence and trust boundary:
+
+- Only `StationTransfer.method = MANAGER` with `toStationId` different from the employee's League/home station counts. `SELF_QR` transfers never earn support points.
+- `CompetitionStanding.supportPoints` and `supportDays` freeze the contribution for weekly history and let employee/admin UI explain the bonus.
+- Support points affect CP/RP only indirectly through the capped League score/rank; all existing eligibility, customer-quality and Fair Play gates still apply. Fuel-cashier RP-only standings store zero support points.
 
 Reward eligibility is intentionally stricter than League ranking eligibility. A weekly standing can still rank for CP when it has the normal minimum customer sample, but RP requires Customer Quality >= 20/25 in addition to eligible workdays and resolved Fair Play. Live calculations expose the reason separately so UI can distinguish “sample not ready” from “quality below threshold.”
 
@@ -130,3 +136,9 @@ Champion awards (`CompetitionAward` and `/api/league/reward`) remain independent
 - `previousWeekly` identifies the exact closed Bangkok week, all standings, finalization state and champion reward; `latestWeekly` identifies the latest finalized period with an actual winner.
 - For absent/OPEN periods, read-only calculation uses week-end reference time and strips official ranks. FINALIZED/PENDING_REVIEW use frozen rows.
 - `components/league/weekly-result.tsx` renders the shared prior-week card and compact Dashboard champion banner, including truthful reward selection/delivery status.
+
+## 2026-09-08: ShiftAssignment logical-date invariant
+
+- A schedule date such as `2026-09-07` represents Bangkok midnight and must be stored as `2026-09-06T17:00:00.000Z`.
+- Individual and bulk schedule writes must use `parseDateStringToBangkokMidnight` for `YYYY-MM-DD` payloads. Do not use `new Date("YYYY-MM-DD")`, which produces UTC midnight and can create two database rows that map to the same Bangkok calendar day.
+- The admin schedule read model converts stored timestamps to Bangkok calendar keys, so preserving one canonical Bangkok-midnight row per employee/day is required for deterministic display and League attendance calculations.

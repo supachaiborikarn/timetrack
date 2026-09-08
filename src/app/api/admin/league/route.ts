@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
             include: {
                 station: { select: { id: true, code: true, name: true } },
                 standings: {
-                    orderBy: [{ totalScore: "desc" }, { eligibleCustomerCount: "desc" }],
+                    orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { eligibleCustomerCount: "desc" }],
                     include: { user: { select: { employeeId: true, name: true, nickName: true } } },
                 },
             },
@@ -117,6 +117,8 @@ export async function GET(request: NextRequest) {
                 workPoints: standing.workPoints,
                 customerPoints: standing.customerPoints,
                 missionPoints: standing.missionPoints,
+                supportPoints: standing.supportPoints,
+                supportDays: standing.supportDays,
                 eligibleCustomerCount: standing.eligibleCustomerCount,
                 isEligible: standing.isEligible,
                 isProvisional: standing.isProvisional,
@@ -131,6 +133,8 @@ export async function GET(request: NextRequest) {
                 workPoints: Number(standing.workPoints),
                 customerPoints: Number(standing.customerPoints),
                 missionPoints: Number(standing.missionPoints),
+                supportPoints: Number(standing.supportPoints),
+                supportDays: standing.supportDays,
             })),
         })) : [],
         selectedAwards: viewer.canManageFairPlay ? selectedAwards : [],

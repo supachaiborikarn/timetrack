@@ -75,6 +75,8 @@ export async function GET() {
         workPoints: standing.workPoints,
         customerPoints: standing.customerPoints,
         missionPoints: standing.missionPoints,
+        supportPoints: standing.supportPoints,
+        supportDays: standing.supportDays,
         rank: standing.rank,
         isMe: standing.userId === user.id,
         isEligible: standing.isEligible,

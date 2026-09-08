@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-07
+updated: 2026-09-08
 ---
 
 # Decisions
@@ -295,3 +295,12 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - Missing finalized-week data is never converted to zero. Ready finalized weeks may provide a provisional forecast while unresolved finalized weeks keep the forecast provisional. Before the first ready finalized week exists, the existing in-period raw-data calculation remains the fallback.
 - The fuel-cashier Dashboard keeps the CNY score inside the CNY card. The RP card remains a wallet/current-week RP preview and no longer renders a second full-size personal weekly-score card underneath it.
 - TEAM FEEDBACK explanatory copy must reflect the current 60/20/20 cashier formula; the retired 35/65 wording must not be shown.
+
+## 2026-09-08: League rewards employees who help another station
+
+- Front-yard League employees receive a small support-station bonus when a manager records a transfer to a station other than their home/League station.
+- The bonus is +1 League point per distinct Bangkok calendar day, capped at +3 points per weekly period. Multiple manager transfers on the same day still count as one support day.
+- Only `StationTransfer.method = MANAGER` qualifies. Employee-initiated `SELF_QR` transfers do not award points, preventing self-service point farming.
+- The support bonus is added after the normal work 60 + customer 25 + mission 15 calculation, while the final weekly League score remains capped at 100.
+- Existing minimum customer sample, required-workday, Fair Play, RP quality gate, CP rank policy and weekly finalization rules remain unchanged. The bonus can affect rank only through the final League score; it does not directly grant CP or RP.
+- `CompetitionStanding.supportPoints` and `supportDays` freeze the support contribution for finalized weekly history. Fuel-cashier RP-only rows always store zero support points.

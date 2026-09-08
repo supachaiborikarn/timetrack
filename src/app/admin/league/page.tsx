@@ -34,6 +34,8 @@ interface AdminLeagueData {
             workPoints: number;
             customerPoints: number;
             missionPoints: number;
+            supportPoints: number;
+            supportDays: number;
             eligibleCustomerCount: number;
             isEligible: boolean;
             isProvisional: boolean;
@@ -51,6 +53,8 @@ interface AdminLeagueData {
             workPoints: number;
             customerPoints: number;
             missionPoints: number;
+            supportPoints: number;
+            supportDays: number;
             eligibleCustomerCount: number;
             excludedRepeatCustomerCount: number;
             suspiciousCustomerCount: number;
@@ -379,8 +383,9 @@ export default function AdminLeaguePage() {
                                                 <p className="truncate font-black">{standing.label}</p>
                                                 {!standing.isEligible ? <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">กำลังสะสมข้อมูล</span> : null}
                                                 {standing.fairPlayStatus === "REVIEW" ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">รอตรวจ Fair Play</span> : null}
+                                                {standing.supportPoints > 0 ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-800">ช่วยปั๊ม +{standing.supportPoints} · {standing.supportDays} วัน</span> : null}
                                             </div>
-                                            <p className="mt-0.5 text-[10px] text-muted-foreground">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)} · ประเมิน {standing.eligibleCustomerCount}</p>
+                                            <p className="mt-0.5 text-[10px] text-muted-foreground">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)}{standing.supportPoints > 0 ? ` · ช่วยปั๊ม +${standing.supportPoints}` : ""} · ประเมิน {standing.eligibleCustomerCount}</p>
                                         </div>
                                         <div className="text-right"><p className="text-xl font-black tabular-nums">{standing.totalScore.toFixed(1)}</p><p className="text-[9px] font-bold text-muted-foreground">คะแนนลีก</p></div>
                                     </div>
@@ -473,7 +478,7 @@ export default function AdminLeaguePage() {
                             {period.standings.filter((standing) => standing.fairPlayStatus === "REVIEW").map((standing) => (
                                 <div key={standing.id} className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
                                     <div>
-                                        <div className="flex flex-wrap items-center gap-2"><span className="font-bold">{standing.user.nickName || standing.user.name}</span><span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{standing.totalScore.toFixed(1)} คะแนน</span></div>
+                                        <div className="flex flex-wrap items-center gap-2"><span className="font-bold">{standing.user.nickName || standing.user.name}</span><span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{standing.totalScore.toFixed(1)} คะแนน</span>{standing.supportPoints > 0 ? <span className="rounded bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">ช่วยปั๊ม +{standing.supportPoints} · {standing.supportDays} วัน</span> : null}</div>
                                         <p className="mt-1 text-xs text-muted-foreground">ลูกค้าที่นับ {standing.eligibleCustomerCount} · ซ้ำถูกตัด {standing.excludedRepeatCustomerCount} · ต้องสงสัย {standing.suspiciousCustomerCount}</p>
                                         <p className="mt-1 text-xs text-amber-700">เหตุผล: {standing.fairPlayReasons.join(", ") || "pattern review"}</p>
                                     </div>

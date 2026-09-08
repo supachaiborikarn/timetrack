@@ -91,6 +91,8 @@ interface EmployeeLeagueSummary {
       totalScore: number;
       rank: number;
       customerPoints: number;
+      supportPoints: number;
+      supportDays: number;
       isRewardEligible: boolean;
       rewardEligibilityReason: RewardEligibilityReason;
       rewardPointsPreview: number;
@@ -556,6 +558,8 @@ export function EmployeeDashboardView() {
   const compactCalendarDays = Array.from({ length: 7 }, (_, index) => addDays(compactWeekStart, index));
   const missionLitSegments = customerEvaluationStatus === "DONE" ? 16 : customerEvaluationStatus === "NEAR" ? 12 : 6;
   const myLeague = leagueData?.weekly?.me ?? null;
+  const mySupportPoints = myLeague?.supportPoints ?? 0;
+  const mySupportDays = myLeague?.supportDays ?? 0;
   const myChampionshipPoints = leagueData?.monthly?.me?.championshipPoints ?? 0;
   const rewardWallet = leagueData?.rewardPoints?.wallet ?? null;
   const featuredReward = leagueData?.rewardPoints?.featured ?? null;
@@ -840,6 +844,13 @@ export function EmployeeDashboardView() {
                 <p className="text-[7px] text-zinc-500">RP</p>
               </div>
             </div>
+
+            {mySupportPoints > 0 ? (
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-sky-400/10 px-3 py-2 text-[9px] font-black text-sky-200">
+                <span>🤝 โบนัสช่วยปั๊ม</span>
+                <span className="font-mono text-sky-300">+{mySupportPoints} คะแนน · {mySupportDays} วัน</span>
+              </div>
+            ) : null}
 
             {leagueData.championshipRewards ? (
               <div className="grid gap-1 border-b border-white/10 bg-amber-400/10 px-3 py-2 text-[9px]">

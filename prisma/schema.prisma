@@ -743,6 +743,8 @@ model CompetitionStanding {
   workPoints                  Decimal                   @db.Decimal(6, 2)
   customerPoints              Decimal                   @db.Decimal(6, 2)
   missionPoints               Decimal                   @db.Decimal(6, 2)
+  supportPoints               Decimal                   @default(0) @db.Decimal(6, 2)
+  supportDays                 Int                       @default(0)
   eligibleCustomerCount       Int                       @default(0)
   excludedRepeatCustomerCount Int                       @default(0)
   suspiciousCustomerCount     Int                       @default(0)

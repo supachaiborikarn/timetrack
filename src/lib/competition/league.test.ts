@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyCompetitionFeedback, getBangkokWeekBounds } from "./league";
+import { calculateSupportStationBonus, classifyCompetitionFeedback, getBangkokWeekBounds } from "./league";
 
 describe("competition league fair play", () => {
     it("counts the same weekly client only once for the same employee", () => {
@@ -59,5 +59,26 @@ describe("competition Bangkok periods", () => {
         expect(bounds.key).toBe("2026-08-31");
         expect(bounds.from.toISOString()).toBe("2026-08-30T17:00:00.000Z");
         expect(bounds.to.toISOString()).toBe("2026-09-06T17:00:00.000Z");
+    });
+});
+
+
+describe("support-station League bonus", () => {
+    it("counts at most one support point per Bangkok day", () => {
+        const bonus = calculateSupportStationBonus([
+            new Date("2026-09-07T01:00:00.000Z"),
+            new Date("2026-09-07T09:00:00.000Z"),
+        ]);
+        expect(bonus).toEqual({ supportDays: 1, supportPoints: 1 });
+    });
+
+    it("caps the weekly support bonus at three points", () => {
+        const bonus = calculateSupportStationBonus([
+            new Date("2026-09-07T01:00:00.000Z"),
+            new Date("2026-09-08T01:00:00.000Z"),
+            new Date("2026-09-09T01:00:00.000Z"),
+            new Date("2026-09-10T01:00:00.000Z"),
+        ]);
+        expect(bonus).toEqual({ supportDays: 4, supportPoints: 3 });
     });
 });

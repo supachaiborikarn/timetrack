@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 import { canGasCashierAccessEmployee, canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
 
 // POST: Bulk operations (assign, copy)
@@ -24,17 +25,18 @@ export async function POST(request: NextRequest) {
             const results = await Promise.all(
                 assignments.map(async (item: { userId: string; date: string; shiftId: string; isDayOff?: boolean }) => {
                     try {
+                        const assignmentDate = parseDateStringToBangkokMidnight(item.date);
                         const assignment = await prisma.shiftAssignment.upsert({
                             where: {
                                 userId_date: {
                                     userId: item.userId,
-                                    date: new Date(item.date),
+                                    date: assignmentDate,
                                 },
                             },
                             create: {
                                 userId: item.userId,
                                 shiftId: item.shiftId,
-                                date: new Date(item.date),
+                                date: assignmentDate,
                                 isDayOff: item.isDayOff || false,
                             },
                             update: {

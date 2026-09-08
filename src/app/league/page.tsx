@@ -13,6 +13,8 @@ interface WeeklyStanding {
     workPoints: number;
     customerPoints: number;
     missionPoints: number;
+    supportPoints: number;
+    supportDays: number;
     rank: number;
     isEligible: boolean;
     isRewardEligible: boolean;
@@ -260,7 +262,7 @@ export default function LeaguePage() {
                                 <span className="text-center text-lg font-black">{rankIcon(standing.rank)}</span>
                                 <div className="min-w-0">
                                     <p className="truncate font-black">{standing.label}</p>
-                                    <p className="text-[10px] text-zinc-500">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)}</p>
+                                    <p className="text-[10px] text-zinc-500">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)}{standing.supportPoints > 0 ? ` · ช่วยปั๊ม +${standing.supportPoints} (${standing.supportDays} วัน)` : ""}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-black tabular-nums">{standing.totalScore.toFixed(1)}</p>
