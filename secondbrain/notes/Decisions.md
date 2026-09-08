@@ -304,3 +304,8 @@ The 50 THB under-threshold deduction is a distinct payroll deduction and should 
 - The support bonus is added after the normal work 60 + customer 25 + mission 15 calculation, while the final weekly League score remains capped at 100.
 - Existing minimum customer sample, required-workday, Fair Play, RP quality gate, CP rank policy and weekly finalization rules remain unchanged. The bonus can affect rank only through the final League score; it does not directly grant CP or RP.
 - `CompetitionStanding.supportPoints` and `supportDays` freeze the support contribution for finalized weekly history. Fuel-cashier RP-only rows always store zero support points.
+
+## 2026-09-08 — Gas employees excluded from fuel League and cashier score
+
+- Fuel League roster and fuel cashier team require isFrontYard=true AND department.code != GAS; GAS stays excluded even when its front-yard flag is true. Apply to prior-week employee score inputs and weekly result display too.
+- Confirmed owner means เซ็น at SPC, EMP5B275 (one employee), whose department GAS has isFrontYard=true. No department/payroll edits needed. Prior record has zero RP/CP and no final rank, so no award correction required.

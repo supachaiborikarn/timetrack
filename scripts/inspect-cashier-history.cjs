@@ -12,9 +12,9 @@ async function main() {
                    round(avg(cs."totalScore"), 1) AS team_score,
                    round(round(avg(cs."totalScore"), 1) * 0.6, 1) + 40 AS cashier_score
             FROM "CompetitionPeriod" p JOIN "CompetitionStanding" cs ON cs."periodId" = p.id
-            JOIN "User" u ON u.id = cs."userId" JOIN "Station" s ON s.id = p."stationId"
+            JOIN "User" u ON u.id = cs."userId" JOIN "Department" d ON d.id = u."departmentId" JOIN "Station" s ON s.id = p."stationId"
             WHERE p.type = 'WEEKLY_STATION' AND p.status = 'FINALIZED' AND p."periodKey" = '2026-08-31'
-              AND cs."requiredDays" > 0 AND u.role = 'EMPLOYEE'
+              AND cs."requiredDays" > 0 AND u.role = 'EMPLOYEE' AND d."isFrontYard" = true AND d.code <> 'GAS'
             GROUP BY s.code ORDER BY s.code`);
         console.log(JSON.stringify(result.rows, null, 2));
         await client.query('ROLLBACK');

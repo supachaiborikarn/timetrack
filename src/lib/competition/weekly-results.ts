@@ -26,7 +26,7 @@ export async function getLatestWeeklyResult(stationId: string) {
             finalizedAt: true,
             awards: championAwards,
             standings: {
-                where: { finalRank: { not: null } }, orderBy: { finalRank: "asc" }, take: 8,
+                where: { finalRank: { not: null }, user: { department: { is: { code: { not: "GAS" } } } } }, orderBy: { finalRank: "asc" }, take: 8,
                 select: { userId: true, employeeLabelSnapshot: true, totalScore: true, finalRank: true },
             },
         },
@@ -67,6 +67,7 @@ export async function getPreviousWeeklyResult(stationId: string, now: Date): Pro
             finalizedAt: true,
             awards: championAwards,
             standings: {
+                where: { user: { department: { is: { code: { not: "GAS" } } } } },
                 orderBy: [{ finalRank: { sort: "asc", nulls: "last" } }, { totalScore: "desc" }, { userId: "asc" }],
                 select: { userId: true, employeeLabelSnapshot: true, totalScore: true, finalRank: true, isEligible: true, fairPlayStatus: true },
             },

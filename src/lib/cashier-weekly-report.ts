@@ -17,7 +17,7 @@ export async function getCashierWeeklyReport(stationId: string, periodKey: strin
         prisma.station.findUniqueOrThrow({ where: { id: stationId }, select: { code: true } }),
         prisma.competitionPeriod.findFirst({
             where: { stationId, type: "WEEKLY_STATION", periodKey, status: "FINALIZED" },
-            include: { standings: { where: { requiredDays: { gt: 0 }, user: { role: "EMPLOYEE" } }, select: { totalScore: true } } },
+            include: { standings: { where: { requiredDays: { gt: 0 }, user: { role: "EMPLOYEE", department: { is: { isFrontYard: true, code: { not: "GAS" } } } } }, select: { totalScore: true } } },
         }),
         prisma.systemConfig.findUnique({ where: { key: cashierOverrideKey(stationId, periodKey) } }),
         prisma.user.findMany({ where: { stationId, role: "CASHIER", isActive: true, employeeStatus: "ACTIVE" }, select: { role: true, employeeId: true, name: true, nickName: true } }),

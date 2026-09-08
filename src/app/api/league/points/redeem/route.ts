@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
             stationId: true,
             isActive: true,
             employeeStatus: true,
-            department: { select: { isFrontYard: true } },
+            department: { select: { isFrontYard: true, code: true } },
         },
     });
-    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard);
+    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard && user.department.code !== "GAS");
     const isEligibleFuelCashier = Boolean(user?.isActive && user.employeeStatus === "ACTIVE" && user.stationId && isFuelCashier(user));
     if (!user?.isActive || user.employeeStatus !== "ACTIVE" || !user.stationId || (!isFrontYardEmployee && !isEligibleFuelCashier)) {
         return NextResponse.json({ error: "ไม่มีสิทธิ์ใช้ Reward Points" }, { status: 403 });

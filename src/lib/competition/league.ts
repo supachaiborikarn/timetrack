@@ -195,7 +195,7 @@ export async function calculateStationWeeklyLeague(params: {
             stationId: params.stationId,
             isActive: true,
             employeeStatus: "ACTIVE",
-            department: { is: { isFrontYard: true } },
+            department: { is: { isFrontYard: true, code: { not: "GAS" } } },
         },
         select: {
             id: true,

@@ -42,6 +42,7 @@ describe("historical cashier report", () => {
     it("uses closed employee scores for the requested week, grants 40 quality points and excludes gas cashiers", async () => {
         const report = await getCashierWeeklyReport("s1", "2026-08-31");
         expect(report.teamScore).toBe(80);
+        expect(mocks.period).toHaveBeenCalledWith(expect.objectContaining({ include: { standings: { where: { requiredDays: { gt: 0 }, user: { role: "EMPLOYEE", department: { is: { isFrontYard: true, code: { not: "GAS" } } } } }, select: { totalScore: true } } } }));
         expect(report.result.score).toBe(88);
         expect(report.cashiers).toEqual([{ employeeId: "FUEL001", label: "Fuel" }]);
         expect(mocks.period).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "FINALIZED", periodKey: "2026-08-31", stationId: "s1" }) }));

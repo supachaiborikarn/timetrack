@@ -44,6 +44,13 @@ describe("employee weekly result API", () => {
 
     afterEach(() => vi.useRealTimers());
 
+    it("excludes GAS even if its department is flagged as front yard", async () => {
+        mocks.user.mockResolvedValue({ id: "sen", role: "EMPLOYEE", employeeId: "EMP5B275", stationId: "SPC", isActive: true, employeeStatus: "ACTIVE", station: { id: "SPC", code: "SPC", name: "SPC" }, department: { isFrontYard: true, code: "GAS" } });
+        const response = await GET();
+        expect((await response.json()).eligible).toBe(false);
+        expect(mocks.calculate).not.toHaveBeenCalled();
+    });
+
     it("returns both Monday's current score and the closed week's score without announcing a premature champion", async () => {
         const response = await GET();
         const body = await response.json();

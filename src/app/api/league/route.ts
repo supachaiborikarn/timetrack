@@ -28,10 +28,10 @@ export async function GET() {
             isActive: true,
             employeeStatus: true,
             station: { select: { id: true, code: true, name: true } },
-            department: { select: { isFrontYard: true } },
+            department: { select: { isFrontYard: true, code: true } },
         },
     });
-    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard);
+    const isFrontYardEmployee = user?.role === "EMPLOYEE" && Boolean(user.department?.isFrontYard && user.department.code !== "GAS");
     const isEligibleFuelCashier = Boolean(user?.isActive && user.employeeStatus === "ACTIVE" && user.stationId && isFuelCashier(user));
     if (!user?.stationId || !user.station || (!isFrontYardEmployee && !isEligibleFuelCashier)) {
         return NextResponse.json({ eligible: false, reason: "NOT_ELIGIBLE" });

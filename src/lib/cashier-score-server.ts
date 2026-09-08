@@ -48,7 +48,7 @@ export async function calculateFuelCashierStationScoreForRange(params: {
             isActive: true,
             employeeStatus: "ACTIVE",
             role: "EMPLOYEE",
-            department: { is: { isFrontYard: true } },
+            department: { is: { isFrontYard: true, code: { not: "GAS" } } },
         },
         select: { id: true },
     });

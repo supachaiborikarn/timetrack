@@ -1905,3 +1905,12 @@ Verification:
 - `npx tsc --noEmit`: passed.
 - Changed-file ESLint: passed.
 - Final production build after the bulk-route fix: the first run inherited a non-standard `NODE_ENV` and failed while prerendering `/apply/status`; rerunning with `NODE_ENV=production` passed successfully with all 190 pages generated.
+
+## 2026-09-08 — Exclude Sen / GAS from competition and cashier inputs
+
+- Reproduced through authorized read-only Neon inspection: EMP5B275 เซ็น at SPC is GAS with isFrontYard=true; the old roster tested only that flag. No separate employee named ศุภชัย was found (station reference, not second employee).
+- Explicitly excluded GAS in live League, cashier team, historical cashier average and weekly display; League entry and RP redemption also reject GAS despite the flag. Added regression covering that exact combination and historical team query. Updated read-only diagnostic to same criteria.
+- Source trace confirmed 60 work points: presence25, punctuality15, completion10, break10; absence scales every component. Late severity capped at60min, early leave at60min, break overage at30min after station allowance+5min grace. Approved/pending leave without check-in and days off excluded from denominator.
+- Production inspection: Sen previous week score0, no rank/RP/CP. Corrected historical cashier averages remain PAP84.6 / SPC82.2 / WKO86.0 because Sen already had no required work days for that week. No production writes.
+- Verification: first focused suite4files21tests passed; regression/work-rule suite4files26tests passed; TypeScript and changed-file ESLint passed. Production build pending. No unrelated scratch changes.
+- Production build passed (190 pages); deployment pending.
