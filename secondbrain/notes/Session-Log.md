@@ -2,10 +2,38 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-06
+updated: 2026-09-09
 ---
 
 # Session Log
+
+## 2026-09-09 — Customer Feedback Fair Play anti-gaming workflow
+
+Goal:
+
+Prevent employees from taking a customer's phone and selecting favorable feedback themselves while still allowing genuine repeat/known customers to submit their own opinions.
+
+Implementation:
+
+- Added a bilingual public-form notice: customers must answer on their own device; staff may explain the form but cannot handle the phone, choose answers, or submit.
+- Added `CustomerFeedbackFairPlayReview` plus migration `20260909023000_add_feedback_fair_play_review` for MANUAL/AUTO review evidence, exact response linkage, status, signals, reporter/reviewer IDs, and audit-safe timestamps.
+- Added Fair Play reporting from the Customer Feedback response list and a dedicated Fair Play review tab. MANAGER can submit a station-scoped report when they have response-view access; ADMIN/HR can report across their allowed scope, while only ADMIN/HR can open the Fair Play adjudication queue and confirm/dismiss. Manual reports select an exact employee feedback response and reason; confirm/dismiss requires a review note.
+- Confirmed misconduct changes the linked response to `HIDDEN` rather than deleting it, writes an AuditLog entry, notifies the employee, and derives the rolling-30-day penalty level from the feedback submission time.
+- Hardened adjudication against double-counting and rollback: a partial unique database index prevents two active/confirmed Fair Play rows for one response, concurrent duplicate reports return 409, and generic moderation cannot restore a confirmed Fair Play response into scoring (including a relation guard on the update itself).
+- Added automatic REVIEW detection for perfect employee feedback combined with fast completion and either a short burst of perfect responses or repeat-client evidence. The automatic path never hides or penalizes by itself and never treats IP/device evidence alone as proof.
+- Integrated rolling escalation into League: second confirmed violation in 30 days zeros Customer + Mission for the occurrence week; third confirmed violation makes the employee monthly-ineligible and zeros CP while preserving work-score evidence. Current monthly preview also filters third-violation-banned employees.
+- Pending Customer Feedback Fair Play prevents generic League approval from bypassing the review. Confirm/dismiss refreshes a matching OPEN/PENDING weekly period and finalizes it automatically when no Fair Play review remains. Already-finalized historical weeks are not silently reopened or clawed back because a reward may already have been fulfilled.
+- Existing CNY/dashboard/cashier score paths already require `VALID`; confirmed `HIDDEN` responses therefore stop contributing immediately without new duplicate score logic.
+- No production database migration, seed, direct data mutation, commit, push, or deployment was executed in this session.
+
+Verification:
+
+- New/related targeted suite: **11 files / 65 tests passed**, including Fair Play policy, Fair Play confirm/dismiss route, customer feedback submission, feedback form, response admin UI, League classification, cashier reward finalization, RP route, and CNY route.
+- `npx tsc --noEmit` — passed with 0 errors after the final League/monthly changes.
+- Targeted ESLint across all Fair Play, feedback form/admin, League and API changes — passed with 0 errors/warnings.
+- `npx prisma validate` — schema valid; `npx prisma generate` completed successfully.
+- `NODE_ENV=production npm run build` — passed; Next.js generated **191/191** static pages and included the new `/api/admin/customer-feedback/fair-play-reviews` routes.
+- Production build retains the pre-existing Next.js warning that the `middleware` file convention is deprecated in favor of `proxy`.
 
 ## 2026-09-06 — Release restroom QR creation fix
 

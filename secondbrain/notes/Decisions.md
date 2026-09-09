@@ -2,10 +2,24 @@
 tags:
   - secondbrain
   - decisions
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # Decisions
+
+## 2026-09-09: Customer Feedback Fair Play requires customer-owned input and human-confirmed penalties
+
+- The customer must tap/select/submit feedback on their own phone. Staff may point to the QR or explain the form, but must not handle the phone, choose answers, or press submit for the customer. This rule is shown on the public feedback form before scoring begins.
+- Knowing the customer is not itself a violation. The enforceable behavior is staff controlling the customer's answers/device.
+- Customer-feedback misconduct uses a dedicated `CustomerFeedbackFairPlayReview` queue. MANAGER may file a station-scoped manual report when they already have response-view access; ADMIN/HR may also report. Only ADMIN/HR with the existing feedback-review permission can inspect the Fair Play queue and confirm/dismiss a review. A report is tied to an exact feedback response so the employee, station, and occurrence time are auditable.
+- Automatic detection creates **REVIEW only**; it never labels fraud or hides a response by itself. The initial policy requires a perfect employee response (5/5 + all behavior items YES), a fast completion (<=20 seconds), and either a cluster of at least two earlier perfect responses within 15 minutes or a repeat-client signal for the same employee. Network/device signals alone are never enough because mobile CGNAT/shared networks can collide.
+- When ADMIN/HR confirms misconduct, the linked response is retained but changed to `HIDDEN`. Existing score/target/bonus queries use `VALID` (League admits only VALID/SUSPECTED before its own filters), so a confirmed response stops contributing to daily evaluation targets, customer score, League customer/mission inputs, RP previews/finalization inputs, and Chinese New Year bonus inputs without deleting audit evidence.
+- Confirmed violations escalate on the feedback occurrence time in a rolling 30-day window: first = hide the offending response + employee warning; second = Customer + Mission points for the occurrence week are zero; third = no monthly competition eligibility/reward and championship CP is zero for the occurrence month. Work/attendance performance is preserved.
+- Pending Fair Play review blocks the matching non-finalized weekly League result. Resolving the Fair Play item recalculates/unblocks that weekly period automatically; the generic League Fair Play approval cannot bypass a pending customer-feedback Fair Play item.
+- A weekly period already `FINALIZED` is not automatically reopened or used to claw back a reward that may already have been fulfilled. The response is still hidden for all live/future score calculations, the current monthly leaderboard applies the third-violation ban, and monthly finalization enforces zero CP/ineligibility. Any already-paid/fulfilled historical award requires explicit management correction rather than silent automated clawback.
+- Every manual report and confirm/dismiss decision is written to `AuditLog`; confirmed employees receive a notification describing the applicable escalation level. No Fair Play action writes payroll or directly deducts wages.
+- A feedback response cannot become multiple active/confirmed Fair Play cases: the database has a partial unique guard for `REVIEW`/`CONFIRMED`, and concurrent duplicate reports return conflict instead of incrementing the violation count twice. A dismissed case releases the response for genuinely new evidence.
+- Generic feedback moderation cannot restore a response with a confirmed Fair Play case to `VALID`/`SUSPECTED`; the update is also relation-guarded in the database write to close the concurrent-confirm/moderation race.
 
 ## 2026-09-05: Station-main QR and restroom QR use separate uniqueness slots
 

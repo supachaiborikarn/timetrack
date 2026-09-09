@@ -13,8 +13,9 @@ import { CasesTab } from "@/components/customer-feedback/admin/cases-tab";
 import { QrCodesTab } from "@/components/customer-feedback/admin/qr-codes-tab";
 import { QuestionsTab } from "@/components/customer-feedback/admin/questions-tab";
 import { ReviewRequestsTab } from "@/components/customer-feedback/admin/review-requests-tab";
+import { FairPlayReviewsTab } from "@/components/customer-feedback/admin/fair-play-reviews-tab";
 
-type FeedbackTab = "overview" | "employee-scores" | "restroom-scores" | "responses" | "cases" | "qr" | "questions" | "reviews";
+type FeedbackTab = "overview" | "employee-scores" | "restroom-scores" | "responses" | "cases" | "qr" | "questions" | "reviews" | "fair-play";
 
 const TAB_DEFINITIONS: { id: FeedbackTab; label: string; permission: string; probe: string }[] = [
     { id: "overview", label: "ภาพรวม", permission: "customer_feedback.view_dashboard", probe: "/api/admin/customer-feedback/summary" },
@@ -25,6 +26,7 @@ const TAB_DEFINITIONS: { id: FeedbackTab; label: string; permission: string; pro
     { id: "qr", label: "QR Codes", permission: "customer_feedback.manage", probe: "/api/admin/customer-feedback/qr-codes" },
     { id: "questions", label: "คำถาม", permission: "customer_feedback.view_dashboard", probe: "/api/admin/customer-feedback/questions" },
     { id: "reviews", label: "คำขอทบทวน", permission: "customer_feedback.review_request_manage", probe: "/api/admin/customer-feedback/review-requests" },
+    { id: "fair-play", label: "Fair Play", permission: "customer_feedback.review_request_manage", probe: "/api/admin/customer-feedback/fair-play-reviews?pageSize=1" },
 ];
 
 const ADMIN_PERMISSION_CODES = [
@@ -175,6 +177,10 @@ export default function CustomerFeedbackAdminPage() {
                             canViewContact={permissions.has("customer_feedback.view_contact")}
                             canModerate={permissions.has("customer_feedback.moderate")}
                             canViewIncident={permissions.has("customer_feedback.view_incident")}
+                            canReviewFairPlay={
+                                permissions.has("customer_feedback.view_response")
+                                && ["ADMIN", "HR", "MANAGER"].includes(session.user.role)
+                            }
                         />
                     </TabsContent>
                 )}
@@ -190,6 +196,7 @@ export default function CustomerFeedbackAdminPage() {
                 {permissions.has("customer_feedback.manage") && <TabsContent value="qr"><QrCodesTab /></TabsContent>}
                 {permissions.has("customer_feedback.view_dashboard") && <TabsContent value="questions"><QuestionsTab /></TabsContent>}
                 {permissions.has("customer_feedback.review_request_manage") && <TabsContent value="reviews"><ReviewRequestsTab /></TabsContent>}
+                {permissions.has("customer_feedback.review_request_manage") && (session.user.role === "ADMIN" || session.user.role === "HR") && <TabsContent value="fair-play"><FairPlayReviewsTab /></TabsContent>}
             </Tabs>
         </div>
     );

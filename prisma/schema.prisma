@@ -1546,13 +1546,14 @@ model CustomerFeedbackResponse {
   submittedAt             DateTime
   createdAt               DateTime              @default(now())
 
-  visit    CustomerFeedbackVisit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
-  qrCode   CustomerFeedbackQr?      @relation(fields: [qrCodeId], references: [id])
-  employee User?                    @relation("FeedbackResponseEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
-  station  Station?                 @relation("FeedbackStationResponse", fields: [stationId], references: [id])
-  contact  CustomerFeedbackContact?
-  answers  CustomerFeedbackAnswer[]
-  case     CustomerFeedbackCase?
+  visit           CustomerFeedbackVisit?           @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  qrCode          CustomerFeedbackQr?              @relation(fields: [qrCodeId], references: [id])
+  employee        User?                            @relation("FeedbackResponseEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  station         Station?                         @relation("FeedbackStationResponse", fields: [stationId], references: [id])
+  contact         CustomerFeedbackContact?
+  answers         CustomerFeedbackAnswer[]
+  case            CustomerFeedbackCase?
+  fairPlayReviews CustomerFeedbackFairPlayReview[]
 
   @@index([stationId, submittedAt])
   @@index([employeeId, submittedAt])
@@ -1560,6 +1561,38 @@ model CustomerFeedbackResponse {
   @@index([validity, submittedAt])
   @@index([reportDate, validity])
   @@index([kind, submittedAt])
+}
+
+/// คิวตรวจ Fair Play ของแบบประเมินลูกค้า
+/// REVIEW เป็นเพียงสัญญาณรอตรวจและไม่เปลี่ยนคะแนนเอง; CONFIRMED จะทำให้ response ถูก HIDDEN ผ่าน API
+model CustomerFeedbackFairPlayReview {
+  id                    String    @id @default(cuid())
+  responseId            String
+  employeeId            String?
+  employeeLabelSnapshot String?
+  stationId             String?
+  /// MANUAL | AUTO
+  source                String
+  /// EMPLOYEE_ANSWERED_FOR_CUSTOMER | EMPLOYEE_HANDLED_PHONE | SUSPICIOUS_PATTERN | OTHER
+  reasonCode            String
+  reasonNote            String?   @db.VarChar(2000)
+  signals               String[]
+  /// REVIEW | CONFIRMED | DISMISSED
+  status                String    @default("REVIEW")
+  /// AUTO ใช้ป้องกันสร้าง review ซ้ำต่อ response; MANUAL ปล่อย null ได้
+  dedupeKey             String?   @unique
+  reportedById          String?
+  reviewedById          String?
+  reviewedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  response CustomerFeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([employeeId, status, createdAt])
+  @@index([responseId, status])
+  @@index([stationId, status])
 }
 
 /// ข้อมูลติดต่อกลับ — แยกจากคำตอบทั่วไปและเข้ารหัสทุกฟิลด์

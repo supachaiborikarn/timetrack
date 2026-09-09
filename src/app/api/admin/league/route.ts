@@ -186,6 +186,9 @@ export async function PATCH(request: NextRequest) {
     if (standing.fairPlayStatus !== "REVIEW") {
         return NextResponse.json({ error: "Standing is not awaiting review" }, { status: 409 });
     }
+    if (standing.fairPlayReasons.includes("feedback-fair-play-review-pending")) {
+        return NextResponse.json({ error: "ต้องตรวจรายการในแท็บ Fair Play ของเสียงลูกค้าก่อน ไม่สามารถอนุมัติข้ามได้" }, { status: 409 });
+    }
 
     const nextStatus = body.action === "APPROVE" ? "APPROVED" : "DISQUALIFIED";
     const reviewed = await prisma.$transaction(async (tx) => {

@@ -22,6 +22,11 @@ import {
 import type { StandardPayload, IncidentPayload } from "./validation";
 import { encryptField } from "@/lib/crypto-field";
 import { isRestroomScoreEligibleHousekeeper, selectUniqueOnDutyHousekeeper } from "./restroom-score";
+import {
+    detectAutomaticFairPlayReview,
+    FAIR_PLAY_AUTO_CLUSTER_WINDOW_MINUTES,
+    isPerfectEmployeeFeedback,
+} from "./fair-play";
 
 /**
  * Server-side submission service ของระบบเสียงลูกค้า
@@ -760,6 +765,49 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
                     ? (housekeeperAssignment.user.nickName?.trim() || housekeeperAssignment.user.name)
                     : null;
 
+            // Fair Play auto-review: ใช้หลายสัญญาณร่วมกันและสร้างเพียง REVIEW เท่านั้น
+            // ห้ามเปลี่ยน validity จาก signal อัตโนมัติ เพราะ network/device อาจชนจาก CGNAT ได้
+            const behaviorQuestionKeys = standardBehaviorQuestionKeysForVersion(surveyVersion);
+            const perfectEmployeeFeedback = isEmployee && isPerfectEmployeeFeedback({
+                overallRating: args.payload.overallRating,
+                behaviorAnswers: args.payload.behaviorAnswers,
+                behaviorQuestionKeys,
+            });
+            let recentPerfectResponseCount = 0;
+            if (perfectEmployeeFeedback && currentQr.employeeId) {
+                const recentCandidates = await tx.customerFeedbackResponse.findMany({
+                    where: {
+                        kind: "STANDARD",
+                        targetType: "EMPLOYEE",
+                        employeeId: currentQr.employeeId,
+                        overallRating: 5,
+                        validity: { not: "TEST" },
+                        submittedAt: {
+                            gte: new Date(claimNow.getTime() - FAIR_PLAY_AUTO_CLUSTER_WINDOW_MINUTES * 60 * 1000),
+                            lt: claimNow,
+                        },
+                    },
+                    select: {
+                        answers: {
+                            where: { questionKey: { in: [...behaviorQuestionKeys] } },
+                            select: { questionKey: true, choiceValues: true },
+                        },
+                    },
+                    take: 12,
+                    orderBy: { submittedAt: "desc" },
+                });
+                recentPerfectResponseCount = recentCandidates.filter((candidate) => {
+                    const byKey = new Map(candidate.answers.map((answer) => [answer.questionKey, answer.choiceValues[0]]));
+                    return behaviorQuestionKeys.length > 0 && behaviorQuestionKeys.every((key) => byKey.get(key) === "YES");
+                }).length;
+            }
+            const autoFairPlaySignals = detectAutomaticFairPlayReview({
+                isPerfectEmployeeFeedback: perfectEmployeeFeedback,
+                durationSeconds,
+                recentPerfectResponseCount,
+                sameClientSameTargetCount: clientCount,
+            });
+
             const created = await tx.customerFeedbackResponse.create({
             data: {
                 refCode,
@@ -810,6 +858,22 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
                 choiceValues: a.choiceValues ?? [],
             })),
         });
+
+        if (autoFairPlaySignals.length > 0 && isEmployee && currentQr.employeeId) {
+            await tx.customerFeedbackFairPlayReview.create({
+                data: {
+                    responseId: created.id,
+                    employeeId: currentQr.employeeId,
+                    employeeLabelSnapshot: responseEmployeeLabel,
+                    stationId,
+                    source: "AUTO",
+                    reasonCode: "SUSPICIOUS_PATTERN",
+                    reasonNote: "ระบบพบหลายสัญญาณร่วมกัน จึงส่งให้ ADMIN/HR ตรวจโดยยังไม่ตัดคะแนนอัตโนมัติ",
+                    signals: autoFairPlaySignals,
+                    dedupeKey: `AUTO:${created.id}:SUSPICIOUS_PATTERN`,
+                },
+            });
+        }
 
         if (args.payload.wantsFollowUp && args.payload.contact) {
             await tx.customerFeedbackContact.create({

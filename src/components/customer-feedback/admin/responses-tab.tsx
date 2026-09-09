@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronUp, Eye, EyeOff, Flag, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Eye, EyeOff, Flag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBangkokDateTime } from "@/lib/date-utils";
 
@@ -41,6 +41,7 @@ interface ResponsesTabProps {
     canViewContact: boolean;
     canModerate: boolean;
     canViewIncident: boolean;
+    canReviewFairPlay?: boolean;
 }
 
 const VALIDITY_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -50,7 +51,7 @@ const VALIDITY_VARIANT: Record<string, "default" | "secondary" | "destructive" |
     TEST: "outline",
 };
 
-export function ResponsesTab({ canExport, canViewContact, canModerate, canViewIncident }: ResponsesTabProps) {
+export function ResponsesTab({ canExport, canViewContact, canModerate, canViewIncident, canReviewFairPlay = false }: ResponsesTabProps) {
     const [rows, setRows] = useState<ResponseRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -148,6 +149,41 @@ export function ResponsesTab({ canExport, canViewContact, canModerate, canViewIn
         }
     };
 
+    const reportFairPlay = async (row: ResponseRow) => {
+        const choice = window.prompt(
+            "ประเภทเหตุ Fair Play:\n1 = พนักงานเลือกคำตอบ/กดส่งแทนลูกค้า\n2 = พนักงานจับโทรศัพท์ลูกค้าระหว่างประเมิน\n3 = อื่น ๆ",
+            "1"
+        );
+        if (!choice) return;
+        const reasonCode = choice.trim() === "1"
+            ? "EMPLOYEE_ANSWERED_FOR_CUSTOMER"
+            : choice.trim() === "2"
+                ? "EMPLOYEE_HANDLED_PHONE"
+                : choice.trim() === "3"
+                    ? "OTHER"
+                    : null;
+        if (!reasonCode) {
+            toast.error("กรุณาเลือก 1, 2 หรือ 3");
+            return;
+        }
+        const note = window.prompt("รายละเอียด/หลักฐานเพิ่มเติม (ถ้ามี):", "") ?? "";
+        if (reasonCode === "OTHER" && note.trim().length < 5) {
+            toast.error("กรณีอื่น ๆ กรุณาระบุรายละเอียดอย่างน้อย 5 ตัวอักษร");
+            return;
+        }
+        const response = await fetch("/api/admin/customer-feedback/fair-play-reviews", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ responseId: row.id, reasonCode, reasonNote: note.trim() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            toast.error(data.error ?? "ส่งตรวจ Fair Play ไม่สำเร็จ");
+            return;
+        }
+        toast.success(data.message ?? "ส่งเข้าคิว Fair Play แล้ว");
+    };
+
     const moderate = async (id: string, nextValidity: string) => {
         const reason = nextValidity === "HIDDEN" ? window.prompt("เหตุผลในการซ่อนคำตอบ:") : undefined;
         if (nextValidity === "HIDDEN" && !reason?.trim()) return;
@@ -237,6 +273,11 @@ export function ResponsesTab({ canExport, canViewContact, canModerate, canViewIn
                                                 <div className="flex flex-wrap gap-1">
                                                     <Button size="sm" variant="outline" onClick={() => void toggleDetail(row.id)}>{expanded ? <ChevronUp className="mr-1 h-4 w-4" /> : <ChevronDown className="mr-1 h-4 w-4" />}รายละเอียด</Button>
                                                     {canViewContact && row.wantsFollowUp && <Button size="icon-sm" variant="ghost" title="ดูข้อมูลติดต่อ" onClick={() => void viewContact(row.id)}>{contactCache[row.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>}
+                                                    {canReviewFairPlay && row.kind === "STANDARD" && row.targetType === "EMPLOYEE" && row.validity !== "TEST" && (
+                                                        <Button size="sm" variant="outline" className="text-amber-800" title="รายงานการประเมินไม่เป็นธรรม" onClick={() => void reportFairPlay(row)}>
+                                                            <AlertTriangle className="mr-1 h-4 w-4" />Fair Play
+                                                        </Button>
+                                                    )}
                                                     {canModerate && row.validity !== "TEST" && row.validity !== "VALID" && <Button size="icon-sm" variant="ghost" title="ยืนยัน VALID" onClick={() => void moderate(row.id, "VALID")}><Flag className="h-4 w-4" /></Button>}
                                                     {canModerate && row.validity !== "HIDDEN" && row.validity !== "TEST" && <Button size="sm" variant="ghost" className="text-red-600" onClick={() => void moderate(row.id, "HIDDEN")}>ซ่อน</Button>}
                                                 </div>

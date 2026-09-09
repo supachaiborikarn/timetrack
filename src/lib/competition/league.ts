@@ -16,6 +16,7 @@ import {
 } from "@/lib/competition/reward-policy";
 import { isFuelCashier } from "@/lib/cashier-employee-scope";
 import { calculateFuelCashierStationScoreForRange } from "@/lib/cashier-score-server";
+import { hasMonthlyRewardBan, hasWeeklyCustomerMissionPenalty } from "@/lib/customer-feedback/fair-play";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -215,7 +216,7 @@ export async function calculateStationWeeklyLeague(params: {
     if (employees.length === 0) return { station, standings: [] };
 
     const userIds = employees.map((employee) => employee.id);
-    const [assignments, attendances, leaves, feedbackResponses, supportTransfers] = await Promise.all([
+    const [assignments, attendances, leaves, feedbackResponses, supportTransfers, fairPlayReviews] = await Promise.all([
         prisma.shiftAssignment.findMany({
             where: { userId: { in: userIds }, date: { gte: params.from, lt: params.to } },
             select: {
@@ -280,6 +281,23 @@ export async function calculateStationWeeklyLeague(params: {
             },
             select: { userId: true, transferTime: true },
         }),
+        prisma.customerFeedbackFairPlayReview.findMany({
+            where: {
+                employeeId: { in: userIds },
+                status: { in: ["REVIEW", "CONFIRMED"] },
+                response: {
+                    submittedAt: {
+                        gte: new Date(params.from.getTime() - 30 * DAY_MS),
+                        lt: params.to,
+                    },
+                },
+            },
+            select: {
+                employeeId: true,
+                status: true,
+                response: { select: { id: true, submittedAt: true } },
+            },
+        }),
     ]);
 
     const standings: LeagueStandingResult[] = [];
@@ -288,6 +306,19 @@ export async function calculateStationWeeklyLeague(params: {
         const employeeAttendances = attendances.filter((row) => row.userId === employee.id);
         const employeeLeaves = leaves.filter((row) => row.userId === employee.id);
         const employeeFeedback = feedbackResponses.filter((row) => row.employeeId === employee.id);
+        const employeeFairPlayReviews = fairPlayReviews.filter((row) => row.employeeId === employee.id);
+        const confirmedFairPlayEvents = employeeFairPlayReviews
+            .filter((row) => row.status === "CONFIRMED")
+            .map((row) => ({ occurredAt: row.response.submittedAt }));
+        const pendingFairPlayReviewInWeek = employeeFairPlayReviews.some((row) =>
+            row.status === "REVIEW"
+            && row.response.submittedAt >= params.from
+            && row.response.submittedAt < params.to
+        );
+        const confirmedViolationInWeek = confirmedFairPlayEvents.some((event) =>
+            event.occurredAt >= params.from && event.occurredAt < params.to
+        );
+        const weeklyFairPlayPenalty = hasWeeklyCustomerMissionPenalty(confirmedFairPlayEvents, params.from, params.to);
 
         const performance = calculateEmployeePerformance({
             assignments: employeeAssignments,
@@ -325,9 +356,10 @@ export async function calculateStationWeeklyLeague(params: {
             }),
         }));
         const rubric = summarizeEmployeeRubric(rubricInput);
-        const customerPoints = rubric.meetsMinimumSample && rubric.score64 != null
+        const rawCustomerPoints = rubric.meetsMinimumSample && rubric.score64 != null
             ? round2((rubric.score64 / EMPLOYEE_SCORE_TOTAL) * LEAGUE_WEIGHTS.customer)
             : 0;
+        const customerPoints = weeklyFairPlayPenalty ? 0 : rawCustomerPoints;
 
         const workedDayKeys = new Set(
             employeeAttendances
@@ -342,11 +374,16 @@ export async function calculateStationWeeklyLeague(params: {
         const missionCompletedDays = [...workedDayKeys].filter(
             (key) => (eligiblePerDay.get(key) ?? 0) >= EMPLOYEE_DAILY_EVALUATION_TARGET
         ).length;
-        const missionPoints = performance.counts.presentDays > 0
+        const rawMissionPoints = performance.counts.presentDays > 0
             ? round2(LEAGUE_WEIGHTS.mission * Math.min(1, missionCompletedDays / performance.counts.presentDays))
             : 0;
+        const missionPoints = weeklyFairPlayPenalty ? 0 : rawMissionPoints;
 
-        const fairPlayReasons = feedbackClassification.fairPlayReasons;
+        const fairPlayReasons = [...feedbackClassification.fairPlayReasons];
+        if (pendingFairPlayReviewInWeek) fairPlayReasons.push("feedback-fair-play-review-pending");
+        if (weeklyFairPlayPenalty) fairPlayReasons.push("confirmed-fair-play-second-violation-week");
+        else if (confirmedViolationInWeek) fairPlayReasons.push("confirmed-fair-play-warning");
+        const fairPlayNeedsReview = feedbackClassification.fairPlayReasons.length > 0 || pendingFairPlayReviewInWeek;
         const supportBonus = calculateSupportStationBonus(
             supportTransfers.filter((row) => row.userId === employee.id).map((row) => row.transferTime)
         );
@@ -354,7 +391,7 @@ export async function calculateStationWeeklyLeague(params: {
         const isEligible = performance.counts.requiredDays > 0 && rubric.meetsMinimumSample;
         const fairPlayStatus: LeagueFairPlayStatus = !isEligible
             ? "INELIGIBLE"
-            : fairPlayReasons.length > 0
+            : fairPlayNeedsReview
                 ? "REVIEW"
                 : "CLEAR";
         const totalScore = round2(Math.min(100, performance.workPoints + customerPoints + missionPoints + supportBonus.supportPoints));
@@ -362,7 +399,7 @@ export async function calculateStationWeeklyLeague(params: {
             requiredDays: performance.counts.requiredDays,
             meetsMinimumCustomerSample: rubric.meetsMinimumSample,
             customerPoints,
-            fairPlayNeedsReview: fairPlayReasons.length > 0,
+            fairPlayNeedsReview,
         });
         const rewardPointsPreview = rewardEligibility.eligible ? rewardPointsForLeagueScore(totalScore) : 0;
 
@@ -683,20 +720,126 @@ export async function snapshotWeeklyStationLeague(params: { stationId: string; f
     return { periodId: period.id, status: "FINALIZED" as const, reviewCount: 0 };
 }
 
+export async function refreshWeeklyCompetitionAfterFeedbackFairPlay(params: {
+    stationId: string;
+    occurredAt: Date;
+}) {
+    const period = await prisma.competitionPeriod.findFirst({
+        where: {
+            type: "WEEKLY_STATION",
+            stationId: params.stationId,
+            startDate: { lte: params.occurredAt },
+            endDate: { gt: params.occurredAt },
+        },
+        select: { id: true, status: true, startDate: true, endDate: true },
+    });
+    if (!period) return { refreshed: false as const, reason: "NO_PERIOD" as const };
+    // รอบ FINALIZED ถือเป็นประวัติที่ปิดแล้ว ไม่เปิด/แจกของรางวัลย้อนหลังอัตโนมัติ
+    // แต่ response ที่ CONFIRMED ถูก HIDDEN แล้ว จึงไม่เข้า CNY/คะแนนรอบอื่นและ monthly ban ยังทำงานตาม policy.
+    if (period.status === "FINALIZED") {
+        return { refreshed: false as const, reason: "FINALIZED" as const, periodId: period.id };
+    }
+
+    const live = await calculateStationWeeklyLeague({
+        stationId: params.stationId,
+        from: period.startDate,
+        to: period.endDate,
+        referenceTime: period.endDate,
+    });
+    for (const standing of live.standings) {
+        await prisma.competitionStanding.upsert({
+            where: { periodId_userId: { periodId: period.id, userId: standing.userId } },
+            update: {
+                employeeLabelSnapshot: standing.label,
+                totalScore: standing.totalScore,
+                workPoints: standing.workPoints,
+                customerPoints: standing.customerPoints,
+                missionPoints: standing.missionPoints,
+                supportPoints: standing.supportPoints,
+                supportDays: standing.supportDays,
+                eligibleCustomerCount: standing.eligibleCustomerCount,
+                excludedRepeatCustomerCount: standing.excludedRepeatCustomerCount,
+                suspiciousCustomerCount: standing.suspiciousCustomerCount,
+                requiredDays: standing.requiredDays,
+                missionCompletedDays: standing.missionCompletedDays,
+                isEligible: standing.isEligible,
+                fairPlayStatus: standing.fairPlayStatus,
+                fairPlayReasons: standing.fairPlayReasons,
+                finalRank: null,
+                championshipPoints: 0,
+                rewardPoints: 0,
+            },
+            create: {
+                periodId: period.id,
+                userId: standing.userId,
+                employeeLabelSnapshot: standing.label,
+                totalScore: standing.totalScore,
+                workPoints: standing.workPoints,
+                customerPoints: standing.customerPoints,
+                missionPoints: standing.missionPoints,
+                supportPoints: standing.supportPoints,
+                supportDays: standing.supportDays,
+                eligibleCustomerCount: standing.eligibleCustomerCount,
+                excludedRepeatCustomerCount: standing.excludedRepeatCustomerCount,
+                suspiciousCustomerCount: standing.suspiciousCustomerCount,
+                requiredDays: standing.requiredDays,
+                missionCompletedDays: standing.missionCompletedDays,
+                isEligible: standing.isEligible,
+                fairPlayStatus: standing.fairPlayStatus,
+                fairPlayReasons: standing.fairPlayReasons,
+            },
+        });
+    }
+
+    const reviewCount = live.standings.filter((standing) => standing.isEligible && standing.fairPlayStatus === "REVIEW").length;
+    if (reviewCount > 0) {
+        await prisma.competitionPeriod.update({
+            where: { id: period.id },
+            data: { status: "PENDING_REVIEW", finalizedAt: null },
+        });
+        return { refreshed: true as const, status: "PENDING_REVIEW" as const, reviewCount, periodId: period.id };
+    }
+
+    await finalizeCompetitionPeriodRanking(period.id);
+    return { refreshed: true as const, status: "FINALIZED" as const, reviewCount: 0, periodId: period.id };
+}
+
 export async function getMonthlyStationLeaderboard(stationId: string, monthKey: string) {
     const [year, month] = monthKey.split("-").map(Number);
     const from = new Date(Date.UTC(year, month - 1, 1) - BANGKOK_OFFSET_MS);
     const to = new Date(Date.UTC(year, month, 1) - BANGKOK_OFFSET_MS);
-    const weeklyPeriods = await prisma.competitionPeriod.findMany({
-        where: {
-            type: "WEEKLY_STATION",
-            stationId,
-            status: "FINALIZED",
-            endDate: { gt: from, lte: to },
-        },
-        include: { standings: { where: { finalRank: { not: null } } } },
-        orderBy: { startDate: "asc" },
-    });
+    const [weeklyPeriods, confirmedFairPlayReviews] = await Promise.all([
+        prisma.competitionPeriod.findMany({
+            where: {
+                type: "WEEKLY_STATION",
+                stationId,
+                status: "FINALIZED",
+                endDate: { gt: from, lte: to },
+            },
+            include: { standings: { where: { finalRank: { not: null } } } },
+            orderBy: { startDate: "asc" },
+        }),
+        prisma.customerFeedbackFairPlayReview.findMany({
+            where: {
+                status: "CONFIRMED",
+                employeeId: { not: null },
+                response: { submittedAt: { gte: new Date(from.getTime() - 30 * DAY_MS), lt: to } },
+            },
+            select: { employeeId: true, response: { select: { submittedAt: true } } },
+        }),
+    ]);
+    const confirmedByEmployee = new Map<string, { occurredAt: Date }[]>();
+    for (const review of confirmedFairPlayReviews) {
+        if (!review.employeeId) continue;
+        const events = confirmedByEmployee.get(review.employeeId) ?? [];
+        events.push({ occurredAt: review.response.submittedAt });
+        confirmedByEmployee.set(review.employeeId, events);
+    }
+    const monthlyBannedUserIds = new Set(
+        [...confirmedByEmployee.entries()]
+            .filter(([, events]) => hasMonthlyRewardBan(events, from, to))
+            .map(([userId]) => userId)
+    );
     const totals = new Map<string, { userId: string; label: string; championshipPoints: number; scoreSum: number; weeks: number }>();
     for (const period of weeklyPeriods) {
         for (const standing of period.standings) {
@@ -714,12 +857,42 @@ export async function getMonthlyStationLeaderboard(stationId: string, monthKey: 
         }
     }
     return [...totals.values()]
+        .filter((row) => !monthlyBannedUserIds.has(row.userId))
         .map((row) => ({ ...row, averageScore: row.weeks ? round2(row.scoreSum / row.weeks) : 0 }))
         .sort((a, b) => b.championshipPoints - a.championshipPoints || b.averageScore - a.averageScore || a.userId.localeCompare(b.userId))
         .map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
 export async function finalizeMonthlyCompetitions(params: { from: Date; to: Date; periodKey: string }) {
+    const confirmedFairPlayReviews = await prisma.customerFeedbackFairPlayReview.findMany({
+        where: {
+            status: "CONFIRMED",
+            employeeId: { not: null },
+            response: {
+                submittedAt: {
+                    gte: new Date(params.from.getTime() - 30 * DAY_MS),
+                    lt: params.to,
+                },
+            },
+        },
+        select: {
+            employeeId: true,
+            response: { select: { submittedAt: true } },
+        },
+    });
+    const confirmedFairPlayByEmployee = new Map<string, { occurredAt: Date }[]>();
+    for (const review of confirmedFairPlayReviews) {
+        if (!review.employeeId) continue;
+        const events = confirmedFairPlayByEmployee.get(review.employeeId) ?? [];
+        events.push({ occurredAt: review.response.submittedAt });
+        confirmedFairPlayByEmployee.set(review.employeeId, events);
+    }
+    const monthlyFairPlayBannedUserIds = new Set(
+        [...confirmedFairPlayByEmployee.entries()]
+            .filter(([, events]) => hasMonthlyRewardBan(events, params.from, params.to))
+            .map(([userId]) => userId)
+    );
+
     const unresolvedWeekly = await prisma.competitionPeriod.count({
         where: {
             type: "WEEKLY_STATION",
@@ -785,17 +958,20 @@ export async function finalizeMonthlyCompetitions(params: { from: Date; to: Date
                     customerPoints: round2(row.customer / row.weeks),
                     missionPoints: round2(row.mission / row.weeks),
                     eligibleCustomerCount: row.eligibleCustomers,
-                    championshipPoints: row.championshipPoints,
-                    isEligible: true,
-                    fairPlayStatus: "APPROVED",
-                    fairPlayReasons: [],
+                    championshipPoints: monthlyFairPlayBannedUserIds.has(row.userId) ? 0 : row.championshipPoints,
+                    isEligible: !monthlyFairPlayBannedUserIds.has(row.userId),
+                    fairPlayStatus: monthlyFairPlayBannedUserIds.has(row.userId) ? "DISQUALIFIED" : "APPROVED",
+                    fairPlayReasons: monthlyFairPlayBannedUserIds.has(row.userId) ? ["confirmed-fair-play-third-violation-month"] : [],
                 },
                 create: {
                     periodId: period.id, userId: row.userId, employeeLabelSnapshot: row.label,
                     totalScore: round2(row.total / row.weeks), workPoints: round2(row.work / row.weeks),
                     customerPoints: round2(row.customer / row.weeks), missionPoints: round2(row.mission / row.weeks),
-                    eligibleCustomerCount: row.eligibleCustomers, championshipPoints: row.championshipPoints,
-                    isEligible: true, fairPlayStatus: "APPROVED", fairPlayReasons: [],
+                    eligibleCustomerCount: row.eligibleCustomers,
+                    championshipPoints: monthlyFairPlayBannedUserIds.has(row.userId) ? 0 : row.championshipPoints,
+                    isEligible: !monthlyFairPlayBannedUserIds.has(row.userId),
+                    fairPlayStatus: monthlyFairPlayBannedUserIds.has(row.userId) ? "DISQUALIFIED" : "APPROVED",
+                    fairPlayReasons: monthlyFairPlayBannedUserIds.has(row.userId) ? ["confirmed-fair-play-third-violation-month"] : [],
                 },
             });
         }

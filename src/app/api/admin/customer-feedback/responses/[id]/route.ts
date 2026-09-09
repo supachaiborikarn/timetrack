@@ -108,7 +108,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
         const response = await prisma.customerFeedbackResponse.findUnique({
             where: { id },
-            select: { id: true, stationId: true, validity: true, kind: true },
+            select: {
+                id: true,
+                stationId: true,
+                validity: true,
+                kind: true,
+                fairPlayReviews: { where: { status: "CONFIRMED" }, select: { id: true }, take: 1 },
+            },
         });
         if (!response) return NextResponse.json({ error: "ไม่พบคำตอบ" }, { status: 404 });
         if (scope.stationId && response.stationId !== scope.stationId) {
@@ -120,13 +126,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (response.validity === "TEST") {
             return NextResponse.json({ error: "คำตอบทดสอบห้ามแก้ validity ย้อนหลัง" }, { status: 400 });
         }
+        if ((response.fairPlayReviews?.length ?? 0) > 0 && body.validity !== "HIDDEN") {
+            return NextResponse.json({ error: "คำตอบนี้ยืนยัน Fair Play แล้ว จึงห้ามนำกลับเข้าคะแนนผ่าน moderation ทั่วไป" }, { status: 409 });
+        }
         if (response.validity === body.validity) {
             return NextResponse.json({ message: "สถานะเป็นค่านี้อยู่แล้ว" });
         }
 
         const updated = await prisma.$transaction(async (tx) => {
             const result = await tx.customerFeedbackResponse.updateMany({
-                where: { id, validity: response.validity },
+                where: {
+                    id,
+                    validity: response.validity,
+                    ...(body.validity !== "HIDDEN" ? { fairPlayReviews: { none: { status: "CONFIRMED" } } } : {}),
+                },
                 data: { validity: body.validity as "VALID" | "SUSPECTED" | "HIDDEN" },
             });
             if (result.count !== 1) return false;

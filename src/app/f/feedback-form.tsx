@@ -64,6 +64,8 @@ const DICT = {
         header: "เสียงลูกค้า",
         privacy: "ประกาศความเป็นส่วนตัว",
         intro: "ประเมินการให้บริการ ใช้เวลาประมาณ 1 นาที และไม่ต้องระบุชื่อ",
+        fairPlayNoticeTitle: "กรุณากดคำตอบด้วยตัวเอง",
+        fairPlayNotice: "พนักงานช่วยชี้ QR หรืออธิบายวิธีใช้ได้ แต่ห้ามจับโทรศัพท์ เลือกคำตอบ หรือกดส่งแทนคุณ เพื่อให้คะแนนยุติธรรมกับทุกคน",
         manualCode: "กรอกรหัส 8 ตัวใต้ QR",
         start: "เริ่มประเมิน",
         resolveFail: "ไม่พบแบบประเมินนี้ โปรดสแกน QR ที่จุดบริการอีกครั้ง",
@@ -137,6 +139,8 @@ const DICT = {
         header: "Customer Feedback",
         privacy: "Privacy Notice",
         intro: "This survey takes about 1 minute. You do not need to provide your name.",
+        fairPlayNoticeTitle: "Please answer on your own device",
+        fairPlayNotice: "Staff may point out the QR or explain how to use the form, but they must not handle your phone, choose answers, or submit for you. This keeps scoring fair for everyone.",
         manualCode: "Enter the 8-character code under the QR",
         start: "Start",
         resolveFail: "Survey not found. Please scan the QR code at the service point again.",
@@ -1232,6 +1236,10 @@ export function FeedbackForm() {
             <div className="space-y-6">
                 <H>{t.header}</H>
                 <p className="text-neutral-600">{t.intro}</p>
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">
+                    <p className="font-bold">{t.fairPlayNoticeTitle}</p>
+                    <p className="mt-1 leading-relaxed">{t.fairPlayNotice}</p>
+                </div>
                 {errorBox(resolveError)}
                 <div className="space-y-2">
                     <label htmlFor="manual-code" className="text-sm font-semibold">
@@ -1266,6 +1274,10 @@ export function FeedbackForm() {
         return card(
             <div className="space-y-6">
                 <p className="text-sm text-neutral-500">{t.intro}</p>
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">
+                    <p className="font-bold">{t.fairPlayNoticeTitle}</p>
+                    <p className="mt-1 leading-relaxed">{t.fairPlayNotice}</p>
+                </div>
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                     <p className="text-lg font-bold">{isEmployee ? result.target.label : station?.name}</p>
                     {isEmployee && result.target.position && <p className="text-sm text-neutral-600">{result.target.position}</p>}
