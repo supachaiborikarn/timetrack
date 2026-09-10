@@ -150,6 +150,8 @@ const LANG = {
     feedbackNotYet: "ยังไม่ครบเป้าวันนี้",
     feedbackNear: "ใกล้ครบเป้าแล้ว",
     feedbackDone: "ครบเป้าวันนี้แล้ว",
+    fairPlayTitle: "กติกาการประเมินจากลูกค้า",
+    fairPlayNotice: "ลูกค้าต้องเป็นผู้กดคะแนนและส่งแบบประเมินด้วยตนเอง ห้ามพนักงานรับโทรศัพท์ของลูกค้ามากดหรือกรอกแทน และห้ามชี้นำคะแนน",
     monthSummary: "สรุปเดือนนี้",
     daysWorked: "วันทำงาน",
     lateIn: "มาสาย",
@@ -200,6 +202,8 @@ const LANG = {
     feedbackNotYet: "Daily goal not reached",
     feedbackNear: "Almost at today’s goal",
     feedbackDone: "Today’s goal complete",
+    fairPlayTitle: "Customer feedback fair-play rule",
+    fairPlayNotice: "Customers must choose their rating and submit the feedback themselves. Employees must not take a customer’s phone to complete the form or influence the rating.",
     monthSummary: "This month",
     daysWorked: "Days worked",
     lateIn: "Late",
@@ -250,6 +254,8 @@ const LANG = {
     feedbackNotYet: "ယနေ့ ရည်မှန်းချက် မပြည့်သေး",
     feedbackNear: "ရည်မှန်းချက် ပြည့်ရန် နီးပါပြီ",
     feedbackDone: "ယနေ့ ရည်မှန်းချက် ပြည့်ပါပြီ",
+    fairPlayTitle: "ဖောက်သည်အကဲဖြတ် စည်းမျဉ်း",
+    fairPlayNotice: "ဖောက်သည်သည် အမှတ်ရွေးချယ်ခြင်းနှင့် အကဲဖြတ်ချက်ပေးပို့ခြင်းကို ကိုယ်တိုင်လုပ်ရမည်။ ဝန်ထမ်းသည် ဖောက်သည်၏ဖုန်းကိုယူ၍ ဖြည့်ပေးခြင်း သို့မဟုတ် အမှတ်ရွေးချယ်မှုကို လမ်းညွှန်ခြင်း မပြုရ။",
     monthSummary: "ယခုလ အကျဉ်းချုပ်",
     daysWorked: "အလုပ်ရက်",
     lateIn: "နောက်ကျ",
@@ -798,6 +804,20 @@ export function EmployeeDashboardView() {
                     />
                   ))}
                 </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {customerEvaluationStatus && !isDayOff && (
+          <section className="tt-retro-enter tt-retro-delay-1 rounded-[16px] border border-amber-700/35 bg-amber-50/80 px-3.5 py-3 text-zinc-900 shadow-[0_2px_0_rgba(0,0,0,0.06)] dark:border-amber-300/25 dark:bg-amber-950/25 dark:text-zinc-100">
+            <div className="flex items-start gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-amber-700/30 bg-[#fbbf24]/25 text-amber-800 dark:border-amber-300/25 dark:text-amber-300">
+                <Megaphone className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12px] font-black">{T.fairPlayTitle}</p>
+                <p className="mt-1 text-[10px] font-bold leading-relaxed text-zinc-700 dark:text-zinc-300">{T.fairPlayNotice}</p>
               </div>
             </div>
           </section>
