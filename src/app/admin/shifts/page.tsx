@@ -132,6 +132,7 @@ export default function ShiftManagementPage() {
         isDayOff: boolean;
     } | null>(null);
     const [selectedShiftId, setSelectedShiftId] = useState<string>("");
+    const [shiftChangeReason, setShiftChangeReason] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
 
     // Bulk assign dialog
@@ -271,6 +272,7 @@ export default function ShiftManagementPage() {
         // Normal click - open edit dialog
         setEditingCell({ userId, userName, date, currentShiftId, isDayOff });
         setSelectedShiftId(isDayOff ? "DAYOFF" : (currentShiftId || ""));
+        setShiftChangeReason("");
         setEditDialogOpen(true);
     };
 
@@ -292,6 +294,7 @@ export default function ShiftManagementPage() {
                     date: editingCell.date,
                     shiftId,
                     isDayOff,
+                    reason: shiftChangeReason.trim() || undefined,
                 }),
             });
 
@@ -844,6 +847,24 @@ export default function ShiftManagementPage() {
                                 })}
                             </SelectContent>
                         </Select>
+                        {editingCell?.currentShiftId && (
+                            <div className="mt-4 space-y-2">
+                                <label className="text-sm font-bold text-foreground" htmlFor="shift-change-reason">
+                                    เหตุผลที่ปรับกะ
+                                </label>
+                                <textarea
+                                    id="shift-change-reason"
+                                    value={shiftChangeReason}
+                                    onChange={(event) => setShiftChangeReason(event.target.value)}
+                                    placeholder="เช่น เรียกเข้าเช้า / สลับกะ / งานพิเศษ"
+                                    rows={2}
+                                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    ถ้ามีเวลาเข้างานแล้ว ระบบจะคำนวณมาสายและออกก่อนใหม่ตามกะที่แก้ โดยไม่เปลี่ยนเวลาเช็คอิน/เช็คเอาต์จริง
+                                </p>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter className="flex gap-2">
                         {editingCell?.currentShiftId && (

@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays, startOfMonth, endOfMonth, getDate, format, parseDateStringToBangkokMidnight } from "@/lib/date-utils";
 import { canGasCashierAccessEmployee, canGasCashierAccessStation, gasCashierEmployeeWhere } from "@/lib/cashier-employee-scope";
+import { getBangkokShiftWindow } from "@/lib/employee-performance";
+import { calculateLatePenalty } from "@/lib/date-utils";
+import { getTimeTrackSettings } from "@/lib/server/system-settings";
 
 // GET: Fetch shift assignments for a station/month
 export async function GET(request: NextRequest) {
@@ -248,11 +251,17 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { userId, date, shiftId, isDayOff } = body;
+        const { userId, date, shiftId, isDayOff, reason } = body as {
+            userId?: string;
+            date?: string;
+            shiftId?: string;
+            isDayOff?: boolean;
+            reason?: string;
+        };
 
-        if (!userId || !date) {
+        if (!userId || !date || !shiftId) {
             return NextResponse.json(
-                { error: "userId and date are required" },
+                { error: "userId, date, and shiftId are required" },
                 { status: 400 }
             );
         }
@@ -260,26 +269,113 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ตารางของพนักงานคนนี้" }, { status: 403 });
         }
 
-        const assignment = await prisma.shiftAssignment.upsert({
-            where: {
-                userId_date: {
+        const assignmentDate = parseDateStringToBangkokMidnight(date);
+        const existingAssignment = await prisma.shiftAssignment.findUnique({
+            where: { userId_date: { userId, date: assignmentDate } },
+            include: { shift: true },
+        });
+        const normalizedDayOff = Boolean(isDayOff);
+        const isExistingShiftChange = Boolean(
+            existingAssignment
+            && (existingAssignment.shiftId !== shiftId || existingAssignment.isDayOff !== normalizedDayOff)
+        );
+        const normalizedReason = reason?.trim() || "ปรับตารางกะรายวันจากหน้าจัดตาราง";
+
+        const newShift = await prisma.shift.findUnique({ where: { id: shiftId } });
+        if (!newShift) {
+            return NextResponse.json({ error: "ไม่พบกะที่เลือก" }, { status: 400 });
+        }
+
+        const runtimeSettings = await getTimeTrackSettings();
+        const result = await prisma.$transaction(async (tx) => {
+            const assignment = await tx.shiftAssignment.upsert({
+                where: { userId_date: { userId, date: assignmentDate } },
+                create: {
                     userId,
-                    date: parseDateStringToBangkokMidnight(date),
+                    shiftId,
+                    date: assignmentDate,
+                    isDayOff: normalizedDayOff,
                 },
-            },
-            create: {
-                userId,
-                shiftId,
-                date: parseDateStringToBangkokMidnight(date),
-                isDayOff: isDayOff || false,
-            },
-            update: {
-                shiftId,
-                isDayOff: isDayOff || false,
-            },
+                update: {
+                    shiftId,
+                    isDayOff: normalizedDayOff,
+                },
+            });
+
+            const attendance = await tx.attendance.findUnique({
+                where: { userId_date: { userId, date: assignmentDate } },
+            });
+
+            let recalculatedAttendance: { lateMinutes: number; earlyLeaveMinutes: number } | null = null;
+            if (attendance) {
+                let lateMinutes = 0;
+                let earlyLeaveMinutes = 0;
+
+                if (!normalizedDayOff) {
+                    const window = getBangkokShiftWindow({
+                        date: assignmentDate,
+                        isDayOff: false,
+                        shift: newShift,
+                    });
+                    if (attendance.checkInTime) {
+                        lateMinutes = Math.max(0, Math.floor((attendance.checkInTime.getTime() - window.start.getTime()) / 60_000));
+                        if (lateMinutes <= runtimeSettings.lateThresholdMinutes) lateMinutes = 0;
+                    }
+                    if (attendance.checkOutTime) {
+                        earlyLeaveMinutes = Math.max(0, Math.floor((window.end.getTime() - attendance.checkOutTime.getTime()) / 60_000));
+                    }
+                }
+
+                await tx.attendance.update({
+                    where: { id: attendance.id },
+                    data: {
+                        lateMinutes,
+                        earlyLeaveMinutes,
+                        latePenaltyAmount: calculateLatePenalty(lateMinutes),
+                    },
+                });
+                recalculatedAttendance = { lateMinutes, earlyLeaveMinutes };
+            }
+
+            if (isExistingShiftChange) {
+                await tx.auditLog.create({
+                    data: {
+                        action: "SHIFT_ASSIGNMENT_UPDATED",
+                        entity: "ShiftAssignment",
+                        entityId: assignment.id,
+                        userId: session.user.id,
+                        details: JSON.stringify({
+                            employeeUserId: userId,
+                            date,
+                            reason: normalizedReason,
+                            before: existingAssignment ? {
+                                shiftId: existingAssignment.shiftId,
+                                shiftCode: existingAssignment.shift.code,
+                                startTime: existingAssignment.shift.startTime,
+                                endTime: existingAssignment.shift.endTime,
+                                isDayOff: existingAssignment.isDayOff,
+                            } : null,
+                            after: {
+                                shiftId: newShift.id,
+                                shiftCode: newShift.code,
+                                startTime: newShift.startTime,
+                                endTime: newShift.endTime,
+                                isDayOff: normalizedDayOff,
+                            },
+                            attendanceBefore: attendance ? {
+                                lateMinutes: attendance.lateMinutes,
+                                earlyLeaveMinutes: attendance.earlyLeaveMinutes,
+                            } : null,
+                            attendanceAfter: recalculatedAttendance,
+                        }),
+                    },
+                });
+            }
+
+            return { assignment, recalculatedAttendance };
         });
 
-        return NextResponse.json({ success: true, assignment });
+        return NextResponse.json({ success: true, ...result });
     } catch (error) {
         console.error("Error updating assignment:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
