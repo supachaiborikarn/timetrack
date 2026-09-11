@@ -19,6 +19,12 @@ interface FairPlayRow {
     reasonLabel: string;
     reasonNote: string | null;
     signals: string[];
+    signalExplanations: Array<{
+        code: string;
+        label: string;
+        detail: string;
+        level: "context" | "warning";
+    }>;
     status: "REVIEW" | "CONFIRMED" | "DISMISSED";
     createdAt: string;
     reviewedAt: string | null;
@@ -156,8 +162,23 @@ export function FairPlayReviewsTab() {
                                             <Badge variant={row.source === "AUTO" ? "secondary" : "outline"}>{row.source}</Badge>
                                             <span className="font-medium">{row.reasonLabel}</span>
                                         </div>
-                                        {row.signals.length > 0 && <p className="mt-1 text-xs text-muted-foreground">signal: {row.signals.join(", ")}</p>}
-                                        {row.reasonNote && <p className="mt-1 whitespace-pre-wrap text-xs">{row.reasonNote}</p>}
+                                        {row.signalExplanations?.length > 0 && (
+                                            <div className="mt-2 space-y-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                                                <p className="text-xs font-bold text-amber-950">เหตุที่ระบบขอให้ตรวจ</p>
+                                                {row.signalExplanations.map((signal) => (
+                                                    <div key={signal.code} className="text-xs">
+                                                        <div className={signal.level === "warning" ? "font-semibold text-amber-950" : "font-medium text-slate-700"}>
+                                                            {signal.label}
+                                                        </div>
+                                                        <div className="mt-0.5 leading-relaxed text-slate-600">{signal.detail}</div>
+                                                    </div>
+                                                ))}
+                                                <p className="border-t border-amber-200 pt-2 text-[11px] leading-relaxed text-amber-900">
+                                                    ข้อมูลนี้เป็นเพียงสัญญาณให้ ADMIN/HR ตรวจเพิ่มเติม ไม่ได้สรุปว่าพนักงานทุจริต
+                                                </p>
+                                            </div>
+                                        )}
+                                        {row.reasonNote && <p className="mt-2 whitespace-pre-wrap text-xs">{row.reasonNote}</p>}
                                     </TableCell>
                                     <TableCell><Badge variant={row.status === "CONFIRMED" ? "destructive" : row.status === "REVIEW" ? "secondary" : "outline"}>{STATUS_LABEL[row.status]}</Badge></TableCell>
                                     <TableCell>

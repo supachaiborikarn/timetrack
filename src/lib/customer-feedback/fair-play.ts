@@ -16,6 +16,65 @@ export type FairPlayReasonCode = (typeof FAIR_PLAY_REASON_CODES)[number];
 export type FairPlayReviewStatus = "REVIEW" | "CONFIRMED" | "DISMISSED";
 export type FairPlayReviewSource = "MANUAL" | "AUTO";
 
+export type FairPlaySignalExplanation = {
+    code: string;
+    label: string;
+    detail: string;
+    level: "context" | "warning";
+};
+
+export function explainFairPlaySignals(input: {
+    signals: readonly string[];
+    durationSeconds?: number | null;
+}): FairPlaySignalExplanation[] {
+    const duration = typeof input.durationSeconds === "number" && Number.isFinite(input.durationSeconds)
+        ? Math.max(0, Math.round(input.durationSeconds))
+        : null;
+
+    return input.signals.map((signal): FairPlaySignalExplanation => {
+        if (signal === "perfect-employee-feedback") {
+            return {
+                code: signal,
+                label: "แบบนี้เป็นคะแนนเต็มทุกส่วน",
+                detail: "คะแนนรวม 5/5 และคำถามพฤติกรรมของพนักงานทุกข้อถูกตอบ YES สัญญาณนี้อย่างเดียวไม่ถือว่าผิดปกติ",
+                level: "context",
+            };
+        }
+        if (signal === "fast-perfect-feedback") {
+            return {
+                code: signal,
+                label: "ส่งแบบคะแนนเต็มเร็วมาก",
+                detail: duration === null
+                    ? `ใช้เวลาส่งไม่เกิน ${FAIR_PLAY_AUTO_FAST_PERFECT_SECONDS} วินาที ซึ่งถึงเกณฑ์ที่ระบบให้ตรวจเพิ่มเติม`
+                    : `ใช้เวลา ${duration} วินาที จากเกณฑ์ไม่เกิน ${FAIR_PLAY_AUTO_FAST_PERFECT_SECONDS} วินาที`,
+                level: "warning",
+            };
+        }
+        if (signal === "clustered-perfect-feedback") {
+            return {
+                code: signal,
+                label: "มีคะแนนเต็มติดกันในช่วงเวลาสั้น",
+                detail: `ก่อนแบบนี้ ระบบพบแบบคะแนนเต็มของพนักงานคนเดิมอย่างน้อย ${FAIR_PLAY_AUTO_CLUSTER_MIN_PRIOR_RESPONSES} แบบ ภายใน ${FAIR_PLAY_AUTO_CLUSTER_WINDOW_MINUTES} นาที`,
+                level: "warning",
+            };
+        }
+        if (signal === "repeat-client-same-employee") {
+            return {
+                code: signal,
+                label: "พบ fingerprint เดิมส่งให้ QR เดิมซ้ำ",
+                detail: "อุปกรณ์/เบราว์เซอร์ลักษณะเดิมเคยส่งแบบให้ QR พนักงานนี้อย่างน้อย 1 ครั้งใน 24 ชั่วโมงก่อนหน้า fingerprint ไม่ใช่การยืนยันตัวบุคคล จึงใช้เป็นเพียงสัญญาณประกอบ",
+                level: "warning",
+            };
+        }
+        return {
+            code: signal,
+            label: "สัญญาณเพิ่มเติมจากระบบ",
+            detail: `รหัสสัญญาณ: ${signal}`,
+            level: "context",
+        };
+    });
+}
+
 export type FairPlayViolationEvent = {
     occurredAt: Date;
 };

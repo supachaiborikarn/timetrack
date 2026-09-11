@@ -8,7 +8,7 @@ import {
     requireFeedbackPermission,
 } from "@/lib/customer-feedback/access";
 import { isCustomerFeedbackEnabled } from "@/lib/customer-feedback/feature-flags";
-import { FAIR_PLAY_REASON_CODES, fairPlayReasonLabel } from "@/lib/customer-feedback/fair-play";
+import { FAIR_PLAY_REASON_CODES, explainFairPlaySignals, fairPlayReasonLabel } from "@/lib/customer-feedback/fair-play";
 
 async function requireFairPlayReviewer() {
     if (!isCustomerFeedbackEnabled()) {
@@ -107,6 +107,10 @@ export async function GET(request: NextRequest) {
                 reasonLabel: fairPlayReasonLabel(row.reasonCode),
                 reasonNote: row.reasonNote,
                 signals: row.signals,
+                signalExplanations: explainFairPlaySignals({
+                    signals: row.signals,
+                    durationSeconds: row.response.durationSeconds,
+                }),
                 status: row.status,
                 reportedById: row.reportedById,
                 reviewedById: row.reviewedById,

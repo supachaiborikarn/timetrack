@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     detectAutomaticFairPlayReview,
+    explainFairPlaySignals,
     fairPlayPenaltyLevelForViolation,
     hasMonthlyRewardBan,
     hasWeeklyCustomerMissionPenalty,
@@ -24,6 +25,31 @@ describe("customer feedback fair-play policy", () => {
             recentPerfectResponseCount: 2,
             sameClientSameTargetCount: 0,
         })).toEqual(expect.arrayContaining(["perfect-employee-feedback", "fast-perfect-feedback", "clustered-perfect-feedback"]));
+    });
+
+    it("explains automatic signals in admin-friendly language with the observed duration", () => {
+        const explanations = explainFairPlaySignals({
+            signals: [
+                "perfect-employee-feedback",
+                "fast-perfect-feedback",
+                "clustered-perfect-feedback",
+                "repeat-client-same-employee",
+            ],
+            durationSeconds: 12.4,
+        });
+
+        expect(explanations.map((item) => item.code)).toEqual([
+            "perfect-employee-feedback",
+            "fast-perfect-feedback",
+            "clustered-perfect-feedback",
+            "repeat-client-same-employee",
+        ]);
+        expect(explanations[1].detail).toContain("12 วินาที");
+        expect(explanations[1].detail).toContain("20 วินาที");
+        expect(explanations[2].detail).toContain("2 แบบ");
+        expect(explanations[2].detail).toContain("15 นาที");
+        expect(explanations[3].detail).toContain("24 ชั่วโมง");
+        expect(explanations[3].detail).toContain("ไม่ใช่การยืนยันตัวบุคคล");
     });
 
     it("does not treat a shared client signal alone as fraud", () => {
