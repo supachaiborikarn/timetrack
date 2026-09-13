@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
             include: {
                 station: { select: { id: true, code: true, name: true } },
                 standings: {
-                    orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { eligibleCustomerCount: "desc" }],
+                    orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { customerPoints: "desc" }, { userId: "asc" }],
                     include: { user: { select: { employeeId: true, name: true, nickName: true } } },
                 },
             },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateSupportStationBonus, classifyCompetitionFeedback, getBangkokWeekBounds } from "./league";
+import { calculateSupportStationBonus, classifyCompetitionFeedback, compareWeeklyLeagueStandings, getBangkokWeekBounds } from "./league";
 
 describe("competition league fair play", () => {
     it("counts the same weekly client only once for the same employee", () => {
@@ -80,5 +80,35 @@ describe("support-station League bonus", () => {
             new Date("2026-09-10T01:00:00.000Z"),
         ]);
         expect(bonus).toEqual({ supportDays: 4, supportPoints: 3 });
+    });
+});
+
+describe("weekly League tie-break fairness", () => {
+    it("uses customer quality instead of raw feedback volume when total and support points are tied", () => {
+        const higherVolume = {
+            isEligible: true,
+            totalScore: 95,
+            supportPoints: 0,
+            customerPoints: 23.5,
+            employeeId: "EMP001",
+            eligibleCustomerCount: 40,
+        };
+        const higherQuality = {
+            isEligible: true,
+            totalScore: 95,
+            supportPoints: 0,
+            customerPoints: 24.5,
+            employeeId: "EMP002",
+            eligibleCustomerCount: 12,
+        };
+
+        const sorted = [higherVolume, higherQuality].sort(compareWeeklyLeagueStandings);
+        expect(sorted.map((standing) => standing.employeeId)).toEqual(["EMP002", "EMP001"]);
+    });
+
+    it("keeps employee id as a stable final tie-break when score quality is identical", () => {
+        const a = { isEligible: true, totalScore: 95, supportPoints: 0, customerPoints: 24, employeeId: "EMP001" };
+        const b = { isEligible: true, totalScore: 95, supportPoints: 0, customerPoints: 24, employeeId: "EMP002" };
+        expect([b, a].sort(compareWeeklyLeagueStandings).map((standing) => standing.employeeId)).toEqual(["EMP001", "EMP002"]);
     });
 });

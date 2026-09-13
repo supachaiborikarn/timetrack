@@ -434,15 +434,25 @@ export async function calculateStationWeeklyLeague(params: {
         });
     }
 
-    standings.sort((a, b) =>
-        Number(b.isEligible) - Number(a.isEligible)
-        || b.totalScore - a.totalScore
-        || b.supportPoints - a.supportPoints
-        || b.eligibleCustomerCount - a.eligibleCustomerCount
-        || a.employeeId.localeCompare(b.employeeId)
-    );
+    standings.sort(compareWeeklyLeagueStandings);
     standings.forEach((standing, index) => { standing.rank = index + 1; });
     return { station, standings };
+}
+
+export type WeeklyLeagueTieBreakStanding = Pick<
+    LeagueStandingResult,
+    "isEligible" | "totalScore" | "supportPoints" | "customerPoints" | "employeeId"
+>;
+
+export function compareWeeklyLeagueStandings(
+    a: WeeklyLeagueTieBreakStanding,
+    b: WeeklyLeagueTieBreakStanding
+): number {
+    return Number(b.isEligible) - Number(a.isEligible)
+        || b.totalScore - a.totalScore
+        || b.supportPoints - a.supportPoints
+        || b.customerPoints - a.customerPoints
+        || a.employeeId.localeCompare(b.employeeId);
 }
 
 export async function finalizeCompetitionPeriodRanking(periodId: string) {
@@ -467,7 +477,7 @@ export async function finalizeCompetitionPeriodRanking(periodId: string) {
         })
         : await prisma.competitionStanding.findMany({
             where: eligibleWhere,
-            orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { eligibleCustomerCount: "desc" }, { userId: "asc" }],
+            orderBy: [{ totalScore: "desc" }, { supportPoints: "desc" }, { customerPoints: "desc" }, { userId: "asc" }],
         });
 
     await prisma.$transaction(async (tx) => {

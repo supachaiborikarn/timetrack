@@ -367,7 +367,13 @@ export default function AdminLeaguePage() {
                     <div className="overflow-hidden rounded-xl border bg-card">
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-3">
                             <div><p className="font-black">{data.liveLeague.station.name}</p><p className="text-xs text-muted-foreground">สัปดาห์ {data.liveLeague.periodKey}</p></div>
-                            <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-zinc-950">{data.liveLeague.standings.length} คน</span>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                <span className="rounded-full border border-amber-400 bg-amber-50 px-3 py-1 text-xs font-black text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">อันดับชั่วคราว</span>
+                                <span className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-zinc-950">{data.liveLeague.standings.length} คน</span>
+                            </div>
+                        </div>
+                        <div className="border-b border-amber-200 bg-amber-50/80 px-4 py-2.5 text-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
+                            <span className="font-black">ผู้นำตอนนี้ยังไม่ถือว่าเป็นผู้ชนะ</span> · คะแนนและอันดับเปลี่ยนได้จนปิดรอบสัปดาห์ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ
                         </div>
                         {data.liveLeague.standings.length === 0 ? (
                             <div className="p-6 text-center text-sm text-muted-foreground">ยังไม่มีพนักงานหน้าลานที่อยู่ในลีกของสถานีนี้</div>

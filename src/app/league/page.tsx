@@ -242,6 +242,10 @@ export default function LeaguePage() {
                         </div>
                         <Trophy className="h-7 w-7 text-amber-400" />
                     </div>
+                    <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
+                        <p className="text-xs font-black">อันดับชั่วคราว — คนที่นำตอนนี้ยังไม่ใช่ผู้ชนะ</p>
+                        <p className="mt-0.5 text-[10px] font-medium leading-relaxed">คะแนนและอันดับยังเปลี่ยนได้จนปิดรอบสัปดาห์ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ</p>
+                    </div>
                     {myWeekly ? (
                         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-dashed border-zinc-300 p-4">
                             <div className="grid h-14 w-14 place-items-center rounded-full border-2 border-zinc-800 bg-amber-300 text-xl font-black">{rankIcon(myWeekly.rank)}</div>
