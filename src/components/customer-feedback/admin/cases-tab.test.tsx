@@ -96,7 +96,7 @@ describe("CasesTab actionable feedback details", () => {
                 id: "case-rating-1",
                 severity: "HIGH",
                 status: "OPEN",
-                category: "negative-feedback",
+                category: "low-satisfaction",
                 stationId: "station-1",
                 dueAt: "2026-09-04T10:00:00.000Z",
                 acknowledgedAt: null,
@@ -139,10 +139,11 @@ describe("CasesTab actionable feedback details", () => {
     it("shows why the case was opened, selected reasons, failed service items and useful no-comment wording", async () => {
         render(<CasesTab currentUserId="admin-1" canSetStation />);
 
-        expect((await screen.findAllByText("ลูกค้าให้ 1/5 — ไม่พอใจมาก")).length).toBeGreaterThan(0);
+        expect((await screen.findAllByText("ติดตามความพึงพอใจต่ำ: 1/5 — ไม่พอใจมาก")).length).toBeGreaterThan(0);
         fireEvent.click(screen.getByRole("button", { name: "ดูสาเหตุ / วิธีจัดการ" }));
 
-        expect(screen.getByText("คะแนน 1–2 เปิดเคส HIGH อัตโนมัติ และต้องรับทราบภายใน 24 ชั่วโมง")).toBeTruthy();
+        expect(screen.getByText(/ยังไม่ถือว่าเป็นข้อร้องเรียนหรือความผิดของพนักงาน/)).toBeTruthy();
+        expect(screen.getByText("ติดตามความพึงพอใจต่ำ · ไม่ใช่ข้อร้องเรียนอัตโนมัติ")).toBeTruthy();
         expect(screen.getAllByText("การพูดจาและความสุภาพ").length).toBeGreaterThan(0);
         expect(screen.getAllByText(/พนักงานกล่าวทักทาย/).length).toBeGreaterThan(0);
         expect(screen.getByText(/ลูกค้าไม่ได้พิมพ์ข้อความเพิ่มเติม/)).toBeTruthy();

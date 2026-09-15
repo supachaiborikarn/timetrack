@@ -336,7 +336,7 @@ describe("actionable case notifications", () => {
         expect(notificationCreateMany).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.arrayContaining([
                 expect.objectContaining({
-                    message: "มะนาว: ลูกค้าให้ 1/5 — ไม่พอใจมาก · สาเหตุ: การพูดจาและความสุภาพ",
+                    message: "มะนาว: ติดตามความพึงพอใจต่ำ: 1/5 — ไม่พอใจมาก · สาเหตุ: การพูดจาและความสุภาพ",
                     link: "/admin/customer-feedback?tab=cases&caseId=case-high",
                 }),
             ]),

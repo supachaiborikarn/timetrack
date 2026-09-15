@@ -1,16 +1,17 @@
 import { INCIDENT_TYPES } from "./questions";
 
 /**
- * Case severity และ SLA — pure functions (§8)
+ * Case severity, category และ SLA — pure functions (§8)
  *
- * - คะแนน 1–2 สร้างเคส HIGH
- * - คะแนน 3–5 ที่ขอให้ติดต่อกลับสร้างเคส NORMAL
+ * - คะแนน 1–2 สร้างเคส HIGH หมวด low-satisfaction (ไม่ถือเป็นข้อร้องเรียนโดยอัตโนมัติ)
+ * - คะแนน 3 พร้อมสาเหตุความปลอดภัยสร้าง HIGH หมวด safety-feedback
+ * - คะแนน 3–5 ที่ขอให้ติดต่อกลับสร้างเคส NORMAL หมวด follow-up
  * - incident กลุ่มร้ายแรงสร้าง URGENT, privacy/other สร้าง HIGH
  * - dangerStatus YES ยกระดับเป็น URGENT ทุก incident key
- * - คะแนน 3 พร้อมสาเหตุความปลอดภัยสร้าง HIGH
  */
 
 export type CaseSeverity = "NORMAL" | "HIGH" | "URGENT";
+export type StandardCaseCategory = "low-satisfaction" | "safety-feedback" | "follow-up";
 
 export const SEVERITY_SLA_HOURS: Record<CaseSeverity, number> = {
     URGENT: 2,
@@ -36,6 +37,15 @@ export function standardCaseSeverity(input: StandardCaseInput): CaseSeverity | n
         return "HIGH";
     }
     if (input.overallRating >= 3 && input.wantsFollowUp) return "NORMAL";
+    return null;
+}
+
+export function standardCaseCategory(input: StandardCaseInput): StandardCaseCategory | null {
+    if (input.overallRating <= 2) return "low-satisfaction";
+    if (input.overallRating === 3 && input.reasonKeys.some((k) => SAFETY_RELATED_REASON_KEYS.has(k))) {
+        return "safety-feedback";
+    }
+    if (input.overallRating >= 3 && input.wantsFollowUp) return "follow-up";
     return null;
 }
 

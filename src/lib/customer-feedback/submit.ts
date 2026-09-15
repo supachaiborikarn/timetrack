@@ -11,7 +11,7 @@ import {
     isKnownSelfEvaluation,
     serverDerivedDurationSeconds,
 } from "./anti-abuse";
-import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, caseNotificationEventKey } from "./cases";
+import { standardCaseSeverity, standardCaseCategory, incidentCaseSeverity, caseDueAt, caseNotificationEventKey } from "./cases";
 import { feedbackCaseNotificationMessage } from "./case-presentation";
 import { visitPurgeAfter, contactPurgeAfter, FORM_EXPIRY_MS } from "./retention";
 import {
@@ -706,11 +706,13 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
             const validity = visit.isTestAtOpen
                 ? ("TEST" as const)
                 : abuse.score >= ABUSE_SUSPECT_THRESHOLD ? ("SUSPECTED" as const) : ("VALID" as const);
-            const severity = validity === "TEST" ? null : standardCaseSeverity({
+            const standardCaseInput = {
                 overallRating: args.payload.overallRating,
                 reasonKeys: args.payload.reasonKeys,
                 wantsFollowUp: args.payload.wantsFollowUp,
-            });
+            };
+            const severity = validity === "TEST" ? null : standardCaseSeverity(standardCaseInput);
+            const caseCategory = validity === "TEST" ? null : standardCaseCategory(standardCaseInput);
             const shiftAtSubmit = employeeUser?.shiftAssignments[0] ?? null;
 
             // แบบห้องน้ำผูกแม่บ้านจากการลงเวลาจริง ณ เวลาส่งเท่านั้น
@@ -895,7 +897,7 @@ export async function submitStandardResponse(args: SubmitStandardArgs) {
                 responseId: created.id,
                 stationId,
                 severity,
-                category: severity === "NORMAL" ? "follow-up" : "negative-feedback",
+                category: caseCategory ?? (severity === "NORMAL" ? "follow-up" : "low-satisfaction"),
             });
         }
 

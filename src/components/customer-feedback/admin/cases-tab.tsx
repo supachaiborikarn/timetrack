@@ -322,6 +322,10 @@ export function CasesTab({ currentUserId, canSetStation, canViewContact = false 
                                 const overdue = new Date(row.dueAt).getTime() < now;
                                 const expanded = expandedId === row.id;
                                 const trigger = feedbackCaseTrigger(row.response, row.category);
+                                const isLowSatisfactionTracking = row.response.kind === "STANDARD"
+                                    && row.response.overallRating != null
+                                    && row.response.overallRating <= 2
+                                    && row.category !== "manual";
                                 const reasonLabels = feedbackReasonLabels(row.response.surveyVersion, row.response.reasonKeys);
                                 const serviceAreaLabels = feedbackServiceAreaLabels(row.response.serviceAreas);
                                 const behaviorFindings = feedbackBehaviorFindings(row.response.surveyVersion, row.response.answers);
@@ -355,6 +359,9 @@ export function CasesTab({ currentUserId, canSetStation, canViewContact = false 
                                                                 <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${row.severity === "URGENT" ? "text-red-600" : "text-amber-600"}`} />
                                                                 <div>
                                                                     <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">เหตุผลที่ระบบเปิดเคส</p>
+                                                                    {isLowSatisfactionTracking && (
+                                                                        <Badge variant="outline" className="mt-2 border-amber-400 bg-white/70 text-amber-900 dark:bg-black/20 dark:text-amber-100">ติดตามความพึงพอใจต่ำ · ไม่ใช่ข้อร้องเรียนอัตโนมัติ</Badge>
+                                                                    )}
                                                                     <p className="mt-1 text-lg font-bold">{trigger.headline}</p>
                                                                     <p className="mt-1 text-sm">{trigger.detail}</p>
                                                                 </div>
@@ -434,6 +441,12 @@ export function CasesTab({ currentUserId, canSetStation, canViewContact = false 
                                                                     <h4 className="font-semibold">คำตอบเกณฑ์การบริการรายข้อ</h4>
                                                                     {failedFindings.length > 0 ? <Badge variant="destructive">ควรตรวจ {failedFindings.length} ข้อ</Badge> : <Badge variant="outline">ไม่มีข้อที่ตอบว่าไม่ผ่าน</Badge>}
                                                                 </div>
+                                                                {isLowSatisfactionTracking && failedFindings.length === 0 && (
+                                                                    <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100">
+                                                                        <p className="font-semibold">คะแนนรวมต่ำ แต่เกณฑ์รายข้อไม่มีข้อไม่ผ่าน</p>
+                                                                        <p className="mt-1">กรณีนี้ให้ตรวจสาเหตุที่ลูกค้าเลือก ความเข้าใจสเกล 1–5 และบริบทหน้างานก่อน ห้ามสรุปจากคะแนนรวมเพียงอย่างเดียวว่าพนักงานทำผิด</p>
+                                                                    </div>
+                                                                )}
                                                                 {failedFindings.length > 0 && (
                                                                     <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/20">
                                                                         <p className="text-sm font-semibold text-red-800 dark:text-red-200">ประเด็นที่ควรคุยกับพนักงานก่อน</p>

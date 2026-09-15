@@ -82,6 +82,8 @@ const DICT = {
         ratingQEmployee: "โดยรวม คุณพอใจกับการให้บริการครั้งนี้เพียงใด",
         ratingQStation: "โดยรวม คุณพอใจกับการใช้บริการที่สถานีนี้วันนี้เพียงใด",
         ratingQRestroom: "โดยรวม คุณให้ความสะอาดห้องน้ำครั้งนี้กี่คะแนน",
+        ratingScaleHint: "1 = ไม่พอใจมากที่สุด · 5 = พอใจมากที่สุด",
+        lowRatingReasonRequired: "คะแนน 1–2 ต้องเลือกสาเหตุหลักอย่างน้อย 1 ข้อ เพื่อให้ทีมติดตามได้ตรงจุด",
         restroomConfirmQ: "คุณกำลังประเมินความสะอาดห้องน้ำของสถานีนี้ใช่ไหม",
         restroomChecklistQ: "ช่วยเช็กความสะอาดที่คุณพบ",
         serviceBehaviorsQ: "พนักงานทำสิ่งต่อไปนี้หรือไม่",
@@ -127,7 +129,7 @@ const DICT = {
         afternoon: "ช่วงบ่าย",
         evening: "ช่วงเย็น",
         yourName: "ชื่อ (ไม่บังคับ)",
-        incidentCaseNote: "คำตอบนี้จะสร้างเรื่องให้ทีมตรวจสอบ",
+        incidentCaseNote: "คะแนนนี้จะสร้างเคสติดตามความพึงพอใจให้ทีมตรวจสอบ โดยยังไม่ถือว่าเป็นข้อร้องเรียนหรือความผิดของพนักงาน",
         testModeBanner: "โหมดทดสอบ — คำตอบนี้ไม่ใช้คำนวณคะแนนและไม่สร้างเคสจริง",
         refCodeLabel: "เลขอ้างอิง",
         caseCreated: "ทีมงานจะรับทราบตามระยะเวลาที่กำหนด",
@@ -157,6 +159,8 @@ const DICT = {
         ratingQEmployee: "Overall, how satisfied were you with this service",
         ratingQStation: "Overall, how satisfied were you with this station today",
         ratingQRestroom: "Overall, how would you rate the restroom cleanliness?",
+        ratingScaleHint: "1 = Very dissatisfied · 5 = Very satisfied",
+        lowRatingReasonRequired: "Ratings 1–2 require at least one main reason so the team can follow up accurately.",
         restroomConfirmQ: "Are you rating the restroom cleanliness at this station?",
         restroomChecklistQ: "Please check the cleanliness you observed",
         serviceBehaviorsQ: "Did the employee do the following?",
@@ -202,7 +206,7 @@ const DICT = {
         afternoon: "Afternoon",
         evening: "Evening",
         yourName: "Name (optional)",
-        incidentCaseNote: "This report will create a case for our team to review.",
+        incidentCaseNote: "This low rating will create a satisfaction follow-up case. It is not automatically treated as a complaint or employee fault.",
         testModeBanner: "Test mode — this response will not affect scores or create a real case.",
         refCodeLabel: "Reference code",
         caseCreated: "Our team will acknowledge within the set response time.",
@@ -409,7 +413,7 @@ function tr<T extends { th: string; en: string }>(item: T, lang: Lang): string {
 function reasonQuestion(rating: number, lang: Lang): string {
     if (rating >= 4) return lang === "th" ? "เรื่องใดทำให้คุณพอใจ" : "What made you satisfied";
     if (rating === 3) return lang === "th" ? "เรื่องใดมีผลต่อคะแนนนี้" : "What affected this score";
-    return lang === "th" ? "เรื่องใดควรปรับก่อน" : "What should be improved first";
+    return lang === "th" ? "สาเหตุหลักที่ทำให้คุณไม่พอใจคืออะไร" : "What is the main reason you were dissatisfied";
 }
 
 function commentQuestion(rating: number, lang: Lang, kind: "employee" | "station"): string {
@@ -1456,6 +1460,7 @@ export function FeedbackForm() {
         return card(
             <div className="space-y-4">
                 <H>{result.surveyVersion === "restroom-v1" ? t.ratingQRestroom : result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</H>
+                <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700">{t.ratingScaleHint}</p>
                 <fieldset id="rating-group" tabIndex={-1} className="space-y-2 focus:outline-none">
                     <legend className="sr-only">{result.surveyVersion === "restroom-v1" ? t.ratingQRestroom : result.targetType === "EMPLOYEE" ? t.ratingQEmployee : t.ratingQStation}</legend>
                     {RATINGS.map((r) => (
@@ -1483,6 +1488,7 @@ export function FeedbackForm() {
                     setError(null);
                     void postProgress({ lastStep: "rating" });
                     setReasonKeys([]);
+                    if (rating <= 2) setShowComment(true);
                     setScreen((result.surveyVersion === "employee-v2" || result.surveyVersion === "employee-v3" || result.surveyVersion === "employee-v4" || result.surveyVersion === "restroom-v1") ? "service-behaviors" : "reasons");
                 })}
                 {errorBox(error)}
@@ -1586,6 +1592,9 @@ export function FeedbackForm() {
             <div className="space-y-4">
                 <H>{reasonQuestion(rating, lang)}</H>
                 <p className="text-sm text-neutral-500">{t.selected(reasonKeys.length, maxReasons)}</p>
+                {rating <= 2 && (
+                    <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">{t.lowRatingReasonRequired}</p>
+                )}
                 <fieldset id="reason-group" tabIndex={-1} className="flex flex-wrap gap-2 focus:outline-none">
                     <legend className="sr-only">{reasonQuestion(rating, lang)}</legend>
                     {reasonOptions.map((k) => {

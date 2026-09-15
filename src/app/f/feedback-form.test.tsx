@@ -536,7 +536,7 @@ describe("FeedbackForm station choices", () => {
         await screen.findByRole("heading", { name: "โดยรวม คุณพอใจกับการใช้บริการที่สถานีนี้วันนี้เพียงใด" });
         fireEvent.click(screen.getByRole("radio", { name: "1. ไม่พอใจมาก" }));
         fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
-        await screen.findByRole("heading", { name: "เรื่องใดควรปรับก่อน" });
+        await screen.findByRole("heading", { name: "สาเหตุหลักที่ทำให้คุณไม่พอใจคืออะไร" });
         expect(screen.getByText("โหมดทดสอบ — คำตอบนี้ไม่ใช้คำนวณคะแนนและไม่สร้างเคสจริง")).toBeTruthy();
         expect(screen.queryByText("คำตอบนี้จะสร้างเรื่องให้ทีมตรวจสอบ")).toBeNull();
         fireEvent.click(screen.getByRole("checkbox", { name: "ความสะอาด" }));

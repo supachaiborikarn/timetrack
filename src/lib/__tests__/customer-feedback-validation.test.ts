@@ -19,7 +19,7 @@ import {
     RESTROOM_CLEANLINESS_QUESTIONS,
     RESTROOM_CLEANLINESS_QUESTION_KEYS,
 } from "@/lib/customer-feedback/questions";
-import { standardCaseSeverity, incidentCaseSeverity, caseDueAt, SEVERITY_SLA_HOURS } from "@/lib/customer-feedback/cases";
+import { standardCaseSeverity, standardCaseCategory, incidentCaseSeverity, caseDueAt, SEVERITY_SLA_HOURS } from "@/lib/customer-feedback/cases";
 import { summarizeRatingDistribution, summarizeRatings, meetsMinimumSample } from "@/lib/customer-feedback/metrics";
 
 describe("question registry", () => {
@@ -359,8 +359,10 @@ describe("contact validation", () => {
 });
 
 describe("case severity", () => {
-    it("คะแนน 1–2 สร้าง HIGH", () => {
-        expect(standardCaseSeverity({ overallRating: 1, reasonKeys: ["employee_courtesy"], wantsFollowUp: false })).toBe("HIGH");
+    it("คะแนน 1–2 สร้าง HIGH แต่จัดหมวดเป็น low-satisfaction ไม่ใช่ complaint", () => {
+        const input = { overallRating: 1, reasonKeys: ["employee_courtesy"], wantsFollowUp: false };
+        expect(standardCaseSeverity(input)).toBe("HIGH");
+        expect(standardCaseCategory(input)).toBe("low-satisfaction");
         expect(standardCaseSeverity({ overallRating: 2, reasonKeys: ["unspecified"], wantsFollowUp: false })).toBe("HIGH");
     });
 

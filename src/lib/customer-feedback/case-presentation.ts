@@ -106,8 +106,8 @@ export function feedbackCaseTrigger(
     }
     if (rating != null && rating <= 2) {
         return {
-            headline: `ลูกค้าให้ ${rating}/5${ratingLabel ? ` — ${ratingLabel}` : ""}`,
-            detail: "คะแนน 1–2 เปิดเคส HIGH อัตโนมัติ และต้องรับทราบภายใน 24 ชั่วโมง",
+            headline: `ติดตามความพึงพอใจต่ำ: ${rating}/5${ratingLabel ? ` — ${ratingLabel}` : ""}`,
+            detail: "คะแนน 1–2 เปิดเคสติดตาม HIGH อัตโนมัติ แต่ยังไม่ถือว่าเป็นข้อร้องเรียนหรือความผิดของพนักงานจนกว่าจะตรวจสาเหตุและคำตอบรายข้อ",
         };
     }
     const reasons = response.reasonKeys ?? [];
@@ -138,10 +138,16 @@ export function feedbackCaseActionSteps(response: FeedbackCaseResponseInput): st
         ];
     }
     if (response.overallRating != null && response.overallRating <= 2) {
-        return [
+        const findings = feedbackBehaviorFindings(response.surveyVersion, response.answers);
+        const hasFailedItem = findings.some((finding) => finding.answer === "NO");
+        return hasFailedItem ? [
             "ดูสาเหตุที่ลูกค้าเลือก และข้อบริการที่ตอบว่า “ไม่ผ่าน” ด้านล่าง",
-            "สอบถามพนักงานหรือหัวหน้ากะเพื่อหาสาเหตุ และโค้ช/แก้ขั้นตอนที่เกี่ยวข้อง",
+            "ตรวจข้อเท็จจริงกับพนักงานหรือหัวหน้ากะก่อนสรุปว่าเกิดจากบุคคลหรือระบบ",
             "เมื่อดำเนินการแล้ว กดปิดเคสและบันทึกว่าแก้อะไรไปบ้าง",
+        ] : [
+            "คำตอบรายข้อไม่มีข้อที่ “ไม่ผ่าน” — ตรวจสาเหตุ/ข้อความของลูกค้าและความเข้าใจสเกลคะแนนก่อน",
+            "อย่าใช้คะแนนรวมต่ำเพียงอย่างเดียวตัดสินว่าพนักงานทำผิด ให้เทียบกับบริบทและข้อเท็จจริงหน้างาน",
+            "หากยืนยันว่าเป็นเพียงคะแนนความพึงพอใจต่ำ ให้บันทึกผลติดตามแล้วปิดเคสโดยไม่ลงโทษพนักงาน",
         ];
     }
     if (response.wantsFollowUp) {
