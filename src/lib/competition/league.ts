@@ -3,7 +3,7 @@ import type { CompetitionFairPlayStatus } from "@prisma/client";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
 import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/customer-feedback/questions";
-import { EMPLOYEE_DAILY_EVALUATION_TARGET } from "@/lib/customer-feedback/evaluation-target";
+import { getEmployeeDailyMissionProgress } from "@/lib/customer-feedback/evaluation-target";
 import { ABUSE_SUSPECT_THRESHOLD } from "@/lib/customer-feedback/anti-abuse";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
 import {
@@ -366,14 +366,35 @@ export async function calculateStationWeeklyLeague(params: {
                 .filter((attendance) => Boolean(attendance.checkInTime))
                 .map((attendance) => bangkokDateKey(attendance.date))
         );
-        const eligiblePerDay = new Map<string, number>();
+        const assignmentsByDay = new Map(
+            employeeAssignments
+                .filter((assignment) => !assignment.isDayOff)
+                .map((assignment) => [bangkokDateKey(assignment.date), assignment] as const)
+        );
+        const eligiblePerDay = new Map<string, Date[]>();
         for (const response of eligibleResponses) {
             const key = bangkokDateKey(response.submittedAt);
-            eligiblePerDay.set(key, (eligiblePerDay.get(key) ?? 0) + 1);
+            const times = eligiblePerDay.get(key) ?? [];
+            times.push(response.submittedAt);
+            eligiblePerDay.set(key, times);
         }
-        const missionCompletedDays = [...workedDayKeys].filter(
-            (key) => (eligiblePerDay.get(key) ?? 0) >= EMPLOYEE_DAILY_EVALUATION_TARGET
-        ).length;
+        const missionCompletedDays = [...workedDayKeys].filter((key) => {
+            const assignment = assignmentsByDay.get(key);
+            if (assignment?.shift) {
+                return getEmployeeDailyMissionProgress({
+                    validCount: eligibleResponses.length,
+                    responseTimes: eligibleResponses.map((response) => response.submittedAt),
+                    shiftDate: assignment.date,
+                    startTime: assignment.shift.startTime,
+                    endTime: assignment.shift.endTime,
+                }).complete;
+            }
+            const responseTimes = eligiblePerDay.get(key) ?? [];
+            return getEmployeeDailyMissionProgress({
+                validCount: responseTimes.length,
+                responseTimes,
+            }).complete;
+        }).length;
         const rawMissionPoints = performance.counts.presentDays > 0
             ? round2(LEAGUE_WEIGHTS.mission * Math.min(1, missionCompletedDays / performance.counts.presentDays))
             : 0;

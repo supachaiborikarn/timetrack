@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPayrollPeriod, startOfDayBangkok } from "@/lib/date-utils";
-import { getBangkokEvaluationDayBounds, getEmployeeDailyEvaluationStatus } from "@/lib/customer-feedback/evaluation-target";
+import { getBangkokEvaluationDayBounds, getEmployeeDailyMissionProgress, getEmployeeMissionShiftWindow } from "@/lib/customer-feedback/evaluation-target";
 import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
             announcements,
             calAttendance,
             customerEvaluationCount,
+            customerEvaluationTimes,
             customerPerformanceResponses,
         ] = await Promise.all([
             // 1. Attendance records for this payroll period
@@ -204,7 +205,23 @@ export async function GET(request: NextRequest) {
                 })
                 : Promise.resolve(0),
 
-            // 11. Customer rubric responses for the same payroll period as attendance.
+            // 11. Recent timestamps are used only to verify Mission spread across today/overnight shifts.
+            isFrontYard
+                ? prisma.customerFeedbackResponse.findMany({
+                    where: {
+                        kind: "STANDARD",
+                        targetType: "EMPLOYEE",
+                        employeeId: userId,
+                        surveyVersion: { in: ["employee-v3", "employee-v4"] },
+                        validity: "VALID",
+                        submittedAt: { gte: new Date(feedbackDayBounds.from.getTime() - DAY_MS), lt: feedbackDayBounds.toExclusive },
+                    },
+                    select: { submittedAt: true },
+                    orderBy: { submittedAt: "asc" },
+                })
+                : Promise.resolve([]),
+
+            // 12. Customer rubric responses for the same payroll period as attendance.
             isFrontYard
                 ? prisma.customerFeedbackResponse.findMany({
                     where: {
@@ -329,6 +346,27 @@ export async function GET(request: NextRequest) {
             status: r.status,
         }));
 
+        const activeShiftAssignment = shiftAssignments.find((assignment) => {
+            if (assignment.isDayOff || !assignment.shift) return false;
+            const window = getEmployeeMissionShiftWindow({
+                shiftDate: assignment.date,
+                startTime: assignment.shift.startTime,
+                endTime: assignment.shift.endTime,
+            });
+            return Boolean(window && now >= window.start && now < window.end);
+        });
+        const todayShiftAssignment = activeShiftAssignment ?? shiftAssignments.find((assignment) =>
+            !assignment.isDayOff
+            && startOfDayBangkok(assignment.date).getTime() === todayBangkok.getTime()
+        );
+        const customerMissionProgress = getEmployeeDailyMissionProgress({
+            validCount: customerEvaluationCount,
+            responseTimes: customerEvaluationTimes.map((response) => response.submittedAt),
+            shiftDate: todayShiftAssignment?.date ?? null,
+            startTime: todayShiftAssignment?.shift?.startTime ?? null,
+            endTime: todayShiftAssignment?.shift?.endTime ?? null,
+        });
+
         const response = NextResponse.json({
             daysWorked,
             lateCount,
@@ -348,7 +386,12 @@ export async function GET(request: NextRequest) {
                 components: performance.components,
                 counts: performance.counts,
             },
-            customerEvaluationStatus: isFrontYard ? getEmployeeDailyEvaluationStatus(customerEvaluationCount) : null,
+            customerEvaluationStatus: isFrontYard ? customerMissionProgress.status : null,
+            customerEvaluationMission: isFrontYard ? {
+                meetsVolumeTarget: customerMissionProgress.meetsVolumeTarget,
+                spreadApplicable: customerMissionProgress.spreadApplicable,
+                segmentCoverage: customerMissionProgress.segmentCoverage,
+            } : null,
             leaveCount,
             permissionCount,
             leaveBalance: {

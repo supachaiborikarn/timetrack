@@ -118,6 +118,12 @@ interface EmployeeLeagueSummary {
 
 type CustomerEvaluationStatus = "NOT_YET" | "NEAR" | "DONE";
 
+interface CustomerEvaluationMission {
+  meetsVolumeTarget: boolean;
+  spreadApplicable: boolean;
+  segmentCoverage: { START: boolean; MIDDLE: boolean; END: boolean } | null;
+}
+
 interface CalendarDay {
   date: string;
   checkedIn: boolean;
@@ -149,7 +155,12 @@ const LANG = {
     mission: "ภารกิจวันนี้",
     feedbackNotYet: "ยังไม่ครบเป้าวันนี้",
     feedbackNear: "ใกล้ครบเป้าแล้ว",
-    feedbackDone: "ครบเป้าวันนี้แล้ว",
+    feedbackDone: "ครบ Mission วันนี้แล้ว",
+    feedbackSpreadPending: "ครบจำนวนแล้ว · กระจายเวลาให้ครบทั้งกะ",
+    missionSpreadRule: "Mission เต็ม: ครบ 5 แบบ และต้องมีอย่างน้อย 1 แบบในทุกช่วงของกะ",
+    missionStart: "ต้นกะ",
+    missionMiddle: "กลางกะ",
+    missionEnd: "ท้ายกะ",
     fairPlayTitle: "กติกาการประเมินจากลูกค้า",
     fairPlayNotice: "ลูกค้าต้องเป็นผู้กดคะแนนและส่งแบบประเมินด้วยตนเอง ห้ามพนักงานรับโทรศัพท์ของลูกค้ามากดหรือกรอกแทน และห้ามชี้นำคะแนน",
     monthSummary: "สรุปเดือนนี้",
@@ -201,7 +212,12 @@ const LANG = {
     mission: "Today’s mission",
     feedbackNotYet: "Daily goal not reached",
     feedbackNear: "Almost at today’s goal",
-    feedbackDone: "Today’s goal complete",
+    feedbackDone: "Today’s Mission complete",
+    feedbackSpreadPending: "Volume reached · spread feedback across the shift",
+    missionSpreadRule: "Full Mission: 5 feedback entries with at least 1 in every shift segment",
+    missionStart: "Start",
+    missionMiddle: "Middle",
+    missionEnd: "End",
     fairPlayTitle: "Customer feedback fair-play rule",
     fairPlayNotice: "Customers must choose their rating and submit the feedback themselves. Employees must not take a customer’s phone to complete the form or influence the rating.",
     monthSummary: "This month",
@@ -253,7 +269,12 @@ const LANG = {
     mission: "ယနေ့ ရည်မှန်းချက်",
     feedbackNotYet: "ယနေ့ ရည်မှန်းချက် မပြည့်သေး",
     feedbackNear: "ရည်မှန်းချက် ပြည့်ရန် နီးပါပြီ",
-    feedbackDone: "ယနေ့ ရည်မှန်းချက် ပြည့်ပါပြီ",
+    feedbackDone: "ယနေ့ Mission ပြည့်ပါပြီ",
+    feedbackSpreadPending: "အရေအတွက်ပြည့်ပါပြီ · အလုပ်ချိန်တစ်လျှောက် ဖြန့်ပါ",
+    missionSpreadRule: "Mission အပြည့်: အကဲဖြတ် ၅ ခုနှင့် အလုပ်ချိန်အစ/အလယ်/အဆုံးတိုင်းတွင် အနည်းဆုံး ၁ ခု",
+    missionStart: "အစ",
+    missionMiddle: "အလယ်",
+    missionEnd: "အဆုံး",
     fairPlayTitle: "ဖောက်သည်အကဲဖြတ် စည်းမျဉ်း",
     fairPlayNotice: "ဖောက်သည်သည် အမှတ်ရွေးချယ်ခြင်းနှင့် အကဲဖြတ်ချက်ပေးပို့ခြင်းကို ကိုယ်တိုင်လုပ်ရမည်။ ဝန်ထမ်းသည် ဖောက်သည်၏ဖုန်းကိုယူ၍ ဖြည့်ပေးခြင်း သို့မဟုတ် အမှတ်ရွေးချယ်မှုကို လမ်းညွှန်ခြင်း မပြုရ။",
     monthSummary: "ယခုလ အကျဉ်းချုပ်",
@@ -390,6 +411,7 @@ export function EmployeeDashboardView() {
   const [performanceSummary, setPerformanceSummary] = useState<PerformanceSummary | null>(null);
   const [displayPerformanceScore, setDisplayPerformanceScore] = useState(0);
   const [customerEvaluationStatus, setCustomerEvaluationStatus] = useState<CustomerEvaluationStatus | null>(null);
+  const [customerEvaluationMission, setCustomerEvaluationMission] = useState<CustomerEvaluationMission | null>(null);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [leagueData, setLeagueData] = useState<EmployeeLeagueSummary | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -425,6 +447,7 @@ export function EmployeeDashboardView() {
         setPerformanceScore(data.performanceScore ?? null);
         setPerformanceSummary(data.performance ?? null);
         setCustomerEvaluationStatus(data.customerEvaluationStatus ?? null);
+        setCustomerEvaluationMission(data.customerEvaluationMission ?? null);
         setAdvanceSummary(data.advanceSummary ?? { totalAmount: 0, pendingAmount: 0 });
         setAnnouncements(data.announcements ?? []);
         setCalendarDays(data.calendarDays ?? []);
@@ -554,9 +577,11 @@ export function EmployeeDashboardView() {
   );
   const missionText = customerEvaluationStatus === "DONE"
     ? T.feedbackDone
-    : customerEvaluationStatus === "NEAR"
-      ? T.feedbackNear
-      : T.feedbackNotYet;
+    : customerEvaluationMission?.meetsVolumeTarget && customerEvaluationMission.spreadApplicable
+      ? T.feedbackSpreadPending
+      : customerEvaluationStatus === "NEAR"
+        ? T.feedbackNear
+        : T.feedbackNotYet;
   const unreadAnnouncements = announcements.filter((announcement) => (announcement.reads ?? []).length === 0).length;
   const firstAnnouncement = announcements[0];
   const calendarAnchor = isSameMonth(currentMonth, now) ? now : startOfMonth(currentMonth);
@@ -804,6 +829,28 @@ export function EmployeeDashboardView() {
                     />
                   ))}
                 </div>
+                {customerEvaluationMission?.spreadApplicable && customerEvaluationMission.segmentCoverage && (
+                  <div className="mt-2.5">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        ["START", T.missionStart],
+                        ["MIDDLE", T.missionMiddle],
+                        ["END", T.missionEnd],
+                      ].map(([key, label]) => {
+                        const covered = customerEvaluationMission.segmentCoverage?.[key as "START" | "MIDDLE" | "END"] ?? false;
+                        return (
+                          <div
+                            key={key}
+                            className={`rounded-md border px-1.5 py-1 text-center text-[9px] font-black ${covered ? "border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300" : "border-zinc-400/35 bg-zinc-100/60 text-zinc-500 dark:bg-zinc-800/70 dark:text-zinc-400"}`}
+                          >
+                            {covered ? "✓ " : "○ "}{label}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[8px] font-bold leading-relaxed text-zinc-500 dark:text-zinc-400">{T.missionSpreadRule}</p>
+                  </div>
+                )}
               </div>
             </div>
           </section>

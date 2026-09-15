@@ -131,6 +131,64 @@ describe("GET /api/employee/dashboard customer evaluation status", () => {
         });
     });
 
+    it("keeps Mission incomplete when five evaluations are clustered in one shift segment", async () => {
+        const workDate = new Date("2026-08-31T17:00:00.000Z");
+        shiftAssignmentFindManyMock.mockResolvedValue([{
+            date: workDate,
+            isDayOff: false,
+            shift: { startTime: "06:00", endTime: "18:00", breakMinutes: 60, isNightShift: false },
+        }]);
+        customerFeedbackCountMock.mockResolvedValue(5);
+        customerFeedbackFindManyMock
+            .mockResolvedValueOnce([
+                { submittedAt: new Date("2026-09-01T06:30:00+07:00") },
+                { submittedAt: new Date("2026-09-01T07:00:00+07:00") },
+                { submittedAt: new Date("2026-09-01T07:30:00+07:00") },
+                { submittedAt: new Date("2026-09-01T08:00:00+07:00") },
+                { submittedAt: new Date("2026-09-01T09:00:00+07:00") },
+            ])
+            .mockResolvedValueOnce([]);
+
+        const { body } = await getDashboard();
+
+        expect(body.customerEvaluationStatus).toBe("NEAR");
+        expect(body.customerEvaluationMission).toEqual({
+            meetsVolumeTarget: true,
+            spreadApplicable: true,
+            segmentCoverage: { START: true, MIDDLE: false, END: false },
+        });
+        expect(body).not.toHaveProperty("customerEvaluationCount");
+    });
+
+    it("keeps an overnight Mission on the shift date and includes feedback after midnight", async () => {
+        vi.setSystemTime(new Date("2026-09-01T22:00:00.000Z")); // 2026-09-02 05:00 Bangkok
+        const shiftDate = new Date("2026-08-31T17:00:00.000Z"); // 2026-09-01 Bangkok
+        shiftAssignmentFindManyMock.mockResolvedValue([{
+            date: shiftDate,
+            isDayOff: false,
+            shift: { startTime: "18:00", endTime: "06:00", breakMinutes: 60, isNightShift: true },
+        }]);
+        customerFeedbackCountMock.mockResolvedValue(2);
+        customerFeedbackFindManyMock
+            .mockResolvedValueOnce([
+                { submittedAt: new Date("2026-09-01T19:00:00+07:00") },
+                { submittedAt: new Date("2026-09-01T21:00:00+07:00") },
+                { submittedAt: new Date("2026-09-01T23:00:00+07:00") },
+                { submittedAt: new Date("2026-09-02T03:00:00+07:00") },
+                { submittedAt: new Date("2026-09-02T05:00:00+07:00") },
+            ])
+            .mockResolvedValueOnce([]);
+
+        const { body } = await getDashboard();
+
+        expect(body.customerEvaluationStatus).toBe("DONE");
+        expect(body.customerEvaluationMission).toEqual({
+            meetsVolumeTarget: true,
+            spreadApplicable: true,
+            segmentCoverage: { START: true, MIDDLE: true, END: true },
+        });
+    });
+
     it("does not show the feedback goal for non-front-yard employees", async () => {
         userFindUniqueMock.mockResolvedValue({
             departmentId: "office-1",
