@@ -8,6 +8,7 @@ import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/custom
 import { startOfDayBangkok } from "@/lib/date-utils";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
+import { getEmployeeFlexibleWeeklyRestDateKeys } from "@/lib/flexible-weekly-rest-server";
 import {
     bangkokDateKey,
     calculateChineseNewYearBonusPreview,
@@ -263,6 +264,16 @@ export async function GET() {
             }),
         ]);
 
+        const flexibleWeeklyRestDateKeys = await getEmployeeFlexibleWeeklyRestDateKeys({
+            userId,
+            stationId: user.stationId,
+            stationCode: user.station?.code,
+            from: periodFrom,
+            toExclusive: hasWorkRange ? reviewPeriodDayBounds(workTo).nextDayStart : periodFrom,
+            referenceTime: now,
+            attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+        });
+
         const performance = calculateEmployeePerformance({
             assignments,
             attendances,
@@ -277,6 +288,7 @@ export async function GET() {
             stationCode: user.station?.code,
             referenceTime: now,
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+            excusedAbsenceDateKeys: flexibleWeeklyRestDateKeys,
         });
 
         const weights = CHINESE_NEW_YEAR_BONUS_WEIGHTS;

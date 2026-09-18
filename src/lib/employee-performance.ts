@@ -74,6 +74,7 @@ export type EmployeePerformanceResult = {
         approvedLeaveDays: number;
         pendingLeaveDays: number;
         dayOffDays: number;
+        flexibleWeeklyRestDays: number;
         upcomingDays: number;
         inProgressDays: number;
         lateDays: number;
@@ -125,9 +126,11 @@ export function calculateEmployeePerformance(input: {
     stationCode?: string | null;
     referenceTime?: Date;
     attendanceGraceMinutes?: number;
+    excusedAbsenceDateKeys?: Iterable<string>;
 }): EmployeePerformanceResult {
     const referenceTime = input.referenceTime ?? new Date();
     const graceMinutes = Math.max(0, Math.round(input.attendanceGraceMinutes ?? 0));
+    const excusedAbsenceDateKeys = new Set(input.excusedAbsenceDateKeys ?? []);
     const assignmentByDate = new Map<string, PerformanceShiftAssignment>();
     for (const assignment of input.assignments) {
         assignmentByDate.set(toBangkokDateKey(assignment.date), assignment);
@@ -148,6 +151,7 @@ export function calculateEmployeePerformance(input: {
         approvedLeaveDays: 0,
         pendingLeaveDays: 0,
         dayOffDays: 0,
+        flexibleWeeklyRestDays: 0,
         upcomingDays: 0,
         inProgressDays: 0,
         lateDays: 0,
@@ -192,6 +196,10 @@ export function calculateEmployeePerformance(input: {
         }
         if (!hasCheckIn && referenceTime < dueAt) {
             counts.upcomingDays++;
+            continue;
+        }
+        if (!hasCheckIn && excusedAbsenceDateKeys.has(dateKey)) {
+            counts.flexibleWeeklyRestDays++;
             continue;
         }
 

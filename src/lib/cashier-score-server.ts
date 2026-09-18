@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
+import { buildFlexibleWeeklyRestDateKeys } from "@/lib/flexible-weekly-rest";
 import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS, RESTROOM_CLEANLINESS_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import { summarizeRestroomScore } from "@/lib/customer-feedback/restroom-score";
@@ -129,6 +130,15 @@ export async function calculateFuelCashierStationScoreForRange(params: {
             : Promise.resolve([]),
     ]);
 
+    const flexibleWeeklyRestByEmployee = buildFlexibleWeeklyRestDateKeys({
+        members: teamMembers.map((member) => ({ userId: member.id, stationCode: params.stationCode })),
+        assignments: teamAssignments,
+        attendances: teamAttendances,
+        leaves: teamLeaves,
+        referenceTime: params.referenceTime,
+        attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+    });
+
     const responsesByEmployee = new Map<string, FeedbackRow[]>();
     for (const response of teamFeedbackResponses) {
         if (!response.employeeId) continue;
@@ -151,6 +161,7 @@ export async function calculateFuelCashierStationScoreForRange(params: {
             stationCode: params.stationCode,
             referenceTime: params.referenceTime,
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+            excusedAbsenceDateKeys: flexibleWeeklyRestByEmployee.get(member.id),
         });
         if (memberPerformance.counts.requiredDays === 0) continue;
         relevantMemberScores.push(memberPerformance.customerIncluded ? memberPerformance.score : null);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { CompetitionFairPlayStatus } from "@prisma/client";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
+import { buildFlexibleWeeklyRestDateKeys } from "@/lib/flexible-weekly-rest";
 import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/customer-feedback/employee-score";
 import { EMPLOYEE_SCORE_QUESTION_KEYS, EMPLOYEE_SCORE_TOTAL } from "@/lib/customer-feedback/questions";
 import { getEmployeeDailyMissionProgress } from "@/lib/customer-feedback/evaluation-target";
@@ -300,6 +301,15 @@ export async function calculateStationWeeklyLeague(params: {
         }),
     ]);
 
+    const flexibleWeeklyRestByEmployee = buildFlexibleWeeklyRestDateKeys({
+        members: employees.map((employee) => ({ userId: employee.id, stationCode: station.code })),
+        assignments,
+        attendances,
+        leaves,
+        referenceTime,
+        attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+    });
+
     const standings: LeagueStandingResult[] = [];
     for (const employee of employees) {
         const employeeAssignments = assignments.filter((row) => row.userId === employee.id);
@@ -334,6 +344,7 @@ export async function calculateStationWeeklyLeague(params: {
             stationCode: station.code,
             referenceTime,
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+            excusedAbsenceDateKeys: flexibleWeeklyRestByEmployee.get(employee.id),
         });
 
         const feedbackClassification = classifyCompetitionFeedback(employeeFeedback.map((response) => ({

@@ -160,6 +160,7 @@ type EmployeeScore = {
         approvedLeaveDays: number;
         pendingLeaveDays: number;
         dayOffDays: number;
+        flexibleWeeklyRestDays: number;
         upcomingDays: number;
         inProgressDays: number;
         lateDays: number;
@@ -535,6 +536,11 @@ export function EmployeeScoresTab() {
                                     <Badge variant="outline">พักเกิน {selected.counts.overBreakDays} วัน</Badge>
                                     <Badge variant="outline">ลาอนุมัติ {selected.counts.approvedLeaveDays} วัน</Badge>
                                     <Badge variant="outline">วันหยุด {selected.counts.dayOffDays} วัน</Badge>
+                                    {selected.counts.flexibleWeeklyRestDays > 0 && (
+                                        <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                                            หยุดตามสิทธิ์ {selected.counts.flexibleWeeklyRestDays} วัน
+                                        </Badge>
+                                    )}
                                 </div>
                                 {selected.dataIssues.length > 0 && (
                                     <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
@@ -1041,7 +1047,7 @@ export function EmployeeScoresTab() {
                                                 <TableCell className="min-w-[145px] text-right">
                                                     <div className="font-semibold">{employee.workPoints.toFixed(1)} / {employee.workPointsMax}</div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        มา {employee.counts.presentDays}/{employee.counts.requiredDays} · ขาด {employee.counts.absentDays} · สาย {employee.counts.lateDays}
+                                                        มา {employee.counts.presentDays}/{employee.counts.requiredDays} · ขาด {employee.counts.absentDays} · สาย {employee.counts.lateDays}{employee.counts.flexibleWeeklyRestDays > 0 ? ` · หยุดตามสิทธิ์ ${employee.counts.flexibleWeeklyRestDays}` : ""}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="min-w-[135px] text-right">

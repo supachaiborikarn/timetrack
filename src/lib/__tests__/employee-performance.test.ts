@@ -67,6 +67,24 @@ describe("employee performance", () => {
         expect(result.score).toBe(0);
     });
 
+    it("excludes an approved flexible weekly rest date from the score denominator", () => {
+        const result = calculateEmployeePerformance({
+            assignments: [assignment("2026-09-14"), assignment("2026-09-15")],
+            attendances: [attendance("2026-09-15")],
+            leaves: [],
+            customer: noCustomer,
+            referenceTime: bkkDate("2026-09-16", "12:00"),
+            excusedAbsenceDateKeys: ["2026-09-14"],
+        });
+
+        expect(result.counts.flexibleWeeklyRestDays).toBe(1);
+        expect(result.counts.absentDays).toBe(0);
+        expect(result.counts.requiredDays).toBe(1);
+        expect(result.counts.presentDays).toBe(1);
+        expect(result.workPoints).toBe(60);
+        expect(result.score).toBe(100);
+    });
+
     it("deducts more for severe lateness", () => {
         const base = {
             assignments: [assignment("2026-09-01")],

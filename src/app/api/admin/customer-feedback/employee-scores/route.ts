@@ -21,6 +21,7 @@ import {
     WORK_PERFORMANCE_TOTAL,
 } from "@/lib/employee-performance";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
+import { buildFlexibleWeeklyRestDateKeys } from "@/lib/flexible-weekly-rest";
 
 /**
  * GET /api/admin/customer-feedback/employee-scores
@@ -107,9 +108,10 @@ export async function GET(request: NextRequest) {
                     id: true,
                     name: true,
                     nickName: true,
+                    role: true,
                     stationId: true,
                     station: { select: { name: true, code: true } },
-                    department: { select: { isFrontYard: true } },
+                    department: { select: { isFrontYard: true, code: true } },
                 },
             }),
         ]);
@@ -167,6 +169,20 @@ export async function GET(request: NextRequest) {
                 })
                 : Promise.resolve([]),
         ]);
+        const flexibleWeeklyRestByEmployee = buildFlexibleWeeklyRestDateKeys({
+            members: frontYardEmployees
+                .filter((employee) => employee.role === "EMPLOYEE" && employee.department?.code !== "GAS")
+                .map((employee) => ({
+                    userId: employee.id,
+                    stationCode: employee.station?.code,
+                })),
+            assignments,
+            attendances,
+            leaves,
+            referenceTime: now,
+            attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+        });
+
         const monthlyCountByEmployee = new Map<string, number>();
         for (const response of monthlyResponses) {
             if (!response.employeeId) continue;
@@ -219,6 +235,7 @@ export async function GET(request: NextRequest) {
                     stationCode: employee.station?.code,
                     referenceTime: now,
                     attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+                    excusedAbsenceDateKeys: flexibleWeeklyRestByEmployee.get(employee.id),
                 });
                 // คะแนนรวมใช้จัดอันดับเมื่อมีทั้งวันทำงานและตัวอย่างลูกค้าครบแล้วเท่านั้น
                 const overallScore = performance.counts.requiredDays > 0 && performance.customerIncluded

@@ -7,6 +7,7 @@ import { summarizeEmployeeRubric, type EmployeeScoreResponseInput } from "@/lib/
 import { EMPLOYEE_SCORE_QUESTION_KEYS } from "@/lib/customer-feedback/questions";
 import { calculateEmployeePerformance } from "@/lib/employee-performance";
 import { DEFAULT_ATTENDANCE_GRACE_MINUTES } from "@/lib/attendance-summary";
+import { getEmployeeFlexibleWeeklyRestDateKeys } from "@/lib/flexible-weekly-rest-server";
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
             where: { id: userId },
             select: { 
                 departmentId: true,
+                stationId: true,
+                role: true,
                 station: { select: { code: true } },
                 department: {
                     select: { isFrontYard: true }
@@ -257,6 +260,15 @@ export async function GET(request: NextRequest) {
             }),
         }));
         const customerRubric = summarizeEmployeeRubric(rubricResponses);
+        const flexibleWeeklyRestDateKeys = await getEmployeeFlexibleWeeklyRestDateKeys({
+            userId,
+            stationId: currentUser?.stationId,
+            stationCode: currentUser?.station?.code,
+            from: payrollStart,
+            toExclusive: new Date(periodEndUpToToday.getTime() + DAY_MS),
+            referenceTime: now,
+            attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+        });
         const performance = calculateEmployeePerformance({
             assignments: shiftAssignments,
             attendances: thisMonthAttendance,
@@ -271,6 +283,7 @@ export async function GET(request: NextRequest) {
             stationCode: currentUser?.station?.code,
             referenceTime: now,
             attendanceGraceMinutes: DEFAULT_ATTENDANCE_GRACE_MINUTES,
+            excusedAbsenceDateKeys: flexibleWeeklyRestDateKeys,
         });
 
         const daysWorked = performance.counts.presentDays;
