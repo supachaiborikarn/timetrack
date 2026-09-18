@@ -28,12 +28,19 @@ export async function getCashierWeeklyReport(stationId: string, periodKey: strin
     const initialWeek = periodKey === "2026-08-31";
     const stationQuality = resolveCashierQuality(live.stationSummary.score, live.stationSummary.responseCount, manual.station, initialWeek);
     const restroomQuality = resolveCashierQuality(live.restroomSummary.score, live.restroomSummary.responseCount, manual.restroom, initialWeek);
-    const teamScore = !initialWeek ? live.teamPerformanceScore : period?.standings.length
+    const finalizedTeamSnapshot = period?.standings.length
         ? Math.round(period.standings.reduce((sum, row) => sum + Number(row.totalScore), 0) / period.standings.length * 10) / 10
         : null;
+    const teamScore = finalizedTeamSnapshot ?? (initialWeek ? null : live.teamPerformanceScore);
     return {
-        periodKey, teamScore, teamCount: initialWeek ? period?.standings.length ?? 0 : live.relevantTeamMemberCount,
-        teamSource: initialWeek ? "FINALIZED_EMPLOYEE_LEAGUE" : "EMPLOYEE_PERFORMANCE",
+        periodKey,
+        teamScore,
+        teamCount: finalizedTeamSnapshot !== null
+            ? period?.standings.length ?? 0
+            : initialWeek
+                ? 0
+                : live.relevantTeamMemberCount,
+        teamSource: finalizedTeamSnapshot !== null ? "FINALIZED_EMPLOYEE_LEAGUE" : "EMPLOYEE_PERFORMANCE",
         station: { ...stationQuality, responseCount: live.stationSummary.responseCount, manual: manual.station },
         restroom: { ...restroomQuality, responseCount: live.restroomSummary.responseCount, manual: manual.restroom },
         result: calculateFuelCashierScore({ teamPerformanceScore: teamScore, stationScore: stationQuality.score, restroomScore: restroomQuality.score }),

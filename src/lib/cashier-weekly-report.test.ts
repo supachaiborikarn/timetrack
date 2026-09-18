@@ -53,7 +53,27 @@ describe("historical cashier report", () => {
         expect((await getCashierWeeklyReport("s1", "2026-08-31")).result.score).toBeNull();
     });
 
-    it("does not carry the full-score grant into another week", async () => {
+    it("uses the finalized employee snapshot for a closed later week instead of recomputing team performance live", async () => {
+        mocks.scores.mockResolvedValue({
+            teamPerformanceScore: null,
+            relevantTeamMemberCount: 2,
+            stationSummary: { score: null, responseCount: 0 },
+            restroomSummary: { score: null, responseCount: 0 },
+        });
+        mocks.config.mockResolvedValue({
+            value: JSON.stringify({ station: 100, restroom: 100 }),
+        });
+
+        const report = await getCashierWeeklyReport("s1", "2026-09-07");
+
+        expect(report.teamScore).toBe(80);
+        expect(report.teamCount).toBe(2);
+        expect(report.teamSource).toBe("FINALIZED_EMPLOYEE_LEAGUE");
+        expect(report.result.score).toBe(88);
+    });
+
+    it("does not carry the initial full-score quality grant into another week", async () => {
+        mocks.period.mockResolvedValue(null);
         const report = await getCashierWeeklyReport("s1", "2026-09-07");
         expect(report.teamScore).toBe(95);
         expect(report.result.score).toBeNull();
