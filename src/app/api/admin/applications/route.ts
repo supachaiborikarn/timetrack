@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/permissions";
 import { ApplicationStatus, type Prisma, type Role } from "@prisma/client";
+import { archivedCycleCreatedAtFilter, currentCycleCreatedAtFilter, getRecruitmentCycleState } from "@/lib/recruitment-cycles";
 
 export async function GET(request: NextRequest) {
     try {
@@ -19,10 +20,16 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get("status");
         const stationId = searchParams.get("stationId");
         const q = searchParams.get("q")?.trim();
+        const cycle = searchParams.get("cycle") === "archive" ? "archive" : "current";
         const page = Math.max(1, Number(searchParams.get("page")) || 1);
         const pageSize = 20;
 
-        const where: Prisma.JobApplicationWhereInput = {};
+        const cycleState = await getRecruitmentCycleState();
+        const currentCreatedAt = currentCycleCreatedAtFilter(cycleState);
+        const archiveCreatedAt = archivedCycleCreatedAtFilter(cycleState);
+        const where: Prisma.JobApplicationWhereInput = {
+            createdAt: cycle === "archive" ? archiveCreatedAt : currentCreatedAt,
+        };
 
         // MANAGER only ever sees their own station's applications — enforced server-side, not just hidden in UI.
         if (role === "MANAGER" && session.user.stationId) {
@@ -46,10 +53,14 @@ export async function GET(request: NextRequest) {
             ];
         }
 
-        const countScope: Prisma.JobApplicationWhereInput =
+        const baseCountScope: Prisma.JobApplicationWhereInput =
             role === "MANAGER" && session.user.stationId ? { stationId: session.user.stationId } : {};
+        const countScope: Prisma.JobApplicationWhereInput = {
+            ...baseCountScope,
+            createdAt: cycle === "archive" ? archiveCreatedAt : currentCreatedAt,
+        };
 
-        const [applications, total, statusGroups] = await Promise.all([
+        const [applications, total, statusGroups, currentCount, archiveCount] = await Promise.all([
             prisma.jobApplication.findMany({
                 where,
                 orderBy: { createdAt: "desc" },
@@ -77,6 +88,8 @@ export async function GET(request: NextRequest) {
                 where: countScope,
                 _count: true,
             }),
+            prisma.jobApplication.count({ where: { ...baseCountScope, createdAt: currentCreatedAt } }),
+            prisma.jobApplication.count({ where: { ...baseCountScope, createdAt: archiveCreatedAt } }),
         ]);
 
         const counts: Record<string, number> = {};
@@ -101,6 +114,12 @@ export async function GET(request: NextRequest) {
             page,
             pageSize,
             counts,
+            cycle: {
+                selected: cycle,
+                current: cycleState.current,
+                currentCount,
+                archiveCount,
+            },
         });
     } catch (error) {
         console.error("Error listing applications:", error);

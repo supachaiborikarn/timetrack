@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/permissions";
 import { decryptField } from "@/lib/crypto-field";
 import { logActivity } from "@/lib/logger";
 import { copyApplicationFilesToEmployee } from "@/lib/employee-onboarding";
+import { getRecruitmentCycleState } from "@/lib/recruitment-cycles";
 import type { Role } from "@prisma/client";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const { id } = await params;
         const application = await prisma.jobApplication.findUnique({ where: { id } });
         if (!application) return NextResponse.json({ error: "ไม่พบใบสมัคร" }, { status: 404 });
+        const recruitmentCycle = await getRecruitmentCycleState();
+        if (application.createdAt < new Date(recruitmentCycle.current.startedAt)) {
+            return NextResponse.json({ error: "ใบสมัครนี้อยู่ในชุดเดิม ไม่สามารถจ้างจากรอบเก่าได้ กรุณาให้ผู้สมัครส่งใบสมัครใหม่" }, { status: 409 });
+        }
         if (application.status === "HIRED") return NextResponse.json({ error: "จ้างงานไปแล้ว" }, { status: 400 });
         if (application.status === "WITHDRAWN") return NextResponse.json({ error: "ผู้สมัครถอนใบสมัครแล้ว" }, { status: 400 });
 

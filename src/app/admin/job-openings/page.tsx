@@ -49,6 +49,7 @@ type Opening = {
     isActive: boolean;
     closesAt: string | null;
     applicationCount: number;
+    historicalApplicationCount: number;
     station: { id: string; name: string } | null;
     department: { id: string; name: string } | null;
 };
@@ -270,11 +271,18 @@ export default function AdminJobOpeningsPage() {
                                         <TableCell>{o.station?.name ?? "ทุกสาขา"}</TableCell>
                                         <TableCell>{formatSalaryRange(o.salaryMin, o.salaryMax, o.salaryNote)}</TableCell>
                                         <TableCell>
-                                            {o.applicationCount > 0 ? (
-                                                <a href="/admin/applications" className="flex items-center gap-1 underline">
-                                                    <Users className="size-3.5" />{o.applicationCount}
-                                                </a>
-                                            ) : "0"}
+                                            <div className="space-y-0.5">
+                                                {o.applicationCount > 0 ? (
+                                                    <a href="/admin/applications" className="flex items-center gap-1 font-bold underline">
+                                                        <Users className="size-3.5" />รอบนี้ {o.applicationCount}
+                                                    </a>
+                                                ) : <span className="font-bold">รอบนี้ 0</span>}
+                                                {o.historicalApplicationCount > 0 ? (
+                                                    <span className="block text-[10px] text-muted-foreground">
+                                                        ชุดเดิม {o.historicalApplicationCount}
+                                                    </span>
+                                                ) : null}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">

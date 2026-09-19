@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { slugifyJobTitle } from "@/lib/job-opening";
 import { logActivity } from "@/lib/logger";
 import type { Role } from "@prisma/client";
+import { getRecruitmentCycleState } from "@/lib/recruitment-cycles";
 
 const EMPLOYMENT_TYPES = new Set(["FULL_TIME", "PART_TIME", "DAILY"]);
 
@@ -30,22 +31,42 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const openings = await prisma.jobOpening.findMany({
-            orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-            include: {
-                station: { select: { id: true, name: true } },
-                department: { select: { id: true, name: true } },
-                _count: { select: { applications: true } },
-            },
-        });
+        const cycleState = await getRecruitmentCycleState();
+        const currentStartedAt = new Date(cycleState.current.startedAt);
+        const [openings, currentApplicationGroups] = await Promise.all([
+            prisma.jobOpening.findMany({
+                orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+                include: {
+                    station: { select: { id: true, name: true } },
+                    department: { select: { id: true, name: true } },
+                    _count: { select: { applications: true } },
+                },
+            }),
+            prisma.jobApplication.groupBy({
+                by: ["jobOpeningId"],
+                where: {
+                    jobOpeningId: { not: null },
+                    createdAt: { gte: currentStartedAt },
+                },
+                _count: true,
+            }),
+        ]);
+        const currentApplicationCounts = new Map(
+            currentApplicationGroups.flatMap((row) => row.jobOpeningId ? [[row.jobOpeningId, row._count]] : [])
+        );
 
         return NextResponse.json({
-            openings: openings.map((o) => ({
-                ...o,
-                salaryMin: o.salaryMin ? Number(o.salaryMin) : null,
-                salaryMax: o.salaryMax ? Number(o.salaryMax) : null,
-                applicationCount: o._count.applications,
-            })),
+            cycle: cycleState.current,
+            openings: openings.map((o) => {
+                const applicationCount = currentApplicationCounts.get(o.id) ?? 0;
+                return {
+                    ...o,
+                    salaryMin: o.salaryMin ? Number(o.salaryMin) : null,
+                    salaryMax: o.salaryMax ? Number(o.salaryMax) : null,
+                    applicationCount,
+                    historicalApplicationCount: Math.max(0, o._count.applications - applicationCount),
+                };
+            }),
         });
     } catch (error) {
         console.error("Error listing job openings:", error);

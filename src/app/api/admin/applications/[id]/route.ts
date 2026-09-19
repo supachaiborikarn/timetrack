@@ -7,6 +7,7 @@ import { formatThaiCitizenId } from "@/lib/thai-citizen-id";
 import { purgeCitizenIdCopies } from "@/lib/application-privacy";
 import { getStorage } from "@/lib/storage";
 import { logActivity } from "@/lib/logger";
+import { getRecruitmentCycleState } from "@/lib/recruitment-cycles";
 import type { Role } from "@prisma/client";
 
 const REVIEW_STATUSES = new Set(["SUBMITTED", "SCREENING", "INTERVIEW", "OFFERED", "REJECTED"]);
@@ -82,6 +83,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         const { id } = await params;
         const existing = await loadApplicationScoped(id, role, session.user.stationId);
         if (!existing) return NextResponse.json({ error: "ไม่พบใบสมัคร" }, { status: 404 });
+        const recruitmentCycle = await getRecruitmentCycleState();
+        if (existing.createdAt < new Date(recruitmentCycle.current.startedAt)) {
+            return NextResponse.json({ error: "ใบสมัครนี้อยู่ในชุดเดิม เก็บไว้อ้างอิงและไม่แก้ไขในรอบปัจจุบัน" }, { status: 409 });
+        }
         if (existing.status === "HIRED" || existing.status === "WITHDRAWN") {
             return NextResponse.json({ error: "ไม่สามารถแก้ไขใบสมัครที่จ้างแล้วหรือถอนแล้ว" }, { status: 400 });
         }

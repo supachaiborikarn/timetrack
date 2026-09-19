@@ -16,6 +16,8 @@ import {
     FileText,
     Phone,
     Calendar,
+    Archive,
+    CirclePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +126,13 @@ type ApplicationDetail = ApplicationRow & {
 
 type Station = { id: string; name: string; departments: { id: string; name: string }[] };
 
+type ApplicationCycleInfo = {
+    selected: "current" | "archive";
+    current: { id: string; label: string; startedAt: string; closedAt: string | null };
+    currentCount: number;
+    archiveCount: number;
+};
+
 function calcAge(birthDate: string | null): number | null {
     if (!birthDate) return null;
     const age = Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -136,6 +145,9 @@ export default function AdminApplicationsPage() {
     const [counts, setCounts] = useState<Record<string, number>>({});
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [stationFilter, setStationFilter] = useState("ALL");
+    const [cycleFilter, setCycleFilter] = useState<"current" | "archive">("current");
+    const [cycleInfo, setCycleInfo] = useState<ApplicationCycleInfo | null>(null);
+    const [startingCycle, setStartingCycle] = useState(false);
     const [search, setSearch] = useState("");
     const [stations, setStations] = useState<Station[]>([]);
     const [permissions, setPermissions] = useState<string[]>([]);
@@ -156,17 +168,19 @@ export default function AdminApplicationsPage() {
             const params = new URLSearchParams();
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             if (stationFilter !== "ALL") params.set("stationId", stationFilter);
+            params.set("cycle", cycleFilter);
             if (search.trim()) params.set("q", search.trim());
             const res = await fetch(`/api/admin/applications?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
                 setRows(data.applications);
                 setCounts(data.counts);
+                setCycleInfo(data.cycle ?? null);
             }
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, stationFilter, search]);
+    }, [statusFilter, stationFilter, cycleFilter, search]);
 
     useEffect(() => {
         if (!session?.user?.id) return;
@@ -314,6 +328,30 @@ export default function AdminApplicationsPage() {
         }
     }
 
+    async function startNewCycle() {
+        setStartingCycle(true);
+        try {
+            const res = await fetch("/api/admin/applications/cycles", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast.error(json.error || "เปิดรอบรับสมัครใหม่ไม่สำเร็จ");
+                return;
+            }
+            setCycleFilter("current");
+            setStatusFilter("ALL");
+            setSelectedId(null);
+            setDetail(null);
+            toast.success("เปิดรอบรับสมัครใหม่แล้ว ใบสมัครเดิมถูกเก็บไว้ในประวัติ");
+            await fetchList();
+        } finally {
+            setStartingCycle(false);
+        }
+    }
+
     if (sessionStatus === "loading") {
         return (
             <div className="flex items-center justify-center h-64">
@@ -329,12 +367,81 @@ export default function AdminApplicationsPage() {
     const canHire = permissions.includes("application.hire");
     const canDelete = permissions.includes("application.delete");
     const canViewSensitive = permissions.includes("application.view_sensitive");
+    const canManageCycles = permissions.includes("job_opening.manage");
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-                <h1 className="text-xl font-bold">ใบสมัครงาน</h1>
+                <div>
+                    <h1 className="text-xl font-bold">ใบสมัครงาน</h1>
+                    <p className="mt-0.5 text-xs text-muted-foreground">แยกใบสมัครเป็นรอบใหม่และประวัติเดิม โดยไม่ลบข้อมูลเก่า</p>
+                </div>
+                {canManageCycles ? (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" disabled={startingCycle}>
+                                {startingCycle ? <Loader2 className="size-4 animate-spin" /> : <CirclePlus className="size-4" />}
+                                เปิดรอบรับสมัครใหม่
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>เปิดรอบรับสมัครใหม่?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    ใบสมัครในรอบปัจจุบันจะไม่ถูกลบ แต่จะย้ายไปอยู่ใน “ประวัติรอบเก่า”
+                                    จากนั้นผู้ที่เคยสมัครรอบเดิมสามารถส่งใบสมัครใหม่ได้อีกครั้ง
+                                    (ผู้ที่จ้างเป็นพนักงานแล้วจะยังสมัครซ้ำไม่ได้)
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => void startNewCycle()}>ยืนยันเปิดรอบใหม่</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                ) : null}
             </div>
+
+            <Card>
+                <CardContent className="p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs font-black text-muted-foreground">รอบรับสมัคร</p>
+                            <p className="mt-0.5 text-sm font-bold">
+                                {cycleFilter === "current"
+                                    ? (cycleInfo?.current.label ?? "รอบปัจจุบัน")
+                                    : "ชุดเดิม / ประวัติรอบเก่า"}
+                            </p>
+                            {cycleFilter === "current" && cycleInfo?.current.startedAt ? (
+                                <p className="text-[10px] text-muted-foreground">
+                                    เริ่ม {new Date(cycleInfo.current.startedAt).toLocaleString("th-TH-u-ca-buddhist")}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={cycleFilter === "current" ? "default" : "outline"}
+                                onClick={() => setCycleFilter("current")}
+                            >
+                                รอบปัจจุบัน
+                                <Badge variant="secondary" className="ml-1">{cycleInfo?.currentCount ?? 0}</Badge>
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={cycleFilter === "archive" ? "default" : "outline"}
+                                onClick={() => setCycleFilter("archive")}
+                            >
+                                <Archive className="size-4" />
+                                ชุดเดิม
+                                <Badge variant="secondary" className="ml-1">{cycleInfo?.archiveCount ?? 0}</Badge>
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
                 <TabsList className="flex-wrap h-auto">
@@ -409,6 +516,12 @@ export default function AdminApplicationsPage() {
                     <SheetHeader>
                         <SheetTitle>{detail ? `${detail.name} — ${detail.refCode}` : "รายละเอียดใบสมัคร"}</SheetTitle>
                     </SheetHeader>
+
+                    {cycleFilter === "archive" ? (
+                        <div className="mx-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                            ชุดเดิม — เก็บไว้อ้างอิงเท่านั้น ไม่ใช้คัดเลือกในรอบรับสมัครปัจจุบัน
+                        </div>
+                    ) : null}
 
                     {detailLoading && <div className="p-6 text-center"><Loader2 className="size-6 animate-spin mx-auto" /></div>}
 
@@ -500,14 +613,14 @@ export default function AdminApplicationsPage() {
                                 <p className="font-medium text-sm">คะแนนประเมิน</p>
                                 <div className="flex gap-1">
                                     {[1, 2, 3, 4, 5].map((n) => (
-                                        <button key={n} type="button" onClick={() => setRating(n)} disabled={!canReview}>
+                                        <button key={n} type="button" onClick={() => setRating(n)} disabled={!canReview || cycleFilter === "archive"}>
                                             <Star className={`size-5 ${(detail.ratingScore ?? 0) >= n ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
                                         </button>
                                     ))}
                                 </div>
                             </section>
 
-                            {canReview && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
+                            {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
                                 <section className="space-y-2 border-t pt-3">
                                     <p className="font-medium text-sm flex items-center gap-1"><Calendar className="size-4" />นัดสัมภาษณ์</p>
                                     <Input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
@@ -516,7 +629,7 @@ export default function AdminApplicationsPage() {
                                 </section>
                             )}
 
-                            {canReview && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
+                            {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
                                 <section className="space-y-2 border-t pt-3">
                                     <p className="font-medium text-sm">การพิจารณา</p>
                                     <div className="flex flex-wrap gap-2">

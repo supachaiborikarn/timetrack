@@ -9,13 +9,14 @@ import { createNotifications } from "@/lib/notifications";
 import { getAttendanceDiscordWebhookUrl, sendDiscordWebhook } from "@/lib/discord";
 import { isOpeningOpen } from "@/lib/job-opening";
 import { nextRefCode, refCodePrefix } from "@/lib/application-ref-code";
+import { getRecruitmentCycleState } from "@/lib/recruitment-cycles";
 
 export const runtime = "nodejs";
 
 const SUBMIT_LIMIT_PER_HOUR = 3;
 const SUBMIT_WINDOW_MS = 60 * 60 * 1000;
-// How long a rejected applicant must wait before trying again. Applications still under
-// consideration (or already hired) block a re-submission regardless of age.
+// How long a rejected applicant must wait before trying again within the same recruitment cycle.
+// A new recruitment cycle deliberately lets prior non-hired applicants apply again.
 const REAPPLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const OPEN_STATUSES = ["SUBMITTED", "SCREENING", "INTERVIEW", "OFFERED"] as const;
 const CONSENT_VERSION = "2569-08-v1";
@@ -189,18 +190,38 @@ export async function POST(request: NextRequest) {
     const citizenIdHash = hashFieldForLookup(citizenId);
 
     // --- duplicate guard ---
-    // Matches the *person*, not the position. The original check required the position title to
-    // match too, which stopped working the moment job openings were introduced: the same people
-    // re-applied and the title changed from what they had typed by hand to the posting's title,
-    // so nothing matched. Citizen ID is the reliable identity; phone alone is not (a household
-    // can share one), so it only counts when the name matches as well.
+    // A recruitment-cycle reset archives prior attempts without deleting them. Duplicate checks for
+    // open/rejected applications are scoped to the active cycle. HIRED remains a global block so an
+    // existing employee does not accidentally submit another applicant record.
+    const identityWhere = [
+        { citizenIdHash },
+        { phone, firstName, lastName },
+    ];
+    const hiredPrevious = await prisma.jobApplication.findFirst({
+        where: {
+            status: "HIRED",
+            OR: identityWhere,
+        },
+        orderBy: { createdAt: "desc" },
+        select: { refCode: true, status: true },
+    });
+    if (hiredPrevious) {
+        return NextResponse.json(
+            {
+                error: "ข้อมูลนี้ได้รับการจ้างงานเรียบร้อยแล้ว ไม่ต้องสมัครซ้ำ หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่",
+                refCode: hiredPrevious.refCode,
+                duplicateOf: hiredPrevious.status,
+            },
+            { status: 409 }
+        );
+    }
+
+    const recruitmentCycle = await getRecruitmentCycleState();
     const previous = await prisma.jobApplication.findFirst({
         where: {
-            status: { not: "DRAFT" },
-            OR: [
-                { citizenIdHash },
-                { phone, firstName, lastName },
-            ],
+            status: { notIn: ["DRAFT", "HIRED"] },
+            createdAt: { gte: new Date(recruitmentCycle.current.startedAt) },
+            OR: identityWhere,
         },
         orderBy: { createdAt: "desc" },
         select: { refCode: true, status: true, positionTitle: true, createdAt: true },
@@ -210,7 +231,7 @@ export async function POST(request: NextRequest) {
         if ((OPEN_STATUSES as readonly string[]).includes(previous.status)) {
             return NextResponse.json(
                 {
-                    error: `คุณมีใบสมัครที่อยู่ระหว่างการพิจารณาอยู่แล้ว (ตำแหน่ง${previous.positionTitle}) `
+                    error: `คุณมีใบสมัครที่อยู่ระหว่างการพิจารณาในรอบนี้อยู่แล้ว (ตำแหน่ง${previous.positionTitle}) `
                         + "หากต้องการเปลี่ยนตำแหน่งหรือแก้ไขข้อมูล กรุณาติดต่อเจ้าหน้าที่",
                     refCode: previous.refCode,
                     duplicateOf: previous.status,
@@ -218,17 +239,7 @@ export async function POST(request: NextRequest) {
                 { status: 409 }
             );
         }
-        if (previous.status === "HIRED") {
-            return NextResponse.json(
-                {
-                    error: "ข้อมูลนี้ได้รับการจ้างงานเรียบร้อยแล้ว ไม่ต้องสมัครซ้ำ หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่",
-                    refCode: previous.refCode,
-                    duplicateOf: previous.status,
-                },
-                { status: 409 }
-            );
-        }
-        // REJECTED — a fresh attempt is allowed, but not immediately.
+        // REJECTED — a fresh attempt is allowed after the cooldown, but only inside this cycle.
         // WITHDRAWN is deliberately not blocked: the applicant cancelled it themselves,
         // usually to redo the form.
         if (previous.status === "REJECTED" && previous.createdAt.getTime() > Date.now() - REAPPLY_WINDOW_MS) {
@@ -237,7 +248,7 @@ export async function POST(request: NextRequest) {
             );
             return NextResponse.json(
                 {
-                    error: `คุณเพิ่งสมัครไปเมื่อไม่นานมานี้ สามารถสมัครใหม่ได้อีกครั้งในอีก ${daysLeft} วัน`,
+                    error: `คุณเพิ่งสมัครในรอบนี้ สามารถสมัครใหม่ได้อีกครั้งในอีก ${daysLeft} วัน`,
                     refCode: previous.refCode,
                     duplicateOf: previous.status,
                 },
