@@ -307,14 +307,13 @@ export default function LeaguePage() {
                         {reward.featured ? (
                             <div className="border-t border-white/10 p-4">
                                 <p className="mb-2 text-[10px] font-black tracking-[0.15em] text-amber-300">🎁 ของรางวัลสัปดาห์นี้</p>
-                                <div className="grid grid-cols-[110px_1fr] gap-3 rounded-2xl border border-amber-300/30 bg-white/5 p-3">
-                                    <div
-                                        className="grid h-[96px] place-items-center overflow-hidden rounded-xl bg-zinc-800 bg-cover bg-center"
-                                        style={reward.featured.imageUrl ? { backgroundImage: `url(${reward.featured.imageUrl})` } : undefined}
-                                    >
-                                        {!reward.featured.imageUrl ? <Gift className="h-9 w-9 text-amber-300" /> : null}
+                                <div className="overflow-hidden rounded-2xl border border-amber-300/30 bg-white/5">
+                                    <div className="grid min-h-[180px] max-h-[320px] place-items-center bg-zinc-900 p-3">
+                                        {reward.featured.imageUrl
+                                            ? <div className="h-[296px] w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${reward.featured.imageUrl})` }} />
+                                            : <Gift className="h-12 w-12 text-amber-300" />}
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 border-t border-white/10 p-4">
                                         <h3 className="text-lg font-black leading-tight">{reward.featured.title}</h3>
                                         {reward.featured.description ? <p className="mt-1 line-clamp-2 text-[11px] text-zinc-400">{reward.featured.description}</p> : null}
                                         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -340,14 +339,13 @@ export default function LeaguePage() {
                                 <div className="mb-2 flex items-center justify-between"><h3 className="font-black">ของรางวัลที่แลกได้</h3><span className="text-[9px] text-zinc-500">แตะเพื่อใช้ RP</span></div>
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     {reward.catalog.map((item) => (
-                                        <div key={item.id} className="flex gap-2 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                                            <div
-                                                className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-zinc-800 bg-cover bg-center"
-                                                style={item.imageUrl ? { backgroundImage: `url(${item.imageUrl})` } : undefined}
-                                            >
-                                                {!item.imageUrl ? <Gift className="h-5 w-5 text-zinc-500" /> : null}
+                                        <div key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                                            <div className="grid h-32 place-items-center bg-zinc-900 p-2">
+                                                {item.imageUrl
+                                                    ? <div className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${item.imageUrl})` }} />
+                                                    : <Gift className="h-7 w-7 text-zinc-500" />}
                                             </div>
-                                            <div className="min-w-0 flex-1">
+                                            <div className="min-w-0 border-t border-white/10 p-3">
                                                 <p className="truncate text-sm font-black">{item.title}</p>
                                                 <p className="text-[10px] font-bold text-emerald-300">{item.pointsCost} RP{item.stock !== null ? ` · เหลือ ${item.stock}` : ""}</p>
                                                 <button

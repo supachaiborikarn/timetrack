@@ -24,7 +24,7 @@ function parseStock(value: unknown): number | null | "INVALID" {
 
 function parseImageUrl(value: unknown): string | null | "INVALID" {
     if (value === null || value === undefined || value === "") return null;
-    if (typeof value !== "string" || value.length > 800_000) return "INVALID";
+    if (typeof value !== "string" || value.length > 2_800_000) return "INVALID";
     const trimmed = value.trim();
     const isDataImage = /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(trimmed);
     const isHttps = /^https:\/\//i.test(trimmed);

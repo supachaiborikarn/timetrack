@@ -926,16 +926,16 @@ export function EmployeeDashboardView() {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-[84px_1fr] gap-3 p-3">
-              <div
-                className="grid h-[76px] w-[84px] place-items-center overflow-hidden rounded-xl border border-white/15 bg-zinc-800 bg-cover bg-center"
-                style={featuredReward?.imageUrl ? { backgroundImage: `url(${featuredReward.imageUrl})` } : undefined}
-              >
-                {!featuredReward?.imageUrl ? <Gift className="h-8 w-8 text-amber-300" /> : null}
+            <div className="p-3">
+              <div className="grid min-h-[140px] max-h-[220px] place-items-center overflow-hidden rounded-xl border border-white/15 bg-zinc-900 p-2">
+                {featuredReward?.imageUrl
+                  ? <div className="h-[204px] w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${featuredReward.imageUrl})` }} />
+                  : <Gift className="h-10 w-10 text-amber-300" />}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 pt-3">
                 <p className="text-[8px] font-black tracking-[0.12em] text-amber-300">🎁 ของรางวัลสัปดาห์นี้</p>
-                <p className="mt-0.5 truncate text-[13px] font-black">{featuredReward?.title ?? "รอผู้ดูแลประกาศของรางวัล"}</p>
+                <p className="mt-0.5 text-[13px] font-black leading-snug">{featuredReward?.title ?? "รอผู้ดูแลประกาศของรางวัล"}</p>
+                {featuredReward?.description ? <p className="mt-1 line-clamp-2 text-[9px] text-zinc-400">{featuredReward.description}</p> : null}
                 {featuredReward ? (
                   <p className="mt-1 text-[10px] font-bold text-emerald-300">{featuredReward.pointsCost} RP{featuredReward.stock !== null ? ` · เหลือ ${featuredReward.stock}` : ""}</p>
                 ) : null}

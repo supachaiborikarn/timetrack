@@ -197,8 +197,8 @@ export default function AdminLeaguePage() {
             event.target.value = "";
             return;
         }
-        if (file.size > 550_000) {
-            toast.error("รูปใหญ่เกินไป กรุณาใช้ไฟล์ไม่เกินประมาณ 550 KB");
+        if (file.size > 2_000_000) {
+            toast.error("รูปใหญ่เกินไป กรุณาใช้ไฟล์ไม่เกิน 2 MB");
             event.target.value = "";
             return;
         }
@@ -416,10 +416,18 @@ export default function AdminLeaguePage() {
                                 <label className="grid gap-1 text-xs font-semibold">ชื่อของรางวัล<input value={rewardForm.title} onChange={(event) => setRewardForm((form) => ({ ...form, title: event.target.value }))} className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="เช่น แก้วเก็บความเย็น" /></label>
                                 <label className="grid gap-1 text-xs font-semibold">ราคา RP<input type="number" min="1" value={rewardForm.pointsCost} onChange={(event) => setRewardForm((form) => ({ ...form, pointsCost: event.target.value }))} className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="300" /></label>
                                 <label className="grid gap-1 text-xs font-semibold">จำนวนของ<input type="number" min="0" value={rewardForm.stock} onChange={(event) => setRewardForm((form) => ({ ...form, stock: event.target.value }))} className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="เว้นว่าง = ไม่จำกัด" /></label>
-                                <label className="grid gap-1 text-xs font-semibold">รูปของรางวัล<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onRewardImage} className="rounded-lg border bg-background px-2 py-1.5 text-xs" /></label>
+                                <label className="grid gap-1 text-xs font-semibold">
+                                    รูปของรางวัล
+                                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onRewardImage} className="rounded-lg border bg-background px-2 py-1.5 text-xs" />
+                                    <span className="font-normal text-muted-foreground">รองรับ PNG/JPG/WebP/GIF ไม่เกิน 2 MB · ระบบจะแสดงภาพเต็มโดยไม่ครอป</span>
+                                </label>
                             </div>
                             <label className="mt-3 grid gap-1 text-xs font-semibold">รายละเอียด<textarea value={rewardForm.description} onChange={(event) => setRewardForm((form) => ({ ...form, description: event.target.value }))} className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="รายละเอียดของรางวัล (ถ้ามี)" /></label>
-                            {rewardForm.imageUrl ? <div className="mt-3 h-40 rounded-xl border bg-cover bg-center" style={{ backgroundImage: `url(${rewardForm.imageUrl})` }} /> : null}
+                            {rewardForm.imageUrl ? (
+                                <div className="mt-3 overflow-hidden rounded-xl border bg-muted/40 p-2">
+                                    <div className="h-[320px] w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${rewardForm.imageUrl})` }} />
+                                </div>
+                            ) : null}
                             <label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={rewardForm.featuredThisWeek} onChange={(event) => setRewardForm((form) => ({ ...form, featuredThisWeek: event.target.checked }))} /> แสดงเป็น “ของรางวัลสัปดาห์นี้” บน Dashboard</label>
                             <button disabled={savingReward} onClick={() => void createReward()} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{savingReward ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} บันทึกของรางวัล</button>
                         </div>
@@ -451,7 +459,9 @@ export default function AdminLeaguePage() {
                                 const isFeatured = item.featuredWeekKey === rewardData.weekKey;
                                 return (
                                     <div key={item.id} className={`overflow-hidden rounded-xl border ${item.isActive ? "bg-card" : "bg-muted/40 opacity-70"}`}>
-                                        <div className="grid h-28 place-items-center bg-muted bg-cover bg-center" style={item.imageUrl ? { backgroundImage: `url(${item.imageUrl})` } : undefined}>{!item.imageUrl ? <Gift className="h-8 w-8 text-muted-foreground" /> : null}</div>
+                                        <div className="grid aspect-[16/10] place-items-center overflow-hidden bg-muted p-2">
+                                            {item.imageUrl ? <div className="h-full w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${item.imageUrl})` }} /> : <Gift className="h-8 w-8 text-muted-foreground" />}
+                                        </div>
                                         <div className="p-3">
                                             <div className="flex items-start justify-between gap-2"><p className="font-bold leading-tight">{item.title}</p>{isFeatured ? <span className="shrink-0 rounded bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-zinc-950">สัปดาห์นี้</span> : null}</div>
                                             <p className="mt-1 text-sm font-bold text-emerald-700">{item.pointsCost} RP {item.stock !== null ? `· เหลือ ${item.stock}` : "· ไม่จำกัด"}</p>
