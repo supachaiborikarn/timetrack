@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Crown, Gift, Loader2, Medal, RefreshCw, Save, Star, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import { Crown, Gift, ImagePlus, Loader2, Medal, RefreshCw, Save, Star, Trophy, X } from "lucide-react";
 
 interface RewardOption {
     code: string;
     label: string;
     description: string;
     valueBaht: number;
+    imageUrl: string | null;
 }
 
 interface ChampionshipData {
@@ -50,7 +52,7 @@ interface ChampionshipData {
     }>;
 }
 
-type RewardDraft = Array<{ label: string; description: string; valueBaht: number }>;
+type RewardDraft = Array<{ label: string; description: string; valueBaht: number; imageUrl: string }>;
 type ConfigurableAwardType = "MONTHLY_STATION_CHAMPION" | "GRAND_CHAMPION";
 
 function rankLabel(rank: number) {
@@ -65,6 +67,7 @@ function rewardDraft(options: RewardOption[]): RewardDraft {
         label: option.label,
         description: option.description,
         valueBaht: option.valueBaht,
+        imageUrl: option.imageUrl ?? "",
     }));
 }
 
@@ -92,6 +95,28 @@ function RewardEditor({
         ? "bg-amber-400 text-zinc-950 hover:bg-amber-300"
         : "bg-violet-600 text-white hover:bg-violet-500";
 
+    const onRewardImage = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!/^image\/(png|jpeg|webp|gif)$/i.test(file.type)) {
+            toast.error("รองรับรูป PNG, JPG, WebP หรือ GIF เท่านั้น");
+            event.target.value = "";
+            return;
+        }
+        if (file.size > 1_000_000) {
+            toast.error("รูป Champion ใหญ่เกินไป กรุณาใช้ไฟล์ไม่เกิน 1 MB");
+            event.target.value = "";
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const imageUrl = typeof reader.result === "string" ? reader.result : "";
+            onChange(options.map((row, rowIndex) => rowIndex === index ? { ...row, imageUrl } : row));
+        };
+        reader.onerror = () => toast.error("อ่านไฟล์รูปไม่สำเร็จ");
+        reader.readAsDataURL(file);
+    };
+
     return (
         <section className={`rounded-[22px] border p-4 shadow-sm ${panelClass}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -102,7 +127,7 @@ function RewardEditor({
                 <button
                     type="button"
                     disabled={saving || options.length >= 3}
-                    onClick={() => onChange([...options, { label: "", description: "", valueBaht: 0 }])}
+                    onClick={() => onChange([...options, { label: "", description: "", valueBaht: 0, imageUrl: "" }])}
                     className="rounded-xl border bg-background px-3 py-2 text-xs font-black disabled:opacity-40"
                 >
                     + เพิ่มตัวเลือก
@@ -157,6 +182,32 @@ function RewardEditor({
                                 className="mt-1 w-full rounded-xl border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-amber-300"
                             />
                         </label>
+                        <div className="mt-3 grid gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed bg-muted/30 px-3 py-2.5 text-xs font-black">
+                                <ImagePlus className="h-4 w-4" />
+                                {option.imageUrl ? "เปลี่ยนรูปของรางวัล" : "แนบรูปของรางวัล"}
+                                <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,image/gif"
+                                    className="hidden"
+                                    onChange={(event) => onRewardImage(index, event)}
+                                />
+                            </label>
+                            <p className="text-[9px] text-muted-foreground">PNG/JPG/WebP/GIF ไม่เกิน 1 MB · พนักงานจะเห็นภาพเต็มโดยไม่ครอป</p>
+                            {option.imageUrl ? (
+                                <div className="relative overflow-hidden rounded-xl border bg-muted/40 p-2">
+                                    <div className="h-[180px] w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${option.imageUrl})` }} />
+                                    <button
+                                        type="button"
+                                        onClick={() => onChange(options.map((row, rowIndex) => rowIndex === index ? { ...row, imageUrl: "" } : row))}
+                                        className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-zinc-950/80 text-white"
+                                        aria-label="ลบรูปของรางวัล"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 ))}
             </div>

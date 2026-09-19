@@ -9,6 +9,7 @@ export type ChampionshipRewardOption = {
     label: string;
     description: string;
     valueBaht: number;
+    imageUrl: string | null;
 };
 
 const CONFIG_PREFIX = "competition.championship-reward-options.v1";
@@ -19,7 +20,7 @@ export function championshipRewardConfigKey(type: ConfigurableChampionshipAwardT
 }
 
 function defaultsFor(type: ChampionshipAwardType): ChampionshipRewardOption[] {
-    return rewardOptionsForAwardType(type).map((option) => ({ ...option }));
+    return rewardOptionsForAwardType(type).map((option) => ({ ...option, imageUrl: null }));
 }
 
 function isSafePeriodKey(periodKey: string) {
@@ -46,7 +47,14 @@ export function normalizeChampionshipRewardOptions(input: unknown): Championship
         const label = typeof row.label === "string" ? row.label.trim() : "";
         const description = typeof row.description === "string" ? row.description.trim() : "";
         const value = typeof row.valueBaht === "number" ? row.valueBaht : Number(row.valueBaht);
-        if (!label || label.length > 120 || description.length > 300 || !Number.isFinite(value) || value < 0 || value > 100000) {
+        const rawImageUrl = row.imageUrl;
+        const imageUrl = rawImageUrl === null || rawImageUrl === undefined || rawImageUrl === ""
+            ? null
+            : typeof rawImageUrl === "string" && rawImageUrl.length <= 1_400_000
+                && (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(rawImageUrl.trim()) || /^https:\/\//i.test(rawImageUrl.trim()))
+                ? rawImageUrl.trim()
+                : "INVALID";
+        if (!label || label.length > 120 || description.length > 300 || !Number.isFinite(value) || value < 0 || value > 100000 || imageUrl === "INVALID") {
             return null;
         }
         options.push({
@@ -54,6 +62,7 @@ export function normalizeChampionshipRewardOptions(input: unknown): Championship
             label,
             description,
             valueBaht: Math.round(value),
+            imageUrl,
         });
     }
     return options;

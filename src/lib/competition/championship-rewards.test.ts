@@ -35,15 +35,15 @@ describe("championship reward configuration", () => {
     it("uses the month-specific admin reward options when configured", async () => {
         mocks.findUnique.mockResolvedValue({
             value: JSON.stringify([
-                { code: "OLD", label: "เงินสด 900 บาท", description: "รางวัลเดือนนี้", valueBaht: 900 },
+                { code: "OLD", label: "เงินสด 900 บาท", description: "รางวัลเดือนนี้", valueBaht: 900, imageUrl: "https://example.com/reward.jpg" },
                 { code: "OLD2", label: "Family Meal", description: "พาครอบครัวไปทานอาหาร", valueBaht: 900 },
             ]),
         });
 
         const options = await getChampionshipRewardOptions("MONTHLY_STATION_CHAMPION", "2026-09");
         expect(options).toEqual([
-            { code: "ADMIN_OPTION_1", label: "เงินสด 900 บาท", description: "รางวัลเดือนนี้", valueBaht: 900 },
-            { code: "ADMIN_OPTION_2", label: "Family Meal", description: "พาครอบครัวไปทานอาหาร", valueBaht: 900 },
+            { code: "ADMIN_OPTION_1", label: "เงินสด 900 บาท", description: "รางวัลเดือนนี้", valueBaht: 900, imageUrl: "https://example.com/reward.jpg" },
+            { code: "ADMIN_OPTION_2", label: "Family Meal", description: "พาครอบครัวไปทานอาหาร", valueBaht: 900, imageUrl: null },
         ]);
         expect(mocks.findUnique).toHaveBeenCalledWith({
             where: { key: championshipRewardConfigKey("MONTHLY_STATION_CHAMPION", "2026-09") },
@@ -54,16 +54,22 @@ describe("championship reward configuration", () => {
     it("falls back to the existing policy when no admin override exists", async () => {
         mocks.findUnique.mockResolvedValue(null);
         await expect(getChampionshipRewardOptions("GRAND_CHAMPION", "2026-09")).resolves.toEqual([
-            { code: "GRAND_DEFAULT", label: "Grand Default", description: "default", valueBaht: 1500 },
+            { code: "GRAND_DEFAULT", label: "Grand Default", description: "default", valueBaht: 1500, imageUrl: null },
         ]);
+    });
+
+    it("rejects invalid reward image values", () => {
+        expect(normalizeChampionshipRewardOptions([
+            { label: "Voucher", description: "", valueBaht: 500, imageUrl: "javascript:alert(1)" },
+        ])).toBeNull();
     });
 
     it("validates and stores one to three reward choices", async () => {
         const normalized = normalizeChampionshipRewardOptions([
-            { label: "Voucher 1,000 บาท", description: "เลือกใช้ตามประกาศ", valueBaht: 1000 },
+            { label: "Voucher 1,000 บาท", description: "เลือกใช้ตามประกาศ", valueBaht: 1000, imageUrl: "data:image/png;base64,AAAA" },
         ]);
         expect(normalized).toEqual([
-            { code: "ADMIN_OPTION_1", label: "Voucher 1,000 บาท", description: "เลือกใช้ตามประกาศ", valueBaht: 1000 },
+            { code: "ADMIN_OPTION_1", label: "Voucher 1,000 บาท", description: "เลือกใช้ตามประกาศ", valueBaht: 1000, imageUrl: "data:image/png;base64,AAAA" },
         ]);
         mocks.upsert.mockResolvedValue({ key: "saved", value: "[]", updatedAt: new Date() });
         await saveChampionshipRewardOptions({

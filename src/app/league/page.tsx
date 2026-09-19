@@ -65,8 +65,8 @@ interface LeagueData {
     } | null;
     championshipRewards?: {
         periodKey: string;
-        stationChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
-        grandChampion: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+        stationChampion: Array<{ code: string; label: string; description: string; valueBaht: number; imageUrl: string | null }>;
+        grandChampion: Array<{ code: string; label: string; description: string; valueBaht: number; imageUrl: string | null }>;
     };
     rewardPoints?: {
         wallet: {
@@ -90,7 +90,7 @@ interface LeagueData {
         rewardLabel: string | null;
         rewardValueBaht: number | null;
         period: { periodKey: string };
-        options: Array<{ code: string; label: string; description: string; valueBaht: number }>;
+        options: Array<{ code: string; label: string; description: string; valueBaht: number; imageUrl: string | null }>;
     }>;
 }
 
@@ -398,9 +398,14 @@ export default function LeaguePage() {
                             <p className="text-[10px] font-black tracking-[0.12em] text-amber-700">🏆 รางวัล STATION CHAMPION เดือนนี้</p>
                             <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                 {data.championshipRewards.stationChampion.map((option) => (
-                                    <div key={option.code} className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2">
-                                        <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-amber-700">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
-                                        {option.description ? <p className="mt-1 text-[10px] text-zinc-500">{option.description}</p> : null}
+                                    <div key={option.code} className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50/80">
+                                        {option.imageUrl ? (
+                                            <div className="h-36 w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${option.imageUrl})` }} />
+                                        ) : null}
+                                        <div className={option.imageUrl ? "border-t border-amber-200 px-3 py-2" : "px-3 py-2"}>
+                                            <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-amber-700">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
+                                            {option.description ? <p className="mt-1 text-[10px] text-zinc-500">{option.description}</p> : null}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -415,9 +420,14 @@ export default function LeaguePage() {
                         <p className="mt-1 text-[10px] text-zinc-400">นำ Station Champion ของแต่ละปั๊มมาเทียบเพื่อหา Grand Champion</p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {data.championshipRewards.grandChampion.map((option) => (
-                                <div key={option.code} className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2">
-                                    <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-violet-300">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
-                                    {option.description ? <p className="mt-1 text-[10px] text-zinc-400">{option.description}</p> : null}
+                                <div key={option.code} className="overflow-hidden rounded-xl border border-violet-400/30 bg-violet-500/10">
+                                    {option.imageUrl ? (
+                                        <div className="h-40 w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${option.imageUrl})` }} />
+                                    ) : null}
+                                    <div className={option.imageUrl ? "border-t border-violet-400/20 px-3 py-2" : "px-3 py-2"}>
+                                        <div className="flex items-center justify-between gap-2"><span className="text-xs font-black">{option.label}</span><span className="shrink-0 text-[10px] font-black text-violet-300">฿{option.valueBaht.toLocaleString("th-TH")}</span></div>
+                                        {option.description ? <p className="mt-1 text-[10px] text-zinc-400">{option.description}</p> : null}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -456,13 +466,24 @@ export default function LeaguePage() {
                                     <span className="rounded-full bg-amber-300 px-2 py-1 text-[10px] font-black">{award.status === "AVAILABLE" ? "เลือกรางวัล" : "เลือกแล้ว"}</span>
                                 </div>
                                 {award.status === "SELECTED" ? (
-                                    <div className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-800">✓ {award.rewardLabel} · รอผู้ดูแลมอบรางวัล</div>
+                                    <div className="overflow-hidden rounded-xl bg-emerald-50 text-sm font-bold text-emerald-800">
+                                        {award.options.find((option) => option.code === award.rewardCode)?.imageUrl ? (
+                                            <div
+                                                className="h-40 w-full bg-contain bg-center bg-no-repeat"
+                                                style={{ backgroundImage: `url(${award.options.find((option) => option.code === award.rewardCode)?.imageUrl})` }}
+                                            />
+                                        ) : null}
+                                        <div className="p-3">✓ {award.rewardLabel} · รอผู้ดูแลมอบรางวัล</div>
+                                    </div>
                                 ) : (
                                     <div className="grid gap-2">
                                         {award.options.map((option) => (
-                                            <button key={option.code} disabled={selecting !== null} onClick={() => void chooseReward(award.id, option.code)} className="rounded-xl border border-zinc-300 bg-white p-3 text-left transition active:translate-y-[1px] disabled:opacity-50">
-                                                <div className="flex items-center justify-between"><span className="font-black">{option.label}</span><span className="text-xs font-bold text-amber-700">~฿{option.valueBaht}</span></div>
-                                                <p className="mt-1 text-[11px] text-zinc-500">{option.description}</p>
+                                            <button key={option.code} disabled={selecting !== null} onClick={() => void chooseReward(award.id, option.code)} className="overflow-hidden rounded-xl border border-zinc-300 bg-white text-left transition active:translate-y-[1px] disabled:opacity-50">
+                                                {option.imageUrl ? <div className="h-40 w-full bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${option.imageUrl})` }} /> : null}
+                                                <div className={option.imageUrl ? "border-t border-zinc-200 p-3" : "p-3"}>
+                                                    <div className="flex items-center justify-between"><span className="font-black">{option.label}</span><span className="text-xs font-bold text-amber-700">~฿{option.valueBaht}</span></div>
+                                                    <p className="mt-1 text-[11px] text-zinc-500">{option.description}</p>
+                                                </div>
                                             </button>
                                         ))}
                                     </div>
