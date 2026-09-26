@@ -28,7 +28,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
     AlertDialog,
     AlertDialogTrigger,
@@ -511,29 +510,38 @@ export default function AdminApplicationsPage() {
                 </CardContent>
             </Card>
 
-            <Sheet open={!!selectedId} onOpenChange={(open) => { if (!open) { setSelectedId(null); setDetail(null); } }}>
-                <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-                    <SheetHeader>
-                        <SheetTitle>{detail ? `${detail.name} — ${detail.refCode}` : "รายละเอียดใบสมัคร"}</SheetTitle>
-                    </SheetHeader>
+            <Dialog open={!!selectedId} onOpenChange={(open) => { if (!open) { setSelectedId(null); setDetail(null); } }}>
+                <DialogContent className="flex h-[94dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden p-0 sm:h-[92vh] sm:max-w-6xl">
+                    <DialogHeader className="shrink-0 border-b bg-background/95 px-5 py-4 pr-12 backdrop-blur sm:px-6">
+                        <DialogTitle className="text-xl sm:text-2xl">{detail ? `${detail.name} — ${detail.refCode}` : "รายละเอียดใบสมัคร"}</DialogTitle>
+                        {detail ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:text-sm">
+                                <Badge variant="outline">{STATUS_LABELS[detail.status] ?? detail.status}</Badge>
+                                <span>{detail.positionTitle}</span>
+                                <span>{detail.station?.name ?? "-"}</span>
+                                {detail.department ? <span>{detail.department.name}</span> : null}
+                                <span className="ml-auto">สมัคร {new Date(detail.createdAt).toLocaleDateString("th-TH-u-ca-buddhist")}</span>
+                            </div>
+                        ) : null}
+                    </DialogHeader>
 
                     {cycleFilter === "archive" ? (
-                        <div className="mx-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                        <div className="mx-5 mt-4 shrink-0 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 sm:mx-6">
                             ชุดเดิม — เก็บไว้อ้างอิงเท่านั้น ไม่ใช้คัดเลือกในรอบรับสมัครปัจจุบัน
                         </div>
                     ) : null}
 
-                    {detailLoading && <div className="p-6 text-center"><Loader2 className="size-6 animate-spin mx-auto" /></div>}
+                    {detailLoading && <div className="flex min-h-0 flex-1 items-center justify-center p-6"><Loader2 className="size-6 animate-spin" /></div>}
 
                     {detail && (
-                        <div className="px-4 pb-6 space-y-4">
-                            <div className="flex items-center gap-3">
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                            <div className="flex flex-col items-center gap-3 rounded-2xl border bg-background p-4 text-center shadow-sm lg:col-start-1 lg:row-start-1">
                                 {detail.files.some((f) => f.kind === "PROFILE_PHOTO") && (
                                     // eslint-disable-next-line @next/next/no-img-element -- served via our own permission-gated route, not a static asset
                                     <img
                                         src={`/api/admin/applications/${detail.id}/files/${detail.files.find((f) => f.kind === "PROFILE_PHOTO")?.id}`}
                                         alt={detail.name}
-                                        className="w-20 h-[107px] object-cover rounded-md border"
+                                        className="h-60 w-44 rounded-2xl border object-cover shadow-sm"
                                     />
                                 )}
                                 <div>
@@ -548,7 +556,8 @@ export default function AdminApplicationsPage() {
                                 </div>
                             </div>
 
-                            <section className="space-y-1 text-sm">
+                            <section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2 lg:row-start-1">
+                                <p className="mb-2 text-base font-bold">ข้อมูลส่วนตัว</p>
                                 <Row label="ชื่อ-สกุล" value={`${detail.prefix ?? ""} ${detail.firstName} ${detail.lastName}`.trim()} />
                                 <Row label="ชื่อเล่น" value={detail.nickName} />
                                 <Row label="อายุ" value={calcAge(detail.birthDate) ? `${calcAge(detail.birthDate)} ปี` : null} />
@@ -577,20 +586,63 @@ export default function AdminApplicationsPage() {
                                 </div>
                             </section>
 
-                            <section className="space-y-1 text-sm border-t pt-3">
-                                <p className="font-medium">ไฟล์แนบ</p>
-                                <div className="flex flex-wrap gap-2">
+                            <section className="space-y-3 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-1 lg:row-start-2">
+                                <div>
+                                    <p className="font-bold">ไฟล์แนบ</p>
+                                    <p className="text-xs text-muted-foreground">คลิกเพื่อเปิดดูรูปหรือเอกสารขนาดเต็ม</p>
+                                </div>
+                                <div className="grid gap-2">
                                     {detail.files.map((f) => (
-                                        <a key={f.id} href={`/api/admin/applications/${detail.id}/files/${f.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs border rounded-md px-2 py-1 hover:bg-muted">
-                                            <FileText className="size-3.5" />
-                                            {FILE_KIND_LABELS[f.kind] ?? f.kind}
+                                        <a
+                                            key={f.id}
+                                            href={`/api/admin/applications/${detail.id}/files/${f.id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="group overflow-hidden rounded-xl border bg-background text-xs transition hover:bg-muted"
+                                        >
+                                            {f.mimeType.startsWith("image/") && f.kind !== "PROFILE_PHOTO" ? (
+                                                // eslint-disable-next-line @next/next/no-img-element -- permission-gated application media
+                                                <img
+                                                    src={`/api/admin/applications/${detail.id}/files/${f.id}`}
+                                                    alt={FILE_KIND_LABELS[f.kind] ?? f.kind}
+                                                    className="aspect-[4/3] w-full bg-muted object-cover transition group-hover:scale-[1.01]"
+                                                />
+                                            ) : null}
+                                            <span className="flex items-center justify-between gap-2 px-3 py-2.5">
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    <FileText className="size-4 shrink-0" />
+                                                    <span className="truncate">{FILE_KIND_LABELS[f.kind] ?? f.kind}</span>
+                                                </span>
+                                                <span className="shrink-0 text-muted-foreground">เปิดดู</span>
+                                            </span>
                                         </a>
                                     ))}
+                                    {detail.files.length === 0 ? <p className="text-xs text-muted-foreground">ไม่มีไฟล์แนบ</p> : null}
                                 </div>
                             </section>
 
+                            <section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
+                                <div>
+                                    <p className="font-bold">ข้อมูลการสมัครและความพร้อม</p>
+                                    <p className="text-xs text-muted-foreground">เงื่อนไขงานที่ผู้สมัครแจ้งไว้</p>
+                                </div>
+                                <div className="grid gap-x-6 md:grid-cols-2">
+                                    <Row label="รูปแบบงาน" value={detail.employmentType} />
+                                    <Row label="เงินเดือนที่คาดหวัง" value={detail.expectedSalary != null ? `${detail.expectedSalary.toLocaleString("th-TH")} บาท` : null} />
+                                    <Row label="เริ่มงานได้" value={detail.availableFrom ? new Date(detail.availableFrom).toLocaleDateString("th-TH-u-ca-buddhist") : null} />
+                                    <Row label="กะที่สะดวก" value={detail.preferredShifts.length ? detail.preferredShifts.join(", ") : null} />
+                                    <Row label="ใบขับขี่" value={detail.hasDrivingLicense ? (detail.licenseTypes || "มี") : "ไม่มี"} />
+                                </div>
+                                {detail.applicantNote ? (
+                                    <div className="rounded-xl bg-muted/50 p-3">
+                                        <p className="mb-1 text-xs font-semibold text-muted-foreground">หมายเหตุจากผู้สมัคร</p>
+                                        <p className="whitespace-pre-wrap leading-6">{detail.applicantNote}</p>
+                                    </div>
+                                ) : null}
+                            </section>
+
                             {(detail.educations.length > 0 || detail.workExperiences.length > 0) && (
-                                <section className="space-y-2 text-sm border-t pt-3">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
                                     {detail.educations.map((e, i) => (
                                         <p key={i} className="text-muted-foreground">🎓 {e.level} {e.institute} {e.major} {e.graduationYear}</p>
                                     ))}
@@ -601,7 +653,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {detail.screeningAnswers && (
-                                <section className="space-y-1 text-sm border-t pt-3">
+                                <section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
                                     <p className="font-medium">คำถามคัดกรอง</p>
                                     <p className="text-muted-foreground">เคยทำงานปั๊ม: {detail.screeningAnswers.workedAtGasStationBefore ? "ใช่" : "ไม่ใช่"}</p>
                                     <p className="text-muted-foreground">ทำกะดึกได้: {detail.screeningAnswers.canWorkNightShift ? "ใช่" : "ไม่ใช่"}</p>
@@ -609,7 +661,7 @@ export default function AdminApplicationsPage() {
                                 </section>
                             )}
 
-                            <section className="space-y-2 border-t pt-3">
+                            <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
                                 <p className="font-medium text-sm">คะแนนประเมิน</p>
                                 <div className="flex gap-1">
                                     {[1, 2, 3, 4, 5].map((n) => (
@@ -621,7 +673,7 @@ export default function AdminApplicationsPage() {
                             </section>
 
                             {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
-                                <section className="space-y-2 border-t pt-3">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
                                     <p className="font-medium text-sm flex items-center gap-1"><Calendar className="size-4" />นัดสัมภาษณ์</p>
                                     <Input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
                                     <Textarea placeholder="บันทึกการสัมภาษณ์" rows={2} value={interviewNote} onChange={(e) => setInterviewNote(e.target.value)} />
@@ -630,7 +682,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
-                                <section className="space-y-2 border-t pt-3">
+                                <section className="space-y-2 rounded-2xl border-2 border-primary/15 bg-background p-4 shadow-sm lg:col-start-2">
                                     <p className="font-medium text-sm">การพิจารณา</p>
                                     <div className="flex flex-wrap gap-2">
                                         {detail.status === "SUBMITTED" && (
@@ -671,14 +723,14 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {detail.rejectReason && detail.status === "REJECTED" && (
-                                <p className="text-sm text-destructive border-t pt-3">เหตุผลที่ปฏิเสธ: {detail.rejectReason}</p>
+                                <p className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive lg:col-start-2">เหตุผลที่ปฏิเสธ: {detail.rejectReason}</p>
                             )}
 
                             {/* A hired application can't be edited or deleted while an employee account
                                 hangs off it. Undoing the hire deals with the account first, then returns
                                 the application to a normal state. */}
                             {canHire && detail.status === "HIRED" && (
-                                <section className="space-y-2 border-t pt-3">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
                                     <p className="font-medium text-sm">ยกเลิกการจ้าง</p>
                                     <p className="text-xs text-muted-foreground">
                                         ใช้กรณีรับเข้าทำงานแล้วแต่ไม่มาจริง — บัญชีพนักงานจะถูกลบถ้ายังไม่เคยใช้งาน
@@ -715,7 +767,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {canDelete && (
-                                <section className="border-t pt-3">
+                                <section className="rounded-2xl border bg-background p-3 shadow-sm lg:col-start-2">
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="size-4" />ลบใบสมัครถาวร</Button>
@@ -735,8 +787,8 @@ export default function AdminApplicationsPage() {
                             )}
                         </div>
                     )}
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -770,9 +822,9 @@ const FILE_KIND_LABELS: Record<string, string> = {
 function Row({ label, value }: { label: string; value?: string | null }) {
     if (!value) return null;
     return (
-        <div className="flex justify-between gap-3 py-1">
+        <div className="grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-3 border-b border-border/50 py-2 last:border-b-0">
             <span className="text-muted-foreground">{label}</span>
-            <span className="font-medium text-right">{value}</span>
+            <span className="min-w-0 break-words font-medium text-right">{value}</span>
         </div>
     );
 }

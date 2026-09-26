@@ -1943,3 +1943,14 @@ Verification:
 - Verification: first focused suite4files21tests passed; regression/work-rule suite4files26tests passed; TypeScript and changed-file ESLint passed. Production build pending. No unrelated scratch changes.
 - Production build passed (190 pages); deployment pending.
 - Release `817bdd7` pushed; production deployment `dpl_9ZCXFaVJk3eDppqix7o4SVmMGdi2` confirmed Ready with `timetrack-lake.vercel.app` alias. No authenticated browser inspection performed.
+
+
+## 2026-09-26 — Application detail modal redesign
+
+- Replaced the ADMIN/HR application detail right-side Sheet with a large centered Dialog modal while preserving all existing review, interview, reject, hire, unhire, sensitive-ID reveal, delete, archive-view, and file-access behavior.
+- New modal uses a responsive two-column desktop layout: applicant portrait and attachments on the left, detailed application/review content on the right; mobile collapses to a single vertical flow.
+- Enlarged the applicant portrait, added a sticky-style modal header with status/position/station/application date context, converted content groups to card sections, and improved label/value readability.
+- Image attachments now render as visible thumbnails inside the modal and still open the permission-gated original in a new tab; non-image attachments remain clear open-file rows.
+- Added a dedicated application/readiness section for employment type, expected salary, available-from date, preferred shifts, driving licence, and applicant note.
+- Verification: npx tsc --noEmit passed; npx eslint src/app/admin/applications/page.tsx passed; git diff --check passed.
+- No API, database, schema, recruitment-cycle, or production data changes. Changes are local and not pushed/deployed yet.
