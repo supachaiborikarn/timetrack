@@ -534,8 +534,10 @@ export default function AdminApplicationsPage() {
                     {detailLoading && <div className="flex min-h-0 flex-1 items-center justify-center p-6"><Loader2 className="size-6 animate-spin" /></div>}
 
                     {detail && (
-                        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-                            <div className="flex flex-col items-center gap-3 rounded-2xl border bg-background p-4 text-center shadow-sm lg:col-start-1 lg:row-start-1">
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6">
+                            <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                <aside className="space-y-4">
+<div className="flex flex-col items-center gap-3 rounded-2xl border bg-background p-4 text-center shadow-sm">
                                 {detail.files.some((f) => f.kind === "PROFILE_PHOTO") && (
                                     // eslint-disable-next-line @next/next/no-img-element -- served via our own permission-gated route, not a static asset
                                     <img
@@ -555,38 +557,7 @@ export default function AdminApplicationsPage() {
                                     {detail.hiredUser && <div className="text-xs text-green-600 mt-1">จ้างเป็นพนักงานแล้ว: {detail.hiredUser.name} ({detail.hiredUser.employeeId})</div>}
                                 </div>
                             </div>
-
-                            <section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2 lg:row-start-1">
-                                <p className="mb-2 text-base font-bold">ข้อมูลส่วนตัว</p>
-                                <Row label="ชื่อ-สกุล" value={`${detail.prefix ?? ""} ${detail.firstName} ${detail.lastName}`.trim()} />
-                                <Row label="ชื่อเล่น" value={detail.nickName} />
-                                <Row label="อายุ" value={calcAge(detail.birthDate) ? `${calcAge(detail.birthDate)} ปี` : null} />
-                                <Row label="เพศ" value={detail.gender} />
-                                <Row label="สัญชาติ" value={detail.nationality} />
-                                <div className="flex justify-between gap-3 py-1">
-                                    <span className="text-muted-foreground flex items-center gap-1"><Phone className="size-3.5" />เบอร์โทร</span>
-                                    <span className="font-medium">{detail.phone}</span>
-                                </div>
-                                <Row label="LINE ID" value={detail.lineId} />
-                                <Row label="อีเมล" value={detail.email} />
-                                <Row label="ที่อยู่ปัจจุบัน" value={detail.addressCurrent || detail.addressRegistered} />
-                                <Row label="ผู้ติดต่อฉุกเฉิน" value={detail.emergencyName ? `${detail.emergencyName} (${detail.emergencyRelation ?? "-"}) ${detail.emergencyPhone ?? ""}` : null} />
-
-                                <div className="flex justify-between items-center gap-3 py-1">
-                                    <span className="text-muted-foreground">เลขบัตรประชาชน</span>
-                                    <span className="font-mono flex items-center gap-2">
-                                        {detail.citizenIdFull ?? detail.citizenIdMasked ?? "-"}
-                                        {canViewSensitive && !detail.citizenIdFull && (
-                                            <Button size="icon-sm" variant="ghost" onClick={revealCitizenId}><Eye className="size-3.5" /></Button>
-                                        )}
-                                        {detail.citizenIdFull && (
-                                            <Button size="icon-sm" variant="ghost" onClick={() => setDetail((p) => (p ? { ...p, citizenIdFull: null } : p))}><EyeOff className="size-3.5" /></Button>
-                                        )}
-                                    </span>
-                                </div>
-                            </section>
-
-                            <section className="space-y-3 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-1 lg:row-start-2">
+<section className="space-y-3 rounded-2xl border bg-background p-4 text-sm shadow-sm">
                                 <div>
                                     <p className="font-bold">ไฟล์แนบ</p>
                                     <p className="text-xs text-muted-foreground">คลิกเพื่อเปิดดูรูปหรือเอกสารขนาดเต็ม</p>
@@ -620,8 +591,39 @@ export default function AdminApplicationsPage() {
                                     {detail.files.length === 0 ? <p className="text-xs text-muted-foreground">ไม่มีไฟล์แนบ</p> : null}
                                 </div>
                             </section>
+                                </aside>
 
-                            <section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
+                                <main className="min-w-0 space-y-4">
+<section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm">
+                                <p className="mb-2 text-base font-bold">ข้อมูลส่วนตัว</p>
+                                <Row label="ชื่อ-สกุล" value={`${detail.prefix ?? ""} ${detail.firstName} ${detail.lastName}`.trim()} />
+                                <Row label="ชื่อเล่น" value={detail.nickName} />
+                                <Row label="อายุ" value={calcAge(detail.birthDate) ? `${calcAge(detail.birthDate)} ปี` : null} />
+                                <Row label="เพศ" value={detail.gender} />
+                                <Row label="สัญชาติ" value={detail.nationality} />
+                                <div className="flex justify-between gap-3 py-1">
+                                    <span className="text-muted-foreground flex items-center gap-1"><Phone className="size-3.5" />เบอร์โทร</span>
+                                    <span className="font-medium">{detail.phone}</span>
+                                </div>
+                                <Row label="LINE ID" value={detail.lineId} />
+                                <Row label="อีเมล" value={detail.email} />
+                                <Row label="ที่อยู่ปัจจุบัน" value={detail.addressCurrent || detail.addressRegistered} />
+                                <Row label="ผู้ติดต่อฉุกเฉิน" value={detail.emergencyName ? `${detail.emergencyName} (${detail.emergencyRelation ?? "-"}) ${detail.emergencyPhone ?? ""}` : null} />
+
+                                <div className="flex justify-between items-center gap-3 py-1">
+                                    <span className="text-muted-foreground">เลขบัตรประชาชน</span>
+                                    <span className="font-mono flex items-center gap-2">
+                                        {detail.citizenIdFull ?? detail.citizenIdMasked ?? "-"}
+                                        {canViewSensitive && !detail.citizenIdFull && (
+                                            <Button size="icon-sm" variant="ghost" onClick={revealCitizenId}><Eye className="size-3.5" /></Button>
+                                        )}
+                                        {detail.citizenIdFull && (
+                                            <Button size="icon-sm" variant="ghost" onClick={() => setDetail((p) => (p ? { ...p, citizenIdFull: null } : p))}><EyeOff className="size-3.5" /></Button>
+                                        )}
+                                    </span>
+                                </div>
+                            </section>
+<section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm">
                                 <div>
                                     <p className="font-bold">ข้อมูลการสมัครและความพร้อม</p>
                                     <p className="text-xs text-muted-foreground">เงื่อนไขงานที่ผู้สมัครแจ้งไว้</p>
@@ -642,7 +644,7 @@ export default function AdminApplicationsPage() {
                             </section>
 
                             {(detail.educations.length > 0 || detail.workExperiences.length > 0) && (
-                                <section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 text-sm shadow-sm">
                                     {detail.educations.map((e, i) => (
                                         <p key={i} className="text-muted-foreground">🎓 {e.level} {e.institute} {e.major} {e.graduationYear}</p>
                                     ))}
@@ -653,7 +655,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {detail.screeningAnswers && (
-                                <section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm lg:col-start-2">
+                                <section className="space-y-1 rounded-2xl border bg-background p-4 text-sm shadow-sm">
                                     <p className="font-medium">คำถามคัดกรอง</p>
                                     <p className="text-muted-foreground">เคยทำงานปั๊ม: {detail.screeningAnswers.workedAtGasStationBefore ? "ใช่" : "ไม่ใช่"}</p>
                                     <p className="text-muted-foreground">ทำกะดึกได้: {detail.screeningAnswers.canWorkNightShift ? "ใช่" : "ไม่ใช่"}</p>
@@ -661,7 +663,7 @@ export default function AdminApplicationsPage() {
                                 </section>
                             )}
 
-                            <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
+                            <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm">
                                 <p className="font-medium text-sm">คะแนนประเมิน</p>
                                 <div className="flex gap-1">
                                     {[1, 2, 3, 4, 5].map((n) => (
@@ -673,7 +675,7 @@ export default function AdminApplicationsPage() {
                             </section>
 
                             {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
-                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm">
                                     <p className="font-medium text-sm flex items-center gap-1"><Calendar className="size-4" />นัดสัมภาษณ์</p>
                                     <Input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
                                     <Textarea placeholder="บันทึกการสัมภาษณ์" rows={2} value={interviewNote} onChange={(e) => setInterviewNote(e.target.value)} />
@@ -682,7 +684,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {canReview && cycleFilter !== "archive" && detail.status !== "HIRED" && detail.status !== "WITHDRAWN" && (
-                                <section className="space-y-2 rounded-2xl border-2 border-primary/15 bg-background p-4 shadow-sm lg:col-start-2">
+                                <section className="space-y-2 rounded-2xl border-2 border-primary/15 bg-background p-4 shadow-sm">
                                     <p className="font-medium text-sm">การพิจารณา</p>
                                     <div className="flex flex-wrap gap-2">
                                         {detail.status === "SUBMITTED" && (
@@ -723,14 +725,14 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {detail.rejectReason && detail.status === "REJECTED" && (
-                                <p className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive lg:col-start-2">เหตุผลที่ปฏิเสธ: {detail.rejectReason}</p>
+                                <p className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">เหตุผลที่ปฏิเสธ: {detail.rejectReason}</p>
                             )}
 
                             {/* A hired application can't be edited or deleted while an employee account
                                 hangs off it. Undoing the hire deals with the account first, then returns
                                 the application to a normal state. */}
                             {canHire && detail.status === "HIRED" && (
-                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm lg:col-start-2">
+                                <section className="space-y-2 rounded-2xl border bg-background p-4 shadow-sm">
                                     <p className="font-medium text-sm">ยกเลิกการจ้าง</p>
                                     <p className="text-xs text-muted-foreground">
                                         ใช้กรณีรับเข้าทำงานแล้วแต่ไม่มาจริง — บัญชีพนักงานจะถูกลบถ้ายังไม่เคยใช้งาน
@@ -767,7 +769,7 @@ export default function AdminApplicationsPage() {
                             )}
 
                             {canDelete && (
-                                <section className="rounded-2xl border bg-background p-3 shadow-sm lg:col-start-2">
+                                <section className="rounded-2xl border bg-background p-3 shadow-sm">
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="size-4" />ลบใบสมัครถาวร</Button>
@@ -785,6 +787,9 @@ export default function AdminApplicationsPage() {
                                     </AlertDialog>
                                 </section>
                             )}
+                                </main>
+                            </div>
+
                         </div>
                     )}
                 </DialogContent>
