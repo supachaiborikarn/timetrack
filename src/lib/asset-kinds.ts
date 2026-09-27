@@ -23,6 +23,7 @@ type AssetKindMeta = {
 };
 
 export const ASSET_KIND_META: Record<AssetKind, AssetKindMeta> = {
+    KEBDAO_CARD: { label: "บัตร Kebdao", vault: false, sensitive: false, expires: false, folder: "hr/kebdao" },
     EMPLOYEE_PHOTO: { label: "รูปพนักงาน", vault: false, sensitive: false, expires: false, folder: "hr/employees" },
 
     CITIZEN_ID: { label: "สำเนาบัตรประชาชน", vault: true, sensitive: true, expires: true, folder: "hr/documents" },
@@ -107,6 +108,7 @@ export function canViewAsset(subject: AssetSubject, viewer: Viewer): AccessDecis
     }
 
     if (isOwner) return { allowed: true, auditSensitiveRead: false };
+    if (subject.kind === "KEBDAO_CARD") return DENIED; // Review access uses the registration branch in the asset route.
 
     if (subject.kind === "REQUEST_ATTACHMENT") {
         if (!viewer.can("request.view")) return DENIED;
@@ -127,6 +129,7 @@ export function canUploadAsset(subject: AssetSubject, viewer: Viewer): boolean {
     const meta = ASSET_KIND_META[subject.kind];
     const isOwner = subject.ownerUserId === viewer.userId;
 
+    if (subject.kind === "KEBDAO_CARD") return isOwner;
     if (subject.kind === "ANNOUNCEMENT_IMAGE") return true; // anyone who can post an announcement
     if (subject.kind === "REQUEST_ATTACHMENT") return isOwner; // evidence is attached by the requester
     if (subject.kind === "EMPLOYEE_PHOTO") return isOwner || viewer.can("employee.edit");

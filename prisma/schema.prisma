@@ -8,6 +8,9 @@ datasource db {
 }
 
 model User {
+  kebdaoRegistrations KebdaoRegistration[] @relation("KebdaoEmployee")
+  kebdaoReviews KebdaoRegistration[] @relation("KebdaoReviewer")
+  kebdaoCodeOwners KebdaoCodeOwner[]
   id                             String                           @id @default(cuid())
   employeeId                     String                           @unique
   username                       String?                          @unique
@@ -286,6 +289,8 @@ model OvertimeRequest {
 }
 
 model Station {
+  kebdaoOutlet KebdaoOutlet?
+  kebdaoRegistrations KebdaoRegistration[]
   id                   String                     @id @default(cuid())
   name                 String
   code                 String                     @unique
@@ -1210,6 +1215,8 @@ enum ApplicationFileKind {
 /// Written in two phases, same as JobApplicationFile: the row is created first
 /// so its id can be the storage key, then storage.put() fills in storageKey.
 model StoredAsset {
+  kebdaoRegistrationId String?
+  kebdaoRegistration KebdaoRegistration? @relation(fields: [kebdaoRegistrationId], references: [id], onDelete: Restrict)
   id                String    @id @default(cuid())
   kind              AssetKind
   /// The employee this asset is about — the subject, not the uploader. Null only
@@ -1249,6 +1256,7 @@ model StoredAsset {
 }
 
 enum AssetKind {
+  KEBDAO_CARD
   /// Employee avatar. At most one live row per employee (enforced in the API,
   /// which deletes the previous one on replace).
   EMPLOYEE_PHOTO
@@ -1810,4 +1818,45 @@ model CustomerFeedbackOperationalMetricBucket {
 
   @@unique([minuteStart, metricCode, outcome, statusClass])
   @@index([minuteStart])
+}
+
+// Registration only: no signup counts or money until provider data is available.
+model KebdaoOutlet {
+  stationId String @id
+  outletCode String @unique
+  station Station @relation(fields: [stationId], references: [id], onDelete: Restrict)
+  updatedAt DateTime @updatedAt
+}
+
+model KebdaoRegistration {
+  id String @id @default(cuid())
+  userId String
+  stationId String
+  outletCode String
+  csrId String
+  status String @default("PENDING")
+  // Nullable unique keys enforce one pending and one active row per employee.
+  pendingUserId String? @unique
+  pendingCsrId String? @unique
+  activeUserId String? @unique
+  reason String
+  reviewedById String?
+  reviewedAt DateTime?
+  reviewNote String?
+  createdAt DateTime @default(now())
+  user User @relation("KebdaoEmployee", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("KebdaoReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Restrict)
+  assets StoredAsset[]
+  @@index([stationId, status])
+  @@index([userId, createdAt])
+  @@index([csrId, status])
+}
+
+// Keep historical ownership even after replacement; never transfer a code to another employee.
+model KebdaoCodeOwner {
+  csrId String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
 }

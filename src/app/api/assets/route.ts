@@ -13,6 +13,7 @@ import {
     isAssetKind,
     maxBytesForKind,
 } from "@/lib/asset-kinds";
+import { kebdaoActor } from "@/lib/kebdao-server";
 import { checkRate } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/logger";
 
@@ -49,6 +50,9 @@ export async function POST(request: NextRequest) {
         const kindRaw = form.get("kind");
         if (!isAssetKind(kindRaw)) return NextResponse.json({ error: "ประเภทไฟล์ไม่ถูกต้อง" }, { status: 400 });
         const kind = kindRaw;
+        if (kind === "KEBDAO_CARD") {
+            try { await kebdaoActor("kebdao.register"); } catch { return NextResponse.json({ error: "ไม่มีสิทธิ์ลงทะเบียน Kebdao" }, { status: 403 }); }
+        }
         const meta = ASSET_KIND_META[kind];
 
         const file = form.get("file");

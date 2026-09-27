@@ -57,6 +57,7 @@ interface NavItem extends AdminAccessItem {
 }
 
 const navItems: NavItem[] = [
+    { title: "รหัส Kebdao", href: "/admin/kebdao", icon: QrCode, roles: ["ADMIN"], requiredPermissions: ["kebdao.review"] },
     { title: "แดชบอร์ด", href: "/admin", icon: LayoutDashboard },
     { title: "ประกาศ", href: "/announcements", icon: Megaphone, roles: ["ADMIN", "HR", "MANAGER", "CASHIER"] },
     { title: "จัดการพนักงาน", href: "/admin/employees", icon: Users, roles: ["ADMIN", "HR"] },

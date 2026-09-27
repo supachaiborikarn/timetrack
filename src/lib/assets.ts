@@ -49,7 +49,7 @@ export type CreateAssetInput = {
  * Photos and vault documents are reachable the moment they exist, through their
  * owner, so they never get a purge deadline.
  */
-const DETACHED_ON_UPLOAD: AssetKind[] = ["REQUEST_ATTACHMENT", "ANNOUNCEMENT_IMAGE"];
+const DETACHED_ON_UPLOAD: AssetKind[] = ["REQUEST_ATTACHMENT", "ANNOUNCEMENT_IMAGE", "KEBDAO_CARD"];
 
 /**
  * Writes the bytes and the row. Two-phase, exactly like the job-application

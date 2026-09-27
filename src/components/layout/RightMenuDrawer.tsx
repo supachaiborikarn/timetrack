@@ -14,6 +14,7 @@ import {
   Wallet,
   Megaphone,
   Trophy,
+  QrCode,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
@@ -56,6 +57,21 @@ export function RightMenuDrawer({ isOpen, onClose, hasAdminAccess }: RightMenuDr
           </div>
 
           <div className="p-4 space-y-2">
+            <Link
+              href="/kebdao"
+              onClick={onClose}
+              className="tt-retro-control relative mb-4 flex items-center gap-3 overflow-hidden rounded-2xl border border-red-300/70 bg-gradient-to-br from-red-600 to-red-700 p-3.5 text-white shadow-[0_3px_0_rgba(127,29,29,0.28)] transition-all active:scale-[0.98] dark:border-red-900"
+            >
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/20 bg-white/10">
+                <QrCode className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-black tracking-[0.13em] text-red-100">KEBDAO CAMPAIGN</p>
+                <p className="text-sm font-black">ลงทะเบียนรหัส Kebdao</p>
+                <p className="mt-0.5 truncate text-[10px] font-semibold text-red-100/80">กรอก CSR ID · แนบรูปบัตร · ดูสถานะ</p>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-white/80" />
+            </Link>
             {/* Admin Section (If applicable) */}
             {hasAdminAccess && (
               <div className="mb-4">

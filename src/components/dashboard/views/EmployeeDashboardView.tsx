@@ -37,6 +37,7 @@ import {
   Star,
   Trophy,
   Gift,
+  QrCode,
   UserRound,
   Wallet,
   CalendarCheck,
@@ -872,6 +873,23 @@ export function EmployeeDashboardView() {
 
         <HousekeepingRestroomScoreCard lang={lang} />
 
+        <Link
+          href="/kebdao"
+          className="tt-retro-enter tt-retro-delay-2 tt-retro-control relative block overflow-hidden rounded-[20px] border-2 border-red-800/70 bg-gradient-to-br from-[#d51d2f] via-[#c51226] to-[#970914] p-4 text-white shadow-[0_4px_0_rgba(127,29,29,0.28)] active:translate-y-[1px]"
+        >
+          <div className="absolute -right-10 -top-12 h-28 w-28 rounded-full border-[18px] border-white/5" aria-hidden="true" />
+          <div className="relative flex items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10">
+              <QrCode className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[8px] font-black tracking-[0.15em] text-red-100">KEBDAO MEMBER CAMPAIGN</p>
+              <p className="mt-0.5 text-[14px] font-black">ลงทะเบียนรหัสที่ได้รับ</p>
+              <p className="mt-0.5 text-[9px] font-semibold text-red-100/80">กรอก CSR ID · แนบรูปบัตร · ตรวจสอบสถานะ</p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-white/80" />
+          </div>
+        </Link>
         <ChineseNewYearBonusCard lang={lang} />
 
         {leagueData?.eligible && (

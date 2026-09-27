@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { deleteAsset, resolveViewer } from "@/lib/assets";
 import { ASSET_KIND_META, canDeleteAsset, canViewAsset } from "@/lib/asset-kinds";
 import { serveAsset } from "@/lib/server/serve-asset";
+import { kebdaoActor } from "@/lib/kebdao-server";
+import { kebdaoBranchAllowed } from "@/lib/kebdao-rules";
 import { logActivity } from "@/lib/logger";
 
 /** Loads an asset together with the one field the access rules need beyond the row itself. */
@@ -33,6 +35,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const asset = await loadAsset(id);
         if (!asset) return NextResponse.json({ error: "ไม่พบไฟล์" }, { status: 404 });
 
+        if (asset.kind === "KEBDAO_CARD") {
+            try {
+                const actor = await kebdaoActor(asset.ownerUserId === session.user.id ? "kebdao.register" : "kebdao.review");
+                const evidence = await prisma.storedAsset.findUnique({ where: { id: asset.id }, select: { kebdaoRegistration: { select: { stationId: true } } } });
+                if (actor.id !== asset.ownerUserId && (!evidence?.kebdaoRegistration || !kebdaoBranchAllowed(actor.role, actor.stationId, evidence.kebdaoRegistration.stationId))) return NextResponse.json({ error: "ไม่มีสิทธิ์ดูไฟล์นี้" }, { status: 403 });
+                return serveAsset(asset);
+            } catch { return NextResponse.json({ error: "ไม่มีสิทธิ์ดูไฟล์นี้" }, { status: 403 }); }
+        }
         const viewer = await resolveViewer({ id: session.user.id, role: session.user.role, stationId: session.user.stationId });
         const decision = canViewAsset(
             { kind: asset.kind, ownerUserId: asset.ownerUserId, uploadedById: asset.uploadedById, ownerStationId: asset.owner?.stationId ?? null },
