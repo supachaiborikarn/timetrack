@@ -15,6 +15,9 @@ interface WeeklyStanding {
     missionPoints: number;
     supportPoints: number;
     supportDays: number;
+    eligibleCustomerCount: number;
+    customerMinimumSample: number;
+    requiredDays: number;
     rank: number;
     isEligible: boolean;
     isRewardEligible: boolean;
@@ -111,7 +114,10 @@ function rewardEligibilityLabel(standing: WeeklyStanding | null) {
 }
 
 function fairPlayLabel(standing: WeeklyStanding) {
-    if (!standing.isEligible) return "กำลังสะสมข้อมูล";
+    if (!standing.isEligible) {
+        if (standing.requiredDays <= 0) return "ยังไม่เข้ารอบ · ยังไม่มีวันทำงานเข้าเกณฑ์";
+        return `ยังไม่เข้ารอบ · ประเมิน ${standing.eligibleCustomerCount}/${standing.customerMinimumSample} แบบ`;
+    }
     if (standing.fairPlayStatus === "REVIEW") return "รอตรวจ Fair Play";
     if (standing.fairPlayStatus === "DISQUALIFIED") return "ไม่ร่วมจัดอันดับ";
     return standing.isProvisional ? "อันดับชั่วคราว" : "ผ่าน Fair Play";
@@ -244,14 +250,14 @@ export default function LeaguePage() {
                     </div>
                     <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
                         <p className="text-xs font-black">อันดับชั่วคราว — คนที่นำตอนนี้ยังไม่ใช่ผู้ชนะ</p>
-                        <p className="mt-0.5 text-[10px] font-medium leading-relaxed">คะแนนและอันดับยังเปลี่ยนได้จนปิดรอบสัปดาห์ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ</p>
+                        <p className="mt-0.5 text-[10px] font-medium leading-relaxed">คะแนนและอันดับยังเปลี่ยนได้จนปิดรอบสัปดาห์ · เฉพาะผู้ผ่านเกณฑ์ข้อมูลจึงมีอันดับ/เหรียญ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ</p>
                     </div>
                     {myWeekly ? (
                         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-dashed border-zinc-300 p-4">
-                            <div className="grid h-14 w-14 place-items-center rounded-full border-2 border-zinc-800 bg-amber-300 text-xl font-black">{rankIcon(myWeekly.rank)}</div>
+                            <div className={`grid h-14 w-14 place-items-center rounded-full border-2 border-zinc-800 text-xl font-black ${myWeekly.isEligible ? "bg-amber-300" : "bg-zinc-200 text-zinc-500"}`}>{myWeekly.isEligible ? rankIcon(myWeekly.rank) : "—"}</div>
                             <div>
-                                <p className="text-xs font-bold text-zinc-500">อันดับของคุณ</p>
-                                <p className="text-2xl font-black">อันดับ {myWeekly.rank}</p>
+                                <p className="text-xs font-bold text-zinc-500">{myWeekly.isEligible ? "อันดับของคุณ" : "สถานะของคุณ"}</p>
+                                <p className="text-2xl font-black">{myWeekly.isEligible ? `อันดับ ${myWeekly.rank}` : "ยังไม่เข้ารอบ"}</p>
                                 <p className="text-[11px] font-semibold text-emerald-700">{fairPlayLabel(myWeekly)}</p>
                             </div>
                             <div className="text-right">
@@ -263,9 +269,10 @@ export default function LeaguePage() {
                     <div className="divide-y divide-zinc-200">
                         {weekly.standings.slice(0, 8).map((standing) => (
                             <div key={`${standing.rank}:${standing.label}`} className="grid grid-cols-[42px_1fr_auto] items-center gap-2 px-4 py-3">
-                                <span className="text-center text-lg font-black">{rankIcon(standing.rank)}</span>
+                                <span className={`text-center text-lg font-black ${standing.isEligible ? "" : "text-zinc-400"}`}>{standing.isEligible ? rankIcon(standing.rank) : "—"}</span>
                                 <div className="min-w-0">
                                     <p className="truncate font-black">{standing.label}</p>
+                                    {!standing.isEligible ? <p className="mt-0.5 text-[10px] font-bold text-zinc-500">{standing.requiredDays <= 0 ? "ยังไม่จัดอันดับ · ยังไม่มีวันทำงานเข้าเกณฑ์" : `ยังไม่จัดอันดับ · ประเมิน ${standing.eligibleCustomerCount}/${standing.customerMinimumSample} แบบ`}</p> : null}
                                     <p className="text-[10px] text-zinc-500">งาน {standing.workPoints.toFixed(1)} · ลูกค้า {standing.customerPoints.toFixed(1)} · Mission {standing.missionPoints.toFixed(1)}{standing.supportPoints > 0 ? ` · ช่วยปั๊ม +${standing.supportPoints} (${standing.supportDays} วัน)` : ""}</p>
                                 </div>
                                 <div className="text-right">

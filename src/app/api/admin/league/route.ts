@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
                 supportPoints: standing.supportPoints,
                 supportDays: standing.supportDays,
                 eligibleCustomerCount: standing.eligibleCustomerCount,
+                customerMinimumSample: standing.customerMinimumSample,
+                requiredDays: standing.requiredDays,
                 isEligible: standing.isEligible,
                 isProvisional: standing.isProvisional,
                 fairPlayStatus: standing.fairPlayStatus,

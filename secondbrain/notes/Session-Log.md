@@ -2,7 +2,7 @@
 tags:
   - secondbrain
   - session-log
-updated: 2026-09-09
+updated: 2026-09-27
 ---
 
 # Session Log
@@ -1954,3 +1954,16 @@ Verification:
 - Added a dedicated application/readiness section for employment type, expected salary, available-from date, preferred shifts, driving licence, and applicant note.
 - Verification: npx tsc --noEmit passed; npx eslint src/app/admin/applications/page.tsx passed; git diff --check passed.
 - No API, database, schema, recruitment-cycle, or production data changes. Changes are local and not pushed/deployed yet.
+
+
+## 2026-09-26 — Clarified live League ranking eligibility
+
+- Fixed the live Weekly Station League UI so employees who have not yet passed the minimum ranking eligibility are no longer shown with medals or numbered ranks.
+- Eligible employees keep the existing ranking order and scoring logic unchanged; this change only makes the UI match the existing rule that eligible standings are sorted ahead of ineligible standings.
+- Ineligible rows now show an em dash instead of a rank and a clear status: either no qualifying workday yet, or current eligible customer evaluations versus the required minimum sample.
+- The employee "อันดับของคุณ" card now changes to "ยังไม่เข้ารอบ" when the employee is not yet eligible instead of displaying a misleading numeric rank.
+- Added live eligibility metadata (eligible customer count, minimum sample, required workdays) to the employee and admin League API payloads so both UIs can explain why a person is not ranked.
+- Updated the live League explanation text in employee/admin views to state that only employees who have passed the data threshold receive a rank/medal.
+- No League scoring weights, minimum-sample rule, Fair Play logic, finalization order, database schema, or production data were changed.
+- Files changed: `src/app/api/league/route.ts`, `src/app/league/page.tsx`, `src/app/api/admin/league/route.ts`, `src/app/admin/league/page.tsx`.
+- Verification: `npx tsc --noEmit` passed and `git diff --check` passed. No command connected to the production database.

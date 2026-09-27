@@ -37,6 +37,8 @@ interface AdminLeagueData {
             supportPoints: number;
             supportDays: number;
             eligibleCustomerCount: number;
+            customerMinimumSample: number;
+            requiredDays: number;
             isEligible: boolean;
             isProvisional: boolean;
             fairPlayStatus: string;
@@ -373,7 +375,7 @@ export default function AdminLeaguePage() {
                             </div>
                         </div>
                         <div className="border-b border-amber-200 bg-amber-50/80 px-4 py-2.5 text-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
-                            <span className="font-black">ผู้นำตอนนี้ยังไม่ถือว่าเป็นผู้ชนะ</span> · คะแนนและอันดับเปลี่ยนได้จนปิดรอบสัปดาห์ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ
+                            <span className="font-black">ผู้นำตอนนี้ยังไม่ถือว่าเป็นผู้ชนะ</span> · เฉพาะผู้ผ่านเกณฑ์ข้อมูลจึงมีอันดับ/เหรียญ · คะแนนและอันดับเปลี่ยนได้จนปิดรอบสัปดาห์ · วันหยุดตามกะไม่หักคะแนน · ผู้ชนะยึดผลตอนปิดรอบ
                         </div>
                         {data.liveLeague.standings.length === 0 ? (
                             <div className="p-6 text-center text-sm text-muted-foreground">ยังไม่มีพนักงานหน้าลานที่อยู่ในลีกของสถานีนี้</div>
@@ -381,13 +383,13 @@ export default function AdminLeaguePage() {
                             <div className="divide-y">
                                 {data.liveLeague.standings.map((standing) => (
                                     <div key={standing.employeeId} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
-                                        <div className={`grid h-10 w-10 place-items-center rounded-full border-2 font-black ${standing.rank === 1 ? "border-amber-500 bg-amber-300 text-zinc-950" : "border-zinc-300 bg-muted"}`}>
-                                            {standing.rank === 1 ? "🥇" : standing.rank === 2 ? "🥈" : standing.rank === 3 ? "🥉" : `#${standing.rank}`}
+                                        <div className={`grid h-10 w-10 place-items-center rounded-full border-2 font-black ${standing.isEligible && standing.rank === 1 ? "border-amber-500 bg-amber-300 text-zinc-950" : "border-zinc-300 bg-muted"}`}>
+                                            {!standing.isEligible ? "—" : standing.rank === 1 ? "🥇" : standing.rank === 2 ? "🥈" : standing.rank === 3 ? "🥉" : `#${standing.rank}`}
                                         </div>
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <p className="truncate font-black">{standing.label}</p>
-                                                {!standing.isEligible ? <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">กำลังสะสมข้อมูล</span> : null}
+                                                {!standing.isEligible ? <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">{standing.requiredDays <= 0 ? "ยังไม่จัดอันดับ · ยังไม่มีวันทำงานเข้าเกณฑ์" : `ยังไม่จัดอันดับ · ประเมิน ${standing.eligibleCustomerCount}/${standing.customerMinimumSample} แบบ`}</span> : null}
                                                 {standing.fairPlayStatus === "REVIEW" ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">รอตรวจ Fair Play</span> : null}
                                                 {standing.supportPoints > 0 ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-800">ช่วยปั๊ม +{standing.supportPoints} · {standing.supportDays} วัน</span> : null}
                                             </div>
